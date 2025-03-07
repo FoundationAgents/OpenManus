@@ -77,22 +77,3 @@ For unstable version, you also can run:
 python run_flow.py
 ```
 
-
-## Roadmap
-- [ ] Better Planning
-- [ ] Live Demos
-- [ ] Replay
-- [ ] RL Fine-tuned Models
-- [ ] Comprehensive Benchmarks
-
-## Community Group
-Join our networking group and share your experience with other developers!
-<div align="center">
-    <img src="assets/community_group.jpeg" alt="OpenManus Community Group" width="300"/>
-</div>
-
-## Acknowledgement
-
-Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo) and [broswer-use](https://github.com/browser-use/browser-use) for providing basic support for this project!
-
-OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
