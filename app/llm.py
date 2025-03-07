@@ -12,7 +12,11 @@ from tenacity import retry, stop_after_attempt, wait_random_exponential
 from app.config import LLMSettings, config
 from app.logger import logger  # Assuming a logger is set up in your app
 from app.schema import Message
-
+from openai import AzureOpenAI
+from config.settings import Settings
+import ipdb; 
+import os
+import asyncio
 
 class LLM:
     _instances: Dict[str, "LLM"] = {}
@@ -35,9 +39,95 @@ class LLM:
             self.model = llm_config.model
             self.max_tokens = llm_config.max_tokens
             self.temperature = llm_config.temperature
-            self.client = AsyncOpenAI(
-                api_key=llm_config.api_key, base_url=llm_config.base_url
+            
+            try:
+                # 确保先加载环境变量
+                Settings.load_env()
+                                
+                # 从 Settings 获取 Azure OpenAI 凭据
+                api_key = Settings.AZURE_OPENAI_API_KEY
+                endpoint = Settings.AZURE_OPENAI_ENDPOINT
+                self.deployment_name = Settings.AZURE_OPENAI_DEPLOYMENT_NAME
+                
+                # 检查 API 密钥是否存在
+                if not api_key:
+                    raise ValueError("Azure OpenAI API 密钥未设置")
+                    
+                # 初始化 Azure OpenAI 客户端
+                self.client = AzureOpenAI(
+                    api_key=api_key,
+                    api_version="2023-05-15",
+                    azure_endpoint=endpoint
+                )
+                logger.info("成功初始化 Azure OpenAI 客户端")
+                
+            except (AttributeError, ValueError) as e:
+                # 如果 Azure 凭据不可用，回退到标准 OpenAI 客户端
+                logger.warning(f"Azure OpenAI 初始化失败: {e}，回退到标准 OpenAI 客户端")
+                self.client = AsyncOpenAI(
+                    api_key=llm_config.api_key, 
+                    base_url=llm_config.base_url
+                )
+
+    
+    
+    
+    
+    
+    # def _call_azure_openai(self, prompt: str) -> Any:
+    #     """调用Azure OpenAI API"""
+    #     return self.client.chat.completions.create(
+    #         model=self.deployment_name,
+    #         messages=[
+    #             {"role": "system", "content": self._get_system_prompt()},
+    #             {"role": "user", "content": prompt}
+    #         ],
+    #         temperature=0.7,
+    #         max_tokens=800
+    #     )
+    
+    
+    #Azure OpenAI 的官方客户端（azure-openai 包中的 AzureOpenAI）​默认是同步客户端，不支持直接使用 await
+    #所以需要使用异步线程池来包装同步调用
+    async def _call_azure_openai(self, messages, temperature, max_tokens, tools, tool_choice=None, timeout=None, **kwargs):
+        # 将同步调用包装到异步线程池中
+        loop = asyncio.get_event_loop()
+        
+        response = await loop.run_in_executor(
+            None,  # 使用默认线程池
+            lambda: self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=messages,
+                temperature=temperature or self.temperature,
+                max_tokens=self.max_tokens,
+                tools=tools,
+                tool_choice=tool_choice,
+                timeout=timeout,
+                **kwargs,
             )
+        )
+        return response
+        # return response.choices[0].message.content
+
+    async def _call_azure_openai_stream(self, messages, temperature, stream, **kwargs):
+        # 将同步调用包装到异步线程池中
+        loop = asyncio.get_event_loop()
+        
+        response = await loop.run_in_executor(
+            None,  # 使用默认线程池
+            lambda: self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=self.max_tokens,
+                stream=stream,
+                **kwargs,
+            )
+        )
+        return response
+        # return response.choices[0].message.content
+
+
 
     @staticmethod
     def format_messages(messages: List[Union[dict, Message]]) -> List[dict]:
@@ -125,11 +215,16 @@ class LLM:
 
             if not stream:
                 # Non-streaming request
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=self.max_tokens,
-                    temperature=temperature or self.temperature,
+                # response = await self.client.chat.completions.create(
+                #     model=self.model,
+                #     messages=messages,
+                #     max_tokens=self.max_tokens,
+                #     temperature=temperature or self.temperature,
+                #     stream=False,
+                # )
+                response = await self._call_azure_openai(
+                    messages, 
+                    temperature or self.temperature, 
                     stream=False,
                 )
                 if not response.choices or not response.choices[0].message.content:
@@ -137,14 +232,18 @@ class LLM:
                 return response.choices[0].message.content
 
             # Streaming request
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=temperature or self.temperature,
+            # response = await self.client.chat.completions.create(
+            #     model=self.model,
+            #     messages=messages,
+            #     max_tokens=self.max_tokens,
+            #     temperature=temperature or self.temperature,
+            #     stream=True,
+            # )
+            response = await self._call_azure_openai_stream(
+                messages, 
+                temperature or self.temperature, 
                 stream=True,
             )
-
             collected_messages = []
             async for chunk in response:
                 chunk_message = chunk.choices[0].delta.content or ""
@@ -219,17 +318,27 @@ class LLM:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
 
-            # Set up the completion request
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature or self.temperature,
-                max_tokens=self.max_tokens,
-                tools=tools,
-                tool_choice=tool_choice,
-                timeout=timeout,
-                **kwargs,
-            )
+
+            response = await self._call_azure_openai(
+                messages, 
+                temperature, 
+                self.max_tokens, 
+                tools, 
+                tool_choice, 
+                timeout, 
+                **kwargs)
+            
+            # # Set up the completion request
+            # response = await self.client.chat.completions.create(
+            #     model=self.model,
+            #     messages=messages,
+            #     temperature=temperature or self.temperature,
+            #     max_tokens=self.max_tokens,
+            #     tools=tools,
+            #     tool_choice=tool_choice,
+            #     timeout=timeout,
+            #     **kwargs,
+            # )
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:

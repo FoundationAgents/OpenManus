@@ -16,7 +16,6 @@ It's a simple implementation, so we welcome any suggestions, contributions, and 
 Enjoy your own agent with OpenManus!
 
 ## Project Demo
-[Demo Video](https://github.com/mannaandpoem/OpenManus/blob/main/demo/seo_website.mp4)
 
 
 ## Installation
@@ -45,28 +44,20 @@ pip install -r requirements.txt
 
 OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
 
-1. Create a `config.toml` file in the `config` directory (you can copy from the example):
+1. Create a `.env` file in the root directory (you can copy from the example):
 
 ```bash
-cp config/config.example.toml config/config.toml
+cp env_example .env
 ```
 
-2. Edit `config/config.toml` to add your API keys and customize settings:
+2. Edit `.env` to add your API keys and customize settings:
 
-```toml
-# Global LLM configuration
-[llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
-max_tokens = 4096
-temperature = 0.0
-
-# Optional configuration for specific LLM models
-[llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+```.env
+AZURE_OPENAI_API_KEY=xxxxx
+AZURE_OPENAI_ENDPOINT=https://xxxx.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-large
+AZURE_OPENAI_API_VERSION=2023-05-15
 ```
 
 ## Quick Start

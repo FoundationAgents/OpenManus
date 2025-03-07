@@ -13,7 +13,6 @@ Manus 非常棒，但 OpenManus 无需邀请码即可实现任何创意 🛫！
 用 OpenManus 开启你的智能体之旅吧！
 
 ## 项目演示  
-[演示视频](https://github.com/mannaandpoem/OpenManus/blob/main/demo/seo_website.mp4)
 
 ## 安装指南
 
@@ -41,28 +40,20 @@ pip install -r requirements.txt
 
 OpenManus 需要配置使用的 LLM API，请按以下步骤设置：
 
-1. 在 `config` 目录创建 `config.toml` 文件（可从示例复制）：
+1. 在根目录创建 `.env` 文件（可从示例复制）：
 
 ```bash
-cp config/config.example.toml config/config.toml
+cp env_example .env
 ```
 
-2. 编辑 `config/config.toml` 添加 API 密钥和自定义设置：
+2. 编辑 `.env` 添加 API 密钥和自定义设置：
 
-```toml
-# 全局 LLM 配置
-[llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 替换为真实 API 密钥
-max_tokens = 4096
-temperature = 0.0
-
-# 可选特定 LLM 模型配置
-[llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 替换为真实 API 密钥
+```.env
+AZURE_OPENAI_API_KEY=xxxxx
+AZURE_OPENAI_ENDPOINT=https://xxxx.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-large
+AZURE_OPENAI_API_VERSION=2023-05-15
 ```
 
 ## 快速启动
