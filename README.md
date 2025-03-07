@@ -16,6 +16,8 @@ It's a simple implementation, so we welcome any suggestions, contributions, and 
 Enjoy your own agent with OpenManus!
 
 ## Project Demo
+![截屏2025-03-07 16 49 18](https://github.com/user-attachments/assets/3b7f425a-3849-4e27-aaa4-2ff1c3d307d6)
+![截屏2025-03-07 16 49 32](https://github.com/user-attachments/assets/fef9e0b7-6b85-498a-bf8c-6985771e9428)
 
 
 ## Installation
