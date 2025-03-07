@@ -2,6 +2,10 @@
     <a href="README_zh.md">中文</a>&nbsp ｜ &nbspEnglish&nbsp
 </p>
 
+This project fork from：
+https://github.com/mannaandpoem/OpenManus
+
+
 # OpenManus 🙋
 Manus is incredible, but OpenManus can achieve any ideas without an Invite Code 🛫!
 
