@@ -71,18 +71,21 @@ class ToolCallAgent(ReActAgent):
                 return False
             raise
 
-        self.tool_calls = tool_calls = (
-            response.tool_calls if response and response.tool_calls else []
-        )
+        # Deduplicate tool calls to improve stability
+        original_count = len(response.tool_calls) if response.tool_calls else 0
+        self.tool_calls = tool_calls = self._deduplicate_tool_calls(response.tool_calls) if response.tool_calls else []
+        dedup_count = len(self.tool_calls)
         content = response.content if response and response.content else ""
 
         # Log response info
         logger.info(f"✨ {self.name}'s thoughts: {content}")
         logger.info(
-            f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
+            f"🛠️ {self.name} selected {dedup_count} tools to use"
+            + (f" (removed {original_count - dedup_count} duplicates)" if original_count - dedup_count > 0 else "")
         )
         if tool_calls:
             logger.info(
+                f"🧰 Tools being prepared: {[call.function.name for call in self.tool_calls]}"
                 f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
             )
             logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
@@ -232,3 +235,36 @@ class ToolCallAgent(ReActAgent):
     def _is_special_tool(self, name: str) -> bool:
         """Check if tool name is in special tools list"""
         return name.lower() in [n.lower() for n in self.special_tool_names]
+
+    @staticmethod
+    def _deduplicate_tool_calls(tool_calls: List[ToolCall]) -> List[ToolCall]:
+        """Remove duplicate tool calls to improve stability
+        
+        Duplicates are defined as tool calls with the same function name and arguments.
+        """
+        if not tool_calls:
+            return []
+            
+        unique_calls = []
+        seen_calls = set()
+        duplicate_counts = {}
+        
+        for call in tool_calls:
+            # Create a hashable representation of the call
+            call_signature = (
+                call.function.name, 
+                call.function.arguments
+            )
+            
+            if call_signature not in seen_calls:
+                seen_calls.add(call_signature)
+                unique_calls.append(call)
+            else:
+                # Count duplicates by name instead of logging each one
+                duplicate_counts[call.function.name] = duplicate_counts.get(call.function.name, 0) + 1
+        
+        # Log summary of duplicates removed
+        for tool_name, count in duplicate_counts.items():
+            logger.warning(f"🔄 Removed {count} duplicate tool call(s) for tool: {tool_name}")
+                
+        return unique_calls

@@ -214,14 +214,23 @@ class PlanningAgent(ToolCallAgent):
             tools=self.available_tools.to_params(),
             tool_choice=ToolChoice.AUTO,
         )
+        
+        # Use deduplication to ensure no duplicate tool calls appear in initial plan creation
+        original_count = len(response.tool_calls) if response.tool_calls else 0
+        deduplicated_tool_calls = self._deduplicate_tool_calls(response.tool_calls) if response.tool_calls else []
+        dedup_count = len(deduplicated_tool_calls)
+        
+        if original_count > dedup_count:
+            logger.info(f"Removed {original_count - dedup_count} duplicate tool calls during initial plan creation")
+            
         assistant_msg = Message.from_tool_calls(
-            content=response.content, tool_calls=response.tool_calls
+            content=response.content, tool_calls=deduplicated_tool_calls
         )
 
         self.memory.add_message(assistant_msg)
 
         plan_created = False
-        for tool_call in response.tool_calls:
+        for tool_call in deduplicated_tool_calls:
             if tool_call.function.name == "planning":
                 result = await self.execute_tool(tool_call)
                 logger.info(
