@@ -223,6 +223,8 @@ class LLM:
             else:
                 messages = self.format_messages(messages)
 
+            logger.info(f"tips llm:{self.model}, tools:{tools}, msg: {messages}")
+
             # Validate tools if provided
             if tools:
                 for tool in tools:
@@ -245,6 +247,8 @@ class LLM:
             if not response.choices or not response.choices[0].message:
                 print(response)
                 raise ValueError("Invalid or empty response from LLM")
+        
+            logger.info(f"tips llm:{self.model}, tools result:{response.choices[0].message}")
 
             return response.choices[0].message
 

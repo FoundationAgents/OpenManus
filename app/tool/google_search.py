@@ -2,7 +2,7 @@ import asyncio
 from typing import List
 
 from baidusearch.baidusearch import search
-
+from app.logger import logger  # Assuming a logger is set up in your app
 from app.tool.base import BaseTool
 
 
@@ -40,6 +40,8 @@ The tool returns a list of URLs that match the search query.
             List[str]: A list of URLs matching the search query.
         """
         # Run the search in a thread pool to prevent blocking
+        logger.info(f"tips baidu search:{query}, num_results:{num_results}")
+
         loop = asyncio.get_event_loop()
         links = await loop.run_in_executor(
             None, lambda: list(search(query, num_results=num_results))

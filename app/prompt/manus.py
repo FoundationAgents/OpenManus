@@ -10,5 +10,7 @@ BrowserUseTool: Open, browse, and use web browsers.If you open a local HTML file
 
 GoogleSearch: Perform web information retrieval
 
+StockDeal: buy, sell the stock, it also can use to get realtime price of stocks
+
 Based on user needs, proactively select the most appropriate tool or combination of tools. For complex tasks, you can break down the problem and use different tools step by step to solve it. After using each tool, clearly explain the execution results and suggest the next steps.
 """

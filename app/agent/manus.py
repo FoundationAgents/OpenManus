@@ -7,6 +7,7 @@ from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.file_saver import FileSaver
 from app.tool.google_search import GoogleSearch
 from app.tool.python_execute import PythonExecute
+from app.tool.stock_deal import StockDeal
 
 
 class Manus(ToolCallAgent):
@@ -29,6 +30,6 @@ class Manus(ToolCallAgent):
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
-            PythonExecute(), GoogleSearch(), BrowserUseTool(), FileSaver(), Terminate()
+            StockDeal(), PythonExecute(), GoogleSearch(), BrowserUseTool(), FileSaver(), Terminate()
         )
     )
