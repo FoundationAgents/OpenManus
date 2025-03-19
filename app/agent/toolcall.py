@@ -73,7 +73,7 @@ class ToolCallAgent(ReActAgent):
 
         # Deduplicate tool calls to improve stability
         original_count = len(response.tool_calls) if response.tool_calls else 0
-        self.tool_calls = tool_calls = self._deduplicate_tool_calls(response.tool_calls) if response.tool_calls else []
+        self.tool_calls = tool_calls = self._deduplicate_tool_calls(response.tool_calls) if response and response.tool_calls else []
         dedup_count = len(self.tool_calls)
         content = response.content if response and response.content else ""
 
