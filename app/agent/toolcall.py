@@ -85,7 +85,6 @@ class ToolCallAgent(ReActAgent):
         )
         if tool_calls:
             logger.info(
-                f"🧰 Tools being prepared: {[call.function.name for call in self.tool_calls]}"
                 f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
             )
             logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
