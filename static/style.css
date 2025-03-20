@@ -104,28 +104,63 @@ body::before {
     isolation: isolate;
 }
 
-/* 标题文本 */
+/* 标题样式 */
 .title {
     font-size: 7rem;
-    font-weight: 800;
+    font-weight: 900;
     margin-bottom: 2rem;
     text-align: center;
-    background: linear-gradient(45deg, var(--primary-color), var(--accent-color-5));
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
     letter-spacing: 5px;
-    opacity: 1;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    -webkit-font-smoothing: subpixel-antialiased;
-    backface-visibility: hidden;
-    will-change: transform, opacity;
-    transition: none;
     position: relative;
     z-index: 3;
-    text-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+    color: #00ffcc;
+    text-shadow: 
+        0 0 10px rgba(0, 255, 204, 0.5),
+        0 0 20px rgba(0, 238, 255, 0.3),
+        0 0 30px rgba(0, 136, 255, 0.2),
+        2px 2px 3px rgba(0, 0, 0, 0.6);
+    animation: neon-cyan-pulse 4s ease-in-out infinite alternate;
+}
+
+.title::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: none;
+    z-index: -1;
+}
+
+.title::after {
+    content: "OPENMANUS";
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 100%;
+    height: 100%;
+    color: rgba(0, 255, 204, 0.15);
+    z-index: -1;
+    text-shadow: none;
+    filter: blur(5px);
+}
+
+@keyframes neon-cyan-pulse {
+    0% {
+        text-shadow: 
+            0 0 8px rgba(0, 255, 204, 0.5),
+            0 0 15px rgba(0, 238, 255, 0.3),
+            0 0 20px rgba(0, 136, 255, 0.2),
+            2px 2px 3px rgba(0, 0, 0, 0.6);
+    }
+    100% {
+        text-shadow: 
+            0 0 10px rgba(0, 255, 204, 0.6),
+            0 0 18px rgba(0, 238, 255, 0.4),
+            0 0 25px rgba(0, 136, 255, 0.3),
+            2px 2px 3px rgba(0, 0, 0, 0.6);
+    }
 }
 
 /* 副标题 */
@@ -681,6 +716,14 @@ body::before {
         font-size: 1rem !important;
         margin-top: 1.5rem !important;
     }
+    
+    .github-link {
+        width: 38px;
+        height: 38px;
+        font-size: 1.3rem;
+        top: 15px;
+        right: 15px;
+    }
 }
 
 @media screen and (max-width: 480px) {
@@ -760,6 +803,14 @@ body::before {
         min-width: 160px;
         margin-top: 1rem !important;
     }
+    
+    .github-link {
+        width: 34px;
+        height: 34px;
+        font-size: 1.2rem;
+        top: 12px;
+        right: 12px;
+    }
 }
 
 @media screen and (max-width: 360px) {
@@ -801,6 +852,14 @@ body::before {
         padding: 7px 16px !important;
         font-size: 0.85rem !important;
         min-width: 140px;
+    }
+    
+    .github-link {
+        width: 30px;
+        height: 30px;
+        font-size: 1rem;
+        top: 10px;
+        right: 10px;
     }
 }
 
@@ -909,4 +968,412 @@ body::before {
 html, body {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+}
+
+/* GitHub 链接按钮 */
+.github-link {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #222, #000);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    font-size: 1.6rem;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.6), -2px -2px 8px rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    z-index: 100;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.github-link::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transform: rotate(45deg);
+    z-index: 1;
+}
+
+.github-link:hover {
+    transform: translateY(-3px);
+    box-shadow: 6px 6px 20px rgba(0, 0, 0, 0.7), -3px -3px 10px rgba(255, 255, 255, 0.15);
+    background: linear-gradient(145deg, #444, #111);
+}
+
+.github-link i {
+    position: relative;
+    z-index: 2;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* 加载页面样式 */
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    overflow: hidden;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.loading-container {
+    position: relative;
+    width: 300px;
+    max-width: 80%;
+}
+
+.loading-title {
+    font-size: 3rem;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 2rem;
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color-5));
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 5px;
+    position: relative;
+    filter: drop-shadow(0 0 8px rgba(0, 255, 204, 0.3));
+    font-family: var(--font-mono);
+    animation: glitch-text 1s infinite, loading-title-animation 1.5s forwards;
+}
+
+.loading-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(0, 255, 204, 0.05), transparent 70%);
+    z-index: -1;
+}
+
+.loading-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        linear-gradient(rgba(0, 255, 204, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 204, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.15;
+    z-index: -1;
+    animation: grid-animation 20s linear infinite;
+}
+
+.progress-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(10, 30, 30, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-color-5), var(--primary-color));
+    position: relative;
+    border-radius: 3px;
+    transition: width 0.05s ease-out;
+}
+
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: progress-shine 1s linear infinite;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.8);
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+.progress-text {
+    font-family: var(--font-mono);
+    text-align: right;
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: var(--primary-color);
+    text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.glitch-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.glitch-line {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: rgba(0, 255, 204, 0.5);
+    opacity: 0;
+}
+
+.glitch-line:nth-child(1) { top: 20%; animation: glitch-line-animation 3s infinite 0.5s; }
+.glitch-line:nth-child(2) { top: 40%; animation: glitch-line-animation 4s infinite 1s; }
+.glitch-line:nth-child(3) { top: 60%; animation: glitch-line-animation 2.5s infinite 1.5s; }
+.glitch-line:nth-child(4) { top: 80%; animation: glitch-line-animation 3.5s infinite 0.2s; }
+
+.loading-message {
+    font-family: var(--font-mono);
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--accent-color-5);
+    letter-spacing: 1px;
+    text-align: center;
+    opacity: 0.8;
+    max-width: 80%;
+    animation: typing 3s steps(30, end) infinite;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 自定义光标样式 */
+.loading-message::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background-color: var(--accent-color-5);
+    margin-left: 2px;
+    animation: cursor-blink 0.8s step-end infinite;
+    border-radius: 1px;
+    box-shadow: 0 0 8px var(--accent-color-5);
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
+@keyframes cursor-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* 过渡故障特效 */
+.transition-glitch {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.transition-glitch.active {
+    opacity: 1;
+    animation: transition-flicker 0.5s ease-out forwards;
+}
+
+.glitch-stripe {
+    position: absolute;
+    width: 100%;
+    height: 10vh;
+    background-color: rgba(0, 255, 204, 0.15);
+    transform: translateX(-100%);
+}
+
+.glitch-stripe:nth-child(1) { 
+    top: 15%; 
+    animation: glitch-stripe-move 0.3s cubic-bezier(0.2, 0.6, 0.8, 0.4) 0.1s forwards;
+    height: 8vh;
+}
+.glitch-stripe:nth-child(2) { 
+    top: 45%; 
+    animation: glitch-stripe-move 0.25s cubic-bezier(0.3, 0.8, 0.7, 0.2) 0.2s forwards;
+    height: 12vh;
+    background-color: rgba(170, 0, 255, 0.12);
+}
+.glitch-stripe:nth-child(3) { 
+    top: 70%; 
+    animation: glitch-stripe-move 0.35s cubic-bezier(0.1, 0.7, 0.9, 0.3) 0.15s forwards;
+    height: 6vh;
+    background-color: rgba(255, 0, 170, 0.1);
+}
+
+@keyframes glitch-stripe-move {
+    0% { transform: translateX(-100%) skewY(2deg); filter: hue-rotate(0deg); }
+    60% { filter: hue-rotate(45deg); }
+    100% { transform: translateX(100%) skewY(-2deg); filter: hue-rotate(0deg); }
+}
+
+@keyframes transition-flicker {
+    0% { opacity: 0; filter: brightness(1); }
+    5% { opacity: 0.8; filter: brightness(1.5) contrast(1.2); }
+    10% { opacity: 0.2; filter: brightness(0.8) contrast(1.5); }
+    15% { opacity: 0.9; filter: brightness(1.2) contrast(0.8) hue-rotate(10deg); }
+    20% { opacity: 0.3; filter: brightness(1.5) contrast(1.3); }
+    30% { opacity: 0.8; filter: brightness(0.9) contrast(1.8) hue-rotate(-15deg); }
+    40% { opacity: 0.2; filter: brightness(1.2) contrast(0.7); }
+    50% { opacity: 0.9; filter: brightness(1.1) contrast(1.2); }
+    60% { opacity: 0.3; filter: brightness(1.3) contrast(1.1) hue-rotate(5deg); }
+    80% { opacity: 0.2; filter: brightness(1) contrast(1); }
+    100% { opacity: 0; filter: brightness(1) contrast(1); }
+}
+
+/* 故障线条 */
+.glitch-line-horizontal {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background-color: var(--accent-color-5);
+    opacity: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.glitch-line-horizontal:nth-child(4) { top: 30%; animation: glitch-h-line 0.2s linear 0.1s; }
+.glitch-line-horizontal:nth-child(5) { top: 60%; animation: glitch-h-line 0.2s linear 0.25s; }
+.glitch-line-horizontal:nth-child(6) { top: 80%; animation: glitch-h-line 0.2s linear 0.15s; }
+
+@keyframes glitch-h-line {
+    0% { transform: translateX(-100%); opacity: 0.7; }
+    100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* 进度条动画效果 */
+@keyframes progress-shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes grid-animation {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(40px); }
+}
+
+@keyframes typing {
+    0% { width: 0; }
+    50% { width: 100%; }
+    90% { width: 100%; }
+    100% { width: 0; }
+}
+
+@keyframes glitch-line-animation {
+    0% { opacity: 0; transform: translateX(-100%); }
+    10% { opacity: 0.8; transform: translateX(0); }
+    15% { opacity: 0; transform: translateX(100%); }
+    20% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes glitch-text {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    100% { transform: translate(0); }
+}
+
+@keyframes loading-title-animation {
+    0% { clip-path: inset(0 100% 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
+}
+
+/* 数字字符故障效果 */
+.digital-glitch {
+    position: relative;
+    display: inline-block;
+    color: var(--primary-color);
+    font-family: var(--font-mono);
+    font-weight: bold;
+    mix-blend-mode: exclusion;
+    animation: digital-glitch 3s infinite;
+}
+
+@keyframes digital-glitch {
+    0% { opacity: 1; }
+    7% { opacity: 1; text-shadow: 0 0 5px var(--primary-color); }
+    8% { opacity: 0; text-shadow: none; }
+    9% { opacity: 1; }
+    10% { opacity: 1; text-shadow: 0 0 5px var(--primary-color); }
+    11% { opacity: 0; text-shadow: none; }
+    12% { opacity: 1; }
+    20% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+@media screen and (max-width: 768px) {
+    .loading-title {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .loading-container {
+        width: 250px;
+    }
+    
+    .progress-text {
+        font-size: 0.9rem;
+    }
+    
+    .loading-message {
+        font-size: 0.8rem;
+        margin-top: 1rem;
+    }
 }
