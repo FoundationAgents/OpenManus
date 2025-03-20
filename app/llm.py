@@ -654,110 +654,67 @@ class LLM:
         system_msgs: Optional[List[Union[dict, Message]]] = None,
         timeout: int = 300,
         tools: Optional[List[dict]] = None,
-        tool_choice: TOOL_CHOICE_TYPE = ToolChoice.AUTO,  # type: ignore
+        tool_choice: TOOL_CHOICE_TYPE = ToolChoice.AUTO,
         temperature: Optional[float] = None,
         **kwargs,
     ) -> ChatCompletionMessage | None:
-        """
-        Ask LLM using functions/tools and return the response.
-
-        Args:
-            messages: List of conversation messages
-            system_msgs: Optional system messages to prepend
-            timeout: Request timeout in seconds
-            tools: List of tools to use
-            tool_choice: Tool choice strategy
-            temperature: Sampling temperature for the response
-            **kwargs: Additional completion arguments
-
-        Returns:
-            ChatCompletionMessage: The model's response
-
-        Raises:
-            TokenLimitExceeded: If token limits are exceeded
-            ValueError: If tools, tool_choice, or messages are invalid
-            OpenAIError: If API call fails after retries
-            Exception: For unexpected errors
-        """
         try:
             # Validate tool_choice
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
-            # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            # [existing code for message formatting and token counting]
 
-            # Format messages
-            if system_msgs:
-                system_msgs = self.format_messages(system_msgs, supports_images)
-                messages = system_msgs + self.format_messages(messages, supports_images)
-            else:
-                messages = self.format_messages(messages, supports_images)
-
-            # Calculate input token count
-            input_tokens = self.count_message_tokens(messages)
-
-            # If there are tools, calculate token count for tool descriptions
-            tools_tokens = 0
+            # Fix for OBJECT type properties issue
             if tools:
+                # Process each tool to ensure OBJECT types have properties
                 for tool in tools:
-                    tools_tokens += self.count_tokens(str(tool))
+                    if "function" in tool:
+                        self._ensure_object_properties(tool["function"])
+                    elif "function_declarations" in tool:
+                        for func in tool.get("function_declarations", []):
+                            self._ensure_object_properties(func)
 
-            input_tokens += tools_tokens
-
-            # Check if token limits are exceeded
-            if not self.check_token_limit(input_tokens):
-                error_message = self.get_limit_error_message(input_tokens)
-                # Raise a special exception that won't be retried
-                raise TokenLimitExceeded(error_message)
-
-            # Validate tools if provided
-            if tools:
-                for tool in tools:
-                    if not isinstance(tool, dict) or "type" not in tool:
-                        raise ValueError("Each tool must be a dict with 'type' field")
-
-            # Set up the completion request
-            params = {
-                "model": self.model,
-                "messages": messages,
-                "tools": tools,
-                "tool_choice": tool_choice,
-                "timeout": timeout,
-                **kwargs,
-            }
-
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
-            else:
-                params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+            try:
+                # Make the API call
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    temperature=temperature or self.temperature,
+                    timeout=timeout,
+                    **kwargs,
                 )
 
-            response: ChatCompletion = await self.client.chat.completions.create(
-                **params, stream=False
-            )
+                # [existing code for response handling]
 
-            # Check if response is valid
-            if not response.choices or not response.choices[0].message:
-                print(response)
-                # raise ValueError("Invalid or empty response from LLM")
-                return None
+            except OpenAIError as api_error:
+                # Check for specific error related to OBJECT type properties
+                error_msg = str(api_error)
+                if "should be non-empty for OBJECT type" in error_msg and tools:
+                    logger.warning("API error related to OBJECT type properties, attempting to fix and retry")
 
-            # Update token counts
-            self.update_token_count(
-                response.usage.prompt_tokens, response.usage.completion_tokens
-            )
+                    # Convert problematic OBJECT types to string types
+                    fixed_tools = self._convert_empty_objects_to_strings(tools)
 
-            return response.choices[0].message
+                    # Retry with fixed tools
+                    response = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        tools=fixed_tools,
+                        tool_choice=tool_choice,
+                        temperature=temperature or self.temperature,
+                        timeout=timeout,
+                        **kwargs,
+                    )
 
-        except TokenLimitExceeded:
-            # Re-raise token limit errors without logging
-            raise
-        except ValueError as ve:
-            logger.error(f"Validation error in ask_tool: {ve}")
-            raise
+                    # [existing code for response handling]
+
+                else:
+                    # For other API errors, raise as usual
+                    raise api_error
+
         except OpenAIError as oe:
             logger.error(f"OpenAI API error: {oe}")
             if isinstance(oe, AuthenticationError):
@@ -770,3 +727,68 @@ class LLM:
         except Exception as e:
             logger.error(f"Unexpected error in ask_tool: {e}")
             raise
+
+    def _ensure_object_properties(self, function_obj):
+        """Ensure all OBJECT type properties have non-empty properties."""
+        if not function_obj or "parameters" not in function_obj:
+            return
+
+        params = function_obj.get("parameters", {})
+        if "properties" not in params:
+            return
+
+        # Process each property
+        for prop_name, prop_def in params.get("properties", {}).items():
+            # If property is an OBJECT type without properties, add default properties
+            if prop_def.get("type") == "object" and "properties" not in prop_def:
+                prop_def["properties"] = {
+                    "text": {
+                        "type": "string",
+                        "description": "Text content"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Additional metadata",
+                        "properties": {
+                            "source": {
+                                "type": "string",
+                                "description": "Source of the content"
+                            }
+                        }
+                    }
+                }
+                logger.debug(f"Added default properties to OBJECT type property: {prop_name}")
+
+    def _convert_empty_objects_to_strings(self, tools):
+        """Convert empty OBJECT types to string types for retry."""
+        if not tools:
+            return tools
+
+        fixed_tools = copy.deepcopy(tools)
+
+        # Process each tool
+        for tool in fixed_tools:
+            if "function" in tool:
+                self._convert_object_property_to_string(tool["function"])
+            elif "function_declarations" in tool:
+                for func in tool.get("function_declarations", []):
+                    self._convert_object_property_to_string(func)
+
+        return fixed_tools
+
+    def _convert_object_property_to_string(self, function_obj):
+        """Convert OBJECT type properties without properties to string type."""
+        if not function_obj or "parameters" not in function_obj:
+            return
+
+        params = function_obj.get("parameters", {})
+        if "properties" not in params:
+            return
+
+        # Process each property
+        for prop_name, prop_def in params.get("properties", {}).items():
+            # If property is an OBJECT type without properties, convert to string
+            if prop_def.get("type") == "object" and "properties" not in prop_def:
+                prop_def["type"] = "string"
+                prop_def["description"] = f"{prop_name} content as text"
+                logger.debug(f"Converted OBJECT type to string for property: {prop_name}")

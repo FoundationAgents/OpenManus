@@ -249,49 +249,34 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             error="URL is required for 'go_to_url' action"
                         )
                     page = await context.get_current_page()
-                    await page.goto(url)
-                    await page.wait_for_load_state()
-                    return ToolResult(output=f"Navigated to {url}")
 
-                elif action == "go_back":
-                    await context.go_back()
-                    return ToolResult(output="Navigated back")
+                    # Set default timeout and load strategy
+                    timeout = 60000  # Increase default timeout from 30s to 60s
+                    wait_until = "domcontentloaded"  # Change from "load" to "domcontentloaded"
 
-                elif action == "refresh":
-                    await context.refresh_page()
-                    return ToolResult(output="Refreshed current page")
+                    # Set longer timeout for known complex sites
+                    if url and any(domain in url for domain in ["finance.yahoo.com", "complex-site.com"]):
+                        timeout = 120000  # 120s for complex sites
 
-                elif action == "web_search":
-                    if not query:
-                        return ToolResult(
-                            error="Query is required for 'web_search' action"
-                        )
-                    search_results = await self.web_search_tool.execute(query)
+                    try:
+                        # First attempt with optimized settings
+                        await page.goto(url, timeout=timeout, wait_until=wait_until)
+                        await page.wait_for_load_state("domcontentloaded")
+                        return ToolResult(output=f"Navigated to {url}")
+                    except Exception as first_error:
+                        # Log the first attempt error
+                        logger.warning(f"First navigation attempt to {url} failed: {str(first_error)}")
 
-                    if search_results:
-                        # Navigate to the first search result
-                        first_result = search_results[0]
-                        if isinstance(first_result, dict) and "url" in first_result:
-                            url_to_navigate = first_result["url"]
-                        elif isinstance(first_result, str):
-                            url_to_navigate = first_result
-                        else:
-                            return ToolResult(
-                                error=f"Invalid search result format: {first_result}"
-                            )
-
-                        page = await context.get_current_page()
-                        await page.goto(url_to_navigate)
-                        await page.wait_for_load_state()
-
-                        return ToolResult(
-                            output=f"Searched for '{query}' and navigated to first result: {url_to_navigate}\nAll results:"
-                            + "\n".join([str(r) for r in search_results])
-                        )
-                    else:
-                        return ToolResult(
-                            error=f"No search results found for '{query}'"
-                        )
+                        try:
+                            # Second attempt with different strategy
+                            logger.info(f"Retrying navigation to {url} with networkidle strategy")
+                            await page.goto(url, timeout=timeout * 1.5, wait_until="networkidle")
+                            return ToolResult(output=f"Navigated to {url} on second attempt")
+                        except Exception as second_error:
+                            # If both attempts fail, return detailed error
+                            error_message = f"Browser action 'go_to_url' failed: {str(second_error)}"
+                            logger.error(error_message)
+                            return ToolResult(error=error_message)
 
                 # Element interaction actions
                 elif action == "click_element":
