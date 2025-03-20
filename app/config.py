@@ -78,6 +78,12 @@ class SandboxSettings(BaseModel):
     )
 
 
+class AgentSettings(BaseModel):
+    """Configuration for the agent execution"""
+    max_observe: int = Field(10000, description="Maximum number of tokens to observe")
+    max_steps: int = Field(50, description="Maximum number of steps for agent execution")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -88,6 +94,9 @@ class AppConfig(BaseModel):
     )
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
+    )
+    agent: Optional[AgentSettings] = Field(
+        None, description="Agent configuration"
     )
 
     class Config:
@@ -185,11 +194,18 @@ class Config:
         search_settings = None
         if search_config:
             search_settings = SearchSettings(**search_config)
+
         sandbox_config = raw_config.get("sandbox", {})
         if sandbox_config:
             sandbox_settings = SandboxSettings(**sandbox_config)
         else:
             sandbox_settings = SandboxSettings()
+
+        # Add agent configuration handling
+        agent_config = raw_config.get("agent", {})
+        agent_settings = None
+        if agent_config:
+            agent_settings = AgentSettings(**agent_config)
 
         config_dict = {
             "llm": {
@@ -202,6 +218,7 @@ class Config:
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
+            "agent": agent_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -221,6 +238,10 @@ class Config:
     @property
     def search_config(self) -> Optional[SearchSettings]:
         return self._config.search_config
+
+    @property
+    def agent(self) -> Optional[AgentSettings]:
+        return self._config.agent
 
     @property
     def workspace_root(self) -> Path:

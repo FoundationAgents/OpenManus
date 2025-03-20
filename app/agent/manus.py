@@ -27,8 +27,8 @@ class Manus(BrowserAgent):
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    max_observe: int = 10000
-    max_steps: int = 20
+    max_observe: int = config.agent.max_observe
+    max_steps: int = config.agent.max_steps
 
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
