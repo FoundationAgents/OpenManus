@@ -31,6 +31,7 @@ from app.schema import (
     ToolChoice,
 )
 
+
 REASONING_MODELS = ["o1", "o3-mini"]
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
