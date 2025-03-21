@@ -29,7 +29,8 @@ class SWEAgent(ToolCallAgent):
     async def think(self) -> bool:
         """Process current state and decide next action"""
         # Update working directory
-        self.working_dir = await self.bash.execute("pwd")
+        result = await self.bash.execute("pwd")
+        self.working_dir = result.output
         self.next_step_prompt = self.next_step_prompt.format(
             current_dir=self.working_dir
         )

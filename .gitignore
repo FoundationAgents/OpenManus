@@ -1,3 +1,14 @@
+### Project-specific ###
+# Logs
+logs/
+
+# Data
+data/
+
+# Workspace
+workspace/
+
+### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -170,11 +181,19 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Logs
-logs/
+### Visual Studio Code ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
 
-# Data
-data/
+# Local History for Visual Studio Code
+.history/
 
-# Workspace
-workspace/
+# Built Visual Studio Code Extensions
+*.vsix
+
+# OSX
+.DS_Store

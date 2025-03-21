@@ -1,0 +1,20 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        }
+    },
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml",
+    },
+    "pre-commit-helper.runOnSave": "none",
+    "pre-commit-helper.config": ".pre-commit-config.yaml",
+    "evenBetterToml.schema.enabled": true,
+    "evenBetterToml.schema.associations": {
+        "^.+config[/\\\\].+\\.toml$": "../config/schema.config.json"
+    },
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.formatOnSave": true
+}

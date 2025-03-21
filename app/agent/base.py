@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.llm import LLM
 from app.logger import logger
+from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
 
 
@@ -84,6 +85,7 @@ class BaseAgent(BaseModel, ABC):
         self,
         role: ROLE_TYPE,  # type: ignore
         content: str,
+        base64_image: Optional[str] = None,
         **kwargs,
     ) -> None:
         """Add a message to the agent's memory.
@@ -91,6 +93,7 @@ class BaseAgent(BaseModel, ABC):
         Args:
             role: The role of the message sender (user, system, assistant, tool).
             content: The message content.
+            base64_image: Optional base64 encoded image.
             **kwargs: Additional arguments (e.g., tool_call_id for tool messages).
 
         Raises:
@@ -106,9 +109,9 @@ class BaseAgent(BaseModel, ABC):
         if role not in message_map:
             raise ValueError(f"Unsupported message role: {role}")
 
-        msg_factory = message_map[role]
-        msg = msg_factory(content, **kwargs) if role == "tool" else msg_factory(content)
-        self.memory.add_message(msg)
+        # Create message with appropriate parameters based on role
+        kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
+        self.memory.add_message(message_map[role](content, **kwargs))
 
     async def run(self, request: Optional[str] = None) -> str:
         """Execute the agent's main loop asynchronously.
@@ -147,7 +150,7 @@ class BaseAgent(BaseModel, ABC):
                 self.current_step = 0
                 self.state = AgentState.IDLE
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
-
+        await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
 
     @abstractmethod

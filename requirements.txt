@@ -1,5 +1,5 @@
-pydantic~=2.10.4
-openai~=1.58.1
+pydantic~=2.10.6
+openai~=1.66.3
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
@@ -22,5 +22,15 @@ duckduckgo_search~=7.5.1
 aiofiles~=24.1.0
 pydantic_core~=2.27.2
 colorama~=0.4.6
-playwright~=1.49.1
+playwright~=1.50.0
 diskcache~=5.6.3
+
+docker~=7.1.0
+pytest~=8.3.5
+pytest-asyncio~=0.25.3
+
+mcp~=1.4.1
+httpx>=0.27.0
+tomli>=2.0.0
+
+boto3~=1.37.16
