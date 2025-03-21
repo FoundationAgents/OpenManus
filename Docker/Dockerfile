@@ -24,10 +24,6 @@ if ! git config --get-regexp safe.directory | grep -q /app/OpenManus; then\n\
     git config --global --add safe.directory /app/OpenManus\n\
 fi\n\
 \n\
-if [ ! -d config ]; then\n\
-    mkdir -p config\n\
-fi\n\
-\n\
 if [ ! -f config/config.toml ]; then\n\
     echo "Copying config from example..."\n\
     cp config/config.example.toml config/config.toml\n\
