@@ -14,22 +14,82 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- 加载页面 -->
+    <!-- 顶部导航栏 -->
+    <div class="top-navbar">
+        <div class="navbar-container">
+            <div class="navbar-left">
+                <div class="company-info">OpenManus</div>
+                <div class="navbar-divider"></div>
+                <a href="#" class="navbar-link">简介</a>
+                <a href="#" class="navbar-link">示例</a>
+            </div>
+            <div class="navbar-right">
+                <a href="#" class="notification-button">
+                    <i class="fas fa-bell"></i>
+                </a>
+                <a href="https://github.com/mannaandpoem/OpenManus" class="github-button" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-github"></i>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 背景特效元素 -->
+    <div class="cyber-background">
+        <div class="grid-overlay"></div>
+        <div class="glow-circle"></div>
+        <div class="tech-circles">
+            <div class="tech-circle" style="--scale:1.0; --opacity:0.15; --speed:40s;"></div>
+            <div class="tech-circle" style="--scale:1.4; --opacity:0.1; --speed:50s;"></div>
+            <div class="tech-circle" style="--scale:0.8; --opacity:0.2; --speed:35s;"></div>
+        </div>
+        <div class="light-rays"></div>
+        <div class="stars-container">
+            <!-- 彩色星星将由JS动态生成 -->
+        </div>
+        <div class="color-waves-container">
+            <div class="color-wave" style="--color:rgba(0, 255, 204, 0.15); --opacity:0.05; --duration:60s;"></div>
+            <div class="color-wave" style="--color:rgba(170, 0, 255, 0.15); --opacity:0.04; --duration:80s;"></div>
+            <div class="color-wave" style="--color:rgba(0, 128, 255, 0.15); --opacity:0.03; --duration:100s;"></div>
+        </div>
+        <!-- 动态光斑 -->
+        <div class="light-spot" style="--color:rgba(0, 255, 204, 0.15); --opacity:0.2; --duration:80s; --delay:0s; --start-x:-30%; --start-y:-30%; --end-x:30%; --end-y:30%;"></div>
+        <div class="light-spot" style="--color:rgba(170, 0, 255, 0.1); --opacity:0.15; --duration:100s; --delay:20s; --start-x:30%; --start-y:-30%; --end-x:-30%; --end-y:30%;"></div>
+        <div class="light-spot" style="--color:rgba(255, 0, 170, 0.1); --opacity:0.1; --duration:90s; --delay:40s; --start-x:0%; --start-y:40%; --end-x:0%; --end-y:-40%;"></div>
+        <canvas id="matrix-canvas"></canvas>
+    </div>
+
+    <!-- Loading Page -->
     <div class="loading-screen">
         <div class="loading-background"></div>
         <div class="loading-grid"></div>
-        
-        <h1 class="loading-title">OPENMANUS</h1>
-        
+
+        <div class="loading-header">
+            <h1 class="loading-title">
+                <span class="char">O</span>
+                <span class="char">P</span>
+                <span class="char">E</span>
+                <span class="char">N</span>
+                <span class="char">M</span>
+                <span class="char">A</span>
+                <span class="char">N</span>
+                <span class="char">U</span>
+                <span class="char">S</span>
+            </h1>
+            <div class="loading-text">Loading<span class="loading-dots"><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span></div>
+        </div>
+        <div class="loading-line"></div>
+
         <div class="loading-container">
             <div class="progress-container">
                 <div class="progress-bar"></div>
             </div>
             <div class="progress-text">Loading: <span class="digital-glitch">0%</span></div>
         </div>
-        
+
         <div class="loading-message">Initializing system components...</div>
-        
+
         <div class="glitch-effect">
             <div class="glitch-line"></div>
             <div class="glitch-line"></div>
@@ -37,10 +97,7 @@
             <div class="glitch-line"></div>
         </div>
     </div>
-    
-    <a href="https://github.com/mannaandpoem/OpenManus" class="github-link" target="_blank" rel="noopener noreferrer">
-        <i class="fab fa-github"></i>
-    </a>
+
     <div class="home-container">
         <div class="hero-section">
             <div class="particle-container">
@@ -58,37 +115,55 @@
                 <div class="particle"></div>
             </div>
 
-            <div class="tech-circuit">
-                <div class="circuit-line"></div>
-                <div class="circuit-line"></div>
-                <div class="circuit-line"></div>
-                <div class="circuit-line"></div>
-                <div class="circuit-vertical"></div>
-                <div class="circuit-vertical"></div>
-                <div class="circuit-vertical"></div>
-                <div class="circuit-vertical"></div>
-                <div class="circuit-node"></div>
-                <div class="circuit-node"></div>
-                <div class="circuit-node"></div>
-                <div class="circuit-node"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-node circuit-node-small"></div>
-                <div class="circuit-diagonal"></div>
-                <div class="circuit-diagonal"></div>
-                <div class="circuit-diagonal circuit-diagonal-reverse"></div>
-                <div class="circuit-diagonal circuit-diagonal-reverse"></div>
+            <div class="title-container">
+                <h1 class="title">OPENMANUS</h1>
             </div>
 
-            <h1 class="title">OPENMANUS</h1>
-            <p class="subtitle">Your Autonomous AI Agent</p>
-            <p class="description"><span class="powered-text">Powered by</span> <span>LLMs</span> and <span>diverse tools</span>.<br>OpenManus solves tasks through <span>AI reasoning</span>.</p>
+            <!-- 添加标题与容器之间的动态眼睛 -->
+            <div class="title-connector">
+                <div class="eye"></div>
+                <div class="eye"></div>
+            </div>
+
+            <div class="hero-content">
+                <p class="subtitle">Your Intelligent AI Assistant</p>
+                <p class="description"><span class="powered-text">Powered by</span> <span class="highlight-1">LLMs</span> and <span class="highlight-2">diverse tools</span>.<br>OpenManus completes tasks through <span class="highlight-3">AI reasoning</span>.</p>
+            </div>
+
+            <!-- Video Section -->
+            <div class="manus-video-wrapper">
+                <video id="manus-video" class="manus-video" muted loop preload="auto" playsinline
+                       x-webkit-airplay="allow"
+                       x-webkit-airplay="deny"
+                       webkit-playsinline="true"
+                       disablePictureInPicture
+                       controlsList="nodownload noremoteplayback">
+                       <source src="/static/manus.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="video-controls">
+                    <button id="video-play-btn" class="video-control-btn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button id="video-mute-btn" class="video-control-btn">
+                        <i class="fas fa-volume-mute"></i>
+                    </button>
+                    <button id="video-fullscreen-btn" class="video-control-btn">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="video-progress-container">
+                    <div class="video-progress-bg"></div>
+                    <div class="video-progress-bar"></div>
+                </div>
+            </div>
 
             <div class="theme-selector">
-                <p class="theme-label">选择主题</p>
+                <p class="theme-label">
+                    <span class="star-icon" style="--i:0;">✨</span>
+                    <span class="theme-text">Choose a theme you love, express your style!</span>
+                    <span class="star-icon" style="--i:1;">✨</span>
+                </p>
                 <div class="theme-options">
                     {% for theme in themes %}
                     <a href="/chat?theme={{ theme.id }}" class="theme-option" data-animation="{{ loop.index }}" title="{{ theme.description }}">
@@ -111,7 +186,7 @@
         </div>
     </div>
     <script>
-        // 防止iOS上的回弹效果
+        // Prevent bounce effect on iOS
         document.addEventListener('touchmove', function(e) {
             if (e.touches.length > 1) {
                 e.preventDefault();
