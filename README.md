@@ -1,13 +1,27 @@
-<p align="center">
-  <img src="assets/logo.jpg" width="200"/>
-</p>
+<div align="center">
+  <p>
+    <img src="assets/logo.jpg" width="200" alt="OpenManus Logo"/>
+  </p>
+  <p>
+    <strong>
+      English | <a href="README_zh.md">中文</a> | <a href="README_ko.md">한국어</a> | <a href="README_ja.md">日本語</a>
+    </strong>
+  </p>
 
-English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
-
-[![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
-&ensp;
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
-[![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
+  <p>
+    <a href="https://github.com/mannaandpoem/OpenManus/stargazers">
+      <img src="https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social" alt="GitHub stars"/>
+    </a>
+    &ensp;
+    <a href="https://opensource.org/licenses/MIT">
+      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/>
+    </a>
+    &ensp;
+    <a href="https://discord.gg/DYn29wFk9z">
+      <img src="https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat" alt="Discord Follow"/>
+    </a>
+  </p>
+</div>
 
 # 👋 OpenManus
 
