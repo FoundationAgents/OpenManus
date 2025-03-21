@@ -9,7 +9,7 @@ import asyncio
 import atexit
 import json
 from inspect import Parameter, Signature
-from typing import Any, Dict, Optional
+from typing import Any, AsyncGenerator, Dict, Optional, Union
 
 from mcp.server.fastmcp import FastMCP
 
@@ -17,6 +17,7 @@ from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
 from app.tool.browser_use_tool import BrowserUseTool
+from app.tool.manus_agent_tool import ManusAgentTool
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
 
@@ -33,6 +34,9 @@ class MCPServer:
         self.tools["browser"] = BrowserUseTool()
         self.tools["editor"] = StrReplaceEditor()
         self.tools["terminate"] = Terminate()
+        
+        # Add the high-level Manus agent tool
+        self.tools["manus_agent"] = ManusAgentTool()
 
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
         """Register a tool with parameter validation and documentation."""
@@ -43,11 +47,23 @@ class MCPServer:
         # Define the async function to be registered
         async def tool_method(**kwargs):
             logger.info(f"Executing {tool_name}: {kwargs}")
+            
+            # Special handling for Manus agent with streaming support
+            if tool_name == "manus_agent" and kwargs.get("streaming", False):
+                logger.info(f"Using streaming mode for {tool_name}")
+                # Run with streaming mode and return generator for SSE
+                result_generator = await tool.execute(**kwargs)
+                
+                # For SSE transport, we return AsyncGenerator directly
+                if asyncio.iscoroutinefunction(result_generator.__anext__):
+                    return result_generator
+            
+            # Standard execution for all other tools
             result = await tool.execute(**kwargs)
-
+            
             logger.info(f"Result of {tool_name}: {result}")
 
-            # Handle different types of results (match original logic)
+            # Handle different types of results
             if hasattr(result, "model_dump"):
                 return json.dumps(result.model_dump())
             elif isinstance(result, dict):
