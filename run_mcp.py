@@ -13,10 +13,14 @@ class MCPRunner:
 
     def __init__(self):
         self.root_path = config.root_path
-        self.server_script = self.root_path / "app" / "mcp" / "server.py"
+        self.server_reference = "app.mcp.server"
         self.agent = MCPAgent()
 
-    async def initialize(self, connection_type: str, server_url: str = None) -> None:
+    async def initialize(
+        self,
+        connection_type: str,
+        server_url: str | None = None,
+    ) -> None:
         """Initialize the MCP agent with the appropriate connection."""
         logger.info(f"Initializing MCPAgent with {connection_type} connection...")
 
@@ -24,7 +28,7 @@ class MCPRunner:
             await self.agent.initialize(
                 connection_type="stdio",
                 command=sys.executable,
-                args=[str(self.server_script)],
+                args=["-m", self.server_reference],
             )
         else:  # sse
             await self.agent.initialize(connection_type="sse", server_url=server_url)
