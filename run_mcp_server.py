@@ -6,6 +6,6 @@ from app.mcp.server import MCPServer, parse_args
 if __name__ == "__main__":
     args = parse_args()
 
-    # Create and run server (maintaining original flow)
+    # Create and run server with all transport options
     server = MCPServer()
-    server.run(transport=args.transport)
+    server.run(transport=args.transport, host=args.host, port=args.port)

@@ -147,17 +147,34 @@ class MCPServer:
         for tool in self.tools.values():
             self.register_tool(tool)
 
-    def run(self, transport: str = "stdio") -> None:
-        """Run the MCP server."""
+    def run(self, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
+        """Run the MCP server.
+        
+        Args:
+            transport: Transport protocol to use ("stdio" or "sse")
+            host: Host to bind the HTTP/SSE server to (only used with sse transport)
+            port: Port to bind the HTTP/SSE server to (only used with sse transport)
+        """
         # Register all tools
         self.register_all_tools()
 
         # Register cleanup function (match original behavior)
         atexit.register(lambda: asyncio.run(self.cleanup()))
 
-        # Start server (with same logging as original)
-        logger.info(f"Starting OpenManus server ({transport} mode)")
-        self.server.run(transport=transport)
+        # Start server
+        if transport == "sse":
+            # With SSE transport, we're using HTTP server with Server-Sent Events
+            logger.info(f"Starting OpenManus HTTP server with SSE transport on {host}:{port}")
+            # Set bind host and port for SSE transport
+            import os
+            os.environ["MCP_SERVER_HOST"] = host
+            os.environ["MCP_SERVER_PORT"] = str(port)
+            # Use sse transport which will start an HTTP server
+            self.server.run(transport=transport)
+        else:
+            # Standard stdio transport
+            logger.info(f"Starting OpenManus server ({transport} mode)")
+            self.server.run(transport=transport)
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,9 +182,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="OpenManus MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio"],
+        choices=["stdio", "sse"],
         default="stdio",
-        help="Communication method: stdio or http (default: stdio)",
+        help="Communication method: stdio or sse (default: stdio)",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host to bind the HTTP/SSE server to (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind the HTTP/SSE server to (default: 8000)",
     )
     return parser.parse_args()
 
@@ -175,6 +204,6 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
 
-    # Create and run server (maintaining original flow)
+    # Create and run server with all provided arguments
     server = MCPServer()
-    server.run(transport=args.transport)
+    server.run(transport=args.transport, host=args.host, port=args.port)
