@@ -295,24 +295,21 @@ class MCPServer:
 
                         def __next__(self):
                             # This needs to be a blocking call for FastMCP to process it properly
-                            # We'll raise StopIteration when the thread is done and queue is empty
-                            if self.execution_complete.is_set() and self.queue.empty():
-                                raise StopIteration
-
-                            try:
-                                # Non-blocking check to avoid deadlocks
-                                item = self.queue.get(block=False)
-                                return TextContent(type="text", text=item)
-                            except queue.Empty:
-                                # Return None to indicate no result yet
-                                # This will be filtered out by FastMCP
-                                if not self.execution_complete.is_set():
-                                    # Sleep a tiny bit to avoid spinning
-                                    time.sleep(0.1)
-                                    return None
-                                else:
-                                    # Thread is done and queue is empty
+                            # We'll keep trying to get an item until one is available or execution is complete
+                            while True:
+                                # Only raise StopIteration when thread is done AND queue is empty
+                                if self.execution_complete.is_set() and self.queue.empty():
+                                    logger.info("ThreadStreamResponse: Thread complete and queue empty, ending iterator")
                                     raise StopIteration
+
+                                try:
+                                    # Block with a short timeout to avoid hanging forever
+                                    item = self.queue.get(timeout=0.1)
+                                    logger.info(f"ThreadStreamResponse yielding: {item[:50]}..." if len(item) > 50 else f"ThreadStreamResponse yielding: {item}")
+                                    return TextContent(type="text", text=item)
+                                except queue.Empty:
+                                    # No item available yet, continue waiting
+                                    continue
 
                     # Create and return our custom response object that FastMCP can iterate over
                     logger.info("Returning ThreadStreamResponse for FastMCP to process")
