@@ -52,15 +52,19 @@ class ManusAgentTool(BaseTool):
             Either a ToolResult with the final result, or an AsyncGenerator for streaming
         """
         try:
-            # If streaming is requested, return the generator
-            if streaming:
-                return self._run_with_streaming(prompt, max_steps)
-            
-            # Otherwise, run normally and return a single result
+            # Create Manus agent instance - do this first to ensure imports work
+            logger.info(f"Creating Manus agent instance for prompt: {prompt}")
             agent = Manus()
             if max_steps is not None:
                 agent.max_steps = max_steps
                 
+            # If streaming is requested, return the streaming generator 
+            if streaming:
+                logger.info(f"Using streaming mode for prompt: {prompt}")
+                # This function returns an async generator that will yield string results
+                return self._run_with_streaming(prompt, max_steps, agent)
+            
+            # Otherwise, run normally and return a single result
             logger.info(f"Running Manus agent with prompt: {prompt}")
             result = await agent.run(prompt)
             
@@ -79,27 +83,33 @@ class ManusAgentTool(BaseTool):
                 error=f"Error running Manus agent: {str(e)}"
             )
     
-    async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None) -> AsyncGenerator[str, None]:
+    async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
         """Run the agent with streaming output.
         
         Yields JSON strings with progress updates and final results.
         """
         try:
-            agent = Manus()
-            if max_steps is not None:
-                agent.max_steps = max_steps
-                
+            # Create agent if not provided
+            if agent is None:
+                logger.info(f"Creating new Manus agent for streaming")
+                agent = Manus()
+                if max_steps is not None:
+                    agent.max_steps = max_steps
+            
             # Initialize the agent
+            logger.info(f"Initializing agent for streaming with prompt: {prompt}")
             agent.messages = [Message.user_message(prompt)]
             agent.current_step = 0
             agent.state = AgentState.RUNNING
             
             # Yield initial status
-            yield json.dumps({
+            initial_status = json.dumps({
                 "status": "started", 
                 "step": 0,
                 "prompt": prompt
             })
+            logger.info(f"Yielding initial status: {initial_status}")
+            yield initial_status
             
             # Run steps until completion or max steps reached
             while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
@@ -149,7 +159,7 @@ class ManusAgentTool(BaseTool):
                     break
             
             # Yield final result
-            yield json.dumps({
+            final_result = json.dumps({
                 "status": "complete",
                 "total_steps": agent.current_step,
                 "final_state": agent.state.value,
@@ -158,10 +168,15 @@ class ManusAgentTool(BaseTool):
                     for msg in agent.memory.messages[-3:] if hasattr(msg, "role") and hasattr(msg, "content")
                 ]
             })
+            logger.info(f"Yielding final result summary: {final_result[:100]}..." if len(final_result) > 100 else f"Yielding final result: {final_result}")
+            yield final_result
             
         except Exception as e:
             # Yield any exceptions that occur
-            yield json.dumps({
+            error_msg = json.dumps({
                 "status": "error",
                 "error": str(e)
             })
+            logger.error(f"Streaming error: {str(e)}")
+            logger.info(f"Yielding error: {error_msg}")
+            yield error_msg
