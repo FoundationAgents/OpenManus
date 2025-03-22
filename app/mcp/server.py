@@ -38,6 +38,9 @@ class MCPServer:
         # Add the high-level Manus agent tool
         self.tools["manus_agent"] = ManusAgentTool()
 
+        # Add the high-level Manus agent tool
+        self.tools["manus_agent"] = ManusAgentTool()
+
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
         """Register a tool with parameter validation and documentation."""
         tool_name = method_name or tool.name
