@@ -89,8 +89,36 @@ class ManusAgentTool(BaseTool):
     def _extract_summary_from_result(self, result: str) -> str:
         """Extract a concise summary from a detailed result.
 
-        This analyzes the result string to extract key information and summarize it.
+        This analyzes the result string to extract key information and summarize it,
+        prioritizing the agent's final thoughts which contain the most valuable output.
         """
+        # Look for the agent's thought markers to extract the final summary
+        thoughts_markers = ["✨ Manus's thoughts:", "Manus's thoughts:", "Agent thoughts:"]
+        termination_markers = ["Tools being prepared: ['terminate']", "Tools being prepared: [\"terminate\"]", "Using tool: terminate"]
+
+        for marker in thoughts_markers:
+            if marker in result:
+                # Find the LAST instance of the marker by reversing the search
+                last_marker_index = result.rfind(marker)
+                if last_marker_index != -1:
+                    # Extract everything from the last marker...
+                    thoughts_section = result[last_marker_index:]
+
+                    # Find the termination marker if it exists (to set the end boundary)
+                    end_index = len(thoughts_section)
+                    for term_marker in termination_markers:
+                        term_pos = thoughts_section.find(term_marker)
+                        if term_pos != -1 and term_pos < end_index:
+                            end_index = term_pos
+
+                    # Extract only up to the termination marker or the end if not found
+                    thoughts_section = thoughts_section[:end_index].strip()
+
+                    # Remove the marker itself
+                    clean_marker = marker.strip()
+                    return thoughts_section.replace(clean_marker, "").strip()
+
+        # If we couldn't find thoughts markers, try to handle structured results
         try:
             # Try to parse as JSON
             data = json.loads(result)
@@ -114,7 +142,16 @@ class ManusAgentTool(BaseTool):
             return f"Result: {result[:150]}..." if len(result) > 150 else f"Result: {result}"
 
         except (json.JSONDecodeError, TypeError, ValueError):
-            # For non-JSON results or other errors, return a truncated version
+            # For step-by-step results, try to extract the last few meaningful lines
+            # Split by steps
+            steps = result.split("Step ")
+            if len(steps) > 1:  # If we have actual steps
+                # Get the last step that has actual content
+                last_steps = [s for s in steps[-3:] if s.strip()]
+                if last_steps:
+                    return f"Final result: {last_steps[-1].strip()}"
+
+            # As a fallback, just return a truncated version
             return f"Result: {result[:100]}..." if len(result) > 100 else f"Result: {result}"
 
     async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
