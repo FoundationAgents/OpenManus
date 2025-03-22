@@ -83,10 +83,42 @@ class ManusAgentTool(BaseTool):
                 error=f"Error running Manus agent: {str(e)}"
             )
     
+    def _extract_summary_from_result(self, result: str) -> str:
+        """Extract a concise summary from a detailed result.
+        
+        This analyzes the result string to extract key information and summarize it.
+        """
+        try:
+            # Try to parse as JSON
+            data = json.loads(result)
+            
+            # Handle browser_use tool results
+            if isinstance(data, dict):
+                # Check if this is a flight search result
+                if 'flight_search_details' in data:
+                    route = data.get('flight_search_details', {}).get('route', 'Unknown route')
+                    dates = data.get('flight_search_details', {}).get('dates', 'Unknown dates')
+                    cheapest = next((f['price'] for f in data.get('available_flights', []) if f.get('price')), 'Unknown')
+                    fastest = next((f"Duration: {f['duration']}" for f in data.get('available_flights', []) 
+                                    if f.get('duration') and 'Nonstop' in f.get('stops', '')), 'No nonstop flights')
+                    return f"Flight search for {route}, {dates}. Cheapest: {cheapest}. {fastest}"
+                
+                # Summary for extracted page content
+                if any(key in data for key in ['interactive_elements', 'available_flights', 'flight_search']):
+                    return f"Extracted page information with {len(data)} data points"
+                    
+            # If we can't generate a specific summary, create a general one
+            return f"Result: {result[:150]}..." if len(result) > 150 else f"Result: {result}"
+                
+        except (json.JSONDecodeError, TypeError, ValueError):
+            # For non-JSON results or other errors, return a truncated version
+            return f"Result: {result[:100]}..." if len(result) > 100 else f"Result: {result}"
+    
     async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
         """Run the agent with streaming output.
         
         Yields JSON strings with progress updates and final results.
+        Provides concise summaries instead of verbose output for better readability.
         """
         try:
             # Create agent if not provided
@@ -102,14 +134,17 @@ class ManusAgentTool(BaseTool):
             agent.current_step = 0
             agent.state = AgentState.RUNNING
             
-            # Yield initial status
+            # Yield initial status with more useful information
             initial_status = json.dumps({
                 "status": "started", 
                 "step": 0,
-                "prompt": prompt
+                "message": f"Starting to process: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'"
             })
             logger.info(f"Yielding initial status: {initial_status}")
             yield initial_status
+            
+            # Track actions for final summary
+            actions_summary = []
             
             # Run steps until completion or max steps reached
             while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
@@ -119,36 +154,46 @@ class ManusAgentTool(BaseTool):
                 try:
                     should_act = await agent.think()
                     
-                    # Yield the thinking result
+                    # Get the last message content for a thinking summary
+                    last_messages = [msg for msg in agent.memory.messages[-2:] 
+                                   if hasattr(msg, "role") and hasattr(msg, "content")]
+                    thinking_content = last_messages[-1].content if last_messages else "No content available"
+                    
+                    # Create a more concise thinking summary
+                    thinking_summary = thinking_content[:150] + "..." if len(thinking_content) > 150 else thinking_content
+                    
+                    # Yield a concise thinking result
                     yield json.dumps({
                         "status": "thinking",
                         "step": agent.current_step,
-                        "should_act": should_act,
-                        "messages": [
-                            {"role": msg.role, "content": msg.content}
-                            for msg in agent.memory.messages[-2:] if hasattr(msg, "role") and hasattr(msg, "content")
-                        ]
+                        "content": thinking_summary
                     })
                     
                     # If should act, perform the action
                     if should_act:
                         result = await agent.act()
+                        result_str = str(result)
                         
-                        # Yield the action result
+                        # Extract useful summary from the action result
+                        summary = self._extract_summary_from_result(result_str)
+                        actions_summary.append(f"Step {agent.current_step}: {summary}")
+                        
+                        # Yield the action result with concise summary
                         yield json.dumps({
                             "status": "acting",
                             "step": agent.current_step,
-                            "result": str(result),
-                            "state": agent.state.value
+                            "action": summary
                         })
                     
                 except Exception as e:
                     # Yield any errors that occur during processing
+                    error_msg = str(e)
                     yield json.dumps({
                         "status": "error",
                         "step": agent.current_step,
-                        "error": str(e)
+                        "error": error_msg
                     })
+                    actions_summary.append(f"Step {agent.current_step}: Error - {error_msg}")
                     agent.state = AgentState.FINISHED
                 
                 # Small delay to avoid overwhelming the client
@@ -158,15 +203,19 @@ class ManusAgentTool(BaseTool):
                 if agent.state == AgentState.FINISHED:
                     break
             
-            # Yield final result
+            # Get final response from agent memory
+            last_messages = [msg for msg in agent.memory.messages[-3:] 
+                           if hasattr(msg, "role") and hasattr(msg, "content")]
+            final_content = last_messages[-1].content if last_messages else "No final content available"
+            
+            # Create shortened version for the response
+            short_content = final_content[:300] + "..." if len(final_content) > 300 else final_content
+            
+            # Yield final result with concise summary and important details only
             final_result = json.dumps({
                 "status": "complete",
-                "total_steps": agent.current_step,
-                "final_state": agent.state.value,
-                "messages": [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in agent.memory.messages[-3:] if hasattr(msg, "role") and hasattr(msg, "content")
-                ]
+                "content": short_content,
+                "steps_summary": actions_summary[-3:] if len(actions_summary) > 3 else actions_summary
             })
             logger.info(f"Yielding final result summary: {final_result[:100]}..." if len(final_result) > 100 else f"Yielding final result: {final_result}")
             yield final_result
