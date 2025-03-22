@@ -279,9 +279,42 @@ class MCPServer:
                             logger.error(f"MCP server: Error in stream_response: {str(e)}\n{traceback.format_exc()}")
                             yield json.dumps({"status": "error", "error": f"Streaming error: {str(e)}"})
 
-                    # Return a new generator that will be consumed by FastMCP's SSE transport
-                    logger.info("Returning SSE stream response generator")
-                    return stream_response()
+                    # Create a generator that emits TextContent objects directly for FastMCP
+                    # FastMCP expects content objects that can be processed by _convert_to_content
+                    from mcp.types import TextContent
+
+                    logger.info("Creating direct TextContent response generator for FastMCP")
+                    async def direct_content_generator():
+                        # Initial message
+                        yield TextContent(type="text", text=json.dumps({"status": "streaming_started", "message": "Stream started by MCP server"}))
+
+                        # Process items from the queue until thread signals completion
+                        timeout_counter = 0
+                        max_timeout = 300  # 30 seconds max wait (100ms * 300)
+
+                        while not execution_complete.is_set() or not result_queue.empty():
+                            try:
+                                # Try to get an item from the queue with a small timeout
+                                item = result_queue.get(block=True, timeout=0.1)
+                                logger.info(f"Got item from queue: {item[:50]}..." if len(item) > 50 else f"Got item from queue: {item}")
+                                yield TextContent(type="text", text=item)
+                                timeout_counter = 0  # Reset timeout counter on successful get
+                            except queue.Empty:
+                                # Queue is empty but thread might still be running
+                                await asyncio.sleep(0.1)  # Small sleep to avoid CPU spinning
+                                timeout_counter += 1
+                                if timeout_counter >= max_timeout and not execution_complete.is_set():
+                                    logger.error("Queue processing timed out after 30 seconds without new items")
+                                    yield TextContent(type="text", text=json.dumps({"status": "error", "error": "Execution timed out"}))
+                                    break
+                                continue
+
+                        # Final completion message
+                        yield TextContent(type="text", text=json.dumps({"status": "stream_complete", "message": "Stream completed by MCP server"}))
+                        logger.info("MCP server: Queue processing completed")
+
+                    # Return the direct content generator that FastMCP will consume
+                    return direct_content_generator()
 
                 else:
                     # For non-SSE transports, we need to collect all results
