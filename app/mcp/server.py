@@ -101,7 +101,8 @@ class MCPServer:
                             sys.stdout.flush()
 
                             # Import here to avoid circular dependencies
-                            from app.agent.manus import Manus, AgentState, Message
+                            from app.agent.manus import Manus
+                            from app.schema import AgentState, Message
 
                             # Create and run the agent directly
                             try:
