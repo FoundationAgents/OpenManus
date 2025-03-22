@@ -30,7 +30,7 @@ class ManusAgentTool(BaseTool):
             "max_steps": {
                 "type": "integer",
                 "description": "Maximum number of steps the agent can take (default: use agent's default)",
-                "default": 60
+                "default": 80
             }
         },
         "required": ["prompt"]
@@ -67,12 +67,16 @@ class ManusAgentTool(BaseTool):
             logger.info(f"Running Manus agent with prompt: {prompt}")
             result = await agent.run(prompt)
 
-            # Return the agent's final result
-            logger.info(f"Manus agent completed processing")
+            # Extract a summary from the verbose result
+            summary = self._extract_summary_from_result(result)
+            logger.info(f"Manus agent completed processing, extracted summary from result")
+
+            # Return the summarized result instead of the full verbose output
             return ToolResult(
                 output=json.dumps({
                     "status": "complete",
-                    "result": result
+                    "result": summary,
+                    "full_result": result  # Keep full result available if needed but don't display it by default
                 })
             )
 
