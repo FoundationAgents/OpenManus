@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Message } from '@/types/chat';
+import logo from '@/assets/logo.png';
 import { ChatMessage } from '@/components/features/chat/ChatMessage';
-import { createTask, getTaskEvents, handleTaskEventsStreamResponse } from '@/services/task';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Message } from '@/types/chat';
 import { Send } from 'lucide-react';
 import Image from 'next/image';
-import logo from '@/assets/logo.png';
+import { useEffect, useRef, useState } from 'react';
 
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center h-full opacity-50">
@@ -80,8 +79,22 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const { task_id } = await createTask(input, abortControllerRef.current.signal);
-      const eventsResponse = await getTaskEvents(task_id, abortControllerRef.current.signal);
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to create task');
+      }
+      const { task_id } = await res.json();
+      const eventsResponse = await fetch(`/api/tasks/${task_id}/events`, {
+        headers: {
+          Accept: 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
 
       await handleTaskEventsStreamResponse(eventsResponse, messages => {
         setMessages([userMessage, ...messages]);
@@ -139,3 +152,51 @@ export default function ChatPage() {
     </div>
   );
 }
+
+const handleTaskEventsStreamResponse = async (response: Response, onMessage: (messages: Message[]) => void) => {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Failed to get response stream');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            break;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            // only handle status event, any status event contains all steps info
+            if (parsed.type === 'status') {
+              onMessage(
+                parsed.steps.map((step: { step: number; result: string; type: string }) => ({
+                  role: 'assistant' as const,
+                  content: step.result,
+                  type: step.type,
+                  step: step.step,
+                }))
+              );
+            }
+          } catch (error) {
+            console.error('Failed to parse response data:', error);
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+};

@@ -9,7 +9,7 @@ interface ChatMessageProps {
 }
 
 const renderUserMessage = (message: Message) => (
-  <div className="border-l-2 border-muted pl-4">
+  <div className="border-l-2 border-muted">
     <div className="prose prose-sm prose-neutral dark:prose-invert">
       <Markdown>{message.content}</Markdown>
     </div>
