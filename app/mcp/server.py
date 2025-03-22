@@ -282,7 +282,6 @@ class MCPServer:
                     # Use FastMCP's expected response format for tools
                     # Check server.py:_convert_to_content for how FastMCP handles responses
                     from mcp.types import TextContent
-                    from mcp.server.fastmcp.utilities.types import FastMCPResponse
 
                     # Create a special response class that will be correctly handled by FastMCP
                     class ThreadStreamResponse:
