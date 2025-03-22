@@ -241,52 +241,7 @@ class MCPServer:
         for tool in self.tools.values():
             self.register_tool(tool)
 
-    async def _stream_manus_agent(self, prompt: str, max_steps: Optional[int] = None):
-        """Direct streaming implementation for Manus agent to work with FastAPI/SSE.
-        This bypasses the FastMCP server for streaming and directly yields events.
-        """
-        logger.info(f"Direct streaming of Manus agent for prompt: {prompt}")
-        manus_tool = self.tools.get("manus_agent")
-        
-        if not manus_tool:
-            logger.error("ManusAgentTool not found in registered tools")
-            yield json.dumps({"status": "error", "error": "ManusAgentTool not available"})
-            return
-            
-        try:
-            # Get the generator from the tool
-            generator = await manus_tool.execute(prompt=prompt, streaming=True, max_steps=max_steps)
-            
-            # Yield the initial event to confirm streaming has started
-            yield json.dumps({"status": "direct_streaming_started"})
-            
-            # Consume and forward each event
-            async for event in generator:
-                logger.info(f"Streaming direct event: {event[:50]}..." if len(event) > 50 else f"Streaming direct event: {event}")
-                yield event
-                
-        except Exception as e:
-            logger.error(f"Error in direct streaming: {e}")
-            yield json.dumps({"status": "error", "error": str(e)})
-    
-    def _setup_direct_streaming_api(self, app: FastAPI):
-        """Set up a direct streaming endpoint for the Manus agent."""
-        router = APIRouter()
-        
-        @router.post("/direct-stream/manus")
-        async def stream_manus(prompt: str, max_steps: Optional[int] = None):
-            """Endpoint for direct streaming of Manus agent results."""
-            logger.info(f"Direct streaming endpoint called with prompt: {prompt}")
-            
-            # This creates an SSE stream response using the generator from _stream_manus_agent
-            return EventSourceResponse(
-                self._stream_manus_agent(prompt=prompt, max_steps=max_steps),
-                media_type="text/event-stream"
-            )
-            
-        # Add the router to the app
-        app.include_router(router)
-        logger.info("Direct streaming API endpoints registered")
+    # Removed direct streaming endpoint implementation as it's no longer needed
 
     def run(self, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
         """Run the MCP server.
@@ -311,17 +266,6 @@ class MCPServer:
             # Set bind host and port for SSE transport
             os.environ["MCP_SERVER_HOST"] = host
             os.environ["MCP_SERVER_PORT"] = str(port)
-            
-            # Customize the FastAPI app to add our direct streaming endpoint
-            # This is the key part that ensures our streaming works correctly
-            import importlib
-            module = importlib.import_module("mcp.server.apps")
-            app = getattr(module, "app", None)
-            if app:
-                logger.info("Setting up direct streaming API endpoints")
-                self._setup_direct_streaming_api(app)
-            else:
-                logger.warning("Could not find FastAPI app to customize, streaming may not work")
             
             # Use sse transport which will start an HTTP server
             self.server.run(transport=transport)

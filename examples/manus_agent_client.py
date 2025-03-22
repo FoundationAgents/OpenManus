@@ -42,95 +42,130 @@ async def run_manus_agent_simple(prompt: str) -> None:
         await client.close()
 
 
-async def stream_from_direct_endpoint(prompt: str, server_url: Optional[str] = None) -> AsyncGenerator[str, None]:
-    """Stream directly from the dedicated streaming endpoint."""
-    base_url = server_url or "http://localhost:8000"
-    url = f"{base_url}/direct-stream/manus?prompt={prompt}"
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            async with client.stream('POST', url, timeout=300.0) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
-                    yield json.dumps({"status": "error", "error": f"Server returned {response.status_code}: {error_text.decode('utf-8')}"})
-                    return
-                    
-                # SSE events format: each line starts with "data: " followed by the event data
-                # and ends with two newlines
-                buffer = ""
-                async for chunk in response.aiter_text():
-                    buffer += chunk
-                    while "\n\n" in buffer:
-                        message, buffer = buffer.split("\n\n", 1)
-                        for line in message.split("\n"):
-                            if line.startswith("data: "):
-                                data = line[6:]
-                                yield data
-        except Exception as e:
-            yield json.dumps({"status": "error", "error": f"Connection error: {str(e)}"})
-            return
+# Direct streaming endpoint no longer needed, using standard MCP streaming
+
+class MCPClient:
+    """Simple client for the MCP server that supports streaming responses."""
+
+    def __init__(self, transport: str = "stdio", server_url: Optional[str] = None):
+        self.transport = transport
+        self.server_url = server_url
+        self.session = None
+
+    async def connect(self):
+        """Connect to the MCP server."""
+        if self.transport == "stdio":
+            self.session = MCPSession(transport=StdioTransport())
+        elif self.transport == "sse":
+            if not self.server_url:
+                raise ValueError("server_url is required for SSE transport")
+            # Import here to avoid introducing dependency if not needed
+            from mcp.client.sse import SSETransport
+            self.session = MCPSession(transport=SSETransport(server_url=self.server_url))
+        else:
+            raise ValueError(f"Unsupported transport: {self.transport}")
+
+        await self.session.connect()
+
+    async def call(self, method: str, **kwargs):
+        """Call a method on the MCP server."""
+        if not self.session:
+            raise RuntimeError("Not connected to MCP server")
+        return await self.session.call(method, **kwargs)
+
+    async def stream(self, method: str, **kwargs):
+        """Stream a method call to the MCP server."""
+        if not self.session:
+            raise RuntimeError("Not connected to MCP server")
+        return await self.session.stream(method, **kwargs)
+
+    async def close(self):
+        """Close the connection to the MCP server."""
+        if self.session:
+            await self.session.close()
+            self.session = None
 
 async def run_manus_agent_streaming(prompt: str, server_url: Optional[str] = None) -> None:
-    """Run the Manus agent with streaming responses using direct endpoint."""
+    """Run the Manus agent with streaming responses."""
     print(f"\n=== Running Manus Agent (Streaming Mode) ===")
     print(f"Prompt: {prompt}")
-
+    
+    # Create client with SSE transport
+    client = MCPClient(transport="sse", server_url=server_url)
+    await client.connect()
+    
     try:
-        # Use the direct streaming endpoint
-        async for event in stream_from_direct_endpoint(prompt, server_url):
+        # Use streaming API to get a generator of events
+        print("Requesting streaming response from Manus agent...")
+        generator = await client.stream("manus_agent", prompt=prompt, streaming=True)
+        
+        print("Streaming response started:")
+        print("-" * 50)
+        
+        # Process the streaming events
+        counter = 0
+        async for event in generator:
+            counter += 1
             try:
                 # Parse and display each event
                 event_data = json.loads(event)
                 status = event_data.get("status", "unknown")
-
-                if status == "started":
-                    print(f"\n🚀 Agent started processing prompt: {event_data.get('prompt')}")
-
+                
+                if status == "streaming_started":
+                    print(f"🚀 Stream started: {event_data.get('message', '')}")
+                    
+                elif status == "stream_complete":
+                    print(f"✅ Stream completed: {event_data.get('message', '')}")
+                    
                 elif status == "thinking":
                     step = event_data.get("step", 0)
-                    should_act = event_data.get("should_act", False)
-                    print(f"\n🤔 Step {step}: Agent thinking...")
-                    print(f"   Will act: {'Yes' if should_act else 'No'}")
-
+                    content = event_data.get("content", "No content")
+                    print(f"🤔 Thinking (Step {step}): {content}")
+                    
                 elif status == "acting":
                     step = event_data.get("step", 0)
-                    result = event_data.get("result", "")
-                    print(f"\n🧠 Step {step}: Agent acting...")
-                    print(f"   Result: {result[:100]}{'...' if len(result) > 100 else ''}")
-
+                    action = event_data.get("action", "No action")
+                    print(f"🧠 Acting (Step {step}): {action}")
+                    
                 elif status == "complete":
-                    print(f"\n✅ Agent completed in {event_data.get('total_steps', 0)} steps")
-                    messages = event_data.get("messages", [])
-                    if messages:
-                        print(f"   Final response: {messages[-1].get('content', '')[:150]}...")
-
+                    print(f"✅ Agent completed successfully")
+                    content = event_data.get("content", "No content")
+                    print(f"Final response: {content[:150]}{'...' if len(content) > 150 else ''}")
+                    
                 elif status == "error":
-                    print(f"\n❌ Error: {event_data.get('error', 'Unknown error')}")
-
+                    print(f"❌ Error: {event_data.get('error', 'Unknown error')}")
+                    
                 else:
-                    print(f"\nReceived event: {json.dumps(event_data, indent=2)}")
-
+                    # Just print the raw event for unknown statuses
+                    print(f"Event {counter}: {event}")
+                    
             except json.JSONDecodeError:
-                print(f"Received non-JSON event: {event}")
-
+                # If not JSON, print as raw string
+                print(f"Raw event {counter}: {event}")
+                
+        print("-" * 50)
+        print(f"Received {counter} events from Manus agent")
+        
     except Exception as e:
         print(f"Error in streaming: {e}")
+        
+    finally:
+        await client.close()
 
 async def main() -> None:
     """Run the example."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Manus Agent MCP Client Example")
     parser.add_argument(
-        "--prompt", "-p",
-        type=str,
-        default="Tell me about the history of artificial intelligence",
-        help="Prompt to send to the Manus agent"
+        "prompt", 
+        nargs="+",
+        help="Prompt for the Manus agent"
     )
     parser.add_argument(
         "--mode", "-m",
-        choices=["simple", "streaming", "direct"],
-        default="direct",
-        help="Mode to run the client in (simple=no streaming, streaming=standard api, direct=dedicated endpoint)"
+        choices=["simple", "streaming"],
+        default="streaming",
+        help="Mode to run the client in (simple=non-streaming, streaming=with streaming)"
     )
     parser.add_argument(
         "--host",
@@ -154,12 +189,8 @@ async def main() -> None:
     if args.mode == "simple":
         print("Running in simple mode (non-streaming)")
         await run_manus_agent_simple(args.prompt)
-    elif args.mode == "streaming":
-        print("Running in standard streaming mode")
-        print("WARNING: Standard streaming mode may not work correctly")
-        await run_manus_agent_streaming(args.prompt, server_url)
     else:
-        print("Running with direct streaming endpoint (recommended mode)")
+        print("Running in streaming mode")
         print("NOTE: Make sure the server is running with SSE transport:")
         print(f"      python run_mcp_server.py --transport sse --host {args.host} --port {args.port}")
         await run_manus_agent_streaming(args.prompt, server_url)
