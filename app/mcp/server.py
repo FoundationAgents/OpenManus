@@ -56,21 +56,46 @@ class MCPServer:
                 logger.info(f"Using streaming mode for {tool_name}")
                 # Run with streaming mode and return generator
                 generator = await tool.execute(**kwargs)
+                
+                # Detect if we're using SSE transport
+                import os
+                using_sse = os.environ.get("MCP_SERVER_TRANSPORT") == "sse"
+                logger.info(f"Using SSE transport: {using_sse}")
+                
+                if using_sse:
+                    # We need to create a response that's compatible with the SSE transport
+                    # in FastMCP. The function must return an async generator that yields strings.
+                    async def stream_response():
+                        try:
+                            # Send an initial event to confirm streaming has started
+                            yield json.dumps({"status": "streaming_started"})
+                            
+                            async for chunk in generator:
+                                # Each yielded item should be a string that will be sent as an SSE event
+                                logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
+                                yield chunk
+                        except Exception as e:
+                            logger.error(f"Error streaming response: {e}")
+                            yield json.dumps({"status": "error", "error": str(e)})
 
-                # We need to create a response that's compatible with the SSE transport
-                # in FastMCP. The function must return an async generator that yields strings.
-                async def stream_response():
+                    # Return a new generator that will be consumed by FastMCP's SSE transport
+                    logger.info("Returning SSE stream response generator")
+                    return stream_response()
+                else:
+                    # For non-SSE transports, we need to collect all results
+                    logger.info("Using non-SSE mode, collecting all results")
+                    results = []
                     try:
                         async for chunk in generator:
-                            # Each yielded item should be a string that will be sent as an SSE event
-                            logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
-                            yield chunk
+                            logger.info(f"Collected chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Collected chunk: {chunk}")
+                            results.append(chunk)
+                        # Return all collected results as JSON array
+                        result_json = json.dumps(results)
+                        logger.info(f"Returning collected results: {result_json[:100]}..." if len(result_json) > 100 else f"Returning collected results: {result_json}")
+                        return result_json
                     except Exception as e:
-                        logger.error(f"Error streaming response: {e}")
-                        yield json.dumps({"status": "error", "error": str(e)})
-
-                # Return a new generator that will be consumed by FastMCP's SSE transport
-                return stream_response()
+                        logger.error(f"Error collecting results: {e}")
+                        return json.dumps({"status": "error", "error": str(e)})
 
             # Standard execution for all other tools
             result = await tool.execute(**kwargs)
@@ -192,11 +217,14 @@ class MCPServer:
         atexit.register(lambda: asyncio.run(self.cleanup()))
 
         # Start server
+        import os
+        # Set transport type in environment for tool methods to check
+        os.environ["MCP_SERVER_TRANSPORT"] = transport
+        
         if transport == "sse":
             # With SSE transport, we're using HTTP server with Server-Sent Events
             logger.info(f"Starting OpenManus HTTP server with SSE transport on {host}:{port}")
             # Set bind host and port for SSE transport
-            import os
             os.environ["MCP_SERVER_HOST"] = host
             os.environ["MCP_SERVER_PORT"] = str(port)
             # Use sse transport which will start an HTTP server
