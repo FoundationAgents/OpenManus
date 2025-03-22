@@ -73,34 +73,84 @@ class MCPServer:
                     async def stream_response():
                         try:
                             # Send an initial event to confirm streaming has started
+                            logger.info("MCP server: Starting streaming response")
                             yield json.dumps({"status": "streaming_started", "message": "Stream started by MCP server"})
                             
                             # Get the Manus tool instance
-                            manus_tool = self.tools["manus_agent"]
+                            try:
+                                manus_tool = self.tools["manus_agent"]
+                                logger.info("MCP server: Retrieved manus_agent tool")
+                            except KeyError:
+                                error_msg = "Manus agent tool not found in registered tools"
+                                logger.error(f"MCP server: {error_msg}")
+                                yield json.dumps({"status": "error", "error": error_msg})
+                                return
                             
                             # Get stripped kwargs (without streaming flag which we already processed)
                             exec_kwargs = {k: v for k, v in kwargs.items() if k != "streaming"}
+                            logger.info(f"MCP server: Prepared exec kwargs: {exec_kwargs}")
                             
                             # Ensure that we get a proper generator
-                            generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                            try:
+                                logger.info("MCP server: Calling manus_tool.execute() with streaming=True")
+                                generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                                logger.info("MCP server: Successfully obtained generator from manus_tool.execute()")
+                            except Exception as gen_e:
+                                import traceback
+                                error_msg = f"Failed to create streaming generator: {str(gen_e)}"
+                                logger.error(f"MCP server: {error_msg}\n{traceback.format_exc()}")
+                                yield json.dumps({
+                                    "status": "error", 
+                                    "error": error_msg,
+                                    "traceback": traceback.format_exc()
+                                })
+                                return
+                            
+                            # Check if generator is valid
+                            if generator is None:
+                                error_msg = "Manus agent returned None instead of a generator"
+                                logger.error(f"MCP server: {error_msg}")
+                                yield json.dumps({"status": "error", "error": error_msg})
+                                return
                             
                             # Consume the generator and yield each chunk
                             # This is the key part that ensures the generator is actually running
-                            logger.info("Starting to consume Manus agent generator")
+                            logger.info("MCP server: Starting to consume Manus agent generator")
+                            chunk_count = 0
                             try:
                                 async for chunk in generator:
-                                    logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
+                                    chunk_count += 1
+                                    logger.info(f"MCP server: Received chunk {chunk_count}: {chunk[:50]}..." if len(chunk) > 50 else f"MCP server: Received chunk {chunk_count}: {chunk}")
                                     yield chunk
+                                    # Add a small delay to ensure we give time for client processing
+                                    await asyncio.sleep(0.01)
+                                    
+                                logger.info(f"MCP server: Generator iteration completed with {chunk_count} chunks")
+                            except StopAsyncIteration:
+                                logger.info("MCP server: Generator completed normally (StopAsyncIteration)")
                             except Exception as inner_e:
-                                logger.error(f"Error while consuming generator: {inner_e}")
-                                yield json.dumps({"status": "error", "error": f"Error during streaming: {str(inner_e)}"})
+                                import traceback
+                                error_msg = f"Error while consuming generator: {str(inner_e)}"
+                                logger.error(f"MCP server: {error_msg}\n{traceback.format_exc()}")
+                                yield json.dumps({
+                                    "status": "error", 
+                                    "error": f"Error during streaming: {str(inner_e)}",
+                                    "traceback": traceback.format_exc()
+                                })
                             
                             # Send a final event to confirm completion
+                            logger.info("MCP server: Finalizing streaming response")
                             yield json.dumps({"status": "stream_complete", "message": "Stream completed by MCP server"})
                             
                         except Exception as e:
-                            logger.error(f"Error in stream_response: {e}")
-                            yield json.dumps({"status": "error", "error": str(e)})
+                            import traceback
+                            error_msg = f"Error in stream_response: {str(e)}"
+                            logger.error(f"MCP server: {error_msg}\n{traceback.format_exc()}")
+                            yield json.dumps({
+                                "status": "error", 
+                                "error": error_msg,
+                                "traceback": traceback.format_exc()
+                            })
 
                     # Return a new generator that will be consumed by FastMCP's SSE transport
                     logger.info("Returning SSE stream response generator")
