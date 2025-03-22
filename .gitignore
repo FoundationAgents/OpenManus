@@ -198,5 +198,8 @@ cython_debug/
 # OSX
 .DS_Store
 
+# Cursor rules
+.cursorrules
+
 # Ignore all files in the web directory
 !web/**
