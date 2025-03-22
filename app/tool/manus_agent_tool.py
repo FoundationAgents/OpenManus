@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import traceback
 from typing import AsyncGenerator, Dict, Optional, Union
 
 from app.agent.manus import Manus
@@ -79,7 +78,7 @@ class ManusAgentTool(BaseTool):
             )
             
         except Exception as e:
-            logger.error(f"Error running Manus agent: {str(e)}\n{traceback.format_exc()}")
+            logger.error(f"Error running Manus agent: {str(e)}")
             return ToolResult(
                 error=f"Error running Manus agent: {str(e)}"
             )
@@ -125,37 +124,15 @@ class ManusAgentTool(BaseTool):
             # Create agent if not provided
             if agent is None:
                 logger.info(f"Creating new Manus agent for streaming")
-                try:
-                    agent = Manus()
-                    logger.info(f"Manus agent created successfully")
-                except Exception as e:
-                    logger.error(f"Failed to create Manus agent: {str(e)}")
-                    yield json.dumps({
-                        "status": "error",
-                        "error": f"Failed to create Manus agent: {str(e)}",
-                        "traceback": traceback.format_exc()
-                    })
-                    return
-                    
+                agent = Manus()
                 if max_steps is not None:
                     agent.max_steps = max_steps
-                    logger.info(f"Set max_steps to {max_steps}")
             
             # Initialize the agent
             logger.info(f"Initializing agent for streaming with prompt: {prompt}")
-            try:
-                agent.messages = [Message.user_message(prompt)]
-                agent.current_step = 0
-                agent.state = AgentState.RUNNING
-                logger.info(f"Agent initialized successfully: step={agent.current_step}, state={agent.state}")
-            except Exception as e:
-                logger.error(f"Failed to initialize agent: {str(e)}")
-                yield json.dumps({
-                    "status": "error",
-                    "error": f"Failed to initialize agent: {str(e)}",
-                    "traceback": traceback.format_exc()
-                })
-                return
+            agent.messages = [Message.user_message(prompt)]
+            agent.current_step = 0
+            agent.state = AgentState.RUNNING
             
             # Yield initial status with more useful information
             initial_status = json.dumps({
@@ -170,16 +147,12 @@ class ManusAgentTool(BaseTool):
             actions_summary = []
             
             # Run steps until completion or max steps reached
-            logger.info(f"Starting agent execution loop: max_steps={agent.max_steps}")
             while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
                 agent.current_step += 1
-                logger.info(f"Beginning step {agent.current_step} of {agent.max_steps}")
                 
                 # Execute a single step
                 try:
-                    logger.info(f"Calling agent.think() for step {agent.current_step}")
                     should_act = await agent.think()
-                    logger.info(f"Think result: should_act={should_act}")
                     
                     # Get the last message content for a thinking summary
                     last_messages = [msg for msg in agent.memory.messages[-2:] 
@@ -190,94 +163,62 @@ class ManusAgentTool(BaseTool):
                     thinking_summary = thinking_content[:150] + "..." if len(thinking_content) > 150 else thinking_content
                     
                     # Yield a concise thinking result
-                    thinking_json = json.dumps({
+                    yield json.dumps({
                         "status": "thinking",
                         "step": agent.current_step,
                         "content": thinking_summary
                     })
-                    logger.info(f"Yielding thinking result for step {agent.current_step}")
-                    yield thinking_json
                     
                     # If should act, perform the action
                     if should_act:
-                        logger.info(f"Calling agent.act() for step {agent.current_step}")
-                        try:
-                            result = await agent.act()
-                            logger.info(f"Act completed for step {agent.current_step}")
-                            result_str = str(result)
-                            
-                            # Extract useful summary from the action result
-                            summary = self._extract_summary_from_result(result_str)
-                            actions_summary.append(f"Step {agent.current_step}: {summary}")
-                            
-                            # Yield the action result with concise summary
-                            acting_json = json.dumps({
-                                "status": "acting",
-                                "step": agent.current_step,
-                                "action": summary
-                            })
-                            logger.info(f"Yielding acting result for step {agent.current_step}")
-                            yield acting_json
-                        except Exception as act_error:
-                            logger.error(f"Error during act() for step {agent.current_step}: {act_error}")
-                            yield json.dumps({
-                                "status": "error",
-                                "step": agent.current_step,
-                                "error": f"Act error: {str(act_error)}",
-                                "traceback": traceback.format_exc()
-                            })
+                        result = await agent.act()
+                        result_str = str(result)
+                        
+                        # Extract useful summary from the action result
+                        summary = self._extract_summary_from_result(result_str)
+                        actions_summary.append(f"Step {agent.current_step}: {summary}")
+                        
+                        # Yield the action result with concise summary
+                        yield json.dumps({
+                            "status": "acting",
+                            "step": agent.current_step,
+                            "action": summary
+                        })
                     
-                except Exception as step_error:
+                except Exception as e:
                     # Yield any errors that occur during processing
-                    error_msg = str(step_error)
-                    logger.error(f"Error during step {agent.current_step}: {error_msg}\n{traceback.format_exc()}")
+                    error_msg = str(e)
                     yield json.dumps({
                         "status": "error",
                         "step": agent.current_step,
-                        "error": error_msg,
-                        "traceback": traceback.format_exc()
+                        "error": error_msg
                     })
                     actions_summary.append(f"Step {agent.current_step}: Error - {error_msg}")
                     agent.state = AgentState.FINISHED
                 
                 # Small delay to avoid overwhelming the client
-                logger.info(f"Completed step {agent.current_step}, waiting before next step")
                 await asyncio.sleep(0.1)
                 
                 # Break if agent is finished
                 if agent.state == AgentState.FINISHED:
-                    logger.info("Agent state is FINISHED, breaking execution loop")
                     break
             
             # Get final response from agent memory
-            logger.info("Preparing final response")
-            try:
-                last_messages = [msg for msg in agent.memory.messages[-3:] 
-                            if hasattr(msg, "role") and hasattr(msg, "content")]
-                logger.info(f"Found {len(last_messages)} messages for final response")
-                
-                final_content = last_messages[-1].content if last_messages else "No final content available"
-                
-                # Create shortened version for the response
-                short_content = final_content[:300] + "..." if len(final_content) > 300 else final_content
-                
-                # Yield final result with concise summary and important details only
-                final_result = json.dumps({
-                    "status": "complete",
-                    "content": short_content,
-                    "steps_summary": actions_summary[-3:] if len(actions_summary) > 3 else actions_summary,
-                    "total_steps": agent.current_step
-                })
-                logger.info(f"Yielding final result with {len(actions_summary)} action summaries")
-                yield final_result
-                logger.info("Streaming completed successfully")
-            except Exception as final_error:
-                logger.error(f"Error preparing final response: {str(final_error)}\n{traceback.format_exc()}")
-                yield json.dumps({
-                    "status": "error",
-                    "error": f"Error preparing final response: {str(final_error)}",
-                    "traceback": traceback.format_exc()
-                })
+            last_messages = [msg for msg in agent.memory.messages[-3:] 
+                           if hasattr(msg, "role") and hasattr(msg, "content")]
+            final_content = last_messages[-1].content if last_messages else "No final content available"
+            
+            # Create shortened version for the response
+            short_content = final_content[:300] + "..." if len(final_content) > 300 else final_content
+            
+            # Yield final result with concise summary and important details only
+            final_result = json.dumps({
+                "status": "complete",
+                "content": short_content,
+                "steps_summary": actions_summary[-3:] if len(actions_summary) > 3 else actions_summary
+            })
+            logger.info(f"Yielding final result summary: {final_result[:100]}..." if len(final_result) > 100 else f"Yielding final result: {final_result}")
+            yield final_result
             
         except Exception as e:
             # Yield any exceptions that occur
