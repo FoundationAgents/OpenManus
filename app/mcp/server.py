@@ -52,11 +52,18 @@ class MCPServer:
             logger.info(f"Executing {tool_name}: {kwargs}")
 
             # Special handling for Manus agent with streaming support
-            if tool_name == "manus_agent" and kwargs.get("streaming", False):
-                logger.info(f"Using streaming mode for {tool_name}")
+            # Check server-wide streaming setting - only this determines if streaming is used
+            import os
+            server_allows_streaming = os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+
+            # Remove streaming parameter from kwargs if it exists (since we've removed it from the tool's parameters)
+            if "streaming" in kwargs:
+                del kwargs["streaming"]
+
+            if tool_name == "manus_agent" and server_allows_streaming:
+                logger.info(f"Using streaming mode for {tool_name} (controlled by server setting)")
 
                 # Detect if we're using SSE transport
-                import os
                 using_sse = os.environ.get("MCP_SERVER_TRANSPORT") == "sse"
                 logger.info(f"Using SSE transport: {using_sse}")
 

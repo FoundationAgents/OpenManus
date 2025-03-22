@@ -27,26 +27,20 @@ class ManusAgentTool(BaseTool):
                 "type": "string",
                 "description": "The user's prompt or request to process"
             },
-            "streaming": {
-                "type": "boolean",
-                "description": "Whether to stream results as they become available (only works with SSE transport)",
-                "default": False
-            },
             "max_steps": {
                 "type": "integer",
                 "description": "Maximum number of steps the agent can take (default: use agent's default)",
-                "default": None
+                "default": 60
             }
         },
         "required": ["prompt"]
     }
 
-    async def execute(self, prompt: str, streaming: Optional[bool] = None, max_steps: Optional[int] = None, **kwargs) -> Union[ToolResult, AsyncGenerator[str, None]]:
+    async def execute(self, prompt: str, max_steps: Optional[int] = None, **kwargs) -> Union[ToolResult, AsyncGenerator[str, None]]:
         """Execute the Manus agent with the given prompt.
 
         Args:
             prompt: The user prompt to process
-            streaming: Whether to stream results (only works with SSE transport)
             max_steps: Maximum number of agent steps (None uses agent default)
 
         Returns:
@@ -59,16 +53,12 @@ class ManusAgentTool(BaseTool):
             if max_steps is not None:
                 agent.max_steps = max_steps
 
-            # Check if streaming should be used - if not explicitly set, use server default
-            use_streaming = streaming
-            if use_streaming is None:
-                # Check for server-wide streaming setting
-                server_streaming = os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
-                use_streaming = server_streaming
-                logger.info(f"Using server streaming setting: {use_streaming}")
+            # Check if streaming should be used based on server setting only
+            server_streaming = os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+            logger.info(f"Server streaming setting: {server_streaming}")
 
-            # If streaming is requested, return the streaming generator
-            if use_streaming:
+            # If server has streaming enabled, use the streaming generator
+            if server_streaming:
                 logger.info(f"Using streaming mode for prompt: {prompt}")
                 # This function returns an async generator that will yield string results
                 return self._run_with_streaming(prompt, max_steps, agent)
