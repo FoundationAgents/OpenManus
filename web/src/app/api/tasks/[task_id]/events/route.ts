@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 
 const API_BASE_URL = 'http://localhost:5172';
 
-export async function GET(_request: NextRequest, { params }: { params: { task_id: string } }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ task_id: string }> }) {
   try {
-    const taskId = params.task_id;
+    const taskId = (await params).task_id;
     const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/events`);
 
     if (!response.ok) {
