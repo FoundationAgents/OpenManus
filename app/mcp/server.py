@@ -8,10 +8,13 @@ import argparse
 import asyncio
 import atexit
 import json
+import os
 from inspect import Parameter, Signature
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
+from fastapi import APIRouter, BackgroundTasks, FastAPI
 from mcp.server.fastmcp import FastMCP
+from sse_starlette.sse import EventSourceResponse
 
 from app.logger import logger
 from app.tool.base import BaseTool
@@ -31,12 +34,9 @@ class MCPServer:
 
         # Initialize standard tools
         self.tools["bash"] = Bash()
-        self.tools["browser"] = BrowserUseTool()
-        self.tools["editor"] = StrReplaceEditor()
+        self.tools["browser_use"] = BrowserUseTool()  # Use correct name to match class
+        self.tools["str_replace_editor"] = StrReplaceEditor()  # Use correct name to match class
         self.tools["terminate"] = Terminate()
-
-        # Add the high-level Manus agent tool
-        self.tools["manus_agent"] = ManusAgentTool()
 
         # Add the high-level Manus agent tool
         self.tools["manus_agent"] = ManusAgentTool()
@@ -54,8 +54,6 @@ class MCPServer:
             # Special handling for Manus agent with streaming support
             if tool_name == "manus_agent" and kwargs.get("streaming", False):
                 logger.info(f"Using streaming mode for {tool_name}")
-                # Run with streaming mode and return generator
-                generator = await tool.execute(**kwargs)
                 
                 # Detect if we're using SSE transport
                 import os
@@ -63,32 +61,73 @@ class MCPServer:
                 logger.info(f"Using SSE transport: {using_sse}")
                 
                 if using_sse:
-                    # We need to create a response that's compatible with the SSE transport
-                    # in FastMCP. The function must return an async generator that yields strings.
+                    # With SSE, we need to ensure the generator is consumed properly
+                    # The key issue was that the generator was not being properly consumed
+                    # and executed for the Manus agent
+                    
+                    # Manually trigger the execution of the manus agent in a way that will
+                    # properly convert its output to a stream of events
+                    logger.info("Creating wrapper for SSE streaming response")
+                    
+                    # Create a proxy generator that ensures the Manus agent is executed
                     async def stream_response():
                         try:
                             # Send an initial event to confirm streaming has started
-                            yield json.dumps({"status": "streaming_started"})
+                            yield json.dumps({"status": "streaming_started", "message": "Stream started by MCP server"})
                             
-                            async for chunk in generator:
-                                # Each yielded item should be a string that will be sent as an SSE event
-                                logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
-                                yield chunk
+                            # Get the Manus tool instance
+                            manus_tool = self.tools["manus_agent"]
+                            
+                            # Get stripped kwargs (without streaming flag which we already processed)
+                            exec_kwargs = {k: v for k, v in kwargs.items() if k != "streaming"}
+                            
+                            # Ensure that we get a proper generator
+                            generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                            
+                            # Consume the generator and yield each chunk
+                            # This is the key part that ensures the generator is actually running
+                            logger.info("Starting to consume Manus agent generator")
+                            try:
+                                async for chunk in generator:
+                                    logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
+                                    yield chunk
+                            except Exception as inner_e:
+                                logger.error(f"Error while consuming generator: {inner_e}")
+                                yield json.dumps({"status": "error", "error": f"Error during streaming: {str(inner_e)}"})
+                            
+                            # Send a final event to confirm completion
+                            yield json.dumps({"status": "stream_complete", "message": "Stream completed by MCP server"})
+                            
                         except Exception as e:
-                            logger.error(f"Error streaming response: {e}")
+                            logger.error(f"Error in stream_response: {e}")
                             yield json.dumps({"status": "error", "error": str(e)})
 
                     # Return a new generator that will be consumed by FastMCP's SSE transport
                     logger.info("Returning SSE stream response generator")
                     return stream_response()
+                    
                 else:
                     # For non-SSE transports, we need to collect all results
                     logger.info("Using non-SSE mode, collecting all results")
+                    
+                    # Get stripped kwargs (without streaming flag which we already processed)
+                    exec_kwargs = {k: v for k, v in kwargs.items() if k != "streaming"}
+                    
+                    # Get the Manus tool instance
+                    manus_tool = self.tools["manus_agent"]
+                    
+                    # Execute with streaming and collect results
                     results = []
                     try:
+                        # Ensure that we get a proper generator
+                        generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                        
+                        # Collect all results
+                        logger.info("Collecting all results from generator")
                         async for chunk in generator:
                             logger.info(f"Collected chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Collected chunk: {chunk}")
                             results.append(chunk)
+                            
                         # Return all collected results as JSON array
                         result_json = json.dumps(results)
                         logger.info(f"Returning collected results: {result_json[:100]}..." if len(result_json) > 100 else f"Returning collected results: {result_json}")
@@ -202,6 +241,53 @@ class MCPServer:
         for tool in self.tools.values():
             self.register_tool(tool)
 
+    async def _stream_manus_agent(self, prompt: str, max_steps: Optional[int] = None):
+        """Direct streaming implementation for Manus agent to work with FastAPI/SSE.
+        This bypasses the FastMCP server for streaming and directly yields events.
+        """
+        logger.info(f"Direct streaming of Manus agent for prompt: {prompt}")
+        manus_tool = self.tools.get("manus_agent")
+        
+        if not manus_tool:
+            logger.error("ManusAgentTool not found in registered tools")
+            yield json.dumps({"status": "error", "error": "ManusAgentTool not available"})
+            return
+            
+        try:
+            # Get the generator from the tool
+            generator = await manus_tool.execute(prompt=prompt, streaming=True, max_steps=max_steps)
+            
+            # Yield the initial event to confirm streaming has started
+            yield json.dumps({"status": "direct_streaming_started"})
+            
+            # Consume and forward each event
+            async for event in generator:
+                logger.info(f"Streaming direct event: {event[:50]}..." if len(event) > 50 else f"Streaming direct event: {event}")
+                yield event
+                
+        except Exception as e:
+            logger.error(f"Error in direct streaming: {e}")
+            yield json.dumps({"status": "error", "error": str(e)})
+    
+    def _setup_direct_streaming_api(self, app: FastAPI):
+        """Set up a direct streaming endpoint for the Manus agent."""
+        router = APIRouter()
+        
+        @router.post("/direct-stream/manus")
+        async def stream_manus(prompt: str, max_steps: Optional[int] = None):
+            """Endpoint for direct streaming of Manus agent results."""
+            logger.info(f"Direct streaming endpoint called with prompt: {prompt}")
+            
+            # This creates an SSE stream response using the generator from _stream_manus_agent
+            return EventSourceResponse(
+                self._stream_manus_agent(prompt=prompt, max_steps=max_steps),
+                media_type="text/event-stream"
+            )
+            
+        # Add the router to the app
+        app.include_router(router)
+        logger.info("Direct streaming API endpoints registered")
+
     def run(self, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
         """Run the MCP server.
 
@@ -216,8 +302,6 @@ class MCPServer:
         # Register cleanup function (match original behavior)
         atexit.register(lambda: asyncio.run(self.cleanup()))
 
-        # Start server
-        import os
         # Set transport type in environment for tool methods to check
         os.environ["MCP_SERVER_TRANSPORT"] = transport
         
@@ -227,6 +311,18 @@ class MCPServer:
             # Set bind host and port for SSE transport
             os.environ["MCP_SERVER_HOST"] = host
             os.environ["MCP_SERVER_PORT"] = str(port)
+            
+            # Customize the FastAPI app to add our direct streaming endpoint
+            # This is the key part that ensures our streaming works correctly
+            import importlib
+            module = importlib.import_module("mcp.server.apps")
+            app = getattr(module, "app", None)
+            if app:
+                logger.info("Setting up direct streaming API endpoints")
+                self._setup_direct_streaming_api(app)
+            else:
+                logger.warning("Could not find FastAPI app to customize, streaming may not work")
+            
             # Use sse transport which will start an HTTP server
             self.server.run(transport=transport)
         else:
