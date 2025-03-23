@@ -8,6 +8,7 @@ from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
+from app.prompt.base import TEXT_VALIDATION_PROMPT, USER_CONTENT
 
 
 class BaseAgent(BaseModel, ABC):
@@ -39,6 +40,7 @@ class BaseAgent(BaseModel, ABC):
     # Execution control
     max_steps: int = Field(default=10, description="Maximum steps before termination")
     current_step: int = Field(default=0, description="Current step in execution")
+    feedback_step: int = Field(default=0, description="Step for feedback")
 
     duplicate_threshold: int = 2
 
@@ -140,6 +142,8 @@ class BaseAgent(BaseModel, ABC):
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 step_result = await self.step()
 
+                await self.validate(request, step_result)
+
                 # Check for stuck state
                 if self.is_stuck():
                     self.handle_stuck_state()
@@ -150,6 +154,7 @@ class BaseAgent(BaseModel, ABC):
                 self.current_step = 0
                 self.state = AgentState.IDLE
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
+
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
 
@@ -159,6 +164,48 @@ class BaseAgent(BaseModel, ABC):
 
         Must be implemented by subclasses to define specific behavior.
         """
+
+    async def validate(self, request: str, step_result: str) -> None:
+        """Validate the result and update agent state.
+
+        Args:
+            step_result: The result string from the step execution.
+        """
+        try:
+            validation_result = await self._validate_result(request, step_result)
+            if validation_result:
+                self.state = AgentState.FINISHED
+        except Exception as e:
+            logger.error(f"Validation error: {e}")
+            self.state = AgentState.ERROR
+
+    async def _validate_result(self, request: str, step_result: str) -> bool:
+        """Abstract method for result validation logic.
+
+        Args:
+            step_result: The result string to validate.
+
+        Returns:
+            bool: True if the result is valid, False otherwise.
+        """
+        system_content = TEXT_VALIDATION_PROMPT
+        user_content = USER_CONTENT.format(
+            request=request, step_result=step_result, memory=self.memory
+        )
+
+        feedback = await self.llm.ask(
+            messages=[{"role": "user", "content": user_content}],
+            system_msgs=[{"role": "system", "content": system_content}],
+        )
+        self.feedback_step += 1
+        self.update_memory(
+            "user",
+            f"This is feedback ID {self.feedback_step}, feedback content is {feedback}",
+        )
+        if "OK" in feedback and len(feedback) < 50:
+            return True
+        else:
+            return False
 
     def handle_stuck_state(self):
         """Handle stuck state by adding a prompt to change strategy"""
