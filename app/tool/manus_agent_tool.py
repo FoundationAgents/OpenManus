@@ -11,6 +11,11 @@ from app.logger import logger
 from app.schema import AgentState, Message
 from app.tool.base import BaseTool, ToolResult
 
+# Summary extraction configuration constants
+MIN_STEP_CONTENT_LENGTH = 100  # Minimum length (chars) for step content to be considered substantial
+MAX_STEP_CONTENT_LENGTH = 10000  # Maximum length to return from a step before truncating
+FALLBACK_CONTENT_LENGTH = 800   # Number of chars to extract from end of result if no good step is found
+
 
 class ManusAgentTool(BaseTool):
     """Tool that exposes the Manus agent as a single MCP tool.
@@ -88,58 +93,131 @@ class ManusAgentTool(BaseTool):
             )
 
     def _extract_summary_from_result(self, result: str) -> str:
-        """Extract a concise summary from a detailed result.
+        """Extract a concise summary from the agent's result.
 
-        This extracts text between the last occurrence of 'Manus's thoughts:' and the termination marker.
+        Analyzes the structured data and step outputs to identify the most meaningful content.
+        Priority is given to the final JSON output if available, followed by step-based extraction.
         """
         logger.debug(f"Extracting summary from result of length {len(result)}")
 
-        # Define the thought markers and termination markers
-        thoughts_markers = ["✨ Manus's thoughts:", "Manus's thoughts:", "Agent thoughts:"]
-        termination_markers = [
-            "Tools being prepared: ['terminate']",
-            "Tools being prepared: [\"terminate\"]",
-            "Using tool: terminate",
-            "Observed output of cmd `terminate`"
-        ]
+        # First, check for JSON data which often contains the structured final result
+        json_start = result.find('{')
+        json_end = result.rfind('}')
 
-        # Find the last instance of any thought marker
-        last_marker = None
-        last_marker_index = -1
+        if json_start != -1 and json_end != -1 and json_end > json_start:
+            try:
+                # Extract and parse the JSON content
+                json_text = result[json_start:json_end+1]
+                data = json.loads(json_text)
 
-        for marker in thoughts_markers:
-            current_index = result.rfind(marker)
-            if current_index > last_marker_index:
-                last_marker = marker
-                last_marker_index = current_index
+                # If we have valid JSON data, create a compact summary of keys and values
+                summary_lines = ["Summary of results:"]
 
-        # If we found the thought marker, extract text from there to the termination marker
-        if last_marker_index != -1:
-            logger.debug(f"Found thought marker '{last_marker}' at position {last_marker_index}")
-            # Extract everything from the last marker
-            thoughts_section = result[last_marker_index:]
+                # Limit the output to important top-level keys
+                for key, value in data.items():
+                    # Skip metadata and context keys that aren't directly useful
+                    if key.lower() in ['metadata', 'context', 'debug_info', 'raw_data']:
+                        continue
 
-            # Find the termination marker if it exists (to set the end boundary)
-            end_index = len(thoughts_section)
-            for term_marker in termination_markers:
-                term_pos = thoughts_section.find(term_marker)
-                if term_pos != -1 and term_pos < end_index:
-                    end_index = term_pos
-                    logger.debug(f"Found termination marker '{term_marker}' at position {term_pos}")
+                    # Handle different value types appropriately
+                    if isinstance(value, dict):
+                        # For nested dictionaries, show a sample of key-value pairs
+                        nested_items = list(value.items())[:3]  # Show only first 3 items
+                        nested_preview = ", ".join([f"{k}: {str(v)[:50]}" for k, v in nested_items])
+                        summary_lines.append(f"- {key}: {{{nested_preview}}}")
+                        if len(value) > 3:
+                            summary_lines.append(f"  ...and {len(value)-3} more entries")
+                    elif isinstance(value, list):
+                        # For lists, show the count and a preview
+                        list_len = len(value)
+                        if list_len > 0:
+                            preview = str(value[0])[:50]
+                            if len(preview) == 50:
+                                preview += "..."
+                            summary_lines.append(f"- {key}: [{list_len} items, first: {preview}]")
+                        else:
+                            summary_lines.append(f"- {key}: [empty list]")
+                    else:
+                        # For simple values, show directly with truncation
+                        val_str = str(value)
+                        if len(val_str) > 100:
+                            val_str = val_str[:100] + "..."
+                        summary_lines.append(f"- {key}: {val_str}")
 
-            # Extract only up to the termination marker or the end if not found
-            thoughts_section = thoughts_section[:end_index].strip()
+                # If we have a decent summary, return it
+                if len(summary_lines) > 1:  # More than just the header
+                    return "\n".join(summary_lines)
 
-            # Remove the marker itself
-            clean_marker = last_marker.strip()
-            summary = thoughts_section.replace(clean_marker, "").strip()
+                # If the summary was empty or had only system keys, fall through to step-based extraction
 
-            logger.debug(f"Extracted summary of length {len(summary)}")
-            return summary
+            except json.JSONDecodeError:
+                logger.debug("Failed to decode JSON in the result")
 
-        # If we couldn't find the thought marker, return a simple message
-        logger.debug("No thought markers found in the result")
-        return "Task completed successfully."
+        # If JSON extraction failed or was not useful, try to find the most informative steps
+        steps = result.split("Step ")
+        last_step_with_results = None
+        last_step_content = ""
+
+        # Go backwards through the steps to find the last one with meaningful results
+        if len(steps) > 1:
+            for i in range(len(steps)-1, 0, -1):  # Start from the last step
+                step = steps[i]
+                # Skip termination steps
+                if "terminate" in step or "The interaction has been completed" in step:
+                    continue
+
+                # Look for steps with extracted data or meaningful content
+                if "Extracted from page" in step or "Extracted text" in step or "Result:" in step:
+                    # Try to extract the content after these markers
+                    for marker in ["Extracted from page:", "Extracted text:", "Result:"]:
+                        marker_pos = step.find(marker)
+                        if marker_pos != -1:
+                            # Extract content after the marker, up to next step or end
+                            content_start = marker_pos + len(marker)
+                            extract = step[content_start:].strip()
+
+                            # If we have substantial content, use it
+                            if len(extract) > MIN_STEP_CONTENT_LENGTH:
+                                last_step_with_results = i
+                                last_step_content = extract
+                                break
+
+                # If we haven't found specific extracts, check for any substantial content
+                if len(step.strip()) > MIN_STEP_CONTENT_LENGTH and not last_step_with_results:
+                    # Look for content after "Agent:" or "Observation:" markers
+                    for marker in ["Agent:", "Observation:", "Action:"]:
+                        marker_pos = step.find(marker)
+                        if marker_pos != -1:
+                            # Extract content after the marker
+                            content_start = marker_pos + len(marker)
+                            extract = step[content_start:].strip()
+
+                            # If we have substantial content, use it
+                            if len(extract) > MIN_STEP_CONTENT_LENGTH:
+                                last_step_with_results = i
+                                last_step_content = extract
+                                break
+
+                    # If no marker-based content was found, use the whole step
+                    if not last_step_content and len(step.strip()) > MIN_STEP_CONTENT_LENGTH:
+                        last_step_with_results = i
+                        last_step_content = step.strip()
+
+        if last_step_with_results and last_step_content:
+            # Clean up and format the content
+            if len(last_step_content) > MAX_STEP_CONTENT_LENGTH:
+                last_step_content = last_step_content[:MAX_STEP_CONTENT_LENGTH] + "..."
+            logger.debug(f"Using content from step {last_step_with_results}")
+            return f"Step {last_step_with_results} result: {last_step_content}"
+
+        # If all else fails, return a reasonable section from the end of the result
+        if len(result) > FALLBACK_CONTENT_LENGTH:
+            end_content = result[-FALLBACK_CONTENT_LENGTH:].strip()
+            logger.debug(f"Using last {FALLBACK_CONTENT_LENGTH} characters as summary")
+            return end_content
+
+        # For short results, just return the whole thing
+        return result.strip()
 
     async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
         """Run the agent with streaming output.
