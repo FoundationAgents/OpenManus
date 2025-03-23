@@ -15,7 +15,7 @@ interface CreateUserParams {
  */
 async function _createUser(user: AuthUser, params: CreateUserParams) {
   // Check if email already exists
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await prisma.users.findUnique({
     where: { email: params.email },
   });
 
@@ -27,7 +27,7 @@ async function _createUser(user: AuthUser, params: CreateUserParams) {
   const salt = generateSalt();
   const hashedPassword = hashPassword(params.password, salt);
 
-  const newUser = await prisma.user.create({
+  const newUser = await prisma.users.create({
     data: {
       email: params.email,
       name: params.name,

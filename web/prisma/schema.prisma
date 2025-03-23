@@ -13,7 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Users {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String?
@@ -23,4 +23,27 @@ model User {
   isFirstLogin Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Tasks {
+  id        String          @id @default(cuid())
+  outId     String?         @unique
+  prompt    String          @db.Text
+  status    String          @default("pending")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  steps     TaskProcesses[]
+}
+
+model TaskProcesses {
+  id        String   @id @default(cuid())
+  taskId    String
+  index     Int
+  step      Int
+  result    String   @db.Text
+  type      String
+  createdAt DateTime @default(now())
+  task      Tasks    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }

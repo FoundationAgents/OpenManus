@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     // Normal user login
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
     });
 

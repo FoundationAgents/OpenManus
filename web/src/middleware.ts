@@ -15,14 +15,14 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Verify Authorization header for API routes
-    const token = getTokenFromHeader(request.headers.get('Authorization'));
-    if (!token) {
+    // Verify token from cookie for API routes
+    const cookieToken = request.cookies.get('token');
+    if (!cookieToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {
-      await verifyToken(token);
+      await verifyToken(cookieToken.value);
       return NextResponse.next();
     } catch (error) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });

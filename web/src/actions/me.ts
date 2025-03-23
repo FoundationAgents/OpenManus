@@ -27,7 +27,7 @@ async function _modifyPassword(user: AuthUser, oldPassword: string, newPassword:
   }
 
   // Normal user update password
-  const dbUser = await prisma.user.findUnique({
+  const dbUser = await prisma.users.findUnique({
     where: { id: user.id },
   });
 
@@ -42,7 +42,7 @@ async function _modifyPassword(user: AuthUser, oldPassword: string, newPassword:
   const newSalt = generateSalt();
   const newHashedPassword = hashPassword(newPassword, newSalt);
 
-  await prisma.user.update({
+  await prisma.users.update({
     where: { id: user.id },
     data: {
       password: newHashedPassword,

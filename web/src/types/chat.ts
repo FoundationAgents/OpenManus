@@ -13,7 +13,6 @@ export interface Message {
     | 'tool:completed' // Tool completion
     | 'log'; // Log messages
   step?: number;
-  steps?: Message[];
   timestamp?: string;
 }
 
