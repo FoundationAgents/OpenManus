@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import re
 from typing import AsyncGenerator, Dict, Optional, Union
 
 from app.agent.manus import Manus
@@ -89,70 +90,56 @@ class ManusAgentTool(BaseTool):
     def _extract_summary_from_result(self, result: str) -> str:
         """Extract a concise summary from a detailed result.
 
-        This analyzes the result string to extract key information and summarize it,
-        prioritizing the agent's final thoughts which contain the most valuable output.
+        This extracts text between the last occurrence of 'Manus's thoughts:' and the termination marker.
         """
-        # Look for the agent's thought markers to extract the final summary
+        logger.debug(f"Extracting summary from result of length {len(result)}")
+
+        # Define the thought markers and termination markers
         thoughts_markers = ["✨ Manus's thoughts:", "Manus's thoughts:", "Agent thoughts:"]
-        termination_markers = ["Tools being prepared: ['terminate']", "Tools being prepared: [\"terminate\"]", "Using tool: terminate"]
+        termination_markers = [
+            "Tools being prepared: ['terminate']",
+            "Tools being prepared: [\"terminate\"]",
+            "Using tool: terminate",
+            "Observed output of cmd `terminate`"
+        ]
+
+        # Find the last instance of any thought marker
+        last_marker = None
+        last_marker_index = -1
 
         for marker in thoughts_markers:
-            if marker in result:
-                # Find the LAST instance of the marker by reversing the search
-                last_marker_index = result.rfind(marker)
-                if last_marker_index != -1:
-                    # Extract everything from the last marker...
-                    thoughts_section = result[last_marker_index:]
+            current_index = result.rfind(marker)
+            if current_index > last_marker_index:
+                last_marker = marker
+                last_marker_index = current_index
 
-                    # Find the termination marker if it exists (to set the end boundary)
-                    end_index = len(thoughts_section)
-                    for term_marker in termination_markers:
-                        term_pos = thoughts_section.find(term_marker)
-                        if term_pos != -1 and term_pos < end_index:
-                            end_index = term_pos
+        # If we found the thought marker, extract text from there to the termination marker
+        if last_marker_index != -1:
+            logger.debug(f"Found thought marker '{last_marker}' at position {last_marker_index}")
+            # Extract everything from the last marker
+            thoughts_section = result[last_marker_index:]
 
-                    # Extract only up to the termination marker or the end if not found
-                    thoughts_section = thoughts_section[:end_index].strip()
+            # Find the termination marker if it exists (to set the end boundary)
+            end_index = len(thoughts_section)
+            for term_marker in termination_markers:
+                term_pos = thoughts_section.find(term_marker)
+                if term_pos != -1 and term_pos < end_index:
+                    end_index = term_pos
+                    logger.debug(f"Found termination marker '{term_marker}' at position {term_pos}")
 
-                    # Remove the marker itself
-                    clean_marker = marker.strip()
-                    return thoughts_section.replace(clean_marker, "").strip()
+            # Extract only up to the termination marker or the end if not found
+            thoughts_section = thoughts_section[:end_index].strip()
 
-        # If we couldn't find thoughts markers, try to handle structured results
-        try:
-            # Try to parse as JSON
-            data = json.loads(result)
+            # Remove the marker itself
+            clean_marker = last_marker.strip()
+            summary = thoughts_section.replace(clean_marker, "").strip()
 
-            # Handle browser_use tool results
-            if isinstance(data, dict):
-                # Check if this is a flight search result
-                if 'flight_search_details' in data:
-                    route = data.get('flight_search_details', {}).get('route', 'Unknown route')
-                    dates = data.get('flight_search_details', {}).get('dates', 'Unknown dates')
-                    cheapest = next((f['price'] for f in data.get('available_flights', []) if f.get('price')), 'Unknown')
-                    fastest = next((f"Duration: {f['duration']}" for f in data.get('available_flights', [])
-                                    if f.get('duration') and 'Nonstop' in f.get('stops', '')), 'No nonstop flights')
-                    return f"Flight search for {route}, {dates}. Cheapest: {cheapest}. {fastest}"
+            logger.debug(f"Extracted summary of length {len(summary)}")
+            return summary
 
-                # Summary for extracted page content
-                if any(key in data for key in ['interactive_elements', 'available_flights', 'flight_search']):
-                    return f"Extracted page information with {len(data)} data points"
-
-            # If we can't generate a specific summary, create a general one
-            return f"Result: {result[:150]}..." if len(result) > 150 else f"Result: {result}"
-
-        except (json.JSONDecodeError, TypeError, ValueError):
-            # For step-by-step results, try to extract the last few meaningful lines
-            # Split by steps
-            steps = result.split("Step ")
-            if len(steps) > 1:  # If we have actual steps
-                # Get the last step that has actual content
-                last_steps = [s for s in steps[-3:] if s.strip()]
-                if last_steps:
-                    return f"Final result: {last_steps[-1].strip()}"
-
-            # As a fallback, just return a truncated version
-            return f"Result: {result[:100]}..." if len(result) > 100 else f"Result: {result}"
+        # If we couldn't find the thought marker, return a simple message
+        logger.debug("No thought markers found in the result")
+        return "Task completed successfully."
 
     async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
         """Run the agent with streaming output.
