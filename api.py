@@ -188,7 +188,9 @@ async def run_task(task_id: str, prompt: str):
         logger.add(sse_handler)
 
         result = await agent.run(prompt)
-        await task_manager.update_task_step(task_id, 1, result, "result")
+        await task_manager.update_task_step(
+            task_id, agent.current_step, result, "result"
+        )
         await task_manager.complete_task(task_id)
     except Exception as e:
         await task_manager.fail_task(task_id, str(e))
