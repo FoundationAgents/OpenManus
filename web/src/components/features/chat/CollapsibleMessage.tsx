@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { cn } from '@/lib/utils';
 
 interface CollapsibleMessageProps {
   title: string;
@@ -27,8 +30,10 @@ export const CollapsibleMessage = ({ title, content, badge, defaultExpanded = fa
         </div>
       </div>
       {isExpanded && (
-        <div className="pl-8 pr-2 pb-2">
-          <Markdown>{content}</Markdown>
+        <div className="pl-8 pr-2 pb-2 markdown-content overflow-auto">
+          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+            {content}
+          </Markdown>
         </div>
       )}
     </div>

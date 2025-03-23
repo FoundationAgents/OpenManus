@@ -120,3 +120,101 @@
     @apply bg-background text-foreground;
   }
 }
+
+.markdown-content {
+  @apply max-w-full
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-bold mt-2 text-gray-700;
+  }
+
+  h1 {
+    @apply text-4xl mb-4 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent;
+  }
+
+  h2 {
+    @apply text-2xl mb-3 border-b border-gray-200 pb-1;
+  }
+
+  h3 {
+    @apply text-xl mb-2;
+  }
+
+  h4 {
+    @apply text-lg mb-2;
+  }
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  pre,
+  hr {
+    @apply my-3;
+  }
+
+  p,
+  li {
+    @apply leading-normal;
+  }
+
+  strong {
+    @apply font-semibold text-gray-700;
+  }
+
+  em {
+    @apply italic;
+  }
+
+  ul {
+    @apply list-disc list-inside space-y-1;
+  }
+
+  ol {
+    @apply list-decimal list-inside space-y-1;
+  }
+
+  blockquote {
+    @apply pl-3 py-1 border-l-4 border-gray-300 bg-gray-50/50 italic;
+  }
+
+  code {
+    @apply px-1.5 py-0.5 bg-gray-100 text-sm text-gray-700 font-mono;
+  }
+
+  pre {
+    @apply p-3 bg-gray-900;
+
+    code {
+      @apply bg-transparent text-gray-200 p-0 text-sm leading-normal break-all whitespace-pre-wrap;
+    }
+  }
+
+  hr {
+    @apply border-t border-gray-200;
+  }
+
+  a {
+    @apply text-blue-600 hover:text-blue-700 underline transition-colors;
+  }
+
+  img {
+    @apply max-w-full my-3;
+  }
+
+  table {
+    @apply w-full my-3 border-collapse;
+
+    th,
+    td {
+      @apply border border-gray-200 px-4 py-2;
+    }
+
+    th {
+      @apply bg-gray-50 text-left text-gray-700 font-semibold;
+    }
+  }
+}

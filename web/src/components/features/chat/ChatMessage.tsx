@@ -17,13 +17,13 @@ const renderUserMessage = (message: Message) => (
 );
 
 const renderAgentMessage = (message: Message) => {
-  const [title, content] = message.content.split('\n');
+  const [title, ...content] = message.content.split('\n');
   return (
     <div className="text-sm text-foreground">
       <div className="prose prose-sm prose-neutral dark:prose-invert">
         <div>{title}</div>
         <div className="pl-6 pt-2">
-          <Markdown>{content}</Markdown>
+          <Markdown>{content.join('\n')}</Markdown>
         </div>
       </div>
     </div>
@@ -52,10 +52,10 @@ const renderToolCompletedMessage = (message: Message) => {
 };
 
 const renderCollapsibleMessage = (message: Message) => {
-  const [title, content] = message.content.split('\n');
+  const [title, ...content] = message.content.split('\n');
   return (
-    <div className="pl-6 text-sm text-muted-foreground">
-      <CollapsibleMessage title={title} content={content} defaultExpanded={false} className="prose-sm" />
+    <div className="mt-2 text-sm text-muted-foreground">
+      <CollapsibleMessage title={title} content={content.join('\n')} defaultExpanded={false} className="prose-sm" />
     </div>
   );
 };
