@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,16 +51,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-      <Card className="w-[400px]">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>Enter your email and password to sign in</CardDescription>
-        </CardHeader>
+    <div className="flex min-h-screen w-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
+      <Card className="w-[400px] shadow-lg">
         <CardContent>
+          <div className="flex justify-center">
+            <img src={logo.src} alt="OpenManus Logo" className="h-24 w-auto" />
+          </div>
+          <div className="mb-6">
+            <CardDescription className="text-center text-base">Sign in to your OpenManus account</CardDescription>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -68,10 +70,10 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -80,9 +82,10 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="h-11"
               />
             </div>
-            <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
+            <Button type="submit" className="cursor-pointer w-full h-11 text-base font-medium" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
