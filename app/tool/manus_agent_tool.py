@@ -72,8 +72,8 @@ class ManusAgentTool(BaseTool):
             agent.current_step = 0
             agent.state = AgentState.RUNNING
 
-            # Track the final thought
-            final_thought = ""
+            # Track the last two thoughts
+            thoughts = []
 
             # Run steps until completion or max steps reached
             while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
@@ -84,10 +84,15 @@ class ManusAgentTool(BaseTool):
                     should_act = await agent.think()
 
                     # Capture the most recent thought
-                    last_messages = [msg for msg in agent.memory.messages[-2:]
-                                  if hasattr(msg, "role") and hasattr(msg, "content")]
+                    last_messages = [msg for msg in agent.memory.messages
+                                  if hasattr(msg, "role") and msg.role == "assistant"
+                                  and hasattr(msg, "content") and msg.content.strip()]
+
+                    # Store thought if it exists
                     if last_messages:
-                        final_thought = last_messages[-1].content
+                        current_thought = last_messages[-1].content
+                        if current_thought not in thoughts:  # avoid duplicates
+                            thoughts.append(current_thought)
 
                     # If should act, perform the action
                     if should_act:
@@ -101,16 +106,28 @@ class ManusAgentTool(BaseTool):
                 if agent.state == AgentState.FINISHED:
                     break
 
-            # Add thought marker if not already present
-            if final_thought and not any(marker in final_thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
-                final_thought = f"✨ Manus's thoughts: {final_thought}"
+            # Process the collected thoughts
+            processed_thoughts = []
 
-            # Return only the final thought in a clean structure
-            logger.info(f"Completed processing in {agent.current_step} steps")
+            # Get the last two thoughts (or fewer if not enough)
+            last_n_thoughts = thoughts[-2:] if len(thoughts) >= 2 else thoughts
+
+            # Add thought marker to each thought if not already present
+            for i, thought in enumerate(last_n_thoughts):
+                if not any(marker in thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
+                    processed_thoughts.append(f"✨ Manus's thoughts {i+1}: {thought}")
+                else:
+                    processed_thoughts.append(thought)
+
+            # Join thoughts with a separator
+            final_output = "\n\n---\n\n".join(processed_thoughts)
+
+            # Return the thoughts in a clean structure
+            logger.info(f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts")
             return ToolResult(
                 output=json.dumps({
                     "status": "complete",
-                    "thoughts": final_thought
+                    "thoughts": final_output
                 })
             )
 
@@ -149,8 +166,8 @@ class ManusAgentTool(BaseTool):
             logger.info(f"Started processing with prompt: {prompt[:50]}{'...' if len(prompt) > 50 else ''}")
             yield initial_status
 
-            # Track only the last thought for final output
-            final_thought = ""
+            # Track thoughts for final output
+            thoughts = []
 
             # Run steps until completion or max steps reached
             while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
@@ -160,11 +177,16 @@ class ManusAgentTool(BaseTool):
                 try:
                     should_act = await agent.think()
 
-                    # Get the last message content which contains the thinking
-                    last_messages = [msg for msg in agent.memory.messages[-2:]
-                                   if hasattr(msg, "role") and hasattr(msg, "content")]
+                    # Get messages that contain thinking
+                    last_messages = [msg for msg in agent.memory.messages
+                                   if hasattr(msg, "role") and msg.role == "assistant"
+                                   and hasattr(msg, "content") and msg.content.strip()]
+
+                    # Store thought if it exists and is not a duplicate
                     if last_messages:
-                        final_thought = last_messages[-1].content
+                        current_thought = last_messages[-1].content
+                        if current_thought not in thoughts:  # avoid duplicates
+                            thoughts.append(current_thought)
 
                     # Yield a progress update
                     yield json.dumps({
@@ -199,17 +221,29 @@ class ManusAgentTool(BaseTool):
                 if agent.state == AgentState.FINISHED:
                     break
 
-            # Add thought marker if not already present
-            if final_thought and not any(marker in final_thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
-                final_thought = f"✨ Manus's thoughts: {final_thought}"
+            # Process the collected thoughts
+            processed_thoughts = []
+
+            # Get the last two thoughts (or fewer if not enough)
+            last_n_thoughts = thoughts[-2:] if len(thoughts) >= 2 else thoughts
+
+            # Add thought marker to each thought if not already present
+            for i, thought in enumerate(last_n_thoughts):
+                if not any(marker in thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
+                    processed_thoughts.append(f"✨ Manus's thoughts {i+1}: {thought}")
+                else:
+                    processed_thoughts.append(thought)
+
+            # Join thoughts with a separator
+            final_output = "\n\n---\n\n".join(processed_thoughts)
 
             # Log completion
-            logger.info(f"Completed processing in {agent.current_step} steps")
+            logger.info(f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts")
 
-            # Yield only the final thought in the result
+            # Yield the combined thoughts in the result
             final_result = json.dumps({
                 "status": "complete",
-                "thoughts": final_thought
+                "thoughts": final_output
             })
             yield final_result
 
