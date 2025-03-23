@@ -39,13 +39,13 @@ const renderStepMessage = (message: Message) => {
 };
 
 const renderToolProgressMessage = (message: Message) => {
-  return <div className="text-sm text-muted-foreground">{message.content}</div>;
+  return <div className="pl-6 text-sm text-muted-foreground">{message.content}</div>;
 };
 
 const renderToolCompletedMessage = (message: Message) => {
   const [title, content] = message.content.split(' Result: ');
   return (
-    <div className="text-sm text-muted-foreground">
+    <div className="pl-6 text-sm text-muted-foreground">
       <CollapsibleMessage title={title} content={content} defaultExpanded={false} className="prose-sm" />
     </div>
   );
@@ -54,7 +54,7 @@ const renderToolCompletedMessage = (message: Message) => {
 const renderCollapsibleMessage = (message: Message) => {
   const [title, content] = message.content.split('\n');
   return (
-    <div className="text-sm text-muted-foreground">
+    <div className="pl-6 text-sm text-muted-foreground">
       <CollapsibleMessage title={title} content={content} defaultExpanded={false} className="prose-sm" />
     </div>
   );
