@@ -33,3 +33,5 @@ httpx>=0.27.0
 tomli>=2.0.0
 
 boto3~=1.37.16
+azure-ai-inference
+azure-identity

@@ -18,6 +18,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from app.aiFoundry import AzureFoundryClient
 from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
@@ -225,6 +226,12 @@ class LLM:
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
+                )
+            elif self.api_type == "azureAIFoundry":
+                self.client = AzureFoundryClient(
+                    endpoint=self.base_url,
+                    apiKey=self.api_key,
+                    useEntra=True
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
