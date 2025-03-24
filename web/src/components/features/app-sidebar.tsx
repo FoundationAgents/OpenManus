@@ -17,21 +17,26 @@ import { cn } from '@/lib/utils';
 import { Tasks } from '@prisma/client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { create } from 'zustand';
+
+export const useRecentTasks = create<{ tasks: Tasks[]; refreshTasks: () => Promise<void> }>(set => ({
+  tasks: [],
+  refreshTasks: async () => {
+    const res = await pageTasks();
+    set({ tasks: res.data.tasks });
+  },
+}));
 
 export function AppSidebar() {
-  const [list, setList] = useState<Tasks[]>([]);
+  const { tasks, refreshTasks } = useRecentTasks();
 
   const pathname = usePathname();
 
   const currentTaskId = pathname.split('/').pop();
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      const res = await pageTasks();
-      setList(res.data.tasks);
-    };
-    fetchTasks();
+    refreshTasks();
   }, []);
 
   return (
@@ -46,7 +51,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Recent Tasks</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {list.map(item => (
+              {tasks.map(item => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton asChild>
                     <Link href={`/tasks/${item.id}`} className={cn(currentTaskId === item.id && 'bg-gray-100')}>

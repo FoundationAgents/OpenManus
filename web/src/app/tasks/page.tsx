@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTask } from '@/actions/tasks';
+import { useRecentTasks } from '@/components/features/app-sidebar';
 
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center h-full opacity-50">
@@ -21,6 +22,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { refreshTasks } = useRecentTasks();
 
   useEffect(() => {
     return () => {
@@ -44,6 +46,7 @@ export default function ChatPage() {
 
     try {
       const res = await createTask(input);
+      await refreshTasks();
       router.push(`/tasks/${res.data.id}`);
     } catch (error: any) {
       if (error.name === 'AbortError') {

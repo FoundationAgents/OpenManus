@@ -28,7 +28,7 @@ async function _pageTasks(user: AuthUser, params: { page: number; pageSize: numb
 }
 
 async function _createTask(user: AuthUser, prompt: string) {
-  const llmConfig = await prisma.llmConfig.findFirst({
+  const llmConfig = await prisma.llmConfigs.findFirst({
     where: {
       type: 'default',
       organizationId: user.organizationId,

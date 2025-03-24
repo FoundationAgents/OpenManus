@@ -68,7 +68,7 @@ model TaskProcesses {
   @@index([taskId, organizationId])
 }
 
-model LlmConfig {
+model LlmConfigs {
   id             String   @id @default(cuid())
   type           String
   model          String
