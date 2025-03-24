@@ -18,8 +18,6 @@ model Users {
   email        String   @unique
   name         String?
   password     String
-  salt         String
-  isSystemUser Boolean  @default(false)
   isFirstLogin Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -27,7 +25,7 @@ model Users {
 
 model Organizations {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -85,4 +83,14 @@ model LlmConfigs {
   organizationId String
 
   @@unique([type, organizationId])
+}
+
+model InviteCodes {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  email     String    @unique
+  isUsed    Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }

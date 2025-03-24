@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -87,6 +88,12 @@ export default function LoginPage() {
             <Button type="submit" className="cursor-pointer w-full h-11 text-base font-medium" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link href="/signup" className="text-primary hover:underline">
+                Sign up
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

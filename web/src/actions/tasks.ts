@@ -1,41 +1,43 @@
 'use server';
 
-import { AuthUser, withUserAuth } from '@/lib/auth-wrapper';
+import { withUserAuth } from '@/lib/auth-wrapper';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
 import { Message } from '@/types/chat';
 
 const API_BASE_URL = 'http://localhost:5172';
 
-async function _getTask(_user: AuthUser, taskId: string) {
+export const getTask = withUserAuth<{ taskId: string }>(async ({ organization, args }) => {
+  const { taskId } = args;
   const task = await prisma.tasks.findUnique({
-    where: { id: taskId },
+    where: { id: taskId, organizationId: organization.id },
     include: { steps: true },
   });
   return task;
-}
+});
 
-async function _pageTasks(user: AuthUser, params: { page: number; pageSize: number }) {
-  const { page = 1, pageSize = 10 } = params || {};
+export const pageTasks = withUserAuth<{ page: number; pageSize: number }>(async ({ organization, args }) => {
+  const { page = 1, pageSize = 10 } = args || {};
   const tasks = await prisma.tasks.findMany({
-    where: { organizationId: user.organizationId },
+    where: { organizationId: organization.id },
     skip: (page - 1) * pageSize,
     take: pageSize,
     orderBy: { createdAt: 'desc' },
   });
   const total = await prisma.tasks.count();
   return { tasks, total };
-}
+});
 
-async function _createTask(user: AuthUser, prompt: string) {
+export const createTask = withUserAuth<{ prompt: string }>(async ({ organization, args }) => {
+  const { prompt } = args;
   const llmConfig = await prisma.llmConfigs.findFirst({
     where: {
       type: 'default',
-      organizationId: user.organizationId,
+      organizationId: organization.id,
     },
   });
 
-  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig?.id || '', organizationId: user.organizationId } });
+  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig?.id || '', organizationId: organization.id } });
 
   const [error, response] = await to(
     fetch(`${API_BASE_URL}/tasks`, {
@@ -81,7 +83,7 @@ async function _createTask(user: AuthUser, prompt: string) {
       await prisma.taskProcesses.createMany({
         data: currentQueue.map((message, index) => ({
           taskId: task.id,
-          organizationId: user.organizationId,
+          organizationId: organization.id,
           index: index + storedMessages.length,
           result: message.content,
           type: message.type ?? 'unknown',
@@ -109,7 +111,7 @@ async function _createTask(user: AuthUser, prompt: string) {
   });
 
   return { id: task.id, outId: response.task_id };
-}
+});
 
 const handleTaskEventsStreamResponse = async (taskId: string, onMessage: (messages: Message[]) => void) => {
   const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/events`);
@@ -160,7 +162,3 @@ const handleTaskEventsStreamResponse = async (taskId: string, onMessage: (messag
     reader.releaseLock();
   }
 };
-
-export const getTask = withUserAuth(_getTask);
-export const pageTasks = withUserAuth(_pageTasks);
-export const createTask = withUserAuth(_createTask);

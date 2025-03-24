@@ -45,7 +45,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const res = await createTask(input);
+      const res = await createTask({ prompt: input });
       await refreshTasks();
       router.push(`/tasks/${res.data.id}`);
     } catch (error: any) {

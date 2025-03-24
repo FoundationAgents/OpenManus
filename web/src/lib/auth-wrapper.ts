@@ -1,16 +1,9 @@
 import { cookies } from 'next/headers';
-import { verifyToken } from './auth';
+import { AuthUser, verifyToken } from './auth';
+import { prisma } from './prisma';
+import { Organizations } from '@prisma/client';
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  name?: string;
-  isSystemUser: boolean;
-  isFirstLogin: boolean;
-  organizationId: string;
-}
-
-export interface AuthResult<T> {
+interface AuthResult<T> {
   data?: T;
   error?: string;
 }
@@ -18,54 +11,49 @@ export interface AuthResult<T> {
 /**
  * Authentication wrapper type
  */
-type AuthWrapper<T> = (fn: (user: AuthUser, ...args: any[]) => Promise<T>) => (...args: any[]) => Promise<AuthResult<T>>;
-
-/**
- * System user authentication wrapper
- */
-export const withSystemUserAuth: AuthWrapper<any> = fn => {
-  return async (...args) => {
-    try {
-      const cookieStore = await cookies();
-      const token = cookieStore.get('token')?.value;
-
-      if (!token) {
-        return { error: 'Unauthorized access' };
-      }
-
-      const user = await verifyToken(token);
-      if (!user.isSystemUser) {
-        return { error: 'Only system users can perform this action' };
-      }
-
-      const result = await fn(user, ...args);
-      return { data: result };
-    } catch (error) {
-      console.error('Authentication error:', error);
-      return { error: 'Authentication failed' };
-    }
-  };
-};
+export type AuthWrapper<T, R> = (
+  fn: (ctx: { user: AuthUser; organization: Organizations; args: R }) => Promise<T>
+) => (args: R) => Promise<AuthResult<T>>;
 
 /**
  * Regular user authentication wrapper
  */
-export const withUserAuth: AuthWrapper<any> = fn => {
-  return async (...args) => {
+export function withUserAuth<R, T = any>(fn: (ctx: { user: AuthUser; organization: Organizations; args: R }) => Promise<T>) {
+  return async (args: R) => {
     try {
       const cookieStore = await cookies();
       const token = cookieStore.get('token')?.value;
 
       if (!token) {
-        return { error: 'Unauthorized access' };
+        throw new Error('Unauthorized access');
       }
 
       const user = await verifyToken(token);
-      const result = await fn(user, ...args);
+      const organizationUser = await prisma.organizationUsers.findMany({
+        where: { userId: user.id },
+      });
+
+      if (organizationUser.length === 0) {
+        throw new Error('User is not associated with any organization');
+      }
+
+      if (organizationUser.length > 1) {
+        throw new Error('User is associated with multiple organizations');
+      }
+
+      const organization = await prisma.organizations.findUnique({
+        where: { id: organizationUser[0].organizationId },
+      });
+
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      const result = await fn({ user, organization, args });
       return { data: result };
     } catch (error) {
       console.error('Authentication error:', error);
-      return { error: 'Authentication failed' };
+      throw new Error('Authentication failed');
     }
   };
-};
+}
