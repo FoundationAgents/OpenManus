@@ -4,7 +4,7 @@ import { ChatMessage } from '@/components/features/chat/ChatMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Message } from '@/types/chat';
-import { Rocket, Send } from 'lucide-react';
+import { Rocket, Send, ArrowDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,12 +17,21 @@ export default function ChatPage() {
   const taskId = params.taskid as string;
   const [messages, setMessages] = useState<Message[]>([]);
   const [isThinking, setIsThinking] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
+    if (messagesContainerRef.current && shouldAutoScroll) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 100;
+      setShouldAutoScroll(isNearBottom);
     }
   };
 
@@ -43,7 +52,9 @@ export default function ChatPage() {
         { role: 'user', content: res?.data.prompt },
         ...(res?.data.steps || []).map((step: any) => ({ role: 'assistant', type: step.type, content: step.result })),
       ]);
-      requestAnimationFrame(scrollToBottom);
+      if (shouldAutoScroll) {
+        requestAnimationFrame(scrollToBottom);
+      }
       if (res?.data.status === 'failed' || res?.data.status === 'completed') {
         setIsThinking(false);
         clearInterval(interval);
@@ -57,11 +68,13 @@ export default function ChatPage() {
     return () => {
       clearInterval(interval);
     };
-  }, [taskId]);
+  }, [taskId, shouldAutoScroll]);
 
   useEffect(() => {
-    requestAnimationFrame(scrollToBottom);
-  }, [messages]);
+    if (shouldAutoScroll) {
+      requestAnimationFrame(scrollToBottom);
+    }
+  }, [messages, shouldAutoScroll]);
 
   useEffect(() => {
     return () => {
@@ -73,7 +86,15 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 pb-20 space-y-4 scroll-smooth">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 pb-20 space-y-4"
+        style={{
+          scrollBehavior: 'smooth',
+          overscrollBehavior: 'contain',
+        }}
+        onScroll={handleScroll}
+      >
         {messages.map((message, index) => (
           <ChatMessage key={`${index}-${message.content}`} message={message} />
         ))}
