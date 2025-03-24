@@ -1,5 +1,8 @@
-[English](README.md) | [中文](README_zh.md) | [한국어](README_ko.md) | 日本語
+<p align="center">
+  <img src="assets/logo.jpg" width="200"/>
+</p>
 
+[English](README.md) | [中文](README_zh.md) | [한국어](README_ko.md) | 日本語
 
 [![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
 &ensp;
@@ -66,7 +69,7 @@ cd OpenManus
 3. 新しい仮想環境を作成してアクティベートします：
 
 ```bash
-uv venv
+uv venv --python 3.12
 source .venv/bin/activate  # Unix/macOSの場合
 # Windowsの場合：
 # .venv\Scripts\activate
@@ -76,6 +79,11 @@ source .venv/bin/activate  # Unix/macOSの場合
 
 ```bash
 uv pip install -r requirements.txt
+```
+
+### ブラウザ自動化ツール（オプション）
+```bash
+playwright install
 ```
 
 ## 設定
@@ -116,7 +124,12 @@ python main.py
 
 その後、ターミナルからプロンプトを入力してください！
 
-開発中バージョンを試すには、以下を実行します：
+MCP ツールバージョンを使用する場合は、以下を実行します：
+```bash
+python run_mcp.py
+```
+
+開発中のマルチエージェントバージョンを試すには、以下を実行します：
 
 ```bash
 python run_flow.py

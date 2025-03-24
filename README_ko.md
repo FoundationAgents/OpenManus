@@ -1,5 +1,8 @@
-[English](README.md) | [中文](README_zh.md) | 한국어 | [日本語](README_ja.md)
+<p align="center">
+  <img src="assets/logo.jpg" width="200"/>
+</p>
 
+[English](README.md) | [中文](README_zh.md) | 한국어 | [日本語](README_ja.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
 &ensp;
@@ -66,7 +69,7 @@ cd OpenManus
 3. 새로운 가상 환경을 생성하고 활성화합니다:
 
 ```bash
-uv venv
+uv venv --python 3.12
 source .venv/bin/activate  # Unix/macOS의 경우
 # Windows의 경우:
 # .venv\Scripts\activate
@@ -76,6 +79,11 @@ source .venv/bin/activate  # Unix/macOS의 경우
 
 ```bash
 uv pip install -r requirements.txt
+```
+
+### 브라우저 자동화 도구 (선택사항)
+```bash
+playwright install
 ```
 
 ## 설정 방법
@@ -116,7 +124,12 @@ python main.py
 
 이후 터미널에서 아이디어를 작성하세요!
 
-unstable 버전을 실행하려면 아래 명령어를 사용할 수도 있습니다:
+MCP 도구 버전을 사용하려면 다음을 실행하세요:
+```bash
+python run_mcp.py
+```
+
+불안정한 멀티 에이전트 버전을 실행하려면 다음을 실행할 수 있습니다:
 
 ```bash
 python run_flow.py

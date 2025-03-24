@@ -1,7 +1,8 @@
+<p align="center">
+  <img src="assets/logo.jpg" width="200"/>
+</p>
 
 [English](README.md) | 中文 | [한국어](README_ko.md) | [日本語](README_ja.md)
-
-
 
 [![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
 &ensp;
@@ -69,7 +70,7 @@ cd OpenManus
 3. 创建并激活虚拟环境：
 
 ```bash
-uv venv
+uv venv --python 3.12
 source .venv/bin/activate  # Unix/macOS 系统
 # Windows 系统使用：
 # .venv\Scripts\activate
@@ -79,6 +80,11 @@ source .venv/bin/activate  # Unix/macOS 系统
 
 ```bash
 uv pip install -r requirements.txt
+```
+
+### 浏览器自动化工具（可选）
+```bash
+playwright install
 ```
 
 ## 配置说明
@@ -119,7 +125,12 @@ python main.py
 
 然后通过终端输入你的创意！
 
-如需体验不稳定的开发版本，可运行：
+如需使用 MCP 工具版本，可运行：
+```bash
+python run_mcp.py
+```
+
+如需体验不稳定的多智能体版本，可运行：
 
 ```bash
 python run_flow.py

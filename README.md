@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.jpg" width="200"/>
+</p>
+
 English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
@@ -65,7 +69,7 @@ cd OpenManus
 3. Create a new virtual environment and activate it:
 
 ```bash
-uv venv
+uv venv --python 3.12
 source .venv/bin/activate  # On Unix/macOS
 # Or on Windows:
 # .venv\Scripts\activate
@@ -75,6 +79,11 @@ source .venv/bin/activate  # On Unix/macOS
 
 ```bash
 uv pip install -r requirements.txt
+```
+
+### Browser Automation Tool (Optional)
+```bash
+playwright install
 ```
 
 ## Configuration
@@ -116,7 +125,12 @@ python main.py
 
 Then input your idea via terminal!
 
-For unstable version, you also can run:
+For MCP tool version, you can run:
+```bash
+python run_mcp.py
+```
+
+For unstable multi-agent version, you also can run:
 
 ```bash
 python run_flow.py
