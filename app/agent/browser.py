@@ -127,3 +127,23 @@ class BrowserAgent(ToolCallAgent):
         self.next_step_prompt = NEXT_STEP_PROMPT
 
         return result
+
+    async def cleanup(self) -> None:
+        """Clean up browser resources when agent is done."""
+        try:
+            browser_tool = self.available_tools.get_tool(BrowserUseTool().name)
+            if browser_tool:
+                logger.info("Cleaning up browser resources...")
+                await browser_tool.cleanup()
+                logger.info("Browser resources cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during browser agent cleanup: {str(e)}")
+
+    async def run(self, request: Optional[str] = None) -> str:
+        """Run the agent with cleanup when done."""
+        try:
+            result = await super().run(request)
+            return result
+        finally:
+            # Ensure cleanup happens even if there's an error
+            await self.cleanup()
