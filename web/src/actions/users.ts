@@ -38,6 +38,13 @@ async function _createUser(user: AuthUser, params: CreateUserParams) {
     },
   });
 
+  await prisma.organizationUsers.create({
+    data: {
+      userId: newUser.id,
+      organizationId: user.organizationId,
+    },
+  });
+
   return {
     id: newUser.id,
     email: newUser.email,

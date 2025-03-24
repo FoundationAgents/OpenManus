@@ -15,9 +15,10 @@ async function _getTask(_user: AuthUser, taskId: string) {
   return task;
 }
 
-async function _pageTasks(_user: AuthUser, params: { page: number; pageSize: number }) {
+async function _pageTasks(user: AuthUser, params: { page: number; pageSize: number }) {
   const { page = 1, pageSize = 10 } = params || {};
   const tasks = await prisma.tasks.findMany({
+    where: { organizationId: user.organizationId },
     skip: (page - 1) * pageSize,
     take: pageSize,
     orderBy: { createdAt: 'desc' },
@@ -26,14 +27,36 @@ async function _pageTasks(_user: AuthUser, params: { page: number; pageSize: num
   return { tasks, total };
 }
 
-async function _createTask(_user: AuthUser, prompt: string) {
-  const task = await prisma.tasks.create({ data: { prompt, status: 'pending' } });
+async function _createTask(user: AuthUser, prompt: string) {
+  const llmConfig = await prisma.llmConfig.findFirst({
+    where: {
+      type: 'default',
+      organizationId: user.organizationId,
+    },
+  });
+  if (!llmConfig) {
+    throw new Error('LLM config not found');
+  }
+
+  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig.id, organizationId: user.organizationId } });
 
   const [error, response] = await to(
     fetch(`${API_BASE_URL}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        prompt,
+        llm_config: {
+          model: llmConfig.model,
+          base_url: llmConfig.baseUrl,
+          api_key: llmConfig.apiKey,
+          max_tokens: llmConfig.maxTokens,
+          max_input_tokens: llmConfig.maxInputTokens,
+          temperature: llmConfig.temperature,
+          api_type: llmConfig.apiType,
+          api_version: llmConfig.apiVersion,
+        },
+      }),
     }).then(res => res.json() as Promise<{ task_id: string }>)
   );
 
@@ -56,10 +79,10 @@ async function _createTask(_user: AuthUser, prompt: string) {
       const currentQueue = [...messageQueue];
       messageQueue = [];
 
-      console.log('processing messages', task.id, currentQueue.length);
       await prisma.taskProcesses.createMany({
         data: currentQueue.map((message, index) => ({
           taskId: task.id,
+          organizationId: user.organizationId,
           index: index + storedMessages.length,
           result: message.content,
           type: message.type ?? 'unknown',

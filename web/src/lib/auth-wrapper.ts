@@ -4,8 +4,10 @@ import { verifyToken } from './auth';
 export interface AuthUser {
   id: string;
   email: string;
+  name?: string;
   isSystemUser: boolean;
   isFirstLogin: boolean;
+  organizationId: string;
 }
 
 export interface AuthResult<T> {

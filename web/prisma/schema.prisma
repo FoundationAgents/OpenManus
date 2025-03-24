@@ -25,25 +25,64 @@ model Users {
   updatedAt    DateTime @updatedAt
 }
 
+model Organizations {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrganizationUsers {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model Tasks {
-  id        String          @id @default(cuid())
-  outId     String?         @unique
-  prompt    String          @db.Text
-  status    String          @default("pending")
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  steps     TaskProcesses[]
+  id             String          @id @default(cuid())
+  outId          String?         @unique
+  llmId          String
+  prompt         String          @db.Text
+  status         String          @default("pending")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organizationId String
+  steps          TaskProcesses[]
 }
 
 model TaskProcesses {
-  id        String   @id @default(cuid())
-  taskId    String
-  index     Int
-  step      Int
-  result    String   @db.Text
-  type      String
-  createdAt DateTime @default(now())
-  task      Tasks    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  taskId         String
+  index          Int
+  step           Int
+  result         String   @db.Text
+  type           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
 
-  @@index([taskId])
+  task Tasks @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, organizationId])
+}
+
+model LlmConfig {
+  id             String   @id @default(cuid())
+  type           String
+  model          String
+  baseUrl        String
+  apiKey         String
+  maxTokens      Int
+  maxInputTokens Int?
+  temperature    Float
+  apiType        String
+  apiVersion     String?
+  isActive       Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+
+  @@unique([type, organizationId])
 }

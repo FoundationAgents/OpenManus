@@ -8,11 +8,15 @@ from datetime import datetime
 from functools import partial
 from json import dumps
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
+
+from app.config import LLMSettings
+from app.llm import LLM
 
 AGENT_NAME = "Manus"
 
@@ -94,23 +98,27 @@ async def download_file(file_path: str):
 
 
 @app.post("/tasks")
-async def create_task(prompt: str = Body(..., embed=True)):
+async def create_task(
+    prompt: str = Body(..., embed=True),
+    llm_config: Optional[LLMSettings] = Body(None, embed=True),
+):
     print(f"Creating task with prompt: {prompt}")
     task = task_manager.create_task(prompt)
-    asyncio.create_task(run_task(task.id, prompt))
+    asyncio.create_task(run_task(task.id, prompt, llm_config))
     return {"task_id": task.id}
 
 
 from app.agent.manus import Manus
 
 
-async def run_task(task_id: str, prompt: str):
+async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] = None):
     try:
         task_manager.tasks[task_id].status = "running"
-
+        llm_config = llm_config or LLM(config_name=AGENT_NAME.lower())
         agent = Manus(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
+            llm=llm_config,
         )
 
         async def on_think(thought):

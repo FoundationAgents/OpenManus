@@ -1,16 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose';
+import { AuthUser } from './auth-wrapper';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
 
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  isSystemUser: boolean;
-  isFirstLogin: boolean;
-}
-
-export async function createToken(user: User): Promise<string> {
+export async function createToken(user: AuthUser): Promise<string> {
   const token = await new SignJWT({
     id: user.id,
     email: user.email,
@@ -25,9 +18,9 @@ export async function createToken(user: User): Promise<string> {
   return token;
 }
 
-export async function verifyToken(token: string): Promise<User> {
+export async function verifyToken(token: string): Promise<AuthUser> {
   try {
-    const { payload } = await jwtVerify<User>(token, JWT_SECRET);
+    const { payload } = await jwtVerify<AuthUser>(token, JWT_SECRET);
 
     // Verify necessary fields exist
     if (!payload.id || !payload.email || typeof payload.isSystemUser !== 'boolean' || typeof payload.isFirstLogin !== 'boolean') {
@@ -40,6 +33,7 @@ export async function verifyToken(token: string): Promise<User> {
       name: payload.name,
       isSystemUser: payload.isSystemUser,
       isFirstLogin: payload.isFirstLogin,
+      organizationId: payload.organizationId,
     };
   } catch (error) {
     throw new Error('Invalid token');
