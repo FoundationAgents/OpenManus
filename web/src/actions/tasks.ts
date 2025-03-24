@@ -34,11 +34,8 @@ async function _createTask(user: AuthUser, prompt: string) {
       organizationId: user.organizationId,
     },
   });
-  if (!llmConfig) {
-    throw new Error('LLM config not found');
-  }
 
-  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig.id, organizationId: user.organizationId } });
+  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig?.id || '', organizationId: user.organizationId } });
 
   const [error, response] = await to(
     fetch(`${API_BASE_URL}/tasks`, {
@@ -46,16 +43,18 @@ async function _createTask(user: AuthUser, prompt: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        llm_config: {
-          model: llmConfig.model,
-          base_url: llmConfig.baseUrl,
-          api_key: llmConfig.apiKey,
-          max_tokens: llmConfig.maxTokens,
-          max_input_tokens: llmConfig.maxInputTokens,
-          temperature: llmConfig.temperature,
-          api_type: llmConfig.apiType,
-          api_version: llmConfig.apiVersion,
-        },
+        llm_config: llmConfig
+          ? {
+              model: llmConfig.model,
+              base_url: llmConfig.baseUrl,
+              api_key: llmConfig.apiKey,
+              max_tokens: llmConfig.maxTokens,
+              max_input_tokens: llmConfig.maxInputTokens,
+              temperature: llmConfig.temperature,
+              api_type: llmConfig.apiType,
+              api_version: llmConfig.apiVersion,
+            }
+          : null,
       }),
     }).then(res => res.json() as Promise<{ task_id: string }>)
   );

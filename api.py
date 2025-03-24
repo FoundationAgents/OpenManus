@@ -114,7 +114,6 @@ from app.agent.manus import Manus
 async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] = None):
     try:
         task_manager.tasks[task_id].status = "running"
-        llm_config = llm_config or LLM(config_name=AGENT_NAME.lower())
         agent = Manus(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",

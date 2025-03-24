@@ -33,7 +33,7 @@ export async function verifyToken(token: string): Promise<AuthUser> {
       name: payload.name,
       isSystemUser: payload.isSystemUser,
       isFirstLogin: payload.isFirstLogin,
-      organizationId: payload.organizationId,
+      organizationId: payload.organizationId || '',
     };
   } catch (error) {
     throw new Error('Invalid token');
