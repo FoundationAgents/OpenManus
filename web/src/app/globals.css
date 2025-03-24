@@ -122,7 +122,7 @@
 }
 
 .markdown-content {
-  @apply max-w-full
+  @apply max-w-full;
 
   h1,
   h2,
