@@ -305,7 +305,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             )
                         element = await context.get_dom_element_by_index(index)
                         if not element:
-                            return ToolResult(error=f"Element with index {index} not found")
+                            return ToolResult(
+                                error=f"Element with index {index} not found"
+                            )
                         download_path = await context._click_element_node(element)
                         output = f"Clicked element at index {index}"
                         if download_path:
@@ -319,7 +321,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             )
                         element = await context.get_dom_element_by_index(index)
                         if not element:
-                            return ToolResult(error=f"Element with index {index} not found")
+                            return ToolResult(
+                                error=f"Element with index {index} not found"
+                            )
                         await context._input_text_element_node(element, text)
                         return ToolResult(
                             output=f"Input '{text}' into element at index {index}"
@@ -350,7 +354,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             await locator.scroll_into_view_if_needed()
                             return ToolResult(output=f"Scrolled to text: '{text}'")
                         except Exception as e:
-                            return ToolResult(error=f"Failed to scroll to text: {str(e)}")
+                            return ToolResult(
+                                error=f"Failed to scroll to text: {str(e)}"
+                            )
 
                     elif action == "send_keys":
                         if not keys:
@@ -368,7 +374,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             )
                         element = await context.get_dom_element_by_index(index)
                         if not element:
-                            return ToolResult(error=f"Element with index {index} not found")
+                            return ToolResult(
+                                error=f"Element with index {index} not found"
+                            )
                         page = await context.get_current_page()
                         options = await page.evaluate(
                             """
@@ -394,7 +402,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             )
                         element = await context.get_dom_element_by_index(index)
                         if not element:
-                            return ToolResult(error=f"Element with index {index} not found")
+                            return ToolResult(
+                                error=f"Element with index {index} not found"
+                            )
                         page = await context.get_current_page()
                         await page.select_option(element.xpath, label=text)
                         return ToolResult(
@@ -493,7 +503,9 @@ Page content:
                                 # Parse the JSON arguments
                                 try:
                                     args = json.loads(tool_call.function.arguments)
-                                    extracted_content = args.get("extracted_content", {})
+                                    extracted_content = args.get(
+                                        "extracted_content", {}
+                                    )
                                     # Format extracted content as JSON string
                                     content_json = json.dumps(
                                         extracted_content, indent=2, ensure_ascii=False
@@ -530,7 +542,9 @@ Page content:
 
                     elif action == "open_tab":
                         if not url:
-                            return ToolResult(error="URL is required for 'open_tab' action")
+                            return ToolResult(
+                                error="URL is required for 'open_tab' action"
+                            )
                         await context.create_new_tab(url)
                         return ToolResult(output=f"Opened new tab with {url}")
 
@@ -542,7 +556,9 @@ Page content:
                     elif action == "wait":
                         seconds_to_wait = seconds if seconds is not None else 3
                         await asyncio.sleep(seconds_to_wait)
-                        return ToolResult(output=f"Waited for {seconds_to_wait} seconds")
+                        return ToolResult(
+                            output=f"Waited for {seconds_to_wait} seconds"
+                        )
 
                     else:
                         return ToolResult(error=f"Unknown action: {action}")
@@ -554,13 +570,17 @@ Page content:
 
                     # If browser was initialized but now in bad state,
                     # try to cleanup and reinitialize on next call
-                    if browser_initialized and (self.browser is not None or self.context is not None):
+                    if browser_initialized and (
+                        self.browser is not None or self.context is not None
+                    ):
                         logger.info("Attempting to cleanup browser after error...")
                         try:
                             # Don't use lock here since we already have it
                             await self._cleanup_resources()
                         except Exception as cleanup_error:
-                            logger.error(f"Failed to cleanup browser after error: {str(cleanup_error)}")
+                            logger.error(
+                                f"Failed to cleanup browser after error: {str(cleanup_error)}"
+                            )
 
                     return ToolResult(error=error_msg)
         except Exception as lock_error:
@@ -663,7 +683,9 @@ Page content:
         Always call cleanup() explicitly when done with the browser.
         """
         if self.browser is not None or self.context is not None:
-            logger.warning("BrowserUseTool being garbage collected without proper cleanup()")
+            logger.warning(
+                "BrowserUseTool being garbage collected without proper cleanup()"
+            )
             # We can't use asyncio.run() inside an event loop
             # and we can't rely on creating a new loop either
             # Just log a warning - proper cleanup should be done explicitly
