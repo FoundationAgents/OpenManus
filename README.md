@@ -131,12 +131,11 @@ For DeepSeek API configuration, use:
 ```toml
 [llm]
 api_type = 'deepseek'
-model = "deepseek-coder"  # or other DeepSeek models
+model = "deepseek-chat"  # or deepseek-reasoner.
 base_url = "https://api.deepseek.com/v1"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 max_tokens = 8192
 temperature = 0.0
-api_version = "2023-07-01-preview"  # Optional DeepSeek API version
 ```
 
 ## Quick Start
