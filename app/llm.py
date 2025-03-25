@@ -18,7 +18,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from app.bedrock import BedrockClient
+from app.bedrock import BedrockClient, OpenAIResponse
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
@@ -735,7 +735,7 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
-            response: ChatCompletion = await self.client.chat.completions.create(
+            response: OpenAIResponse = await self.client.chat.completions.create(
                 **params, stream=False
             )
 
