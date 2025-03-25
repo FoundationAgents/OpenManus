@@ -33,9 +33,11 @@ class CoTAgent(BaseAgent):
         # Use system prompt and user messages
         response = await self.llm.ask(
             messages=self.messages,
-            system_msgs=[Message.system_message(self.system_prompt)]
-            if self.system_prompt
-            else None,
+            system_msgs=(
+                [Message.system_message(self.system_prompt)]
+                if self.system_prompt
+                else None
+            ),
         )
 
         # Record assistant's response

@@ -10,7 +10,7 @@ import atexit
 import json
 import os
 from inspect import Parameter, Signature
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI
 from mcp.server.fastmcp import FastMCP
@@ -35,7 +35,9 @@ class MCPServer:
         # Initialize standard tools
         self.tools["bash"] = Bash()
         self.tools["browser_use"] = BrowserUseTool()  # Use correct name to match class
-        self.tools["str_replace_editor"] = StrReplaceEditor()  # Use correct name to match class
+        self.tools["str_replace_editor"] = (
+            StrReplaceEditor()
+        )  # Use correct name to match class
         self.tools["terminate"] = Terminate()
 
         # Add the high-level Manus agent tool
@@ -54,14 +56,19 @@ class MCPServer:
             # Special handling for Manus agent with streaming support
             # Check server-wide streaming setting - only this determines if streaming is used
             import os
-            server_allows_streaming = os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+
+            server_allows_streaming = (
+                os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+            )
 
             # Remove streaming parameter from kwargs if it exists (since we've removed it from the tool's parameters)
             if "streaming" in kwargs:
                 del kwargs["streaming"]
 
             if tool_name == "manus_agent" and server_allows_streaming:
-                logger.info(f"Using streaming mode for {tool_name} (controlled by server setting)")
+                logger.info(
+                    f"Using streaming mode for {tool_name} (controlled by server setting)"
+                )
 
                 # Detect if we're using SSE transport
                 using_sse = os.environ.get("MCP_SERVER_TRANSPORT") == "sse"
@@ -80,30 +87,55 @@ class MCPServer:
                     async def stream_response():
                         try:
                             # Send an initial event to confirm streaming has started
-                            yield json.dumps({"status": "streaming_started", "message": "Stream started by MCP server"})
+                            yield json.dumps(
+                                {
+                                    "status": "streaming_started",
+                                    "message": "Stream started by MCP server",
+                                }
+                            )
 
                             # Get the Manus tool instance
                             manus_tool = self.tools["manus_agent"]
 
                             # Get stripped kwargs (without streaming flag which we already processed)
-                            exec_kwargs = {k: v for k, v in kwargs.items() if k != "streaming"}
+                            exec_kwargs = {
+                                k: v for k, v in kwargs.items() if k != "streaming"
+                            }
 
                             # Ensure that we get a proper generator
-                            generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                            generator = await manus_tool.execute(
+                                streaming=True, **exec_kwargs
+                            )
 
                             # Consume the generator and yield each chunk
                             # This is the key part that ensures the generator is actually running
                             logger.info("Starting to consume Manus agent generator")
                             try:
                                 async for chunk in generator:
-                                    logger.info(f"Streaming chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Streaming chunk: {chunk}")
+                                    logger.info(
+                                        f"Streaming chunk: {chunk[:50]}..."
+                                        if len(chunk) > 50
+                                        else f"Streaming chunk: {chunk}"
+                                    )
                                     yield chunk
                             except Exception as inner_e:
-                                logger.error(f"Error while consuming generator: {inner_e}")
-                                yield json.dumps({"status": "error", "error": f"Error during streaming: {str(inner_e)}"})
+                                logger.error(
+                                    f"Error while consuming generator: {inner_e}"
+                                )
+                                yield json.dumps(
+                                    {
+                                        "status": "error",
+                                        "error": f"Error during streaming: {str(inner_e)}",
+                                    }
+                                )
 
                             # Send a final event to confirm completion
-                            yield json.dumps({"status": "stream_complete", "message": "Stream completed by MCP server"})
+                            yield json.dumps(
+                                {
+                                    "status": "stream_complete",
+                                    "message": "Stream completed by MCP server",
+                                }
+                            )
 
                         except Exception as e:
                             logger.error(f"Error in stream_response: {e}")
@@ -127,17 +159,27 @@ class MCPServer:
                     results = []
                     try:
                         # Ensure that we get a proper generator
-                        generator = await manus_tool.execute(streaming=True, **exec_kwargs)
+                        generator = await manus_tool.execute(
+                            streaming=True, **exec_kwargs
+                        )
 
                         # Collect all results
                         logger.info("Collecting all results from generator")
                         async for chunk in generator:
-                            logger.info(f"Collected chunk: {chunk[:50]}..." if len(chunk) > 50 else f"Collected chunk: {chunk}")
+                            logger.info(
+                                f"Collected chunk: {chunk[:50]}..."
+                                if len(chunk) > 50
+                                else f"Collected chunk: {chunk}"
+                            )
                             results.append(chunk)
 
                         # Return all collected results as JSON array
                         result_json = json.dumps(results)
-                        logger.info(f"Returning collected results: {result_json[:100]}..." if len(result_json) > 100 else f"Returning collected results: {result_json}")
+                        logger.info(
+                            f"Returning collected results: {result_json[:100]}..."
+                            if len(result_json) > 100
+                            else f"Returning collected results: {result_json}"
+                        )
                         return result_json
                     except Exception as e:
                         logger.error(f"Error collecting results: {e}")
@@ -250,7 +292,13 @@ class MCPServer:
 
     # Removed direct streaming endpoint implementation as it's no longer needed
 
-    def run(self, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000, streaming: bool = False) -> None:
+    def run(
+        self,
+        transport: str = "stdio",
+        host: str = "127.0.0.1",
+        port: int = 8000,
+        streaming: bool = False,
+    ) -> None:
         """Run the MCP server.
 
         Args:
@@ -274,7 +322,9 @@ class MCPServer:
 
         if transport == "sse":
             # With SSE transport, we're using HTTP server with Server-Sent Events
-            logger.info(f"Starting OpenManus HTTP server with SSE transport on {host}:{port}")
+            logger.info(
+                f"Starting OpenManus HTTP server with SSE transport on {host}:{port}"
+            )
             # Set bind host and port for SSE transport
             os.environ["MCP_SERVER_HOST"] = host
             os.environ["MCP_SERVER_PORT"] = str(port)
@@ -322,4 +372,9 @@ if __name__ == "__main__":
 
     # Create and run server with all provided arguments
     server = MCPServer()
-    server.run(transport=args.transport, host=args.host, port=args.port, streaming=args.streaming)
+    server.run(
+        transport=args.transport,
+        host=args.host,
+        port=args.port,
+        streaming=args.streaming,
+    )

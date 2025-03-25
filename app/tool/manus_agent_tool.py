@@ -19,24 +19,28 @@ class ManusAgentTool(BaseTool):
     """
 
     name: str = "manus_agent"
-    description: str = "Runs the Manus agent to process user requests using multiple capabilities"
+    description: str = (
+        "Runs the Manus agent to process user requests using multiple capabilities"
+    )
     parameters: dict = {
         "type": "object",
         "properties": {
             "prompt": {
                 "type": "string",
-                "description": "The user's prompt or request to process"
+                "description": "The user's prompt or request to process",
             },
             "max_steps": {
                 "type": "integer",
                 "description": "Maximum number of steps the agent can take (default: use agent's default)",
-                "default": 80
-            }
+                "default": 80,
+            },
         },
-        "required": ["prompt"]
+        "required": ["prompt"],
     }
 
-    async def execute(self, prompt: str, max_steps: Optional[int] = None, **kwargs) -> Union[ToolResult, AsyncGenerator[str, None]]:
+    async def execute(
+        self, prompt: str, max_steps: Optional[int] = None, **kwargs
+    ) -> Union[ToolResult, AsyncGenerator[str, None]]:
         """Execute the Manus agent with the given prompt.
 
         Args:
@@ -54,7 +58,9 @@ class ManusAgentTool(BaseTool):
                 agent.max_steps = max_steps
 
             # Check if streaming should be used based on server setting only
-            server_streaming = os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+            server_streaming = (
+                os.environ.get("MCP_SERVER_STREAMING", "false").lower() == "true"
+            )
             logger.info(f"Server streaming setting: {server_streaming}")
 
             # If server has streaming enabled, use the streaming generator
@@ -76,7 +82,10 @@ class ManusAgentTool(BaseTool):
             thoughts = []
 
             # Run steps until completion or max steps reached
-            while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
+            while (
+                agent.state == AgentState.RUNNING
+                and agent.current_step < agent.max_steps
+            ):
                 agent.current_step += 1
 
                 try:
@@ -84,9 +93,14 @@ class ManusAgentTool(BaseTool):
                     should_act = await agent.think()
 
                     # Capture the most recent thought
-                    last_messages = [msg for msg in agent.memory.messages
-                                  if hasattr(msg, "role") and msg.role == "assistant"
-                                  and hasattr(msg, "content") and msg.content.strip()]
+                    last_messages = [
+                        msg
+                        for msg in agent.memory.messages
+                        if hasattr(msg, "role")
+                        and msg.role == "assistant"
+                        and hasattr(msg, "content")
+                        and msg.content.strip()
+                    ]
 
                     # Store thought if it exists
                     if last_messages:
@@ -114,7 +128,10 @@ class ManusAgentTool(BaseTool):
 
             # Add thought marker to each thought if not already present
             for i, thought in enumerate(last_n_thoughts):
-                if not any(marker in thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
+                if not any(
+                    marker in thought
+                    for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]
+                ):
                     processed_thoughts.append(f"✨ Manus's thoughts {i+1}: {thought}")
                 else:
                     processed_thoughts.append(thought)
@@ -123,21 +140,23 @@ class ManusAgentTool(BaseTool):
             final_output = "\n\n---\n\n".join(processed_thoughts)
 
             # Return the thoughts in a clean structure
-            logger.info(f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts")
+            logger.info(
+                f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts"
+            )
             return ToolResult(
-                output=json.dumps({
-                    "status": "complete",
-                    "thoughts": final_output
-                })
+                output=json.dumps({"status": "complete", "thoughts": final_output})
             )
 
         except Exception as e:
             logger.error(f"Error running Manus agent: {str(e)}")
-            return ToolResult(
-                error=f"Error running Manus agent: {str(e)}"
-            )
+            return ToolResult(error=f"Error running Manus agent: {str(e)}")
 
-    async def _run_with_streaming(self, prompt: str, max_steps: Optional[int] = None, agent: Optional[Manus] = None) -> AsyncGenerator[str, None]:
+    async def _run_with_streaming(
+        self,
+        prompt: str,
+        max_steps: Optional[int] = None,
+        agent: Optional[Manus] = None,
+    ) -> AsyncGenerator[str, None]:
         """Run the agent with streaming output.
 
         Yields JSON strings with progress updates and directly captures the final thought.
@@ -158,19 +177,26 @@ class ManusAgentTool(BaseTool):
             agent.state = AgentState.RUNNING
 
             # Yield initial status
-            initial_status = json.dumps({
-                "status": "started",
-                "step": 0,
-                "message": f"Processing: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}"
-            })
-            logger.info(f"Started processing with prompt: {prompt[:50]}{'...' if len(prompt) > 50 else ''}")
+            initial_status = json.dumps(
+                {
+                    "status": "started",
+                    "step": 0,
+                    "message": f"Processing: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}",
+                }
+            )
+            logger.info(
+                f"Started processing with prompt: {prompt[:50]}{'...' if len(prompt) > 50 else ''}"
+            )
             yield initial_status
 
             # Track thoughts for final output
             thoughts = []
 
             # Run steps until completion or max steps reached
-            while agent.state == AgentState.RUNNING and agent.current_step < agent.max_steps:
+            while (
+                agent.state == AgentState.RUNNING
+                and agent.current_step < agent.max_steps
+            ):
                 agent.current_step += 1
 
                 # Execute a single step
@@ -178,9 +204,14 @@ class ManusAgentTool(BaseTool):
                     should_act = await agent.think()
 
                     # Get messages that contain thinking
-                    last_messages = [msg for msg in agent.memory.messages
-                                   if hasattr(msg, "role") and msg.role == "assistant"
-                                   and hasattr(msg, "content") and msg.content.strip()]
+                    last_messages = [
+                        msg
+                        for msg in agent.memory.messages
+                        if hasattr(msg, "role")
+                        and msg.role == "assistant"
+                        and hasattr(msg, "content")
+                        and msg.content.strip()
+                    ]
 
                     # Store thought if it exists and is not a duplicate
                     if last_messages:
@@ -189,29 +220,27 @@ class ManusAgentTool(BaseTool):
                             thoughts.append(current_thought)
 
                     # Yield a progress update
-                    yield json.dumps({
-                        "status": "thinking",
-                        "step": agent.current_step
-                    })
+                    yield json.dumps({"status": "thinking", "step": agent.current_step})
 
                     # If should act, perform the action
                     if should_act:
                         await agent.act()
 
                         # Yield an action progress update
-                        yield json.dumps({
-                            "status": "acting",
-                            "step": agent.current_step
-                        })
+                        yield json.dumps(
+                            {"status": "acting", "step": agent.current_step}
+                        )
 
                 except Exception as e:
                     # Yield any errors that occur during processing
                     error_msg = str(e)
-                    yield json.dumps({
-                        "status": "error",
-                        "step": agent.current_step,
-                        "error": error_msg
-                    })
+                    yield json.dumps(
+                        {
+                            "status": "error",
+                            "step": agent.current_step,
+                            "error": error_msg,
+                        }
+                    )
                     agent.state = AgentState.FINISHED
 
                 # Small delay to avoid overwhelming the client
@@ -229,7 +258,10 @@ class ManusAgentTool(BaseTool):
 
             # Add thought marker to each thought if not already present
             for i, thought in enumerate(last_n_thoughts):
-                if not any(marker in thought for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]):
+                if not any(
+                    marker in thought
+                    for marker in ["✨ Manus's thoughts:", "Manus's thoughts:"]
+                ):
                     processed_thoughts.append(f"✨ Manus's thoughts {i+1}: {thought}")
                 else:
                     processed_thoughts.append(thought)
@@ -238,20 +270,16 @@ class ManusAgentTool(BaseTool):
             final_output = "\n\n---\n\n".join(processed_thoughts)
 
             # Log completion
-            logger.info(f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts")
+            logger.info(
+                f"Completed processing in {agent.current_step} steps, captured {len(processed_thoughts)} thoughts"
+            )
 
             # Yield the combined thoughts in the result
-            final_result = json.dumps({
-                "status": "complete",
-                "thoughts": final_output
-            })
+            final_result = json.dumps({"status": "complete", "thoughts": final_output})
             yield final_result
 
         except Exception as e:
             # Yield any exceptions that occur
-            error_msg = json.dumps({
-                "status": "error",
-                "error": str(e)
-            })
+            error_msg = json.dumps({"status": "error", "error": str(e)})
             logger.error(f"Streaming error: {str(e)}")
             yield error_msg
