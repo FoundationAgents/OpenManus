@@ -11,7 +11,7 @@ from utils import GAIABenchmark
 # Configuration
 LEVEL = 1
 SAVE_RESULT = True
-test_idx = [0,1]
+test_idx = [0]
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
     # Create cache directory
     cache_dir = "tmp/"
     os.makedirs(cache_dir, exist_ok=True)
-    
+
 
     # Initialize benchmark
     benchmark = GAIABenchmark(
@@ -33,8 +33,8 @@ def main():
 
     # Run benchmark
     result = benchmark.run(
-        on="valid", 
-        level=LEVEL, 
+        on="valid",
+        level=LEVEL,
         idx=test_idx,
         save_result=SAVE_RESULT,
     )

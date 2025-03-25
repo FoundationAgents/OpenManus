@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../")
 
-from run_open_manus import FlowRunner
+from run_open_manus import MainRunner
 import json
 import os
 import asyncio
@@ -46,7 +46,7 @@ class GAIABenchmark:
             processes (int, optional): The number of processes to use for
                 parallel processing. (default: :obj:`1`)
         """
-        
+
         self.name = "gaia"
         self.data_dir = Path(data_dir)
         self.processes = processes
@@ -74,12 +74,12 @@ class GAIABenchmark:
             local_dir=self.data_dir,
             local_dir_use_symlinks=True,
         )
-    
+
     def _check_task_completed(self, task_id: str) -> bool:
         for data in self._results:
             if data["task_id"] == task_id:
                 return True
-        return False 
+        return False
 
 
     def dump_tasks(self, save_path: str, datas):
@@ -179,16 +179,16 @@ class GAIABenchmark:
             random.shuffle(datas)
         if subset:
             datas = datas[:subset]
-        
+
         if idx is not None:
             # pick only the tasks with the specified idx
-            if len(idx) != 0:   
+            if len(idx) != 0:
                 datas = [datas[i] for i in idx]
 
         logger.info(f"Number of tasks: {len(datas)}")
 
         self._results = []
-        
+
         if save_result:
             try:
                 with open(self.save_to, 'r', encoding='utf-8') as f:
@@ -203,7 +203,7 @@ class GAIABenchmark:
             if self._check_task_completed(task["task_id"]):
                 logger.success(f"The following task is already completed:\n task id: {task['task_id']}, question: {task['Question']}")
                 continue
-            
+
             if_prepared_task, info = self._prepare_task(task)
             if not if_prepared_task:
                 _result_info = {
@@ -227,8 +227,14 @@ class GAIABenchmark:
                         'with_task_specify': False,
                     }
 
-                runner = FlowRunner()
-                raw_answer  = asyncio.run(runner.run_flow(task['Question']))
+                user_prompt = f"""
+                <task>{task['Question']}</task>
+                Your final answer must be output exactly in the format specified by the question. It should be a number OR as few words as possible OR a comma separated list of numbers and/or strings.
+                - `final_answer`: enclosed by <final_answer> </final_answer>, the final answer to the question.
+                """
+
+                runner = MainRunner()
+                raw_answer  = asyncio.run(runner.run_main(user_prompt))
 
                 print("----------This is raw_answer----------\n",raw_answer)
                 try:
@@ -252,20 +258,20 @@ class GAIABenchmark:
 
             except Exception as e:
                 logger.error(f"Error in processing task: {e}")
-                
-    
+
+
             if save_result:
                 with open(self.save_to, 'w') as f:
                     json.dump(self._results, f, indent=4, ensure_ascii=False)
                 f.close()
 
         return self._generate_summary()
-    
+
 
     def _prepare_task(self, task: Dict[str, Any]) -> Tuple[bool, str]:
         r"""Prepare the task by validating and enriching its data."""
         if task["file_name"]:
-            
+
             if isinstance(task['file_name'], Path):
                 task['file_name'] = str(task['file_name'])
 
@@ -280,10 +286,10 @@ class GAIABenchmark:
 
             elif file_path.suffix in ['.jpg', '.jpeg', '.png']:
                 task["Question"] += f" Here are the necessary image files: {file_path}"
-            
+
             elif file_path.suffix in ['.xlsx', 'xls', '.csv']:
                 task["Question"] += f" Here are the necessary table files: {file_path}, for processing excel file, you can write python code and leverage excel toolkit to process the file step-by-step and get the information."
-            
+
             elif file_path.suffix in ['.py']:
                 task["Question"] += f" Here are the necessary python files: {file_path}"
 
@@ -291,7 +297,7 @@ class GAIABenchmark:
                 task["Question"] += f" Here are the necessary files: {file_path}"
 
         return True, None
-        
+
 
 
     def _generate_summary(self) -> Dict[str, Any]:
@@ -418,7 +424,7 @@ class GAIABenchmark:
             logger.info("Data not loaded. Loading data.")
             self.load()
         return self._data["valid"]
-    
+
 
     @property
     def test(self) -> List[Dict[str, Any]]:
