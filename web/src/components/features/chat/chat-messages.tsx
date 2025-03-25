@@ -127,7 +127,7 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
   );
 };
 
-export const ChatMessage = ({ messages = [] }: ChatMessageProps) => {
+export const ChatMessages = ({ messages = [] }: ChatMessageProps) => {
   const messagesWithIndex = messages.map((msg, index) => ({ ...msg, index }));
   const toolChainMessages = messagesWithIndex.filter(msg => toolTypes.includes(msg.type || ''));
   const notToolMessages = messagesWithIndex.filter(msg => !toolTypes.includes(msg.type || ''));

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatMessage } from '@/components/features/chat/ChatMessage';
+import { ChatMessages } from '@/components/features/chat/chat-messages';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Message } from '@/types/chat';
@@ -94,7 +94,7 @@ export default function ChatPage() {
         }}
         onScroll={handleScroll}
       >
-        <ChatMessage messages={messages} />
+        <ChatMessages messages={messages} />
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">

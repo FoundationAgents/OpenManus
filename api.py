@@ -196,6 +196,8 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
                 # tool completed
                 elif "🎯 Tool" in cleaned_message:
                     event_type = "tool:completed"
+                elif "Token usage" in cleaned_message:
+                    event_type = "token-usage"
 
                 await task_manager.update_task_step(
                     self.task_id, self.step, cleaned_message, event_type
