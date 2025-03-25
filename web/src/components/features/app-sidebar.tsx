@@ -29,7 +29,7 @@ import { getMe } from '@/actions/me';
 export const useRecentTasks = create<{ tasks: Tasks[]; refreshTasks: () => Promise<void> }>(set => ({
   tasks: [],
   refreshTasks: async () => {
-    const res = await pageTasks({ page: 1, pageSize: 10 });
+    const res = await pageTasks({ page: 1, pageSize: 30 });
     set({ tasks: res.data?.tasks || [] });
   },
 }));

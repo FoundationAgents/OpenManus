@@ -11,7 +11,7 @@ export const getTask = withUserAuth(async ({ organization, args }: AuthWrapperCo
   const { taskId } = args;
   const task = await prisma.tasks.findUnique({
     where: { id: taskId, organizationId: organization.id },
-    include: { steps: true },
+    include: { steps: { orderBy: { index: 'asc' } } },
   });
   return task;
 });

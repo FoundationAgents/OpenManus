@@ -4,12 +4,11 @@ import { ChatMessage } from '@/components/features/chat/ChatMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Message } from '@/types/chat';
-import { Rocket, Send, ArrowDown } from 'lucide-react';
+import { Rocket, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getTask } from '@/actions/tasks';
-import { to } from '@/lib/to';
 
 export default function ChatPage() {
   const params = useParams();
@@ -95,9 +94,7 @@ export default function ChatPage() {
         }}
         onScroll={handleScroll}
       >
-        {messages.map((message, index) => (
-          <ChatMessage key={`${index}-${message.content}`} message={message} />
-        ))}
+        <ChatMessage messages={messages} />
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">

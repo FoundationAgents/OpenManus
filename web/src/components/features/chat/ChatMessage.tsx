@@ -1,11 +1,10 @@
-import { Message } from '@/types/chat';
+import { Message, AggregatedMessage } from '@/types/chat';
 import Markdown from 'react-markdown';
-import { CollapsibleMessage } from '@/components/features/chat/CollapsibleMessage';
-import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface ChatMessageProps {
-  message: Message;
+  messages: Message[];
 }
 
 const renderUserMessage = (message: Message) => (
@@ -17,13 +16,18 @@ const renderUserMessage = (message: Message) => (
 );
 
 const renderAgentMessage = (message: Message) => {
-  const [title, ...content] = message.content.split('\n');
+  const [title, ...lines] = message.content.split('\n');
+  const content = lines.join('\n');
+  if (content === '') {
+    return null;
+  }
+
   return (
     <div className="text-sm text-foreground">
       <div className="prose prose-sm prose-neutral dark:prose-invert">
         <div>{title}</div>
-        <div className="pl-6 pt-2">
-          <Markdown>{content.join('\n')}</Markdown>
+        <div className="pt-2 markdown-content">
+          <Markdown>{content}</Markdown>
         </div>
       </div>
     </div>
@@ -31,72 +35,145 @@ const renderAgentMessage = (message: Message) => {
 };
 
 const renderStepMessage = (message: Message) => {
-  return (
-    <div className="mt-2 text-sm text-muted-foreground">
-      <Badge variant="outline">{message.content}</Badge>
-    </div>
-  );
+  return <div className="mt-2 text-xs text-muted-foreground">{message.content}</div>;
 };
 
-const renderToolProgressMessage = (message: Message) => {
-  return <div className="pl-6 text-sm text-muted-foreground">{message.content}</div>;
-};
-
-const renderToolCompletedMessage = (message: Message) => {
-  const [title, content] = message.content.split(' Result: ');
-  return (
-    <div className="pl-6 text-sm text-muted-foreground">
-      <CollapsibleMessage title={title} content={content} defaultExpanded={false} className="prose-sm" />
-    </div>
-  );
-};
-
-const renderCollapsibleMessage = (message: Message) => {
-  const [title, ...content] = message.content.split('\n');
-  return (
-    <div className="mt-2 text-sm text-muted-foreground">
-      <CollapsibleMessage title={title} content={content.join('\n')} defaultExpanded={false} className="prose-sm" />
-    </div>
-  );
-};
-
-const renderAssistantMessage = (message: Message) => {
-  // Handle different message types
-  switch (message.type) {
-    case 'think':
-    case 'complete':
-    case 'error':
-      return renderAgentMessage(message);
-    case 'tool:selected':
-    case 'tool:prepared':
-    case 'tool:arguments':
-    case 'tool:activating':
-      return renderToolProgressMessage(message);
-    case 'tool:completed':
-      return renderToolCompletedMessage(message);
-    case 'step':
-      return renderStepMessage(message);
-    case 'log':
-      return null;
-    default:
-      return renderCollapsibleMessage(message);
+const renderResultMessage = (message: Message) => {
+  const [...lines] = message.content.split('\n');
+  const content = lines.join('\n');
+  if (content === '') {
+    return null;
   }
-};
-
-export const ChatMessage = ({ message }: ChatMessageProps) => {
-  const messageConfig = useMemo(() => {
-    // First distinguish between user and assistant messages by role
-    if (message.role === 'user') {
-      return { component: renderUserMessage(message) };
-    }
-
-    // Render assistant message based on type
-    return { component: renderAssistantMessage(message) };
-  }, [message.role, message.type, message.content]);
 
   return (
-    <div className="first:pt-0">
-      <div className="container max-w-2xl mx-auto">{messageConfig.component}</div>
+    <div className="text-sm text-foreground">
+      <div className="prose prose-sm prose-neutral dark:prose-invert">
+        <div>Here is the result</div>
+        <div className="pt-2 markdown-content">
+          <Markdown>{content}</Markdown>
+        </div>
+      </div>
     </div>
   );
+};
+
+const toolTypes = ['tool:selected', 'tool:prepared', 'tool:arguments', 'tool:activating', 'tool:completed'];
+
+const aggregateToolMessages = (messages: Message[]): AggregatedMessage[] => {
+  const result = messages.reduce((acc, current) => {
+    if (current.type === 'tool:selected') {
+      if (current.content.match(/selected 0 tools/i)) {
+        return acc;
+      } else {
+        acc.push({ ...current, role: 'assistant', type: 'tool', messages: [current] });
+        return acc;
+      }
+    } else {
+      (acc[acc.length - 1] as { messages: Message[] }).messages.push(current);
+      return acc;
+    }
+  }, [] as AggregatedMessage[]);
+  return result;
+};
+
+const renderToolProgressCard = (message: AggregatedMessage) => {
+  if (message.type !== 'tool') return null;
+  const completedMessage = message.messages.find(msg => msg.type === 'tool:completed');
+  const preparedMessage = message.messages.find(msg => msg.type === 'tool:prepared');
+  const argsMessage = message.messages.find(msg => msg.type === 'tool:arguments');
+
+  const isCompleted = !!completedMessage;
+
+  let toolName: string = '';
+
+  if (preparedMessage) {
+    const toolsBeingPreparedMatch = preparedMessage.content.match(/Tools being prepared:?\s*\[(.*?)\]/i);
+    if (toolsBeingPreparedMatch?.[1]) {
+      const toolsStr = toolsBeingPreparedMatch[1];
+      const toolMatch = toolsStr.match(/['"]([^'"]+)['"]/);
+      if (toolMatch?.[1]) {
+        toolName = toolMatch[1];
+      }
+    }
+  }
+  const args = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
+  const result = completedMessage?.content.split('Result:')[1]?.trim();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Badge variant="outline" className="flex items-center gap-2 cursor-pointer">
+          <span className="font-mono">
+            {isCompleted ? '🎯' : '🚨'} {toolName}
+          </span>
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent className="max-w-md w-md">
+        <div>
+          <Badge variant="outline">Arguments</Badge>
+          <div className="prose prose-sm prose-neutral dark:prose-invert">
+            {Object.entries(args)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join('\n')}
+          </div>
+        </div>
+        <div>
+          <Badge variant="outline" className="mt-2">
+            Result
+          </Badge>
+          <div className="prose prose-sm prose-neutral dark:prose-invert">{result}</div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+export const ChatMessage = ({ messages = [] }: ChatMessageProps) => {
+  const messagesWithIndex = messages.map((msg, index) => ({ ...msg, index }));
+  const toolChainMessages = messagesWithIndex.filter(msg => toolTypes.includes(msg.type || ''));
+  const notToolMessages = messagesWithIndex.filter(msg => !toolTypes.includes(msg.type || ''));
+
+  const toolMessages = aggregateToolMessages(toolChainMessages);
+
+  return ([...notToolMessages, ...toolMessages] as AggregatedMessage[])
+    .sort((a, b) => (a.index ?? -1) - (b.index ?? -1))
+    .map((message, i) => {
+      if (message.role === 'user') {
+        return (
+          <div key={`user-${i}`} className="first:pt-0">
+            <div className="container max-w-2xl mx-auto">{renderUserMessage(message)}</div>
+          </div>
+        );
+      }
+      if (message.type === 'result') {
+        return (
+          <div key={`result-${i}`} className="first:pt-0">
+            <div className="container max-w-2xl mx-auto">{renderResultMessage(message)}</div>
+          </div>
+        );
+      }
+      if (message.type === 'tool') {
+        return (
+          <div key={`tool-${i}`} className="first:pt-0">
+            <div className="container max-w-2xl mx-auto">{renderToolProgressCard(message)}</div>
+          </div>
+        );
+      }
+      if (message.type === 'step') {
+        return (
+          <div key={`step-${i}`} className="first:pt-0">
+            <div className="container max-w-2xl mx-auto">{renderStepMessage(message)}</div>
+          </div>
+        );
+      }
+      if (message.type === 'think' || message.type === 'error') {
+        return (
+          <div key={`think-${i}`} className="first:pt-0">
+            <div className="container max-w-2xl mx-auto">{renderAgentMessage(message)}</div>
+          </div>
+        );
+      }
+
+      return null;
+    })
+    .filter(Boolean);
 };

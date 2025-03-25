@@ -128,15 +128,15 @@
   h2,
   h3,
   h4 {
-    @apply font-bold mt-2 text-gray-700;
+    @apply font-bold mt-2 text-foreground;
   }
 
   h1 {
-    @apply text-4xl mb-4 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent;
+    @apply text-4xl mb-4 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent;
   }
 
   h2 {
-    @apply text-2xl mb-3 border-b border-gray-200 pb-1;
+    @apply text-2xl mb-3 border-b border-border pb-1;
   }
 
   h3 {
@@ -158,11 +158,11 @@
 
   p,
   li {
-    @apply leading-normal;
+    @apply leading-normal text-foreground/90;
   }
 
   strong {
-    @apply font-semibold text-gray-700;
+    @apply font-semibold text-foreground;
   }
 
   em {
@@ -170,39 +170,39 @@
   }
 
   ul {
-    @apply list-disc list-inside space-y-1;
+    @apply list-disc list-inside space-y-1 text-foreground/90;
   }
 
   ol {
-    @apply list-decimal list-inside space-y-1;
+    @apply list-decimal list-inside space-y-1 text-foreground/90;
   }
 
   blockquote {
-    @apply pl-3 py-1 border-l-4 border-gray-300 bg-gray-50/50 italic;
+    @apply pl-3 py-1 border-l-4 border-primary/20 bg-muted/50 italic text-muted-foreground;
   }
 
   code {
-    @apply px-1.5 py-0.5 bg-gray-100 text-sm text-gray-700 font-mono;
+    @apply px-1.5 py-0.5 bg-muted text-sm text-muted-foreground font-mono rounded-sm;
   }
 
   pre {
-    @apply p-3 bg-gray-900;
+    @apply p-3 bg-muted rounded-md;
 
     code {
-      @apply bg-transparent text-gray-200 p-0 text-sm leading-normal break-all whitespace-pre-wrap;
+      @apply bg-transparent text-muted-foreground p-0 text-sm leading-normal break-all whitespace-pre-wrap;
     }
   }
 
   hr {
-    @apply border-t border-gray-200;
+    @apply border-t border-border;
   }
 
   a {
-    @apply text-blue-600 hover:text-blue-700 underline transition-colors;
+    @apply text-primary hover:text-primary/80 underline transition-colors;
   }
 
   img {
-    @apply max-w-full my-3;
+    @apply max-w-full my-3 rounded-md border border-border;
   }
 
   table {
@@ -210,11 +210,15 @@
 
     th,
     td {
-      @apply border border-gray-200 px-4 py-2;
+      @apply border border-border px-4 py-2;
     }
 
     th {
-      @apply bg-gray-50 text-left text-gray-700 font-semibold;
+      @apply bg-muted text-left text-muted-foreground font-semibold;
+    }
+
+    td {
+      @apply text-foreground/90;
     }
   }
 }
