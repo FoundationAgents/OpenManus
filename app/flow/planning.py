@@ -121,7 +121,7 @@ class PlanningFlow(BaseFlow):
                 # Execute current step with appropriate agent
                 step_type = step_info.get("type") if step_info else None
                 executor = self.get_executor(step_type)
-                step_result = await self._execute_step(executor, step_info)
+                step_result = await self._execute_step(executor, step_info, input_text)
                 result += step_result + "\n"
 
                 # Check if agent wants to terminate
@@ -256,7 +256,7 @@ class PlanningFlow(BaseFlow):
             logger.warning(f"Error finding current step index: {e}")
             return None, None
 
-    async def _execute_step(self, executor: BaseAgent, step_info: dict) -> str:
+    async def _execute_step(self, executor: BaseAgent, step_info: dict, input_text: str) -> str:
         """Execute the current step with the specified agent using agent.run()."""
         # Prepare context for the agent with current plan status
         plan_status = await self._get_plan_text()
@@ -264,6 +264,9 @@ class PlanningFlow(BaseFlow):
 
         # Create a prompt for the agent to execute the current step
         step_prompt = f"""
+        ORIGINAL TASK:
+        {input_text}
+
         CURRENT PLAN STATUS:
         {plan_status}
 
