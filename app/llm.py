@@ -30,8 +30,11 @@ from app.schema import (
     ToolChoice,
 )
 
-
-REASONING_MODELS = ["o1", "o3-mini"]
+REASONING_MODELS = [
+    "o1",
+    "o3-mini",
+    "deepseek-reasoner",
+]
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
     "gpt-4o",
@@ -228,6 +231,18 @@ class LLM:
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
+            elif self.api_type == "deepseek":
+                # DeepSeek API follows the OpenAI API spec, so we can use AsyncOpenAI client
+                # with the DeepSeek base URL
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    default_headers=(
+                        {"DeepSeekAPI-Version": self.api_version}
+                        if self.api_version
+                        else None
+                    ),
+                )
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -544,9 +559,7 @@ class LLM:
             multimodal_content = (
                 [{"type": "text", "text": content}]
                 if isinstance(content, str)
-                else content
-                if isinstance(content, list)
-                else []
+                else content if isinstance(content, list) else []
             )
 
             # Add images to content

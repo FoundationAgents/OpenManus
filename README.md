@@ -114,6 +114,31 @@ base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # Replace with your actual API key
 ```
 
+## Supported LLM Providers
+
+OpenManus supports several LLM providers:
+
+1. **OpenAI** (default): GPT-4o and other OpenAI models
+2. **Anthropic**: Claude 3 models
+3. **Azure OpenAI**: Azure-hosted OpenAI models
+4. **Amazon Bedrock**: AWS Bedrock service for various models
+5. **Ollama**: Self-hosted open-source models
+6. **DeepSeek**: DeepSeek models including text and vision capabilities
+7. **Google Gemini**: Gemini Pro and Gemini Pro Vision models
+
+For DeepSeek API configuration, use:
+
+```toml
+[llm]
+api_type = 'deepseek'
+model = "deepseek-coder"  # or other DeepSeek models
+base_url = "https://api.deepseek.com/v1"
+api_key = "YOUR_DEEPSEEK_API_KEY"
+max_tokens = 8192
+temperature = 0.0
+api_version = "2023-07-01-preview"  # Optional DeepSeek API version
+```
+
 ## Quick Start
 
 One line for run OpenManus:
