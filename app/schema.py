@@ -61,6 +61,34 @@ class Message(BaseModel):
     tool_call_id: Optional[str] = Field(default=None)
     base64_image: Optional[str] = Field(default=None)
 
+    @staticmethod
+    def remove_think_content(content: Optional[str]) -> Optional[str]:
+        """Remove thinking content from message.
+
+        Args:
+            content: Original message content
+
+        Returns:
+            Processed content with thinking part removed
+        """
+        if not content:
+            return content
+
+        # Find the position of the last </think> tag
+        think_end = content.rfind("</think>")
+        if think_end != -1:
+            # Find the corresponding <think> start tag
+            think_start = content.rfind("<think>", 0, think_end)
+
+            # Remove content before </think> even if no start tag is found
+            start_pos = think_start + 7 if think_start != -1 else 0  # 7 is the length of <think>
+
+            # Remove the thinking part and keep the actual response
+            # Also strip any leading newlines
+            remaining = content[think_end + 8:]  # 8 is the length of </think>
+            return remaining.lstrip("\n")
+        return content
+
     def __add__(self, other) -> List["Message"]:
         """支持 Message + list 或 Message + Message 的操作"""
         if isinstance(other, list):
@@ -113,16 +141,18 @@ class Message(BaseModel):
         cls, content: Optional[str] = None, base64_image: Optional[str] = None
     ) -> "Message":
         """Create an assistant message"""
-        return cls(role=Role.ASSISTANT, content=content, base64_image=base64_image)
+        processed_content = cls.remove_think_content(content) if content else None
+        return cls(role=Role.ASSISTANT, content=processed_content, base64_image=base64_image)
 
     @classmethod
     def tool_message(
         cls, content: str, name, tool_call_id: str, base64_image: Optional[str] = None
     ) -> "Message":
         """Create a tool message"""
+        processed_content = cls.remove_think_content(content)
         return cls(
             role=Role.TOOL,
-            content=content,
+            content=processed_content,
             name=name,
             tool_call_id=tool_call_id,
             base64_image=base64_image,
@@ -147,9 +177,17 @@ class Message(BaseModel):
             {"id": call.id, "function": call.function.model_dump(), "type": "function"}
             for call in tool_calls
         ]
+
+        # 处理内容中的思考部分
+        if isinstance(content, str):
+            processed_content = cls.remove_think_content(content)
+        else:
+            # 如果是列表，处理每个字符串
+            processed_content = [cls.remove_think_content(c) for c in content]
+
         return cls(
             role=Role.ASSISTANT,
-            content=content,
+            content=processed_content,
             tool_calls=formatted_calls,
             base64_image=base64_image,
             **kwargs,
