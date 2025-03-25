@@ -76,7 +76,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold">OpenManus</span>
+          <span className="text-lg font-bold">{me?.organizationName || 'OpenManus'}</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
