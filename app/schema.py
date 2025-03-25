@@ -178,11 +178,11 @@ class Message(BaseModel):
             for call in tool_calls
         ]
 
-        # 处理内容中的思考部分
+        # Processing the reflective portion within the content.
         if isinstance(content, str):
             processed_content = cls.remove_think_content(content)
         else:
-            # 如果是列表，处理每个字符串
+            # If it is a list, process each string.
             processed_content = [cls.remove_think_content(c) for c in content]
 
         return cls(
