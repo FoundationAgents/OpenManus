@@ -1,5 +1,7 @@
 import asyncio
 import os
+import shutil
+import tempfile
 import threading
 import tomllib
 import uuid
@@ -8,12 +10,20 @@ from datetime import datetime
 from functools import partial
 from json import dumps
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional, Set, Union
 
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import (
+    Body,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
+from watchfiles import Change, awatch
 
 from app.config import LLMSettings
 from app.llm import LLM
@@ -364,6 +374,545 @@ def load_config():
             f"The configuration file is missing necessary fields: {str(e)}, use default configuration"
         )
         return {"host": "localhost", "port": 5172}
+
+
+# File operation related models
+class FileInfo(BaseModel):
+    name: str
+    path: str
+    size: int
+    is_dir: bool
+    modified_time: datetime
+    children: Optional[List["FileInfo"]] = None
+    parent_path: Optional[str] = None
+    depth: int = 0
+
+    def model_dump(self, *args, **kwargs):
+        data = super().model_dump(*args, **kwargs)
+        data["modified_time"] = self.modified_time.isoformat()
+        return data
+
+
+# Workspace utility functions
+def get_workspace_path() -> Path:
+    """Get the workspace root path from environment variable or current working directory"""
+    return Path(os.getenv("WORKSPACE_PATH", os.getcwd()))
+
+
+def is_safe_path(base_path: Path, requested_path: Path) -> bool:
+    """
+    Check if the requested path is within the workspace boundary
+
+    Args:
+        base_path: The workspace root path
+        requested_path: The path to be checked
+
+    Returns:
+        bool: True if the path is safe to access, False otherwise
+    """
+    try:
+        requested_path.relative_to(base_path)
+        return True
+    except ValueError:
+        return False
+
+
+def get_file_info(path: Path, depth: int = 0, max_depth: int = 0) -> FileInfo:
+    """
+    Get file information for the given path with optional recursive directory scanning
+
+    Args:
+        path: Path to the file or directory
+        depth: Current depth in the directory tree
+        max_depth: Maximum depth to scan (-1 for unlimited, 0 for current level only)
+
+    Returns:
+        FileInfo: Object containing file metadata and optional children
+    """
+    stat = path.stat()
+    workspace_path = get_workspace_path()
+
+    try:
+        relative_path = str(path.relative_to(workspace_path))
+    except ValueError:
+        relative_path = str(path)
+
+    parent_path = (
+        str(path.parent.relative_to(workspace_path))
+        if path.parent != workspace_path
+        else ""
+    )
+
+    file_info = FileInfo(
+        name=path.name,
+        path=relative_path,
+        size=stat.st_size,
+        is_dir=path.is_dir(),
+        modified_time=datetime.fromtimestamp(stat.st_mtime),
+        parent_path=parent_path,
+        depth=depth,
+    )
+
+    # If it's a directory and we haven't reached max_depth, scan its contents
+    if path.is_dir() and (max_depth == -1 or depth < max_depth):
+        try:
+            children = []
+            for item in sorted(
+                path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())
+            ):
+                if item.name.startswith("."):
+                    continue
+                child_info = get_file_info(item, depth + 1, max_depth)
+                children.append(child_info)
+            file_info.children = children
+        except PermissionError:
+            pass
+
+    return file_info
+
+
+# API endpoints for file operations
+@app.get("/workspace/files")
+async def list_workspace_files(
+    path: str = "", depth: int = 1, flat: bool = False
+) -> Union[List[Dict], Dict]:
+    """
+    List files and directories in the workspace with optional recursive scanning
+
+    Args:
+        path: Relative path within the workspace (optional)
+        depth: Maximum depth to scan (-1 for unlimited, 0 for current level only)
+        flat: If True, returns a flat list instead of a tree structure
+
+    Returns:
+        Union[List[Dict], Dict]: List of file and directory information or tree structure
+
+    Raises:
+        HTTPException: If path is not found or access is denied
+    """
+    workspace_path = get_workspace_path()
+    target_path = workspace_path / path
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Path not found")
+
+    if not is_safe_path(workspace_path, target_path):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        if flat:
+            # Return flat list of all files and directories
+            files = []
+            for item in sorted(
+                target_path.rglob("*"), key=lambda x: (not x.is_dir(), x.name.lower())
+            ):
+                if item.name.startswith("."):
+                    continue
+                try:
+                    current_depth = len(item.relative_to(target_path).parts)
+                    if depth == -1 or current_depth <= depth:
+                        files.append(get_file_info(item, current_depth, 0).model_dump())
+                except ValueError:
+                    continue
+            return files
+        else:
+            # Return tree structure
+            return get_file_info(target_path, 0, depth).model_dump()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/workspace/file")
+async def get_file_content(path: str):
+    """
+    Get the content of a file in the workspace
+
+    Args:
+        path: Relative path to the file within the workspace
+
+    Returns:
+        FileResponse: File content with appropriate headers
+
+    Raises:
+        HTTPException: If file is not found, is a directory, or access is denied
+    """
+    workspace_path = get_workspace_path()
+    target_path = workspace_path / path
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if not is_safe_path(workspace_path, target_path):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if target_path.is_dir():
+        raise HTTPException(status_code=400, detail="Path is a directory")
+
+    try:
+        return FileResponse(target_path, filename=target_path.name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/workspace/info")
+async def get_workspace_info():
+    """
+    Get information about the workspace
+
+    Returns:
+        dict: Workspace path and status information
+    """
+    workspace_path = get_workspace_path()
+    return {
+        "path": str(workspace_path),
+        "exists": workspace_path.exists(),
+        "is_dir": workspace_path.is_dir() if workspace_path.exists() else None,
+    }
+
+
+# File system monitoring
+class FileSystemMonitor:
+    def __init__(self):
+        self.dir_connections: Dict[str, Set[WebSocket]] = (
+            {}
+        )  # path -> set of websockets
+        self.file_connections: Dict[str, Set[WebSocket]] = (
+            {}
+        )  # path -> set of websockets
+        self.monitor_tasks: Dict[str, asyncio.Task] = {}  # path -> monitor task
+
+    async def connect_dir(self, websocket: WebSocket, dir_path: str):
+        """Connect to monitor a directory"""
+        await websocket.accept()
+
+        # Convert to absolute path
+        workspace_path = get_workspace_path()
+        abs_path = (workspace_path / dir_path).resolve()
+
+        # Security check
+        if not is_safe_path(workspace_path, abs_path):
+            await websocket.close(code=4003, reason="Access denied")
+            return
+
+        if not abs_path.is_dir():
+            await websocket.close(code=4004, reason="Not a directory")
+            return
+
+        # Add to connections
+        if dir_path not in self.dir_connections:
+            self.dir_connections[dir_path] = set()
+        self.dir_connections[dir_path].add(websocket)
+
+        # Start monitoring if not already monitoring this directory
+        if dir_path not in self.monitor_tasks:
+            self.monitor_tasks[dir_path] = asyncio.create_task(
+                self.monitor_directory(dir_path)
+            )
+
+    async def connect_file(self, websocket: WebSocket, file_path: str):
+        """Connect to monitor a single file"""
+        await websocket.accept()
+
+        # Convert to absolute path
+        workspace_path = get_workspace_path()
+        abs_path = (workspace_path / file_path).resolve()
+
+        # Security check
+        if not is_safe_path(workspace_path, abs_path):
+            await websocket.close(code=4003, reason="Access denied")
+            return
+
+        if not abs_path.is_file():
+            await websocket.close(code=4004, reason="Not a file")
+            return
+
+        # Add to connections
+        if file_path not in self.file_connections:
+            self.file_connections[file_path] = set()
+        self.file_connections[file_path].add(websocket)
+
+        # Start monitoring if not already monitoring this file
+        if file_path not in self.monitor_tasks:
+            self.monitor_tasks[file_path] = asyncio.create_task(
+                self.monitor_file(file_path)
+            )
+
+    def disconnect(self, websocket: WebSocket, path: str = None):
+        """Disconnect from monitoring"""
+        # Remove from directory connections
+        for dir_path, connections in list(self.dir_connections.items()):
+            if websocket in connections:
+                connections.remove(websocket)
+                if not connections:
+                    # No more connections for this directory
+                    self.dir_connections.pop(dir_path)
+                    if dir_path in self.monitor_tasks:
+                        self.monitor_tasks[dir_path].cancel()
+                        self.monitor_tasks.pop(dir_path)
+
+        # Remove from file connections
+        for file_path, connections in list(self.file_connections.items()):
+            if websocket in connections:
+                connections.remove(websocket)
+                if not connections:
+                    # No more connections for this file
+                    self.file_connections.pop(file_path)
+                    if file_path in self.monitor_tasks:
+                        self.monitor_tasks[file_path].cancel()
+                        self.monitor_tasks.pop(file_path)
+
+    async def broadcast_to_dir(self, dir_path: str, message: dict):
+        """Broadcast message to all connections monitoring a directory"""
+        if dir_path not in self.dir_connections:
+            return
+
+        dead_connections = set()
+        for connection in self.dir_connections[dir_path]:
+            try:
+                await connection.send_json(message)
+            except WebSocketDisconnect:
+                dead_connections.add(connection)
+            except Exception as e:
+                print(f"Error broadcasting to connection: {e}")
+                dead_connections.add(connection)
+
+        # Clean up dead connections
+        for dead in dead_connections:
+            self.disconnect(dead, dir_path)
+
+    async def broadcast_to_file(self, file_path: str, message: dict):
+        """Broadcast message to all connections monitoring a file"""
+        if file_path not in self.file_connections:
+            return
+
+        dead_connections = set()
+        for connection in self.file_connections[file_path]:
+            try:
+                await connection.send_json(message)
+            except WebSocketDisconnect:
+                dead_connections.add(connection)
+            except Exception as e:
+                print(f"Error broadcasting to connection: {e}")
+                dead_connections.add(connection)
+
+        # Clean up dead connections
+        for dead in dead_connections:
+            self.disconnect(dead, file_path)
+
+    async def monitor_directory(self, dir_path: str):
+        """Monitor directory for changes"""
+        workspace_path = get_workspace_path()
+        target_path = workspace_path / dir_path
+
+        try:
+            async for changes in awatch(target_path):
+                for change_type, file_path in changes:
+                    try:
+                        relative_path = Path(file_path).relative_to(workspace_path)
+                        # Skip hidden files and directories
+                        if any(part.startswith(".") for part in relative_path.parts):
+                            continue
+
+                        change_info = {
+                            "type": change_type.name,  # ADDED, MODIFIED, DELETED
+                            "path": str(relative_path),
+                            "timestamp": datetime.now().isoformat(),
+                            "event_type": "directory_change",
+                        }
+
+                        # If file still exists, add its information
+                        if change_type != Change.deleted and Path(file_path).exists():
+                            try:
+                                file_info = get_file_info(Path(file_path))
+                                change_info["file"] = file_info.model_dump()
+                            except Exception as e:
+                                print(f"Error getting file info: {e}")
+
+                        await self.broadcast_to_dir(dir_path, change_info)
+                    except Exception as e:
+                        print(f"Error processing directory change: {e}")
+
+        except asyncio.CancelledError:
+            print(f"Directory monitoring stopped for {dir_path}")
+        except Exception as e:
+            print(f"Error in directory monitor: {e}")
+            # Try to restart monitoring if still has connections
+            if dir_path in self.dir_connections and self.dir_connections[dir_path]:
+                self.monitor_tasks[dir_path] = asyncio.create_task(
+                    self.monitor_directory(dir_path)
+                )
+
+    async def monitor_file(self, file_path: str):
+        """Monitor single file for changes"""
+        workspace_path = get_workspace_path()
+        target_path = workspace_path / file_path
+
+        try:
+            last_content = target_path.read_text() if target_path.exists() else ""
+            last_mtime = target_path.stat().st_mtime if target_path.exists() else 0
+
+            async for changes in awatch(target_path.parent):
+                for change_type, changed_path in changes:
+                    try:
+                        if Path(changed_path) == target_path:
+                            if not target_path.exists():
+                                change_info = {
+                                    "type": "DELETED",
+                                    "path": file_path,
+                                    "timestamp": datetime.now().isoformat(),
+                                    "event_type": "file_change",
+                                }
+                                await self.broadcast_to_file(file_path, change_info)
+                                continue
+
+                            current_mtime = target_path.stat().st_mtime
+                            if current_mtime != last_mtime:
+                                current_content = target_path.read_text()
+                                if current_content != last_content:
+                                    change_info = {
+                                        "type": "MODIFIED",
+                                        "path": file_path,
+                                        "timestamp": datetime.now().isoformat(),
+                                        "event_type": "file_change",
+                                        "content": current_content,
+                                    }
+                                    await self.broadcast_to_file(file_path, change_info)
+                                    last_content = current_content
+                                last_mtime = current_mtime
+
+                    except Exception as e:
+                        print(f"Error processing file change: {e}")
+
+        except asyncio.CancelledError:
+            print(f"File monitoring stopped for {file_path}")
+        except Exception as e:
+            print(f"Error in file monitor: {e}")
+            # Try to restart monitoring if still has connections
+            if file_path in self.file_connections and self.file_connections[file_path]:
+                self.monitor_tasks[file_path] = asyncio.create_task(
+                    self.monitor_file(file_path)
+                )
+
+
+file_monitor = FileSystemMonitor()
+
+
+@app.websocket("/workspace/watch/dir")
+async def watch_directory(websocket: WebSocket, path: str = ""):
+    """
+    WebSocket endpoint for monitoring directory changes
+
+    Args:
+        path: Relative path to the directory to monitor
+
+    Messages format:
+    {
+        "type": "ADDED" | "MODIFIED" | "DELETED",
+        "path": "relative/path/to/file",
+        "timestamp": "2024-03-25T10:30:00",
+        "event_type": "directory_change",
+        "file": FileInfo  # Only for ADDED and MODIFIED events
+    }
+    """
+    await file_monitor.connect_dir(websocket, path)
+    try:
+        while True:
+            # Keep connection alive and handle client messages
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        file_monitor.disconnect(websocket, path)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        file_monitor.disconnect(websocket, path)
+
+
+@app.websocket("/workspace/watch/file")
+async def watch_file(websocket: WebSocket, path: str):
+    """
+    WebSocket endpoint for monitoring single file changes
+
+    Args:
+        path: Relative path to the file to monitor
+
+    Messages format:
+    {
+        "type": "MODIFIED" | "DELETED",
+        "path": "relative/path/to/file",
+        "timestamp": "2024-03-25T10:30:00",
+        "event_type": "file_change",
+        "content": "file content"  # Only for MODIFIED events
+    }
+    """
+    await file_monitor.connect_file(websocket, path)
+    try:
+        while True:
+            # Keep connection alive and handle client messages
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        file_monitor.disconnect(websocket, path)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        file_monitor.disconnect(websocket, path)
+
+
+@app.get("/workspace/download/directory")
+async def download_directory(path: str = ""):
+    """
+    Download a directory as a zip file
+
+    Args:
+        path: Relative path to the directory within the workspace
+
+    Returns:
+        FileResponse: Zip file containing the directory contents
+
+    Raises:
+        HTTPException: If directory is not found or access is denied
+    """
+    workspace_path = get_workspace_path()
+    target_path = workspace_path / path
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    if not is_safe_path(workspace_path, target_path):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not target_path.is_dir():
+        raise HTTPException(status_code=400, detail="Path is not a directory")
+
+    try:
+        # Create a temporary directory for the zip file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Generate zip file name based on directory name
+            zip_name = (
+                f"{target_path.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            )
+            zip_path = Path(temp_dir) / zip_name
+
+            # Create zip file
+            shutil.make_archive(
+                str(zip_path.with_suffix("")),  # Remove .zip as make_archive adds it
+                "zip",
+                target_path,
+            )
+
+            return FileResponse(
+                zip_path,
+                filename=zip_name,
+                media_type="application/zip",
+                headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+            )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating zip file: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
