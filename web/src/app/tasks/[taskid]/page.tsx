@@ -42,20 +42,20 @@ export default function ChatPage() {
     const fetchTask = async () => {
       if (fetching) return;
       fetching = true;
-      const [error, res] = await to(getTask(taskId));
-      if (error) {
-        console.error('Error fetching task:', error);
+      const res = await getTask({ taskId });
+      if (res.error || !res.data) {
+        console.error('Error fetching task:', res.error);
         fetching = false;
         return;
       }
       setMessages([
-        { role: 'user', content: res?.data.prompt },
-        ...(res?.data.steps || []).map((step: any) => ({ role: 'assistant', type: step.type, content: step.result })),
+        { role: 'user', content: res.data.prompt },
+        ...res.data.steps.map(step => ({ role: 'assistant' as const, type: step.type as Message['type'], content: step.result })),
       ]);
       if (shouldAutoScroll) {
         requestAnimationFrame(scrollToBottom);
       }
-      if (res?.data.status === 'failed' || res?.data.status === 'completed') {
+      if (res.data!.status === 'failed' || res.data!.status === 'completed') {
         setIsThinking(false);
         clearInterval(interval);
       } else {

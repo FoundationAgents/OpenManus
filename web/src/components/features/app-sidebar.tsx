@@ -21,30 +21,50 @@ import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useConfigDialog } from './config/config-dialog';
 import { LogOutIcon, SettingsIcon, ChevronsUpDown } from 'lucide-react';
-import useMe from '@/hooks/use-user';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '../ui/button';
+import { getMe } from '@/actions/me';
 
 export const useRecentTasks = create<{ tasks: Tasks[]; refreshTasks: () => Promise<void> }>(set => ({
   tasks: [],
   refreshTasks: async () => {
     const res = await pageTasks({ page: 1, pageSize: 10 });
-    set({ tasks: res.data.tasks });
+    set({ tasks: res.data?.tasks || [] });
+  },
+}));
+
+const useMeStore = create<{ me: Awaited<ReturnType<typeof getMe>>['data'] | null; refreshMe: () => Promise<void> }>(set => ({
+  me: null,
+  refreshMe: async () => {
+    const res = await getMe({});
+    if (res.error || !res.data) {
+      throw new Error('Failed to fetch user data');
+    }
+    set({ me: res.data });
   },
 }));
 
 export function AppSidebar() {
-  const { me } = useMe();
+  const router = useRouter();
+  const { me, refreshMe } = useMeStore();
   const { tasks, refreshTasks } = useRecentTasks();
   const { show } = useConfigDialog();
   const pathname = usePathname();
-  const router = useRouter();
 
   const currentTaskId = pathname.split('/').pop();
 
   useEffect(() => {
-    refreshTasks();
+    refreshMe()
+      .then(() => {
+        refreshTasks();
+      })
+      .catch(error => {
+        if (error?.message.startsWith('Authentication failed')) {
+          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+          router.push('/login');
+        }
+      });
   }, []);
 
   const handleLogout = () => {

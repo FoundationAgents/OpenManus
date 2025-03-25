@@ -3,7 +3,7 @@
  * @param promise The Promise to handle
  * @returns A tuple containing error and result [Error | null, T | null]
  */
-export async function to<T>(promise: Promise<T>): Promise<[Error | null, T | null]> {
+export async function to<T>(promise: Promise<T>): Promise<[null, T] | [Error, null]> {
   try {
     const result = await promise;
     return [null, result];
@@ -17,7 +17,7 @@ export async function to<T>(promise: Promise<T>): Promise<[Error | null, T | nul
  * @param fn The synchronous function to execute
  * @returns A tuple containing error and result [Error | null, T | null]
  */
-export function toSync<T>(fn: () => T): [Error | null, T | null] {
+export function toSync<T>(fn: () => T): [null, T] | [Error, null] {
   try {
     const result = fn();
     return [null, result];

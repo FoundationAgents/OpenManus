@@ -2,14 +2,14 @@
 
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
-import { withUserAuth } from '@/lib/auth-wrapper';
+import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
 
 /**
  * Create a new user
  * @param params User creation parameters
  * @returns Created user data
  */
-export const createUser = withUserAuth<{ email: string; name: string; password: string }>(async ({ organization, args }) => {
+export const createUser = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ email: string; name: string; password: string }>) => {
   const { email, password, name } = args;
   // Check if email already exists
   return await prisma.$transaction(async tx => {

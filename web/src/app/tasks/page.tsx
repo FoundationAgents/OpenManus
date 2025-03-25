@@ -46,6 +46,9 @@ export default function ChatPage() {
 
     try {
       const res = await createTask({ prompt: input });
+      if (res.error || !res.data) {
+        throw new Error('Failed to create task');
+      }
       await refreshTasks();
       router.push(`/tasks/${res.data.id}`);
     } catch (error: any) {

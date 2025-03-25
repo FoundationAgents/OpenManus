@@ -1,13 +1,13 @@
 'use server';
 
-import { withUserAuth } from '@/lib/auth-wrapper';
+import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
 import { Message } from '@/types/chat';
 
 const API_BASE_URL = 'http://localhost:5172';
 
-export const getTask = withUserAuth<{ taskId: string }>(async ({ organization, args }) => {
+export const getTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string }>) => {
   const { taskId } = args;
   const task = await prisma.tasks.findUnique({
     where: { id: taskId, organizationId: organization.id },
@@ -16,7 +16,7 @@ export const getTask = withUserAuth<{ taskId: string }>(async ({ organization, a
   return task;
 });
 
-export const pageTasks = withUserAuth<{ page: number; pageSize: number }>(async ({ organization, args }) => {
+export const pageTasks = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ page: number; pageSize: number }>) => {
   const { page = 1, pageSize = 10 } = args || {};
   const tasks = await prisma.tasks.findMany({
     where: { organizationId: organization.id },
@@ -28,7 +28,7 @@ export const pageTasks = withUserAuth<{ page: number; pageSize: number }>(async 
   return { tasks, total };
 });
 
-export const createTask = withUserAuth<{ prompt: string }>(async ({ organization, args }) => {
+export const createTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ prompt: string }>) => {
   const { prompt } = args;
   const llmConfig = await prisma.llmConfigs.findFirst({
     where: {

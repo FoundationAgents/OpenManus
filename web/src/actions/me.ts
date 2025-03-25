@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { verifyPassword, hashPassword } from '@/lib/password';
-import { withUserAuth } from '@/lib/auth-wrapper';
+import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
 
 /**
  * Modify password
@@ -10,7 +10,7 @@ import { withUserAuth } from '@/lib/auth-wrapper';
  * @param newPassword New password
  * @returns Update result
  */
-export const modifyPassword = withUserAuth<{ oldPassword: string; newPassword: string }>(async ({ user, args }) => {
+export const modifyPassword = withUserAuth(async ({ user, args }: AuthWrapperContext<{ oldPassword: string; newPassword: string }>) => {
   const { oldPassword, newPassword } = args;
   const dbUser = await prisma.users.findUnique({
     where: { id: user.id },
@@ -37,7 +37,7 @@ export const modifyPassword = withUserAuth<{ oldPassword: string; newPassword: s
   return { message: 'Password updated successfully' };
 });
 
-export const getMe = withUserAuth(async ({ user, organization }) => {
+export const getMe = withUserAuth(async ({ user, organization }: AuthWrapperContext<{}>) => {
   if (!user.id) {
     throw new Error('User not found');
   }
