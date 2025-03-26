@@ -86,7 +86,7 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
     }
   }
 
-  const popoverContent = useMemo(() => {
+  const popoverContent = () => {
     if (toolName === 'browser_use') {
       return <BrowserUseToolMessage message={message} />;
     }
@@ -116,7 +116,7 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
         </div>
       </div>
     );
-  }, [toolName, message]);
+  };
 
   return (
     <Popover>
@@ -128,7 +128,7 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
         </Badge>
       </PopoverTrigger>
       <PopoverContent className="max-w-md w-md" align="start">
-        {popoverContent}
+        {popoverContent()}
       </PopoverContent>
     </Popover>
   );

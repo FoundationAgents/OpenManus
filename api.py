@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import os
 import shutil
 import tempfile
@@ -10,7 +11,7 @@ from datetime import datetime
 from functools import partial
 from json import dumps
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, cast
 
 from fastapi import (
     Body,
@@ -22,11 +23,12 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from playwright.async_api import async_playwright
 from pydantic import BaseModel
 from watchfiles import Change, awatch
 
 from app.config import LLMSettings
-from app.llm import LLM
+from app.tool.browser_use_tool import BrowserUseTool
 
 AGENT_NAME = "Manus"
 
@@ -47,6 +49,7 @@ class Task(BaseModel):
     created_at: datetime
     status: str
     steps: list = []
+    agent: "Manus"
 
     def model_dump(self, *args, **kwargs):
         data = super().model_dump(*args, **kwargs)
@@ -56,13 +59,17 @@ class Task(BaseModel):
 
 class TaskManager:
     def __init__(self):
-        self.tasks = {}
-        self.queues = {}
+        self.tasks: Dict[str, Task] = {}
+        self.queues: Dict[str, asyncio.Queue] = {}
 
-    def create_task(self, prompt: str) -> Task:
+    def create_task(self, prompt: str, agent: "Manus") -> Task:
         task_id = str(uuid.uuid4())
         task = Task(
-            id=task_id, prompt=prompt, created_at=datetime.now(), status="pending"
+            id=task_id,
+            prompt=prompt,
+            created_at=datetime.now(),
+            status="pending",
+            agent=agent,
         )
         self.tasks[task_id] = task
         self.queues[task_id] = asyncio.Queue()
@@ -113,7 +120,15 @@ async def create_task(
     llm_config: Optional[LLMSettings] = Body(None, embed=True),
 ):
     print(f"Creating task with prompt: {prompt}")
-    task = task_manager.create_task(prompt)
+    task = task_manager.create_task(
+        prompt,
+        Manus(
+            name=AGENT_NAME,
+            description="A versatile agent that can solve various tasks using multiple tools",
+            llm=llm_config,
+        ),
+    )
+    print("http://localhost:5172/ws/" + task.id)
     asyncio.create_task(run_task(task.id, prompt, llm_config))
     return {"task_id": task.id}
 
@@ -124,11 +139,7 @@ from app.agent.manus import Manus
 async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] = None):
     try:
         task_manager.tasks[task_id].status = "running"
-        agent = Manus(
-            name=AGENT_NAME,
-            description="A versatile agent that can solve various tasks using multiple tools",
-            llm=llm_config,
-        )
+        agent = cast(Manus, task_manager.tasks[task_id].agent)
 
         async def on_think(thought):
             await task_manager.update_task_step(task_id, 0, thought, "think")
@@ -917,6 +928,31 @@ async def download_directory(path: str = ""):
         raise HTTPException(
             status_code=500, detail=f"Error creating zip file: {str(e)}"
         )
+
+
+@app.websocket("/ws/{task_id}")
+async def websocket_endpoint(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+
+    agent = cast(Manus, task_manager.tasks[task_id].agent)
+
+    browser_use_tool = cast(
+        BrowserUseTool, agent.available_tools.get_tool("browser_use")
+    )
+    page = browser_use_tool.dom_service.page
+    if page is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    try:
+        while True:
+
+            content = await page.screenshot(full_page=True)
+            await websocket.send_bytes(content)
+
+            await asyncio.sleep(1)
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
