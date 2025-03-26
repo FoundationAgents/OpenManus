@@ -2,6 +2,10 @@ import { Message, AggregatedMessage } from '@/types/chat';
 import Markdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BrowserUseToolMessage } from './browser-use-tool-message';
+import { useMemo } from 'react';
 
 interface ChatMessageProps {
   messages: Message[];
@@ -39,22 +43,7 @@ const renderStepMessage = (message: Message) => {
 };
 
 const renderResultMessage = (message: Message) => {
-  const [...lines] = message.content.split('\n');
-  const content = lines.join('\n');
-  if (content === '') {
-    return null;
-  }
-
-  return (
-    <div className="text-sm text-foreground">
-      <div className="prose prose-sm prose-neutral dark:prose-invert">
-        <div>Here is the result</div>
-        <div className="pt-2 markdown-content">
-          <Markdown>{content}</Markdown>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 };
 
 const toolTypes = ['tool:selected', 'tool:prepared', 'tool:arguments', 'tool:activating', 'tool:completed'];
@@ -96,8 +85,39 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
       }
     }
   }
-  const args = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
-  const result = completedMessage?.content.split('Result:')[1]?.trim();
+
+  const popoverContent = useMemo(() => {
+    if (toolName === 'browser_use') {
+      return <BrowserUseToolMessage message={message} />;
+    }
+    const args = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
+    return (
+      <div>
+        <div className="prose prose-sm prose-neutral dark:prose-invert flex flex-wrap gap-2">
+          {Object.entries(args).map(([key, value]) => (
+            <div key={key}>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="cursor-pointer">
+                      {key}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <pre>{typeof value === 'string' ? value : JSON.stringify(value, null, 2)}</pre>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div className="mt-2">{completedMessage?.content || ''}</div>
+        </div>
+      </div>
+    );
+  }, [toolName, message]);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -107,21 +127,8 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
           </span>
         </Badge>
       </PopoverTrigger>
-      <PopoverContent className="max-w-md w-md">
-        <div>
-          <Badge variant="outline">Arguments</Badge>
-          <div className="prose prose-sm prose-neutral dark:prose-invert">
-            {Object.entries(args)
-              .map(([key, value]) => `${key}: ${value}`)
-              .join('\n')}
-          </div>
-        </div>
-        <div>
-          <Badge variant="outline" className="mt-2">
-            Result
-          </Badge>
-          <div className="prose prose-sm prose-neutral dark:prose-invert">{result}</div>
-        </div>
+      <PopoverContent className="max-w-md w-md" align="start">
+        {popoverContent}
       </PopoverContent>
     </Popover>
   );

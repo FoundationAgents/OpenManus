@@ -29,7 +29,7 @@ export default function ChatPage() {
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 100;
+      const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
       setShouldAutoScroll(isNearBottom);
     }
   };
