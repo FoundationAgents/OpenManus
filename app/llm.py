@@ -21,6 +21,10 @@ from tenacity import (
 from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
+from app.fireworks import (
+    FIREWORKS_BASE_URL,
+    check_model_capabilities,
+)
 from app.logger import logger  # Assuming a logger is set up in your app
 from app.schema import (
     ROLE_VALUES,
@@ -230,6 +234,10 @@ class LLM:
                 self.client = BedrockClient()
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+
+            # Check if the model supports function calling (tools)
+            if self.base_url and self.base_url.startswith(FIREWORKS_BASE_URL):
+                check_model_capabilities(self.model, self.api_key, require_tools=True)
 
             self.token_counter = TokenCounter(self.tokenizer)
 
