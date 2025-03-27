@@ -13,6 +13,7 @@ from json import dumps
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union, cast
 
+from browser_use import DomService
 from fastapi import (
     Body,
     FastAPI,
@@ -934,25 +935,77 @@ async def download_directory(path: str = ""):
 async def websocket_endpoint(websocket: WebSocket, task_id: str):
     await websocket.accept()
 
-    agent = cast(Manus, task_manager.tasks[task_id].agent)
+    if task_id not in task_manager.tasks:
+        await websocket.send_json({"type": "error", "message": "Task not found"})
+        await websocket.close()
+        return
 
-    browser_use_tool = cast(
-        BrowserUseTool, agent.available_tools.get_tool("browser_use")
-    )
-    page = browser_use_tool.dom_service.page
-    if page is None:
-        raise HTTPException(status_code=404, detail="Page not found")
+    agent = cast(Manus, task_manager.tasks[task_id].agent)
 
     try:
         while True:
+            # Check task status
+            if task_manager.tasks[task_id].status == "completed":
+                await websocket.send_json(
+                    {"type": "complete", "message": "Task completed"}
+                )
+                break
 
-            content = await page.screenshot(full_page=True)
-            await websocket.send_bytes(content)
+            # Try to get browser page
+            browser_use_tool = agent.available_tools.get_tool("browser_use")
 
-            await asyncio.sleep(1)
+            if (
+                browser_use_tool
+                and browser_use_tool.dom_service
+                and browser_use_tool.dom_service.page
+            ):
+                try:
+                    page = cast(DomService, browser_use_tool.dom_service).page
+                    # Wait for page to load
+                    await page.wait_for_load_state("networkidle")
 
+                    # Get current page screenshot
+                    current_screenshot = await page.screenshot(
+                        type="png", full_page=True, timeout=30000
+                    )
+                    current_screenshot_base64 = base64.b64encode(
+                        current_screenshot
+                    ).decode("utf-8")
+
+                    # Get current page content
+                    current_content = await page.content()
+
+                    # Send update to frontend
+                    await websocket.send_json(
+                        {
+                            "type": "screenshot",
+                            "data": {
+                                "screenshot": f"data:image/png;base64,{current_screenshot_base64}",
+                                "content": current_content,
+                            },
+                        }
+                    )
+
+                except Exception as e:
+                    print(f"Error during screenshot process: {e}")
+
+            # Wait for frontend message or timeout
+            try:
+                # Set 1 second timeout
+                message = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                if message == "ping":
+                    await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                # Continue loop on timeout
+                continue
+
+    except WebSocketDisconnect:
+        print(f"Client disconnected for task {task_id}")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error in WebSocket connection: {e}")
+        await websocket.send_json({"type": "error", "message": str(e)})
+    finally:
+        await websocket.close()
 
 
 if __name__ == "__main__":
