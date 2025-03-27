@@ -134,6 +134,76 @@ For unstable multi-agent version, you also can run:
 ```bash
 python run_flow.py
 ```
+## System Architecture
+
+### Component Interaction Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant LLM
+    participant Tool
+    participant Memory
+
+    Note right of Tool: Bash/Python/File/Browser
+
+    User->>Agent: Input Message
+    Agent->>Memory: Store User Message
+    
+    Agent->>Memory: Retrieve Context
+    Memory-->>Agent: Past Messages & Results
+    
+    Agent->>LLM: Request with Context
+    LLM-->>Agent: Tool Call Response
+    
+    Agent->>Tool: Execute Tool
+    activate Tool
+    Note right of Tool: Execute Commands<br/>Run Python Code<br/>File Operations<br/>Web Browsing
+    Tool-->>Agent: Tool Result
+    deactivate Tool
+    
+    Agent->>Memory: Store Tool Result
+    
+    Agent->>Memory: Retrieve Updated Context
+    Memory-->>Agent: Latest Context
+    
+    Agent->>LLM: Generate Response
+    LLM-->>Agent: Final Response
+    Agent->>Memory: Store Assistant Response
+    Agent->>User: Return Response
+```
+
+### Application Flow
+```mermaid
+flowchart TB
+    A[User Input] --> B[Agent]
+    B --> C{Agent State}
+    C -->|IDLE| D[Initialize]
+    C -->|RUNNING| E[Process Message]
+    C -->|ERROR| F[Handle Error]
+    C -->|FINISHED| G[Return Result]
+    
+    E --> H{Message Type}
+    H -->|User Message| I[Store in Memory]
+    H -->|Tool Call| J[Execute Tool]
+    H -->|Response| K[Generate Reply]
+    
+    J --> L[Tool Collection]
+    L -->|Bash Tool| M[Execute Command]
+    L -->|Python Tool| N[Run Python Code]
+    L -->|File Tool| O[File Operations]
+    L -->|Browser Tool| P[Web Browsing]
+    
+    I --> Q[Update State]
+    K --> Q
+    M --> Q
+    N --> Q
+    O --> Q
+    P --> Q
+    
+    Q --> R[Next Step]
+    R --> C
+```
 
 ## How to contribute
 
