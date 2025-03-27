@@ -1,92 +1,115 @@
-# Global LLM configuration
-[llm]
-model = "claude-3-7-sonnet-20250219"        # The LLM model to use
-base_url = "https://api.anthropic.com/v1/"  # API endpoint URL
-api_key = "YOUR_API_KEY"                    # Your API key
-max_tokens = 8192                           # Maximum number of tokens in the response
-temperature = 0.0                           # Controls randomness
+# =============================================
+#         LLM Configuration Settings
+# =============================================
 
-# [llm] # Amazon Bedrock
-# api_type = "aws"                                       # Required
-# model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Bedrock supported modelID
-# base_url = "bedrock-runtime.us-west-2.amazonaws.com"   # Not used now
+[llm]
+# Main LLM configuration (Anthropic Claude by default)
+model = "claude-3-7-sonnet-20250219"       # Model identifier
+base_url = "https://api.anthropic.com/v1/" # API endpoint
+api_key = "YOUR_API_KEY"                   # Your secret API key
+max_tokens = 8192                          # Response length limit (1-8192)
+temperature = 0.0                          # Creativity control (0=precise, 1=creative)
+
+# Alternative provider examples (commented out):
+
+# ----------------------------
+# Amazon Bedrock Configuration
+# ----------------------------
+# [llm]
+# api_type = "aws"  # Required for Bedrock
+# model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+# base_url = "bedrock-runtime.us-west-2.amazonaws.com"
 # max_tokens = 8192
 # temperature = 1.0
-# api_key = "bear"                                       # Required but not used for Bedrock
+# api_key = "bear"  # Required placeholder
 
-# [llm] #AZURE OPENAI:
-# api_type= 'azure'
-# model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
-# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPOLYMENT_ID}"
-# api_key = "AZURE API KEY"
+# --------------------------
+# Azure OpenAI Configuration
+# --------------------------
+# [llm]
+# api_type = "azure"
+# model = "YOUR_MODEL_NAME"  # e.g., "gpt-4o-mini"
+# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT_ID}"
+# api_key = "YOUR_AZURE_API_KEY"
 # max_tokens = 8096
 # temperature = 0.0
-# api_version="AZURE API VERSION" #"2024-08-01-preview"
+# api_version = "2024-08-01-preview"
 
-# [llm] #OLLAMA:
-# api_type = 'ollama'
+# --------------------
+# Ollama Configuration
+# --------------------
+# [llm]
+# api_type = "ollama"
 # model = "llama3.2"
 # base_url = "http://localhost:11434/v1"
-# api_key = "ollama"
+# api_key = "ollama"  # Can be any string for local Ollama
 # max_tokens = 4096
 # temperature = 0.0
 
-# Optional configuration for specific LLM models
-[llm.vision]
-model = "claude-3-7-sonnet-20250219"        # The vision model to use
-base_url = "https://api.anthropic.com/v1/"  # API endpoint URL for vision model
-api_key = "YOUR_API_KEY"                    # Your API key for vision model
-max_tokens = 8192                           # Maximum number of tokens in the response
-temperature = 0.0                           # Controls randomness for vision model
 
-# [llm.vision] #OLLAMA VISION:
-# api_type = 'ollama'
+# =============================================
+#        Vision Model Configuration
+# =============================================
+
+[llm.vision]
+# Vision-specific model settings
+model = "claude-3-7-sonnet-20250219"       # Vision-capable model
+base_url = "https://api.anthropic.com/v1/" # API endpoint
+api_key = "YOUR_API_KEY"                   # API key (can be same as main LLM)
+max_tokens = 8192                          # Response length limit
+temperature = 0.0                          # Creativity control
+
+# Ollama Vision Example:
+# [llm.vision]
+# api_type = "ollama"
 # model = "llama3.2-vision"
 # base_url = "http://localhost:11434/v1"
 # api_key = "ollama"
 # max_tokens = 4096
 # temperature = 0.0
 
-# Optional configuration for specific browser configuration
-# [browser]
-# Whether to run browser in headless mode (default: false)
-#headless = false
-# Disable browser security features (default: true)
-#disable_security = true
-# Extra arguments to pass to the browser
-#extra_chromium_args = []
-# Path to a Chrome instance to use to connect to your normal browser
-# e.g. '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-#chrome_instance_path = ""
-# Connect to a browser instance via WebSocket
-#wss_url = ""
-# Connect to a browser instance via CDP
-#cdp_url = ""
 
-# Optional configuration, Proxy settings for the browser
-# [browser.proxy]
-# server = "http://proxy-server:port"
-# username = "proxy-username"
-# password = "proxy-password"
+# =============================================
+#         Browser Configuration
+# =============================================
 
-# Optional configuration, Search settings.
-# [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo".
-#engine = "Google"
-# Fallback engine order. Default is ["DuckDuckGo", "Baidu"] - will try in this order after primary engine fails.
-#fallback_engines = ["DuckDuckGo", "Baidu"]
-# Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
-#retry_delay = 60
-# Maximum number of times to retry all engines when all fail. Default is 3.
-#max_retries = 3
+[browser]
+headless = false         # Run browser without GUI (true/false)
+disable_security = true  # Disable security restrictions (careful!)
+extra_chromium_args = [] # Additional Chrome/Chromium flags
+# chrome_instance_path = "" # Path to existing Chrome binary
+# wss_url = ""             # Connect via WebSocket
+# cdp_url = ""             # Connect via Chrome DevTools Protocol
+
+# --------------------------
+# Proxy Settings (Optional)
+# --------------------------
+[browser.proxy]
+# server = "http://proxy-server:port"  # Proxy address
+# username = "proxy-username"         # Auth credentials
+# password = "proxy-password"         # Auth credentials
 
 
-## Sandbox configuration
-#[sandbox]
-#use_sandbox = false
-#image = "python:3.12-slim"
-#work_dir = "/workspace"
-#memory_limit = "1g"  # 512m
-#cpu_limit = 2.0
-#timeout = 300
-#network_enabled = true
+# =============================================
+#         Search Engine Configuration
+# =============================================
+
+[search]
+engine = "Google"                          # Primary search engine
+fallback_engines = ["DuckDuckGo", "Baidu"] # Fallback order
+retry_delay = 60                           # Seconds between retries
+max_retries = 3                            # Maximum retry attempts
+
+
+# =============================================
+#         Sandbox Configuration
+# =============================================
+
+[sandbox]
+use_sandbox = false        # Enable code execution sandbox
+image = "python:3.12-slim" # Docker image for sandbox
+work_dir = "/workspace"    # Working directory in container
+memory_limit = "1g"        # RAM limit (e.g., 512m, 1g)
+cpu_limit = 2.0            # CPU cores allocation
+timeout = 300              # Execution timeout in seconds
+network_enabled = true     # Allow network access
