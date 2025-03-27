@@ -43,7 +43,11 @@ const renderStepMessage = (message: Message) => {
 };
 
 const renderResultMessage = (message: Message) => {
-  return null;
+  return (
+    <div className="mt-2 text-xs markdown-content">
+      <Markdown>{message.content}</Markdown>
+    </div>
+  );
 };
 
 const toolTypes = ['tool:selected', 'tool:prepared', 'tool:arguments', 'tool:activating', 'tool:completed'];

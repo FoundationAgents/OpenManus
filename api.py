@@ -49,6 +49,7 @@ class Task(BaseModel):
     status: str
     progress: list = []
     agent: "Manus"
+    current_step: int = 0
 
     def model_dump(self, *args, **kwargs):
         data = super().model_dump(*args, **kwargs)
@@ -69,44 +70,58 @@ class TaskManager:
             created_at=datetime.now(),
             status="pending",
             agent=agent,
+            current_step=0,
         )
         self.tasks[task_id] = task
         self.queues[task_id] = asyncio.Queue()
         return task
 
-    async def update_task_step(self, task_id: str, result: str, step_type: str):
+    async def update_task_step(
+        self, task_id: str, result: str, step_type: str, step: int = None
+    ):
         if task_id in self.tasks:
             task = self.tasks[task_id]
-            task.progress.append(
-                {"step": task.agent.current_step, "result": result, "type": step_type}
-            )
+            if step is not None:
+                task.current_step = step
+            # Use the same step value for both progress and message
+            step_data = {"step": task.current_step, "result": result, "type": step_type}
+            task.progress.append(step_data)
             await self.queues[task_id].put(
-                {"type": step_type, "step": task.agent.current_step, "result": result}
-            )
-            await self.queues[task_id].put(
-                {"type": "status", "status": task.status, "progress": task.progress}
+                {"type": step_type, "step": task.current_step, "result": result}
             )
 
     async def complete_task(self, task_id: str):
         if task_id in self.tasks:
             task = self.tasks[task_id]
             task.status = "completed"
+
+            # Ensure all progress updates have been sent
+            await asyncio.sleep(0.1)
+
+            # Send status update
             await self.queues[task_id].put(
-                {"type": "status", "status": task.status, "progress": task.progress}
+                {
+                    "type": "status",
+                    "status": task.status,
+                    "progress": task.progress,
+                    "step": task.current_step,
+                }
             )
+
+            # Wait for queue processing
+            await asyncio.sleep(0.1)
+
+            # Send completion event
             await self.queues[task_id].put(
-                {"type": "complete", "step": task.agent.current_step}
+                {"type": "complete", "step": task.current_step}
             )
 
     async def fail_task(self, task_id: str, error: str):
         if task_id in self.tasks:
-            self.tasks[task_id].status = f"failed: {error}"
+            task = self.tasks[task_id]
+            task.status = f"failed: {error}"
             await self.queues[task_id].put(
-                {
-                    "type": "error",
-                    "message": error,
-                    "step": self.tasks[task_id].agent.current_step,
-                }
+                {"type": "error", "message": error, "step": task.current_step}
             )
 
 
@@ -151,8 +166,6 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
         from app.logger import logger
 
         class SSELogHandler:
-            step: int = 0
-
             def __init__(self, task_id):
                 self.task_id = task_id
 
@@ -164,21 +177,21 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
 
                 # default event type
                 event_type = "log"
+                step = None
+
+                # Parse step from message
+                if "Executing step" in cleaned_message:
+                    step_match = re.search(r"Executing step (\d+)/", cleaned_message)
+                    if step_match:
+                        step = int(step_match.group(1))
+                        event_type = "step"
 
                 # think
                 if f"✨ {AGENT_NAME}'s thoughts:" in cleaned_message:
                     event_type = "think"
-                # step progress
-                elif "Executing step" in cleaned_message:
-                    event_type = "step"
-                    self.step = int(
-                        re.search(r"Executing step (\d+)/", cleaned_message).group(1)
-                        or self.step
-                    )
                 # error
                 elif "📝 Oops!" in cleaned_message:
                     event_type = "error"
-
                 # tool related
                 # tool selected
                 elif f"🛠️ {AGENT_NAME} selected" in cleaned_message:
@@ -199,18 +212,18 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
                     event_type = "token-usage"
 
                 await task_manager.update_task_step(
-                    self.task_id, cleaned_message, event_type
+                    self.task_id, cleaned_message, event_type, step
                 )
 
         sse_handler = SSELogHandler(task_id)
         logger.add(sse_handler)
 
         result = await agent.run(prompt)
-        # Wait for all logs to be processed
+        # Ensure all logs have been processed
         queue = task_manager.queues[task_id]
         while not queue.empty():
-            # wait for 10ms
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
+
         await task_manager.update_task_step(task_id, result, "result")
         await task_manager.complete_task(task_id)
     except Exception as e:
@@ -235,13 +248,21 @@ async def task_events(task_id: str):
                 event = await queue.get()
                 formatted_event = dumps(event)
 
+                # Send actual event data
+                if event.get("type"):
+                    yield f"data: {formatted_event}\n\n"
+
+                # Send heartbeat
                 yield ":heartbeat\n\n"
 
+                # If complete or error event, ensure remaining events in queue are processed
                 if event.get("type") == "complete" or event.get("type") == "error":
-                    yield f"data: {formatted_event}\n\n"
+                    # Process remaining events in queue
+                    while not queue.empty():
+                        remaining_event = queue.get_nowait()
+                        remaining_formatted = dumps(remaining_event)
+                        yield f"data: {remaining_formatted}\n\n"
                     break
-                elif event.get("type"):
-                    yield f"data: {formatted_event}\n\n"
 
             except asyncio.CancelledError:
                 print(f"Client disconnected for task {task_id}")
