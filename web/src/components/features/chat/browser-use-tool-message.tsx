@@ -6,7 +6,7 @@ export const BrowserUseToolMessage = ({ message }: { message: AggregatedMessage 
 
   const argsMessage = message.messages.find(msg => msg.type === 'tool:arguments');
 
-  const { action, ...params } = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
+  const { ...params } = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
 
   const completedMessage = message.messages.find(msg => msg.type === 'tool:completed');
   const result = completedMessage?.content;
@@ -36,7 +36,7 @@ export const BrowserUseToolMessage = ({ message }: { message: AggregatedMessage 
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2 text-wrap">
+      <div className="flex flex-col flex-wrap gap-2 text-wrap">
         {Object.entries(params).map(([key, value]) => (
           <div key={key} className="text-sm">
             <Badge variant="outline" className="font-medium cursor-pointer">

@@ -37,8 +37,17 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
     },
   });
 
-  const task = await prisma.tasks.create({ data: { prompt, status: 'pending', llmId: llmConfig?.id || '', organizationId: organization.id } });
+  // Create task
+  const task = await prisma.tasks.create({
+    data: {
+      prompt,
+      status: 'pending',
+      llmId: llmConfig?.id || '',
+      organizationId: organization.id,
+    },
+  });
 
+  // Send task to API
   const [error, response] = await to(
     fetch(`${API_BASE_URL}/tasks`, {
       method: 'POST',
@@ -68,97 +77,71 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
 
   await prisma.tasks.update({ where: { id: task.id }, data: { outId: response.task_id, status: 'processing' } });
 
-  let storedMessages: Message[] = [];
-  let messageQueue: Message[] = [];
-  let isProcessing = false;
-
-  const processMessageQueue = async () => {
-    if (isProcessing || messageQueue.length === 0) return;
-
-    isProcessing = true;
-    try {
-      const currentQueue = [...messageQueue];
-      messageQueue = [];
-
-      await prisma.taskProcesses.createMany({
-        data: currentQueue.map((message, index) => ({
-          taskId: task.id,
-          organizationId: organization.id,
-          index: index + storedMessages.length,
-          result: message.content,
-          type: message.type ?? 'unknown',
-          step: message.step ?? 0,
-        })),
-      });
-      if (currentQueue[currentQueue.length - 1].content.startsWith("🎯 Tool 'terminate' completed its mission!")) {
-        const success = currentQueue[currentQueue.length - 1].content.trim().endsWith('success');
-        await prisma.tasks.update({ where: { id: task.id }, data: { status: success ? 'completed' : 'failed' } });
-      }
-
-      storedMessages = [...storedMessages, ...currentQueue];
-    } finally {
-      isProcessing = false;
-    }
-  };
-
-  handleTaskEventsStreamResponse(response.task_id, async messages => {
-    if (messages.length > messageQueue.length) {
-      const newProcesses = messages.slice(messageQueue.length);
-      console.log('newProcesses', newProcesses.length);
-      messageQueue = [...newProcesses];
-      await processMessageQueue();
-    }
+  // Handle event stream in background
+  handleTaskEvents(task.id, response.task_id, organization.id).catch(error => {
+    console.error('Failed to handle task events:', error);
   });
 
   return { id: task.id, outId: response.task_id };
 });
 
-const handleTaskEventsStreamResponse = async (taskId: string, onMessage: (messages: Message[]) => void) => {
-  const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/events`);
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('Failed to get response stream');
-  }
+// Handle event stream in background
+async function handleTaskEvents(taskId: string, outId: string, organizationId: string) {
+  const streamResponse = await fetch(`${API_BASE_URL}/tasks/${outId}/events`);
+  const reader = streamResponse.body?.getReader();
+  if (!reader) throw new Error('Failed to get response stream');
 
   const decoder = new TextDecoder();
+  let messageIndex = 0;
   let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+      }
+
       const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      // Keep the last line (might be incomplete) if not the final read
+      buffer = done ? '' : lines.pop() || '';
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
-            break;
+        if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(line.slice(6));
+          if (parsed.type === 'status') continue;
+
+          // Write message to database
+          await prisma.taskProcesses.create({
+            data: {
+              taskId,
+              organizationId,
+              index: messageIndex++,
+              result: parsed.result || '',
+              type: parsed.type,
+              step: parsed.step,
+            },
+          });
+
+          // If complete message, update task status
+          if (parsed.type === 'complete') {
+            await prisma.tasks.update({
+              where: { id: taskId },
+              data: { status: 'completed' },
+            });
+            return;
           }
-          try {
-            const parsed = JSON.parse(data);
-            // only handle status event, any status event contains all steps info
-            if (parsed.type === 'status') {
-              onMessage(
-                parsed.steps.map((step: { step: number; result: string; type: string }) => ({
-                  role: 'assistant' as const,
-                  content: step.result,
-                  type: step.type,
-                  step: step.step,
-                }))
-              );
-            }
-          } catch (error) {
-            console.error('Failed to parse response data:', error);
-          }
+        } catch (error) {
+          console.error('Failed to process message:', error);
         }
       }
+
+      if (done) break;
     }
   } finally {
     reader.releaseLock();
   }
-};
+}

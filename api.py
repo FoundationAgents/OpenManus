@@ -24,12 +24,10 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from playwright.async_api import async_playwright
 from pydantic import BaseModel
 from watchfiles import Change, awatch
 
 from app.config import LLMSettings
-from app.tool.browser_use_tool import BrowserUseTool
 
 AGENT_NAME = "Manus"
 
@@ -49,7 +47,7 @@ class Task(BaseModel):
     prompt: str
     created_at: datetime
     status: str
-    steps: list = []
+    progress: list = []
     agent: "Manus"
 
     def model_dump(self, *args, **kwargs):
@@ -76,17 +74,17 @@ class TaskManager:
         self.queues[task_id] = asyncio.Queue()
         return task
 
-    async def update_task_step(
-        self, task_id: str, step: int, result: str, step_type: str = "step"
-    ):
+    async def update_task_step(self, task_id: str, result: str, step_type: str):
         if task_id in self.tasks:
             task = self.tasks[task_id]
-            task.steps.append({"step": step, "result": result, "type": step_type})
-            await self.queues[task_id].put(
-                {"type": step_type, "step": step, "result": result}
+            task.progress.append(
+                {"step": task.agent.current_step, "result": result, "type": step_type}
             )
             await self.queues[task_id].put(
-                {"type": "status", "status": task.status, "steps": task.steps}
+                {"type": step_type, "step": task.agent.current_step, "result": result}
+            )
+            await self.queues[task_id].put(
+                {"type": "status", "status": task.status, "progress": task.progress}
             )
 
     async def complete_task(self, task_id: str):
@@ -94,14 +92,22 @@ class TaskManager:
             task = self.tasks[task_id]
             task.status = "completed"
             await self.queues[task_id].put(
-                {"type": "status", "status": task.status, "steps": task.steps}
+                {"type": "status", "status": task.status, "progress": task.progress}
             )
-            await self.queues[task_id].put({"type": "complete"})
+            await self.queues[task_id].put(
+                {"type": "complete", "step": task.agent.current_step}
+            )
 
     async def fail_task(self, task_id: str, error: str):
         if task_id in self.tasks:
             self.tasks[task_id].status = f"failed: {error}"
-            await self.queues[task_id].put({"type": "error", "message": error})
+            await self.queues[task_id].put(
+                {
+                    "type": "error",
+                    "message": error,
+                    "step": self.tasks[task_id].agent.current_step,
+                }
+            )
 
 
 task_manager = TaskManager()
@@ -142,22 +148,6 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
         task_manager.tasks[task_id].status = "running"
         agent = cast(Manus, task_manager.tasks[task_id].agent)
 
-        async def on_think(thought):
-            await task_manager.update_task_step(task_id, 0, thought, "think")
-
-        async def on_tool_execute(tool, input):
-            await task_manager.update_task_step(
-                task_id, 0, f"Executing tool: {tool}\nInput: {input}", "tool"
-            )
-
-        async def on_action(action):
-            await task_manager.update_task_step(
-                task_id, 0, f"Executing action: {action}", "act"
-            )
-
-        async def on_run(step, result):
-            await task_manager.update_task_step(task_id, step, result, "run")
-
         from app.logger import logger
 
         class SSELogHandler:
@@ -188,9 +178,6 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
                 # error
                 elif "📝 Oops!" in cleaned_message:
                     event_type = "error"
-                # complete [🏁 Special tool 'terminate' has completed the task!]
-                elif "has completed the task" in cleaned_message:
-                    event_type = "complete"
 
                 # tool related
                 # tool selected
@@ -212,7 +199,7 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
                     event_type = "token-usage"
 
                 await task_manager.update_task_step(
-                    self.task_id, self.step, cleaned_message, event_type
+                    self.task_id, cleaned_message, event_type
                 )
 
         sse_handler = SSELogHandler(task_id)
@@ -220,11 +207,12 @@ async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] 
 
         result = await agent.run(prompt)
         # Wait for all logs to be processed
-        await asyncio.sleep(0.1)
+        queue = task_manager.queues[task_id]
+        while not queue.empty():
+            # wait for 10ms
+            await asyncio.sleep(0.01)
+        await task_manager.update_task_step(task_id, result, "result")
         await task_manager.complete_task(task_id)
-        await task_manager.update_task_step(
-            task_id, agent.current_step, result, "result"
-        )
     except Exception as e:
         await task_manager.fail_task(task_id, str(e))
 
@@ -240,28 +228,20 @@ async def task_events(task_id: str):
 
         task = task_manager.tasks.get(task_id)
         if task:
-            yield f"event: status\ndata: {dumps({'type': 'status', 'status': task.status, 'steps': task.steps})}\n\n"
+            yield f"data: {dumps({'type': 'status', 'status': task.status, 'progress': task.progress})}\n\n"
 
         while True:
             try:
                 event = await queue.get()
                 formatted_event = dumps(event)
 
-                yield ": heartbeat\n\n"
+                yield ":heartbeat\n\n"
 
-                if event.get("type") == "complete":
-                    yield f"event: {event.get('type')}\ndata: {formatted_event}\n\n"
+                if event.get("type") == "complete" or event.get("type") == "error":
+                    yield f"data: {formatted_event}\n\n"
                     break
-                elif event.get("type") == "error":
-                    yield f"event: {event.get('type')}\ndata: {formatted_event}\n\n"
-                    break
-                elif event.get("type") == "step":
-                    task = task_manager.tasks.get(task_id)
-                    if task:
-                        yield f"event: status\ndata: {dumps({'type': 'status', 'status': task.status, 'steps': task.steps})}\n\n"
-                    yield f"event: {event.get('type')}\ndata: {formatted_event}\n\n"
-                else:
-                    yield f"event: {event.get('type')}\ndata: {formatted_event}\n\n"
+                elif event.get("type"):
+                    yield f"data: {formatted_event}\n\n"
 
             except asyncio.CancelledError:
                 print(f"Client disconnected for task {task_id}")
