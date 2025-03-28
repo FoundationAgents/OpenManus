@@ -1,6 +1,5 @@
 from setuptools import find_packages, setup
 
-
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
@@ -8,8 +7,7 @@ def get_packages():
     discovered = find_packages(where="app")
     packages = ["openmanus"]
     for pkg in discovered:
-        if pkg:
-            packages.append("openmanus." + pkg)
+        packages.append("openmanus." + pkg)
     return packages
 
 
