@@ -1,9 +1,6 @@
 import sys
-from . import agent, flow, mcp, sandbox, tool
 
-sys.modules["app"] = sys.modules[__name__]
-
-from app import llm, config, exceptions, logger, schema
+from . import llm, config, exceptions, logger, schema
 
 __all__ = [
     "llm",
