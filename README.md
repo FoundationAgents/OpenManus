@@ -29,29 +29,7 @@ We're also excited to introduce [OpenManus-RL](https://github.com/OpenManus/Open
 
 We provide two installation methods. Method 2 (using uv) is recommended for faster installation and better dependency management.
 
-### Method 1: Using conda
-
-1. Create a new conda environment:
-
-```bash
-conda create -n open_manus python=3.12
-conda activate open_manus
-```
-
-2. Clone the repository:
-
-```bash
-git clone https://github.com/mannaandpoem/OpenManus.git
-cd OpenManus
-```
-
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-### Method 2: Using uv (Recommended)
+### Method 1: Using uv (Recommended)
 
 1. Install uv (A fast Python package installer and resolver):
 
@@ -80,6 +58,28 @@ source .venv/bin/activate  # On Unix/macOS
 ```bash
 uv pip install -r requirements.txt
 ```
+### Method 2: Using conda
+
+1. Create a new conda environment:
+
+```bash
+conda create -n open_manus python=3.12
+conda activate open_manus
+```
+
+2. Clone the repository:
+
+```bash
+git clone https://github.com/mannaandpoem/OpenManus.git
+cd OpenManus
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
 
 ### Browser Automation Tool (Optional)
 ```bash
