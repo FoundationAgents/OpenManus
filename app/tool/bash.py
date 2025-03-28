@@ -3,7 +3,7 @@ import os
 from typing import Optional
 
 from ..exceptions import ToolError
-from ..tool import BaseTool, CLIResult
+from ..tool.base import BaseTool, CLIResult
 
 
 _BASH_DESCRIPTION = """Execute a bash command in the terminal.

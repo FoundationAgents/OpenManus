@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from pydantic import Field
 
-from ..agent import ToolCallAgent
+from ..agent.toolcall import ToolCallAgent
 from ..logger import logger
 from ..prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from ..schema import Message, ToolChoice

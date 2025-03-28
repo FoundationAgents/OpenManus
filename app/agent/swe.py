@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import Field
 
-from ..agent import ToolCallAgent
+from ..agent.toolcall import ToolCallAgent
 from ..prompt.swe import SYSTEM_PROMPT
 from ..tool import Bash, StrReplaceEditor, Terminate, ToolCollection
 

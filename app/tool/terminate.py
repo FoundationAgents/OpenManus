@@ -1,4 +1,4 @@
-from ..tool import BaseTool
+from ..tool.base import BaseTool
 
 
 _TERMINATE_DESCRIPTION = """Terminate the interaction when the request is met OR if the assistant cannot proceed further with the task.

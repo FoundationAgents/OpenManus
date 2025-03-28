@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ..agent import BrowserAgent
+from ..agent.browser import BrowserAgent
 from ..config import config
 from ..prompt.browser import NEXT_STEP_PROMPT as BROWSER_NEXT_STEP_PROMPT
 from ..prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT

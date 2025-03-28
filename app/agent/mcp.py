@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import Field
 
-from ..agent import ToolCallAgent
+from ..agent.toolcall import ToolCallAgent
 from ..logger import logger
 from ..prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from ..schema import AgentState, Message

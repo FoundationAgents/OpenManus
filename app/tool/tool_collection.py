@@ -2,7 +2,7 @@
 from typing import Any, Dict, List
 
 from ..exceptions import ToolError
-from ..tool import BaseTool, ToolFailure, ToolResult
+from ..tool.base import BaseTool, ToolFailure, ToolResult
 
 
 class ToolCollection:

@@ -3,7 +3,7 @@ from typing import Any, List, Optional, Union
 
 from pydantic import Field
 
-from ..agent import ReActAgent
+from ..agent.react import ReActAgent
 from ..exceptions import TokenLimitExceeded
 from ..logger import logger
 from ..prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT

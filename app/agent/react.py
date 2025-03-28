@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
-from ..agent import BaseAgent
+from ..agent.base import BaseAgent
 from ..llm import LLM
 from ..schema import AgentState, Memory
 
