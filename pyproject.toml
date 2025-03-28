@@ -1,0 +1,27 @@
+[project]
+name = "openmanus"
+version = "0.1.0"
+description = "OpenManus an Open-Source Implementation of Manus"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles~=24.1.0",
+    "browser-use~=0.1.40",
+    "browsergym~=0.13.3",
+    "colorama~=0.4.6",
+    "datasets~=3.2.0",
+    "googlesearch-python~=1.3.0",
+    "gymnasium~=1.0.0",
+    "html2text~=2024.2.26",
+    "loguru~=0.7.3",
+    "numpy>=2.2.3",
+    "openai~=1.58.1",
+    "pillow~=10.4.0",
+    "playwright~=1.49.1",
+    "pydantic~=2.10.4",
+    "pydantic-core~=2.27.2",
+    "pyyaml~=6.0.2",
+    "tenacity~=9.0.0",
+    "unidiff~=0.7.5",
+    "uvicorn~=0.34.0",
+]

@@ -66,19 +66,11 @@ git clone https://github.com/mannaandpoem/OpenManus.git
 cd OpenManus
 ```
 
-3. Create a new virtual environment and activate it:
+
+3. Install dependencies:
 
 ```bash
-uv venv --python 3.12
-source .venv/bin/activate  # On Unix/macOS
-# Or on Windows:
-# .venv\Scripts\activate
-```
-
-4. Install dependencies:
-
-```bash
-uv pip install -r requirements.txt
+uv add -r requirements.txt
 ```
 
 ### Browser Automation Tool (Optional)
@@ -118,8 +110,13 @@ api_key = "sk-..."  # Replace with your actual API key
 
 One line for run OpenManus:
 
+To use the OpenManus under Conda execute the following command:
 ```bash
 python main.py
+```
+To use the OpenManus with UV execute the following command:
+```bash
+uv run python main.py
 ```
 
 Then input your idea via terminal!
@@ -131,8 +128,13 @@ python run_mcp.py
 
 For unstable multi-agent version, you also can run:
 
+To use the OpenManus under Conda execute the following command:
 ```bash
 python run_flow.py
+```
+To use the OpenManus with UV execute the following command:
+```bash
+uv run python run_flow.py
 ```
 
 ## How to contribute
