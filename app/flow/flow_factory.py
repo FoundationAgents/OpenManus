@@ -1,9 +1,9 @@
 from enum import Enum
 from typing import Dict, List, Union
 
-from app.agent.base import BaseAgent
-from app.flow.base import BaseFlow
-from app.flow.planning import PlanningFlow
+from ..agent.base import BaseAgent
+from .base import BaseFlow
+from .planning import PlanningFlow
 
 
 class FlowType(str, Enum):
