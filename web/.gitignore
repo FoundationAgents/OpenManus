@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Crypto keys
+/keys/private.pem
+/keys/public.pem

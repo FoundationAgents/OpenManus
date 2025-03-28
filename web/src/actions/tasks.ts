@@ -1,11 +1,15 @@
 'use server';
 
 import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
+import { decryptWithPrivateKey } from '@/lib/crypto';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
-import { Message } from '@/types/chat';
+import fs from 'fs';
+import path from 'path';
 
 const API_BASE_URL = 'http://localhost:5172';
+
+const privateKey = fs.readFileSync(path.join(process.cwd(), 'keys', 'private.pem'), 'utf8');
 
 export const getTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string }>) => {
   const { taskId } = args;
@@ -58,7 +62,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
           ? {
               model: llmConfig.model,
               base_url: llmConfig.baseUrl,
-              api_key: llmConfig.apiKey,
+              api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
               max_tokens: llmConfig.maxTokens,
               max_input_tokens: llmConfig.maxInputTokens,
               temperature: llmConfig.temperature,

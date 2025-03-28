@@ -6,11 +6,13 @@ from typing import Optional, cast
 from browser_use import DomService
 from fastapi import APIRouter, Body, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import Field
 
 from app.agent.manus import Manus
 from app.apis.models.task import Task
 from app.apis.services.task_manager import task_manager
 from app.config import LLMSettings
+from app.llm import LLM
 from app.logger import logger
 from app.tool.browser_use_tool import BrowserUseTool
 
@@ -137,12 +139,13 @@ async def create_task(
     llm_config: Optional[LLMSettings] = Body(None, embed=True),
 ):
     print(f"Creating task with prompt: {prompt}")
+    print(f"LLM config: {llm_config.model_dump()}")
     task = task_manager.create_task(
         prompt,
         Manus(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
-            llm=llm_config,
+            llm=(LLM(llm_config=llm_config) if llm_config else None),
         ),
     )
     print("http://localhost:5172/ws/" + task.id)
