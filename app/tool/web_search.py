@@ -3,10 +3,10 @@ from typing import List
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from app.config import config
-from app.logger import logger
-from app.tool.base import BaseTool
-from app.tool.search import (
+from ..config import config
+from ..logger import logger
+from .base import BaseTool
+from .search import (
     BaiduSearchEngine,
     BingSearchEngine,
     DuckDuckGoSearchEngine,

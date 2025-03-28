@@ -4,9 +4,9 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
-from app.config import SandboxSettings
-from app.exceptions import ToolError
-from app.sandbox.client import SANDBOX_CLIENT
+from ..config import SandboxSettings
+from ..exceptions import ToolError
+from ..sandbox.client import SANDBOX_CLIENT
 
 
 PathLike = Union[str, Path]

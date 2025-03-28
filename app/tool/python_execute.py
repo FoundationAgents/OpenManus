@@ -3,7 +3,7 @@ import sys
 from io import StringIO
 from typing import Dict
 
-from app.tool.base import BaseTool
+from .base import BaseTool
 
 
 class PythonExecute(BaseTool):
