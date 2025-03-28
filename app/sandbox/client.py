@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Protocol
 
-from app.config import SandboxSettings
-from app.sandbox.core.sandbox import DockerSandbox
+from ..config import SandboxSettings
+from .core.sandbox import DockerSandbox
 
 
 class SandboxFileOperations(Protocol):

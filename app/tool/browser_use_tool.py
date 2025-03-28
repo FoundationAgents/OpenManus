@@ -432,7 +432,7 @@ Page content:
                         )
 
                         # Create a proper message list for the LLM
-                        from app.schema import Message
+                        from ..schema import Message
 
                         messages = [Message.user_message(formatted_prompt)]
 
