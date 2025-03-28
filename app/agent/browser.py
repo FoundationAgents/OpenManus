@@ -3,11 +3,11 @@ from typing import Any, Optional
 
 from pydantic import Field
 
-from app.agent.toolcall import ToolCallAgent
-from app.logger import logger
-from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import Message, ToolChoice
-from app.tool import BrowserUseTool, Terminate, ToolCollection
+from ..agent.toolcall import ToolCallAgent
+from ..logger import logger
+from ..prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from ..schema import Message, ToolChoice
+from ..tool import BrowserUseTool, Terminate, ToolCollection
 
 
 class BrowserAgent(ToolCallAgent):

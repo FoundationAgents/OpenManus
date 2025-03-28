@@ -2,11 +2,11 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.agent.base import BaseAgent
-from app.llm import LLM
-from app.logger import logger
-from app.prompt.cot import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import AgentState, Message
+from ..agent.base import BaseAgent
+from ..llm import LLM
+from ..logger import logger
+from ..prompt.cot import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from ..schema import AgentState, Message
 
 
 class CoTAgent(BaseAgent):
