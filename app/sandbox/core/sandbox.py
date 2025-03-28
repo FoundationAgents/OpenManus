@@ -11,8 +11,8 @@ from docker.errors import NotFound
 from docker.models.containers import Container
 
 from ...config import SandboxSettings
-from .exceptions import SandboxTimeoutError
-from .terminal import AsyncDockerizedTerminal
+from ...sandbox.core.exceptions import SandboxTimeoutError
+from ...sandbox.core.terminal import AsyncDockerizedTerminal
 
 
 class DockerSandbox:
