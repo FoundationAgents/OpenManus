@@ -2,7 +2,7 @@
 from typing import Dict, List, Literal, Optional
 
 from ..exceptions import ToolError
-from .base import BaseTool, ToolResult
+from ..tool import BaseTool, ToolResult
 
 
 _PLANNING_TOOL_DESCRIPTION = """

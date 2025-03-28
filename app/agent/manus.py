@@ -1,13 +1,13 @@
 from pydantic import Field
 
-from ..agent.browser import BrowserAgent
+from ..agent import BrowserAgent
 from ..config import config
 from ..prompt.browser import NEXT_STEP_PROMPT as BROWSER_NEXT_STEP_PROMPT
 from ..prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from ..tool import Terminate, ToolCollection
-from ..tool.browser_use_tool import BrowserUseTool
-from ..tool.python_execute import PythonExecute
-from ..tool.str_replace_editor import StrReplaceEditor
+from ..tool import BrowserUseTool
+from ..tool import PythonExecute
+from ..tool import StrReplaceEditor
 
 
 class Manus(BrowserAgent):

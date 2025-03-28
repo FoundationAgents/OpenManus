@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import Field
 
-from ..agent.base import BaseAgent
+from ..agent import BaseAgent
 from ..llm import LLM
 from ..logger import logger
 from ..prompt.cot import NEXT_STEP_PROMPT, SYSTEM_PROMPT

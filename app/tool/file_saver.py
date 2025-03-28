@@ -3,7 +3,7 @@ import os
 import aiofiles
 
 from ..config import WORKSPACE_ROOT
-from .base import BaseTool
+from ..tool import BaseTool
 
 
 class FileSaver(BaseTool):

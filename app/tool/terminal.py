@@ -3,7 +3,7 @@ import os
 import shlex
 from typing import Optional
 
-from .base import BaseTool, CLIResult
+from ..tool import BaseTool, CLIResult
 
 
 class Terminal(BaseTool):

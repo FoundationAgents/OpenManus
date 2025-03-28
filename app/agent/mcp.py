@@ -2,12 +2,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import Field
 
-from ..agent.toolcall import ToolCallAgent
+from ..agent import ToolCallAgent
 from ..logger import logger
 from ..prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from ..schema import AgentState, Message
-from ..tool.base import ToolResult
-from ..tool.mcp import MCPClients
+from ..tool import ToolResult
+from ..tool import MCPClients
 
 
 class MCPAgent(ToolCallAgent):

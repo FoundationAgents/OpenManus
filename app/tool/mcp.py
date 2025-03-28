@@ -7,8 +7,8 @@ from mcp.client.stdio import stdio_client
 from mcp.types import TextContent
 
 from ..logger import logger
-from .base import BaseTool, ToolResult
-from .tool_collection import ToolCollection
+from ..tool import BaseTool, ToolResult
+from ..tool import ToolCollection
 
 
 class MCPClientTool(BaseTool):

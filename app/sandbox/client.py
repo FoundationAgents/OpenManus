@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Protocol
 
 from ..config import SandboxSettings
-from .core.sandbox import DockerSandbox
+from ..sandbox import DockerSandbox
 
 
 class SandboxFileOperations(Protocol):

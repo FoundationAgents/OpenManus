@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
-from ..agent.base import BaseAgent
+from ..agent import BaseAgent
 
 
 class BaseFlow(BaseModel, ABC):

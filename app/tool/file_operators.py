@@ -6,7 +6,7 @@ from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
 from ..config import SandboxSettings
 from ..exceptions import ToolError
-from ..sandbox.client import SANDBOX_CLIENT
+from ..sandbox import SANDBOX_CLIENT
 
 
 PathLike = Union[str, Path]

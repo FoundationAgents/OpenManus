@@ -2,7 +2,7 @@ from typing import Any, List, Optional, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field
 
-from .base import BaseTool
+from ..tool import BaseTool
 
 
 class CreateChatCompletion(BaseTool):

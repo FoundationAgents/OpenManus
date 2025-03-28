@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Union
 
 from pydantic import Field
 
-from ..agent.base import BaseAgent
-from ..flow.base import BaseFlow
+from ..agent import BaseAgent
+from ..flow import BaseFlow
 from ..llm import LLM
 from ..logger import logger
 from ..schema import AgentState, Message, ToolChoice

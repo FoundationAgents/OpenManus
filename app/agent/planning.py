@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
-from ..agent.toolcall import ToolCallAgent
+from ..agent import ToolCallAgent
 from ..logger import logger
-from ..prompt.planning import NEXT_STEP_PROMPT, PLANNING_SYSTEM_PROMPT
+from ..prompt import NEXT_STEP_PROMPT, PLANNING_SYSTEM_PROMPT
 from ..schema import TOOL_CHOICE_TYPE, Message, ToolCall, ToolChoice
 from ..tool import PlanningTool, Terminate, ToolCollection
 
