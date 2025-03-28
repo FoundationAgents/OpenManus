@@ -1,6 +1,6 @@
 from duckduckgo_search import DDGS
 
-from app.tool.search.base import WebSearchEngine
+from .base import WebSearchEngine
 
 
 class DuckDuckGoSearchEngine(WebSearchEngine):

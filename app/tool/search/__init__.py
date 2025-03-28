@@ -1,8 +1,8 @@
-from app.tool.search.baidu_search import BaiduSearchEngine
-from app.tool.search.base import WebSearchEngine
-from app.tool.search.bing_search import BingSearchEngine
-from app.tool.search.duckduckgo_search import DuckDuckGoSearchEngine
-from app.tool.search.google_search import GoogleSearchEngine
+from .baidu_search import BaiduSearchEngine
+from ..base import WebSearchEngine
+from .bing_search import BingSearchEngine
+from .duckduckgo_search import DuckDuckGoSearchEngine
+from .google_search import GoogleSearchEngine
 
 
 __all__ = [

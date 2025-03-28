@@ -1,6 +1,6 @@
 from googlesearch import search
 
-from app.tool.search.base import WebSearchEngine
+from .base import WebSearchEngine
 
 
 class GoogleSearchEngine(WebSearchEngine):

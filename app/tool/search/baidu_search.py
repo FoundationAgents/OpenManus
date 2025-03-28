@@ -1,6 +1,6 @@
 from baidusearch.baidusearch import search
 
-from app.tool.search.base import WebSearchEngine
+from .base import WebSearchEngine
 
 
 class BaiduSearchEngine(WebSearchEngine):
