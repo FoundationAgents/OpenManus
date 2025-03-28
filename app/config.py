@@ -90,6 +90,12 @@ class SandboxSettings(BaseModel):
     )
 
 
+class CacheSettings(BaseModel):
+    enabled: bool = Field(False, description="Whether to enable caching")
+    ttl: int = Field(86400, description="Cache time-to-live in seconds")
+    cache_dir: str = Field("cache", description="Path to the cache directory")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -100,6 +106,9 @@ class AppConfig(BaseModel):
     )
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
+    )
+    cache_config: Optional[CacheSettings] = Field(
+        None, description="Cache configuration"
     )
 
     class Config:
@@ -203,6 +212,9 @@ class Config:
         else:
             sandbox_settings = SandboxSettings()
 
+        cache_config = raw_config.get("cache", {})
+        cache_settings = CacheSettings(**cache_config)
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -214,6 +226,7 @@ class Config:
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
+            "cache_config": cache_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -233,6 +246,10 @@ class Config:
     @property
     def search_config(self) -> Optional[SearchSettings]:
         return self._config.search_config
+
+    @property
+    def cache_config(self) -> Optional[CacheSettings]:
+        return self._config.cache_config
 
     @property
     def workspace_root(self) -> Path:

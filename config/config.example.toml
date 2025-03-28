@@ -80,6 +80,11 @@ temperature = 0.0                           # Controls randomness for vision mod
 # Maximum number of times to retry all engines when all fail. Default is 3.
 #max_retries = 3
 
+# Optional configuration, Cache settings for reusing LLM responses and tool calls. Disabled by default.
+# [cache]
+# enabled = false
+# ttl = 86400  # Cache time-to-live in seconds (24 hour default)
+# cache_dir = "cache"  # Path to the cache. Supports relative to project root or absolute
 
 ## Sandbox configuration
 #[sandbox]

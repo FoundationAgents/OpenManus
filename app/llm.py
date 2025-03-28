@@ -19,6 +19,7 @@ from tenacity import (
 )
 
 from app.bedrock import BedrockClient
+from app.cache import LLMCache
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
@@ -203,6 +204,9 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+
+            self.cache_enabled = config.cache_config.enabled
+            self.cache = LLMCache() if self.cache_enabled else None
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -401,6 +405,14 @@ class LLM:
             else:
                 messages = self.format_messages(messages, supports_images)
 
+            # Attempt retrieve cached LLM response if enabled and not streaming
+            if self.cache_enabled and not stream:
+                cache_key = self.cache.generate_key(messages, self.model)
+                cached_response = self.cache.get(cache_key)
+                if cached_response:
+                    logger.info("🧠💾 Using cached LLM response")
+                    return cached_response
+
             # Calculate input token count
             input_tokens = self.count_message_tokens(messages)
 
@@ -432,12 +444,20 @@ class LLM:
                 if not response.choices or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
+                content = response.choices[0].message.content
+
+                # Save LLM response to cache if enabled
+                if self.cache_enabled:
+                    logger.info("💾🧠 Saving LLM response to cache")
+                    cache_key = self.cache.generate_key(messages, self.model)
+                    self.cache.set(cache_key, content)
+
                 # Update token counts
                 self.update_token_count(
                     response.usage.prompt_tokens, response.usage.completion_tokens
                 )
 
-                return response.choices[0].message.content
+                return content
 
             # Streaming request, For streaming, update estimated token count before making the request
             self.update_token_count(input_tokens)
@@ -621,6 +641,12 @@ class LLM:
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
 
+            # Save LLM response to cache if enabled
+            if self.cache_enabled:
+                logger.info("💾🧠 Saving LLM response to cache")
+                cache_key = self.cache.generate_key(messages, self.model)
+                self.cache.set(cache_key, full_response)
+
             return full_response
 
         except TokenLimitExceeded:
@@ -717,6 +743,14 @@ class LLM:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
 
+            # Attempt retrieve cached tool call response if enabled
+            if self.cache_enabled:
+                cache_key = self.cache.generate_key(messages, self.model, tools=tools)
+                cached_response = self.cache.get(cache_key)
+                if cached_response:
+                    logger.info("🧠💾 Using cached tool response")
+                    return cached_response
+
             # Set up the completion request
             params = {
                 "model": self.model,
@@ -735,7 +769,7 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
-            response: ChatCompletion = await self.client.chat.completions.create(
+            response: ChatCompletionMessage = await self.client.chat.completions.create(
                 **params, stream=False
             )
 
@@ -744,6 +778,12 @@ class LLM:
                 print(response)
                 # raise ValueError("Invalid or empty response from LLM")
                 return None
+
+            # Save tool call response to cache if enabled
+            if self.cache_enabled:
+                logger.info("💾🧠 Saving tool call response to cache")
+                cache_key = self.cache.generate_key(messages, self.model, tools=tools)
+                self.cache.set(cache_key, response.choices[0].message)
 
             # Update token counts
             self.update_token_count(

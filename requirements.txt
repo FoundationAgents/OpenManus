@@ -23,6 +23,7 @@ aiofiles~=24.1.0
 pydantic_core~=2.27.2
 colorama~=0.4.6
 playwright~=1.50.0
+diskcache~=5.6.3
 
 docker~=7.1.0
 pytest~=8.3.5
