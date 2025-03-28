@@ -23,7 +23,7 @@ export function useTaskWebSocket({ taskId, outId }: UseTaskWebSocketProps) {
   const [wsStatus, setWsStatus] = useState<WebSocketStatus>('disconnected');
   const [screenshot, setScreenshot] = useState<string | undefined>(undefined);
 
-  const { lastMessage, readyState } = useWebSocket(outId ? `ws://localhost:5172/ws/${outId}` : null, {
+  const { lastMessage, readyState } = useWebSocket(outId ? `ws://localhost:5172/tasks/ws/${outId}` : null, {
     shouldReconnect: closeEvent => true,
     reconnectAttempts: 10,
     reconnectInterval: 3000,
