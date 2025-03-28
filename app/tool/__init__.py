@@ -9,6 +9,10 @@ from ..tool.tool_collection import ToolCollection
 from ..tool.web_search import WebSearch
 from ..tool.file_operators import FileOperator, LocalFileOperator, PathLike, SandboxFileOperator
 from ..tool.file_saver import FileSaver
+from ..tool.terminal import Terminal
+from ..tool.python_execute import PythonExecute
+from ..tool.mcp import MCPClientTool, MCPClients
+
 
 __all__ = [
     "BaseTool",
@@ -28,4 +32,8 @@ __all__ = [
     "SandboxFileOperator",
     "FileSaver",
     "ToolFailure",
+    "Terminal",
+    "PythonExecute",
+    "MCPClientTool",
+    "MCPClients",
 ]
