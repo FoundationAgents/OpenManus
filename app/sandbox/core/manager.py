@@ -6,10 +6,9 @@ from typing import Dict, Optional, Set
 import docker
 from docker.errors import APIError, ImageNotFound
 
-from app.config import SandboxSettings
-from app.logger import logger
-from app.sandbox.core.sandbox import DockerSandbox
-
+from ...config import SandboxSettings
+from ...logger import logger
+from .sandbox import DockerSandbox
 
 class SandboxManager:
     """Docker sandbox manager.
