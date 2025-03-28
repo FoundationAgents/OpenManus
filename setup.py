@@ -4,6 +4,15 @@ from setuptools import find_packages, setup
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+def get_packages():
+    discovered = find_packages(where="app")
+    packages = ["openmanus"]
+    for pkg in discovered:
+        if pkg:
+            packages.append("openmanus." + pkg)
+    return packages
+
+
 setup(
     name="openmanus",
     version="0.2.0",
@@ -13,7 +22,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/mannaandpoem/OpenManus",
-    packages=find_packages(include=["app", "app.*"]),
+    packages=get_packages(),
     package_dir={"openmanus": "app"},
     install_requires=[
         "pydantic~=2.10.6",
