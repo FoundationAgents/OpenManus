@@ -13,7 +13,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/mannaandpoem/OpenManus",
-    packages=find_packages(where="app"),
+    packages=find_packages(include=["app", "app.*"]),
     package_dir={"openmanus": "app"},
     install_requires=[
         "pydantic~=2.10.6",
