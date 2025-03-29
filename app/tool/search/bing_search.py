@@ -46,14 +46,14 @@ class BingSearchEngine(WebSearchEngine):
 
     def _search_sync(self, query: str, num_results: int = 10) -> List[str]:
         """
-        Synchronous Bing search implementation to retrieve a list of URLs matching a query.
+        Synchronous Bing search implementation to retrieve a list of unique URLs matching a query.
 
         Args:
             query (str): The search query to submit to Bing. Must not be empty.
             num_results (int, optional): The maximum number of URLs to return. Defaults to 10.
 
         Returns:
-            List[str]: A list of URLs from the search results, capped at `num_results`.
+            List[str]: A list of unique URLs from the search results, capped at `num_results`.
                        Returns an empty list if the query is empty or no results are found.
 
         Notes:
@@ -72,7 +72,9 @@ class BingSearchEngine(WebSearchEngine):
                 next_url, rank_start=len(list_result), first=first
             )
             if data:
+                # Extract URLs and ensure uniqueness using a set
                 list_result.extend([item["url"] for item in data])
+                list_result = list(set(list_result))  # Deduplicate URLs
             if not next_url:
                 break
             first += 10
@@ -87,6 +89,7 @@ class BingSearchEngine(WebSearchEngine):
             url (str): The URL of the Bing search results page to parse.
             rank_start (int, optional): The starting rank for numbering the search results. Defaults to 0.
             first (int, optional): Unused parameter (possibly legacy). Defaults to 1.
+
         Returns:
             tuple: A tuple containing:
                 - list: A list of dictionaries with keys 'title', 'abstract', 'url', and 'rank' for each result.
