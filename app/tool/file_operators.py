@@ -1,13 +1,13 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
+import shutil
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
 from app.config import SandboxSettings
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
-
 
 PathLike = Union[str, Path]
 
@@ -37,6 +37,10 @@ class FileOperator(Protocol):
     ) -> Tuple[int, str, str]:
         """Run a shell command and return (return_code, stdout, stderr)."""
         ...
+
+    async def create_directory(self, path: PathLike) -> None: ...
+    async def rename(self, src: PathLike, dst: PathLike) -> None: ...
+    async def delete(self, path: PathLike) -> None: ...
 
 
 class LocalFileOperator(FileOperator):
@@ -91,6 +95,28 @@ class LocalFileOperator(FileOperator):
             raise TimeoutError(
                 f"Command '{cmd}' timed out after {timeout} seconds"
             ) from exc
+
+    async def create_directory(self, path: PathLike) -> None:
+        try:
+            Path(path).mkdir(parents=True, exist_ok=False)
+        except Exception as e:
+            raise ToolError(f"Failed to create directory {path}: {str(e)}") from None
+
+    async def rename(self, src: PathLike, dst: PathLike) -> None:
+        try:
+            Path(src).rename(dst)
+        except Exception as e:
+            raise ToolError(f"Failed to rename {src} to {dst}: {str(e)}") from None
+
+    async def delete(self, path: PathLike) -> None:
+        try:
+            p = Path(path)
+            if p.is_dir():
+                shutil.rmtree(p)
+            else:
+                p.unlink()
+        except Exception as e:
+            raise ToolError(f"Failed to delete {path}: {str(e)}") from None
 
 
 class SandboxFileOperator(FileOperator):
@@ -156,3 +182,28 @@ class SandboxFileOperator(FileOperator):
             ) from exc
         except Exception as exc:
             return 1, "", f"Error executing command in sandbox: {str(exc)}"
+
+    async def create_directory(self, path: PathLike) -> None:
+        await self._ensure_sandbox_initialized()
+        try:
+            await self.sandbox_client.run_command(f"mkdir -p {path}")
+        except Exception as e:
+            raise ToolError(
+                f"Failed to create directory {path} in sandbox: {str(e)}"
+            ) from None
+
+    async def rename(self, src: PathLike, dst: PathLike) -> None:
+        await self._ensure_sandbox_initialized()
+        try:
+            await self.sandbox_client.run_command(f"mv {src} {dst}")
+        except Exception as e:
+            raise ToolError(
+                f"Failed to rename {src} to {dst} in sandbox: {str(e)}"
+            ) from None
+
+    async def delete(self, path: PathLike) -> None:
+        await self._ensure_sandbox_initialized()
+        try:
+            await self.sandbox_client.run_command(f"rm -rf {path}")
+        except Exception as e:
+            raise ToolError(f"Failed to delete {path} in sandbox: {str(e)}") from None
