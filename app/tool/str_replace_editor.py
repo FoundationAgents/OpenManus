@@ -164,7 +164,7 @@ class StrReplaceEditor(BaseTool):
                 )
             await operator.create_directory(path)
             result = ToolResult(
-                output=f"\u2705 Directorio creado exitosamente en: {path}"
+                output=f"\u2705 Directory successfully created in: {path}"
             )
         elif command == "str_replace":
             if old_str is None:
