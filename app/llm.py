@@ -18,6 +18,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
@@ -28,7 +29,6 @@ from app.schema import (
     Message,
     ToolChoice,
 )
-from app.bedrock import BedrockClient
 
 
 REASONING_MODELS = ["o1", "o3-mini"]

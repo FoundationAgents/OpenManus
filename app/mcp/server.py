@@ -1,30 +1,19 @@
+import logging
+import sys
+
+
+logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler(sys.stderr)])
+
 import argparse
 import asyncio
 import atexit
 import json
-import logging
-import os
-import sys
 from inspect import Parameter, Signature
 from typing import Any, Dict, Optional
 
 from mcp.server.fastmcp import FastMCP
 
-
-# Add directories to Python path (needed for proper importing)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-root_dir = os.path.dirname(parent_dir)
-sys.path.insert(0, parent_dir)
-sys.path.insert(0, current_dir)
-sys.path.insert(0, root_dir)
-
-# Configure logging (using the same format as original)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("mcp-server")
-
+from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
 from app.tool.browser_use_tool import BrowserUseTool
@@ -44,11 +33,6 @@ class MCPServer:
         self.tools["browser"] = BrowserUseTool()
         self.tools["editor"] = StrReplaceEditor()
         self.tools["terminate"] = Terminate()
-
-        from app.logger import logger as app_logger
-
-        global logger
-        logger = app_logger
 
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
         """Register a tool with parameter validation and documentation."""

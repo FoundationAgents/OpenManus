@@ -448,6 +448,22 @@ Page content:
                                         "extracted_content": {
                                             "type": "object",
                                             "description": "The content extracted from the page according to the goal",
+                                            "properties": {
+                                                "text": {
+                                                    "type": "string",
+                                                    "description": "Text content extracted from the page",
+                                                },
+                                                "metadata": {
+                                                    "type": "object",
+                                                    "description": "Additional metadata about the extracted content",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "description": "Source of the extracted content",
+                                                        }
+                                                    },
+                                                },
+                                            },
                                         }
                                     },
                                     "required": ["extracted_content"],
