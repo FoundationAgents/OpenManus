@@ -1,7 +1,7 @@
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -74,6 +74,8 @@ class BrowserSettings(BaseModel):
     max_content_length: int = Field(
         2000, description="Maximum length for content retrieval operations"
     )
+    max_observe: int = Field(10000, description="Maximum number of tokens to observe for browser agent")
+    max_steps: int = Field(50, description="Maximum number of steps for browser agent execution")
 
 
 class SandboxSettings(BaseModel):
@@ -90,10 +92,36 @@ class SandboxSettings(BaseModel):
     )
 
 
-class AgentSettings(BaseModel):
-    """Configuration for the agent execution"""
+class ManusSettings(BaseModel):
+    """Configuration for the manus execution"""
     max_observe: int = Field(10000, description="Maximum number of tokens to observe")
-    max_steps: int = Field(50, description="Maximum number of steps for agent execution")
+    max_steps: int = Field(50, description="Maximum number of steps for manus execution")
+
+
+class ReactSettings(BaseModel):
+    """Configuration for the react agent execution"""
+    max_steps: int = Field(10, description="Maximum number of steps for react agent execution")
+
+
+class SWESettings(BaseModel):
+    """Configuration for the SWE agent execution"""
+    max_steps: int = Field(20, description="Maximum number of steps for SWE agent execution")
+
+
+class PlanningSettings(BaseModel):
+    """Configuration for the Planning agent execution"""
+    max_steps: int = Field(20, description="Maximum number of steps for Planning agent execution")
+
+
+class MCPSettings(BaseModel):
+    """Configuration for the MCP agent execution"""
+    max_steps: int = Field(20, description="Maximum number of steps for MCP agent execution")
+
+
+class ToolCallSettings(BaseModel):
+    """Configuration for the toolcall agent execution"""
+    max_observe: Optional[Union[int, bool]] = Field(10000, description="Maximum number of tokens to observe for toolcall agents")
+    max_steps: Optional[int] = Field(50, description="Maximum number of steps for toolcall agent execution")
 
 
 class AppConfig(BaseModel):
@@ -107,8 +135,23 @@ class AppConfig(BaseModel):
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
     )
-    agent: Optional[AgentSettings] = Field(
-        None, description="Agent configuration"
+    manus: Optional[ManusSettings] = Field(
+        None, description="Manus configuration"
+    )
+    toolcall: Optional[ToolCallSettings] = Field(
+        None, description="ToolCall agent configuration"
+    )
+    react: Optional[ReactSettings] = Field(
+        None, description="React agent configuration"
+    )
+    swe: Optional[SWESettings] = Field(
+        None, description="SWE agent configuration"
+    )
+    planning: Optional[PlanningSettings] = Field(
+        None, description="Planning agent configuration"
+    )
+    mcp: Optional[MCPSettings] = Field(
+        None, description="MCP agent configuration"
     )
 
     class Config:
@@ -213,11 +256,49 @@ class Config:
         else:
             sandbox_settings = SandboxSettings()
 
-        # Add agent configuration handling
-        agent_config = raw_config.get("agent", {})
-        agent_settings = None
-        if agent_config:
-            agent_settings = AgentSettings(**agent_config)
+        # Add manus configuration handling
+        manus_config = raw_config.get("manus", {})
+        manus_settings = None
+        if manus_config:
+            manus_settings = ManusSettings(**manus_config)
+
+        # Add toolcall configuration handling
+        toolcall_config = raw_config.get("toolcall", {})
+        toolcall_settings = None
+        if toolcall_config:
+            # Handle None values explicitly for toolcall config
+            processed_config = {}
+            for key, value in toolcall_config.items():
+                # Convert string 'None' or empty string to Python None
+                if value == '' or value is None:
+                    processed_config[key] = None
+                else:
+                    processed_config[key] = value
+            toolcall_settings = ToolCallSettings(**processed_config)
+
+        # Add react configuration handling
+        react_config = raw_config.get("react", {})
+        react_settings = None
+        if react_config:
+            react_settings = ReactSettings(**react_config)
+
+        # Add SWE configuration handling
+        swe_config = raw_config.get("swe", {})
+        swe_settings = None
+        if swe_config:
+            swe_settings = SWESettings(**swe_config)
+
+        # Add Planning configuration handling
+        planning_config = raw_config.get("planning", {})
+        planning_settings = None
+        if planning_config:
+            planning_settings = PlanningSettings(**planning_config)
+
+        # Add MCP configuration handling
+        mcp_config = raw_config.get("mcp", {})
+        mcp_settings = None
+        if mcp_config:
+            mcp_settings = MCPSettings(**mcp_config)
 
         config_dict = {
             "llm": {
@@ -230,7 +311,12 @@ class Config:
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
-            "agent": agent_settings,
+            "manus": manus_settings,
+            "toolcall": toolcall_settings,
+            "react": react_settings,
+            "swe": swe_settings,
+            "planning": planning_settings,
+            "mcp": mcp_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -248,12 +334,52 @@ class Config:
         return self._config.browser_config
 
     @property
+    def browser(self) -> BrowserSettings:
+        """Get the browser configuration settings (shorthand for browser_config)"""
+        if self._config.browser_config is None:
+            return BrowserSettings()
+        return self._config.browser_config
+
+    @property
     def search_config(self) -> Optional[SearchSettings]:
         return self._config.search_config
 
     @property
-    def agent(self) -> Optional[AgentSettings]:
-        return self._config.agent
+    def manus(self) -> Optional[ManusSettings]:
+        return self._config.manus
+
+    @property
+    def toolcall(self) -> Optional[ToolCallSettings]:
+        """Get the toolcall configuration settings"""
+        return self._config.toolcall
+
+    @property
+    def react(self) -> ReactSettings:
+        """Get the react configuration settings"""
+        if self._config.react is None:
+            return ReactSettings()
+        return self._config.react
+
+    @property
+    def swe(self) -> SWESettings:
+        """Get the SWE configuration settings"""
+        if self._config.swe is None:
+            return SWESettings()
+        return self._config.swe
+
+    @property
+    def planning(self) -> PlanningSettings:
+        """Get the Planning configuration settings"""
+        if self._config.planning is None:
+            return PlanningSettings()
+        return self._config.planning
+
+    @property
+    def mcp(self) -> MCPSettings:
+        """Get the MCP configuration settings"""
+        if self._config.mcp is None:
+            return MCPSettings()
+        return self._config.mcp
 
     @property
     def workspace_root(self) -> Path:

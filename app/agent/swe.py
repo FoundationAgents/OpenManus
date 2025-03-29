@@ -3,6 +3,7 @@ from typing import List
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
+from app.config import config
 from app.prompt.swe import SYSTEM_PROMPT
 from app.tool import Bash, StrReplaceEditor, Terminate, ToolCollection
 
@@ -21,7 +22,7 @@ class SWEAgent(ToolCallAgent):
     )
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
 
-    max_steps: int = 20
+    max_steps: int = config.swe.max_steps
 
     bash: Bash = Field(default_factory=Bash)
     working_dir: str = "."

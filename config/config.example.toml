@@ -63,6 +63,11 @@ temperature = 0.0                           # Controls randomness for vision mod
 # Connect to a browser instance via CDP
 #cdp_url = ""
 
+# Browser agent configuration
+[browser]
+max_observe = 10000                         # Maximum number of tokens to observe for browser agent
+max_steps = 50                              # Maximum number of steps for browser agent execution
+
 # Optional configuration, Proxy settings for the browser
 # [browser.proxy]
 # server = "http://proxy-server:port"
@@ -91,7 +96,28 @@ temperature = 0.0                           # Controls randomness for vision mod
 #timeout = 300
 #network_enabled = true
 
-# Agent configuration
-[agent]
+# Manus configuration
+[manus]
 max_observe = 10000                         # Maximum number of tokens to observe
-max_steps = 50                              # Maximum number of steps for agent execution
+max_steps = 20                              # Maximum number of steps for manus execution
+
+# React agent configuration
+[react]
+max_steps = 10                              # Maximum number of steps for react agent execution
+
+# SWE agent configuration
+[swe]
+max_steps = 20                              # Maximum number of steps for SWE agent execution
+
+# Planning agent configuration
+[planning]
+max_steps = 20                              # Maximum number of steps for Planning agent execution
+
+# MCP agent configuration
+[mcp]
+max_steps = 20                              # Maximum number of steps for MCP agent execution
+
+# ToolCall agent configuration
+[toolcall]
+max_observe = 10000                         # Maximum number of tokens to observe for toolcall agents
+max_steps = ""                              # Maximum number of steps for toolcall agent execution

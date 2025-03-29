@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from pydantic import Field, model_validator
 
 from app.agent.toolcall import ToolCallAgent
+from app.config import config
 from app.logger import logger
 from app.prompt.planning import NEXT_STEP_PROMPT, PLANNING_SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, Message, ToolCall, ToolChoice
@@ -37,7 +38,7 @@ class PlanningAgent(ToolCallAgent):
     step_execution_tracker: Dict[str, Dict] = Field(default_factory=dict)
     current_step_index: Optional[int] = None
 
-    max_steps: int = 20
+    max_steps: int = config.planning.max_steps
 
     @model_validator(mode="after")
     def initialize_plan_and_verify_tools(self) -> "PlanningAgent":

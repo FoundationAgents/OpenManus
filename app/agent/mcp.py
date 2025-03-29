@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
+from app.config import config
 from app.logger import logger
 from app.prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message
@@ -27,7 +28,7 @@ class MCPAgent(ToolCallAgent):
     mcp_clients: MCPClients = Field(default_factory=MCPClients)
     available_tools: MCPClients = None  # Will be set in initialize()
 
-    max_steps: int = 20
+    max_steps: int = config.mcp.max_steps
     connection_type: str = "stdio"  # "stdio" or "sse"
 
     # Track tool schemas to detect changes

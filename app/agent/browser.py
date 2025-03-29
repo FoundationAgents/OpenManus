@@ -4,6 +4,7 @@ from typing import Any, Optional
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
+from app.config import config
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
@@ -24,8 +25,8 @@ class BrowserAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    max_observe: int = 10000
-    max_steps: int = 20
+    max_observe: int = config.browser.max_observe
+    max_steps: int = config.browser.max_steps
 
     # Configure the available tools
     available_tools: ToolCollection = Field(
