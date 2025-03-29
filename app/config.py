@@ -25,7 +25,7 @@ class LLMSettings(BaseModel):
         description="Maximum input tokens to use across all requests (None for unlimited)",
     )
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="AzureOpenai or Openai")
+    api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
 
 
@@ -37,6 +37,24 @@ class ProxySettings(BaseModel):
 
 class SearchSettings(BaseModel):
     engine: str = Field(default="Google", description="Search engine the llm to use")
+    fallback_engines: List[str] = Field(
+        default_factory=lambda: ["DuckDuckGo", "Baidu"],
+        description="Fallback search engines to try if the primary engine fails",
+    )
+    retry_delay: int = Field(
+        default=60,
+        description="Seconds to wait before retrying all engines again after they all fail",
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of times to retry all engines when all fail",
+    )
+
+
+class AgentSettings(BaseModel):
+    max_steps: int = Field(
+        default=20, description="Maximum steps before the agent terminates"
+    )
 
 
 class AgentSettings(BaseModel):
@@ -65,16 +83,45 @@ class BrowserSettings(BaseModel):
     proxy: Optional[ProxySettings] = Field(
         None, description="Proxy settings for the browser"
     )
+    max_content_length: int = Field(
+        2000, description="Maximum length for content retrieval operations"
+    )
+
+
+class SandboxSettings(BaseModel):
+    """Configuration for the execution sandbox"""
+
+    use_sandbox: bool = Field(False, description="Whether to use the sandbox")
+    image: str = Field("python:3.12-slim", description="Base image")
+    work_dir: str = Field("/workspace", description="Container working directory")
+    memory_limit: str = Field("512m", description="Memory limit")
+    cpu_limit: float = Field(1.0, description="CPU limit")
+    timeout: int = Field(300, description="Default command timeout (seconds)")
+    network_enabled: bool = Field(
+        False, description="Whether network access is allowed"
+    )
+
+
+class MCPSettings(BaseModel):
+    """Configuration for MCP (Model Context Protocol)"""
+
+    server_reference: str = Field(
+        "app.mcp.server", description="Module reference for the MCP server"
+    )
 
 
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
+    sandbox: Optional[SandboxSettings] = Field(
+        None, description="Sandbox configuration"
+    )
     browser_config: Optional[BrowserSettings] = Field(
         None, description="Browser configuration"
     )
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
     )
+    mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
     agent_config: Optional[AgentSettings] = Field(
         None, description="Agent configuration"
     )
@@ -174,6 +221,18 @@ class Config:
         search_settings = None
         if search_config:
             search_settings = SearchSettings(**search_config)
+        sandbox_config = raw_config.get("sandbox", {})
+        if sandbox_config:
+            sandbox_settings = SandboxSettings(**sandbox_config)
+        else:
+            sandbox_settings = SandboxSettings()
+
+        mcp_config = raw_config.get("mcp", {})
+        mcp_settings = None
+        if mcp_config:
+            mcp_settings = MCPSettings(**mcp_config)
+        else:
+            mcp_settings = MCPSettings()
 
         agent_config = raw_config.get("agent", {})
         agent_settings = None
@@ -188,8 +247,10 @@ class Config:
                     for name, override_config in llm_overrides.items()
                 },
             },
+            "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
+            "mcp_config": mcp_settings,
             "agent_config": agent_settings,
         }
 
@@ -200,12 +261,31 @@ class Config:
         return self._config.llm
 
     @property
+    def sandbox(self) -> SandboxSettings:
+        return self._config.sandbox
+
+    @property
     def browser_config(self) -> Optional[BrowserSettings]:
         return self._config.browser_config
 
     @property
     def search_config(self) -> Optional[SearchSettings]:
         return self._config.search_config
+
+    @property
+    def mcp_config(self) -> MCPSettings:
+        """Get the MCP configuration"""
+        return self._config.mcp_config
+
+    @property
+    def workspace_root(self) -> Path:
+        """Get the workspace root directory"""
+        return WORKSPACE_ROOT
+
+    @property
+    def root_path(self) -> Path:
+        """Get the root path of the application"""
+        return PROJECT_ROOT
 
     @property
     def agent_config(self) -> Optional[AgentSettings]:
