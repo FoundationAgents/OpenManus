@@ -18,6 +18,11 @@ class BrowserAgent(ToolCallAgent):
     extract content, and perform other browser-based actions to accomplish tasks.
     """
 
+    class Events(ToolCallAgent.Events):
+        # Browser events
+        BROWSER_BROWSER_USE_START = "agent:browser:browse:start"
+        BROWSER_BROWSER_USE_COMPLETE = "agent:browser:browse:complete"
+
     name: str = "browser"
     description: str = "A browser agent that can control a browser to accomplish tasks"
 
@@ -64,7 +69,8 @@ class BrowserAgent(ToolCallAgent):
                 self._current_base64_image = result.base64_image
 
             # Parse the state info
-            return json.loads(result.output)
+            state = json.loads(result.output)
+            return state
 
         except Exception as e:
             logger.debug(f"Failed to get browser state: {str(e)}")
@@ -73,6 +79,7 @@ class BrowserAgent(ToolCallAgent):
     async def think(self) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
         # Add browser state to the context
+        self.emit(self.Events.BROWSER_BROWSER_USE_START, {})
         browser_state = await self.get_browser_state()
 
         # Initialize placeholder values
@@ -118,6 +125,27 @@ class BrowserAgent(ToolCallAgent):
             content_above_placeholder=content_above_info,
             content_below_placeholder=content_below_info,
             results_placeholder=results_info,
+        )
+
+        self.emit(
+            self.Events.BROWSER_BROWSER_USE_COMPLETE,
+            {
+                "url": (
+                    browser_state.get("url", "N/A")
+                    if browser_state and not browser_state.get("error")
+                    else "N/A"
+                ),
+                "title": (
+                    browser_state.get("title", "N/A")
+                    if browser_state and not browser_state.get("error")
+                    else "N/A"
+                ),
+                "tabs": tabs_info,
+                "content_above": content_above_info,
+                "content_below": content_below_info,
+                "screenshot": self._current_base64_image,
+                "results": results_info,
+            },
         )
 
         # Call parent implementation

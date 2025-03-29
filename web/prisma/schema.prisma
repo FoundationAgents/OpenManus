@@ -39,15 +39,32 @@ model OrganizationUsers {
 }
 
 model Tasks {
-  id             String          @id @default(cuid())
-  outId          String?         @unique
+  id             String           @id @default(cuid())
+  outId          String?          @unique
   llmId          String
-  prompt         String          @db.Text
-  status         String          @default("pending")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  prompt         String           @db.Text
+  status         String           @default("pending")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   organizationId String
   steps          TaskProcesses[]
+  progresses     TaskProgresses[]
+}
+
+model TaskProgresses {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  taskId         String
+  index          Int
+  step           Int
+  type           String
+  content        Json
+
+  task Tasks @relation(fields: [taskId], references: [id])
+
+  @@index([taskId, organizationId])
 }
 
 model TaskProcesses {

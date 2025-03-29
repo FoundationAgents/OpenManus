@@ -21,74 +21,62 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 AGENT_NAME = "Manus"
 
 
-class SSELogHandler:
-    def __init__(self, task_id):
-        self.task_id = task_id
+async def handle_agent_event(task_id: str, event_name: str, step: int, **kwargs):
+    """Handle agent events and update task status.
 
-    async def __call__(self, message):
-        import re
+    Args:
+        event_name: Name of the event
+        **kwargs: Additional parameters related to the event
+    """
+    if not task_id:
+        logger.warning(f"No task_id provided for event: {event_name}")
+        return
 
-        # Extract - Subsequent Content
-        cleaned_message = re.sub(r"^.*? - ", "", message)
-
-        # default event type
-        event_type = "log"
-        step = None
-
-        # Parse step from message
-        if "Executing step" in cleaned_message:
-            step_match = re.search(r"Executing step (\d+)/", cleaned_message)
-            if step_match:
-                step = int(step_match.group(1))
-                event_type = "step"
-
-        # think
-        if f"✨ {AGENT_NAME}'s thoughts:" in cleaned_message:
-            event_type = "think"
-        # error
-        elif "📝 Oops!" in cleaned_message:
-            event_type = "error"
-        # tool related
-        # tool selected
-        elif f"🛠️ {AGENT_NAME} selected" in cleaned_message:
-            event_type = "tool:selected"
-        # tool prepared
-        elif "🧰 Tools being prepared" in cleaned_message:
-            event_type = "tool:prepared"
-        # tool arguments
-        elif "🔧 Tool arguments" in cleaned_message:
-            event_type = "tool:arguments"
-        # tool activiting
-        elif "🔧 Activating tool" in cleaned_message:
-            event_type = "tool:activating"
-        # tool completed
-        elif "🎯 Tool" in cleaned_message:
-            event_type = "tool:completed"
-        elif "Token usage" in cleaned_message:
-            event_type = "token-usage"
-
-        await task_manager.update_task_step(
-            self.task_id, cleaned_message, event_type, step
-        )
+    # Update task step
+    await task_manager.update_task_progress(
+        task_id=task_id, event_name=event_name, step=step, **kwargs
+    )
 
 
-async def run_task(task_id: str, prompt: str, llm_config: Optional[LLMSettings] = None):
+async def run_task(task_id: str):
+    """Run the task and set up corresponding event handlers.
+
+    Args:
+        task_id: Task ID
+        prompt: Task prompt
+        llm_config: Optional LLM configuration
+    """
     try:
-        task_manager.tasks[task_id].status = "running"
-        agent = task_manager.tasks[task_id].agent
+        task = task_manager.tasks[task_id]
+        agent = task.agent
 
-        sse_handler = SSELogHandler(task_id)
-        logger.add(sse_handler)
+        # Set up event handlers based on all event types defined in the Agent class hierarchy
+        event_patterns = [r"agent:.*"]
 
-        result = await agent.run(prompt)
-        # Ensure all logs have been processed
+        # Register handlers for each event pattern
+        for pattern in event_patterns:
+            agent.on(
+                pattern,
+                lambda event_name, step, **kwargs: handle_agent_event(
+                    task_id=task_id,
+                    event_name=event_name,
+                    step=step,
+                    **kwargs,
+                ),
+            )
+
+        # Run the agent
+        result = await agent.run(task.prompt)
+
+        # Ensure all events have been processed
         queue = task_manager.queues[task_id]
         while not queue.empty():
             await asyncio.sleep(0.1)
 
-        await task_manager.update_task_step(task_id, result, "result")
         await task_manager.complete_task(task_id)
+
     except Exception as e:
+        # Handle task failure
         await task_manager.fail_task(task_id, str(e))
 
 
@@ -99,10 +87,6 @@ async def event_generator(task_id: str):
 
     queue = task_manager.queues[task_id]
 
-    task = task_manager.tasks.get(task_id)
-    if task:
-        yield f"data: {dumps({'type': 'status', 'status': task.status, 'progress': task.progress})}\n\n"
-
     while True:
         try:
             event = await queue.get()
@@ -111,24 +95,17 @@ async def event_generator(task_id: str):
             # Send actual event data
             if event.get("type"):
                 yield f"data: {formatted_event}\n\n"
+                if event.get("event_name") == Manus.Events.LIFECYCLE_COMPLETE:
+                    break
 
             # Send heartbeat
             yield ":heartbeat\n\n"
 
-            # If complete or error event, ensure remaining events in queue are processed
-            if event.get("type") == "complete" or event.get("type") == "error":
-                # Process remaining events in queue
-                while not queue.empty():
-                    remaining_event = queue.get_nowait()
-                    remaining_formatted = dumps(remaining_event)
-                    yield f"data: {remaining_formatted}\n\n"
-                break
-
         except asyncio.CancelledError:
-            print(f"Client disconnected for task {task_id}")
+            logger.info(f"Client disconnected for task {task_id}")
             break
         except Exception as e:
-            print(f"Error in event stream: {str(e)}")
+            logger.error(f"Error in event stream: {str(e)}")
             yield f"event: error\ndata: {dumps({'message': str(e)})}\n\n"
             break
 
@@ -138,18 +115,17 @@ async def create_task(
     prompt: str = Body(..., embed=True),
     llm_config: Optional[LLMSettings] = Body(None, embed=True),
 ):
-    print(f"Creating task with prompt: {prompt}")
-    print(f"LLM config: {llm_config.model_dump()}")
+    logger.info(f"Creating task with prompt: {prompt}")
     task = task_manager.create_task(
         prompt,
         Manus(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
             llm=(LLM(llm_config=llm_config) if llm_config else None),
+            enable_event_queue=True,  # Enable event queue
         ),
     )
-    print("http://localhost:5172/ws/" + task.id)
-    asyncio.create_task(run_task(task.id, prompt, llm_config))
+    asyncio.create_task(run_task(task.id))
     return {"task_id": task.id}
 
 
@@ -175,84 +151,3 @@ async def get_tasks():
         content=[task.model_dump() for task in sorted_tasks],
         headers={"Content-Type": "application/json"},
     )
-
-
-@router.get("/{task_id}")
-async def get_task(task_id: str):
-    if task_id not in task_manager.tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task_manager.tasks[task_id]
-
-
-@router.websocket("/ws/{task_id}")
-async def websocket_endpoint(websocket: WebSocket, task_id: str):
-    await websocket.accept()
-
-    if task_id not in task_manager.tasks:
-        await websocket.send_json({"type": "error", "message": "Task not found"})
-        await websocket.close()
-        return
-
-    agent = task_manager.tasks[task_id].agent
-
-    try:
-        while True:
-            # Check task status
-            if task_manager.tasks[task_id].status == "completed":
-                await websocket.send_json(
-                    {"type": "complete", "message": "Task completed"}
-                )
-                break
-
-            # Try to get browser page
-            browser_use_tool = agent.available_tools.get_tool("browser_use")
-
-            if (
-                browser_use_tool
-                and browser_use_tool.dom_service
-                and browser_use_tool.dom_service.page
-            ):
-                try:
-                    browser_use_tool = cast(BrowserUseTool, browser_use_tool)
-                    page = (cast(BrowserUseTool, browser_use_tool).dom_service).page
-                    # Wait for page to load
-                    await page.wait_for_load_state("networkidle")
-
-                    # Get current page screenshot
-                    current_screenshot = await page.screenshot(
-                        type="png", timeout=30000
-                    )
-                    current_screenshot_base64 = base64.b64encode(
-                        current_screenshot
-                    ).decode("utf-8")
-
-                    # Send update to frontend
-                    await websocket.send_json(
-                        {
-                            "type": "screenshot",
-                            "data": {
-                                "screenshot": f"data:image/png;base64,{current_screenshot_base64}",
-                            },
-                        }
-                    )
-
-                except Exception as e:
-                    print(f"Error during screenshot process: {e}")
-
-            # Wait for frontend message or timeout
-            try:
-                # Set 1 second timeout
-                message = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-                if message == "ping":
-                    await websocket.send_text("pong")
-            except asyncio.TimeoutError:
-                # Continue loop on timeout
-                continue
-
-    except WebSocketDisconnect:
-        print(f"Client disconnected for task {task_id}")
-    except Exception as e:
-        print(f"Error in WebSocket connection: {e}")
-        await websocket.send_json({"type": "error", "message": str(e)})
-    finally:
-        await websocket.close()

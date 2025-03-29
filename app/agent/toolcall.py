@@ -3,6 +3,7 @@ from typing import Any, List, Optional, Union
 
 from pydantic import Field
 
+from app.agent.base import BaseAgent
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
@@ -10,12 +11,26 @@ from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 
-
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
 class ToolCallAgent(ReActAgent):
     """Base agent class for handling tool/function calls with enhanced abstraction"""
+
+    class Events(ReActAgent.Events):
+        # LLM events
+        LLM_REQUEST = "agent:llm:request"
+        LLM_RESPONSE = "agent:llm:response"
+        LLM_ERROR = "agent:llm:error"
+
+        # Tool events
+        TOOL_SELECTED = "agent:tool:selected"
+        TOOL_START = "agent:tool:start"
+        TOOL_COMPLETE = "agent:tool:complete"
+        TOOL_ERROR = "agent:tool:error"
+
+        TOOL_EXECUTE_START = "agent:tool:execute:start"
+        TOOL_EXECUTE_COMPLETE = "agent:tool:execute:complete"
 
     name: str = "toolcall"
     description: str = "an agent that can execute tool calls."
@@ -56,7 +71,6 @@ class ToolCallAgent(ReActAgent):
         except ValueError:
             raise
         except Exception as e:
-            # Check if this is a RetryError containing TokenLimitExceeded
             if hasattr(e, "__cause__") and isinstance(e.__cause__, TokenLimitExceeded):
                 token_limit_error = e.__cause__
                 logger.error(
@@ -81,11 +95,31 @@ class ToolCallAgent(ReActAgent):
         logger.info(
             f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
         )
+        self.emit(
+            self.Events.TOOL_SELECTED,
+            {
+                "thoughts": content,
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": call.type,
+                        "index": call.index,
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": json.loads(call.function.arguments),
+                        },
+                    }
+                    for call in tool_calls
+                ],
+            },
+        )
         if tool_calls:
-            logger.info(
-                f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
-            )
-            logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
+            tool_info = {
+                "tools": [call.function.name for call in tool_calls],
+                "arguments": tool_calls[0].function.arguments,
+            }
+            logger.info(f"🧰 Tools being prepared: {tool_info['tools']}")
+            logger.info(f"🔧 Tool arguments: {tool_info['arguments']}")
 
         try:
             if response is None:
@@ -137,6 +171,7 @@ class ToolCallAgent(ReActAgent):
             return self.messages[-1].content or "No content or commands to execute"
 
         results = []
+
         for command in self.tool_calls:
             # Reset base64_image for each tool call
             self._current_base64_image = None
@@ -160,8 +195,10 @@ class ToolCallAgent(ReActAgent):
             self.memory.add_message(tool_msg)
             results.append(result)
 
-        return "\n\n".join(results)
+        final_result = "\n\n".join(results)
+        return final_result
 
+    @BaseAgent.event_wrapper(Events.TOOL_START, Events.TOOL_COMPLETE, Events.TOOL_ERROR)
     async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call with robust error handling"""
         if not command or not command.function or not command.function.name:
@@ -177,8 +214,12 @@ class ToolCallAgent(ReActAgent):
 
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
+            self.emit(self.Events.TOOL_EXECUTE_START, {"name": name, "args": args})
             result = await self.available_tools.execute(name=name, tool_input=args)
-
+            self.emit(
+                self.Events.TOOL_EXECUTE_COMPLETE,
+                {"name": name, "result": str(result)},
+            )
             # Handle special tools
             await self._handle_special_tool(name=name, result=result)
 

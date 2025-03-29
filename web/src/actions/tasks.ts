@@ -5,7 +5,7 @@ import { decryptWithPrivateKey } from '@/lib/crypto';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
 import fs from 'fs';
-import path from 'path';
+import path, { parse } from 'path';
 
 const API_BASE_URL = 'http://localhost:5172';
 
@@ -15,7 +15,7 @@ export const getTask = withUserAuth(async ({ organization, args }: AuthWrapperCo
   const { taskId } = args;
   const task = await prisma.tasks.findUnique({
     where: { id: taskId, organizationId: organization.id },
-    include: { steps: { orderBy: { index: 'asc' } } },
+    include: { progresses: { orderBy: { index: 'asc' } } },
   });
   return task;
 });
@@ -116,22 +116,16 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
 
         try {
           const parsed = JSON.parse(line.slice(6));
-          if (parsed.type === 'status') continue;
+          console.log(parsed);
+          const { type, event_name, step, content } = parsed;
 
           // Write message to database
-          await prisma.taskProcesses.create({
-            data: {
-              taskId,
-              organizationId,
-              index: messageIndex++,
-              result: parsed.result || '',
-              type: parsed.type,
-              step: parsed.step,
-            },
+          await prisma.taskProgresses.create({
+            data: { taskId, organizationId, index: messageIndex++, step, type: event_name, content },
           });
 
           // If complete message, update task status
-          if (parsed.type === 'complete') {
+          if (type === 'complete') {
             await prisma.tasks.update({
               where: { id: taskId },
               data: { status: 'completed' },

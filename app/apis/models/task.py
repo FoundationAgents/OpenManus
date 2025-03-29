@@ -9,10 +9,7 @@ class Task(BaseModel):
     id: str
     prompt: str
     created_at: datetime
-    status: str
-    progress: list = []
     agent: "Manus"
-    current_step: int = 0
 
     def model_dump(self, *args, **kwargs):
         data = super().model_dump(*args, **kwargs)

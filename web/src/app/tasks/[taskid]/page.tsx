@@ -9,9 +9,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getTask } from '@/actions/tasks';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tasks } from '@prisma/client';
-import { useTaskWebSocket } from '@/hooks/use-task-websocket';
+import { ChatPreview } from '@/components/features/chat/preview';
+import { useCurrentMessageIndex } from '../hooks';
 
 export default function ChatPage() {
   const params = useParams();
@@ -19,25 +19,26 @@ export default function ChatPage() {
   const taskId = params.taskid as string;
 
   const [task, setTask] = useState<Tasks | null>(null);
+  const [isNearBottom, setIsNearBottom] = useState(false);
+  const { currentMessageIndex, setCurrentMessageIndex } = useCurrentMessageIndex();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { wsStatus, screenshot } = useTaskWebSocket({ taskId, outId: task?.outId ?? undefined });
-
-  const scrollToBottom = () => {
-    if (messagesContainerRef.current && shouldAutoScroll) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
-  };
+  const shouldAutoScroll = isNearBottom && currentMessageIndex === messages.length - 1;
 
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
       const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
-      setShouldAutoScroll(isNearBottom);
+      setIsNearBottom(isNearBottom);
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current && shouldAutoScroll) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
 
@@ -56,10 +57,11 @@ export default function ChatPage() {
       }
       setTask(res.data);
       setMessages([
-        { role: 'user', content: res.data.prompt },
-        ...res.data.steps.map(step => ({ role: 'assistant' as const, type: step.type as Message['type'], content: step.result })),
+        { role: 'user', content: { prompt: res.data.prompt } },
+        ...res.data.progresses.map(step => ({ role: 'assistant' as const, type: step.type as Message['type'], content: step.content as object })),
       ]);
       if (shouldAutoScroll) {
+        setCurrentMessageIndex(messages.length - 1);
         requestAnimationFrame(scrollToBottom);
       }
       if (res.data!.status === 'failed' || res.data!.status === 'completed') {
@@ -148,31 +150,7 @@ export default function ChatPage() {
         </div>
       </div>
       <div className="min-w-[800px] flex-1 p-2 flex justify-center items-center">
-        <Card className="h-full w-full flex flex-col">
-          <CardHeader className="flex-none">
-            <CardTitle>Manus's Computer</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-hidden">
-            <Card className="h-full">
-              <CardContent className="h-full p-0">
-                <div className="w-full h-full overflow-y-auto">
-                  {screenshot ? (
-                    <img src={screenshot} alt="Manus's Computer Screen" className="w-full" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="animate-pulse">
-                        {wsStatus === 'connecting' && "Connecting to Manus's Computer..."}
-                        {wsStatus === 'connected' && 'Waiting for screenshot...'}
-                        {wsStatus === 'disconnected' && 'Disconnected, reconnecting...'}
-                        {wsStatus === 'error' && 'Error, reconnecting...'}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
+        <ChatPreview message={messages[currentMessageIndex]} />
       </div>
     </div>
   );

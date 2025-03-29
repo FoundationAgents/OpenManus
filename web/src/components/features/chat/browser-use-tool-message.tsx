@@ -1,43 +1,25 @@
 import { Badge } from '@/components/ui/badge';
-import { AggregatedMessage } from '@/types/chat';
 
-export const BrowserUseToolMessage = ({ message }: { message: AggregatedMessage }) => {
-  if (message.type !== 'tool') return null;
-
-  const argsMessage = message.messages.find(msg => msg.type === 'tool:arguments');
-
-  const { ...params } = JSON.parse(argsMessage?.content.match(/\{.*\}/)?.[0] || '{}');
-
-  const completedMessage = message.messages.find(msg => msg.type === 'tool:completed');
-  const result = completedMessage?.content;
+export const BrowserUseToolMessage = ({ args, completeContent }: { args: any; completeContent?: { result: string } }) => {
+  const result = completeContent?.result;
 
   if (!result) return null;
-  const commandMatch = result.match(/Tool '([^']+)' completed its mission! Result: Observed output of cmd `([^`]+)` executed/);
-  if (!commandMatch) return result;
 
-  const content = result.replace(commandMatch[0], '').trim();
-
-  const navigationMatch = content.match(/navigated to first result: ([^\s]+)/);
-
+  const navigationMatch = result.match(/navigated to first result: ([^\s]+)/);
   const urlPattern = /All results:([\s\S]*)/;
-  const allResults = content.match(urlPattern)
-    ? content
+  const allResults = result.match(urlPattern)
+    ? result
         .match(urlPattern)![1]
         .split('\n')
         .map(url => url.trim())
     : [];
-
-  // Extracted from page:
-  const extractedFromPageMatch = content.match(/Extracted from page:\n([\s\S]*)/);
-  console.log('Extracted from page:', extractedFromPageMatch);
+  const extractedFromPageMatch = result.match(/Extracted from page:\n([\s\S]*)/);
   const extractedFromPage = extractedFromPageMatch ? JSON.parse(extractedFromPageMatch[1]) : {};
-
-  console.log('Content:', content);
 
   return (
     <div className="space-y-2">
       <div className="flex flex-col flex-wrap gap-2 text-wrap">
-        {Object.entries(params).map(([key, value]) => (
+        {Object.entries(args).map(([key, value]) => (
           <div key={key} className="text-sm">
             <Badge variant="outline" className="font-medium cursor-pointer">
               {key}
