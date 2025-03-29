@@ -38,10 +38,7 @@ class BaseAgent(BaseModel, ABC):
     )
 
     # Execution control
-    max_steps: int = Field(
-        default=10,
-        description="Maximum steps before termination. Can be overridden by specific agents and in config.toml [agent] section.",
-    )
+    max_steps: int = Field(default=10, description="Maximum steps before termination")
     current_step: int = Field(default=0, description="Current step in execution")
 
     duplicate_threshold: int = 2

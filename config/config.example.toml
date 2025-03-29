@@ -47,6 +47,11 @@ temperature = 0.0                          # Controls randomness for vision mode
 # max_tokens = 4096
 # temperature = 0.0
 
+# Optional configuration, Agent settings.
+# [agent]
+# Maximum steps before the agent terminates (default: 20)
+#max_steps = 30
+
 # Optional configuration for specific browser configuration
 # [browser]
 # Whether to run browser in headless mode (default: false)
@@ -73,12 +78,6 @@ temperature = 0.0                          # Controls randomness for vision mode
 # [search]
 # Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo".
 #engine = "Google"
-
-# Optional configuration, Agent settings.
-# [agent]
-# Maximum steps before the agent terminates (default: 20)
-#max_steps = 30
-
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu"] - will try in this order after primary engine fails.
 #fallback_engines = ["DuckDuckGo", "Baidu"]
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.

@@ -57,12 +57,6 @@ class AgentSettings(BaseModel):
     )
 
 
-class AgentSettings(BaseModel):
-    max_steps: int = Field(
-        default=20, description="Maximum steps before the agent terminates"
-    )
-
-
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
