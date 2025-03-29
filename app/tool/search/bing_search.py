@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from app.logger import logger
 from app.tool.search.base import WebSearchEngine
 
+
 ABSTRACT_MAX_LENGTH = 300
 
 USER_AGENTS = [

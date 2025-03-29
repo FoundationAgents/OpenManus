@@ -25,7 +25,7 @@ class LLMSettings(BaseModel):
         description="Maximum input tokens to use across all requests (None for unlimited)",
     )
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="AzureOpenai or Openai")
+    api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
 
 
@@ -37,6 +37,18 @@ class ProxySettings(BaseModel):
 
 class SearchSettings(BaseModel):
     engine: str = Field(default="Google", description="Search engine the llm to use")
+    fallback_engines: List[str] = Field(
+        default_factory=lambda: ["DuckDuckGo", "Baidu"],
+        description="Fallback search engines to try if the primary engine fails",
+    )
+    retry_delay: int = Field(
+        default=60,
+        description="Seconds to wait before retrying all engines again after they all fail",
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of times to retry all engines when all fail",
+    )
 
 
 class BrowserSettings(BaseModel):
@@ -78,6 +90,14 @@ class SandboxSettings(BaseModel):
     )
 
 
+class MCPSettings(BaseModel):
+    """Configuration for MCP (Model Context Protocol)"""
+
+    server_reference: str = Field(
+        "app.mcp.server", description="Module reference for the MCP server"
+    )
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -89,6 +109,7 @@ class AppConfig(BaseModel):
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
     )
+    mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
 
     class Config:
         arbitrary_types_allowed = True
@@ -191,6 +212,13 @@ class Config:
         else:
             sandbox_settings = SandboxSettings()
 
+        mcp_config = raw_config.get("mcp", {})
+        mcp_settings = None
+        if mcp_config:
+            mcp_settings = MCPSettings(**mcp_config)
+        else:
+            mcp_settings = MCPSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -202,6 +230,7 @@ class Config:
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
+            "mcp_config": mcp_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -223,9 +252,19 @@ class Config:
         return self._config.search_config
 
     @property
+    def mcp_config(self) -> MCPSettings:
+        """Get the MCP configuration"""
+        return self._config.mcp_config
+
+    @property
     def workspace_root(self) -> Path:
         """Get the workspace root directory"""
         return WORKSPACE_ROOT
+
+    @property
+    def root_path(self) -> Path:
+        """Get the root path of the application"""
+        return PROJECT_ROOT
 
 
 config = Config()

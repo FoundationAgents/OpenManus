@@ -71,40 +71,42 @@ class ToolCallAgent(ReActAgent):
                 return False
             raise
 
-        self.tool_calls = response.tool_calls
+        self.tool_calls = tool_calls = (
+            response.tool_calls if response and response.tool_calls else []
+        )
+        content = response.content if response and response.content else ""
 
         # Log response info
-        logger.info(f"✨ {self.name}'s thoughts: {response.content}")
+        logger.info(f"✨ {self.name}'s thoughts: {content}")
         logger.info(
-            f"🛠️ {self.name} selected {len(response.tool_calls) if response.tool_calls else 0} tools to use"
+            f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
         )
-        if response.tool_calls:
+        if tool_calls:
             logger.info(
-                f"🧰 Tools being prepared: {[call.function.name for call in response.tool_calls]}"
+                f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
             )
-            logger.info(
-                f"🔧 Tool arguments: {response.tool_calls[0].function.arguments}"
-            )
+            logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
 
         try:
+            if response is None:
+                raise RuntimeError("No response received from the LLM")
+
             # Handle different tool_choices modes
             if self.tool_choices == ToolChoice.NONE:
-                if response.tool_calls:
+                if tool_calls:
                     logger.warning(
                         f"🤔 Hmm, {self.name} tried to use tools when they weren't available!"
                     )
-                if response.content:
-                    self.memory.add_message(Message.assistant_message(response.content))
+                if content:
+                    self.memory.add_message(Message.assistant_message(content))
                     return True
                 return False
 
             # Create and add assistant message
             assistant_msg = (
-                Message.from_tool_calls(
-                    content=response.content, tool_calls=self.tool_calls
-                )
+                Message.from_tool_calls(content=content, tool_calls=self.tool_calls)
                 if self.tool_calls
-                else Message.assistant_message(response.content)
+                else Message.assistant_message(content)
             )
             self.memory.add_message(assistant_msg)
 
@@ -113,7 +115,7 @@ class ToolCallAgent(ReActAgent):
 
             # For 'auto' mode, continue with content if no commands but content exists
             if self.tool_choices == ToolChoice.AUTO and not self.tool_calls:
-                return bool(response.content)
+                return bool(content)
 
             return bool(self.tool_calls)
         except Exception as e:
@@ -209,7 +211,7 @@ class ToolCallAgent(ReActAgent):
             return f"Error: {error_msg}"
         except Exception as e:
             error_msg = f"⚠️ Tool '{name}' encountered a problem: {str(e)}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return f"Error: {error_msg}"
 
     async def _handle_special_tool(self, name: str, result: Any, **kwargs):

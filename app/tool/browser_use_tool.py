@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 from typing import Generic, Optional, TypeVar
 
@@ -16,33 +17,34 @@ from app.tool.web_search import WebSearch
 
 
 _BROWSER_DESCRIPTION = """
-Interact with a web browser to perform various actions such as navigation, element interaction, content extraction, and tab management. This tool provides a comprehensive set of browser automation capabilities:
+Interact with a web browser for navigation, element interaction, content extraction, and tab management using these tools:
 
 Navigation:
-- 'go_to_url': Go to a specific URL in the current tab
-- 'go_back': Go back
-- 'refresh': Refresh the current page
-- 'web_search': Search the query in the current tab, the query should be a search query like humans search in web, concrete and not vague or super long. More the single most important items.
 
+- 'go_to_url': Visit a specific URL
+- 'go_back': Navigate back
+- 'refresh': Reload the page
+- 'web_search': Search a concise query in the current tab
 Element Interaction:
+
 - 'click_element': Click an element by index
-- 'input_text': Input text into a form element
-- 'scroll_down'/'scroll_up': Scroll the page (with optional pixel amount)
-- 'scroll_to_text': If you dont find something which you want to interact with, scroll to it
-- 'send_keys': Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.
-- 'get_dropdown_options': Get all options from a dropdown
-- 'select_dropdown_option': Select dropdown option for interactive element index by the text of the option you want to select
-
+- 'input_text': Enter text into a form
+- 'scroll_down'/'scroll_up': Scroll page (optional pixels)
+- 'scroll_to_text': Scroll to specific text
+- 'send_keys': Send special keys (e.g., Enter, Control+O)
+- 'get_dropdown_options': List dropdown options
+- 'select_dropdown_option': Select a dropdown option by text
 Content Extraction:
-- 'extract_content': Extract page content to retrieve specific information from the page, e.g. all company names, a specifc description, all information about, links with companies in structured format or simply links
 
+- 'extract_content': Retrieve specific page info (e.g., company names, links)
 Tab Management:
-- 'switch_tab': Switch to a specific tab
-- 'open_tab': Open a new tab with a URL
-- 'close_tab': Close the current tab
 
+- 'switch_tab': Switch to a tab
+- 'open_tab': Open a new tab with URL
+- 'close_tab': Close current tab
 Utility:
-- 'wait': Wait for a specified number of seconds
+
+- 'wait': Pause for specified seconds
 """
 
 Context = TypeVar("Context")
@@ -418,17 +420,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                         # Create prompt for LLM
                         prompt_text = """
-Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page.
-
-Examples of extraction goals:
-- Extract all company names
-- Extract specific descriptions
-- Extract all information about a topic
-- Extract links with companies in structured format
-- Extract all links
-
-If the goal is vague, summarize the page. Respond in JSON format.
-
+Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
 Extraction goal: {goal}
 
 Page content:
@@ -445,10 +437,70 @@ Page content:
 
                         messages = [Message.user_message(formatted_prompt)]
 
-                        # Use LLM to extract content based on the goal
-                        response = await self.llm.ask(messages)
+                        # Define extraction function for the tool
+                        extraction_function = {
+                            "type": "function",
+                            "function": {
+                                "name": "extract_content",
+                                "description": "Extract specific information from a webpage based on a goal",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "extracted_content": {
+                                            "type": "object",
+                                            "description": "The content extracted from the page according to the goal",
+                                            "properties": {
+                                                "text": {
+                                                    "type": "string",
+                                                    "description": "Text content extracted from the page",
+                                                },
+                                                "metadata": {
+                                                    "type": "object",
+                                                    "description": "Additional metadata about the extracted content",
+                                                    "properties": {
+                                                        "source": {
+                                                            "type": "string",
+                                                            "description": "Source of the extracted content",
+                                                        }
+                                                    },
+                                                },
+                                            },
+                                        }
+                                    },
+                                    "required": ["extracted_content"],
+                                },
+                            },
+                        }
 
-                        msg = f"Extracted from page:\n{response}\n"
+                        # Use LLM to extract content with required function calling
+                        response = await self.llm.ask_tool(
+                            messages,
+                            tools=[extraction_function],
+                            tool_choice="required",
+                        )
+
+                        # Extract content from function call response
+                        if (
+                            response
+                            and response.tool_calls
+                            and len(response.tool_calls) > 0
+                        ):
+                            # Get the first tool call arguments
+                            tool_call = response.tool_calls[0]
+                            # Parse the JSON arguments
+                            try:
+                                args = json.loads(tool_call.function.arguments)
+                                extracted_content = args.get("extracted_content", {})
+                                # Format extracted content as JSON string
+                                content_json = json.dumps(
+                                    extracted_content, indent=2, ensure_ascii=False
+                                )
+                                msg = f"Extracted from page:\n{content_json}\n"
+                            except Exception as e:
+                                msg = f"Error parsing extraction result: {str(e)}\nRaw response: {tool_call.function.arguments}"
+                        else:
+                            msg = "No content was extracted from the page."
+
                         return ToolResult(output=msg)
                     except Exception as e:
                         # Provide a more helpful error message
@@ -518,7 +570,16 @@ Page content:
                 viewport_height = ctx.config.browser_window_size.get("height", 0)
 
             # Take a screenshot for the state
-            screenshot = await ctx.take_screenshot(full_page=True)
+            page = await ctx.get_current_page()
+
+            await page.bring_to_front()
+            await page.wait_for_load_state()
+
+            screenshot = await page.screenshot(
+                full_page=True, animations="disabled", type="jpeg", quality=100
+            )
+
+            screenshot = base64.b64encode(screenshot).decode("utf-8")
 
             # Build the state info with all required fields
             state_info = {

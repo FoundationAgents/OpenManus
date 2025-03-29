@@ -1,0 +1,21 @@
+name: "🤔 Request new features"
+description: Suggest ideas or features you’d like to see implemented in OpenManus.
+labels: enhancement
+body:
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature description
+      description: |
+        Provide a clear and concise description of the proposed feature
+    validations:
+      required: true
+  - type: textarea
+    id: your-feature
+    attributes:
+      label: Your Feature
+      description: |
+        Explain your idea or implementation process, if any. Optionally, include a Pull Request URL.
+        Ensure accompanying docs/tests/examples are provided for review.
+    validations:
+      required: false

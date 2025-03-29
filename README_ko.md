@@ -8,6 +8,7 @@
 &ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
 [![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
+[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
 
 # 👋 OpenManus
 
@@ -81,6 +82,11 @@ source .venv/bin/activate  # Unix/macOS의 경우
 uv pip install -r requirements.txt
 ```
 
+### 브라우저 자동화 도구 (선택사항)
+```bash
+playwright install
+```
+
 ## 설정 방법
 
 OpenManus를 사용하려면 사용하는 LLM API에 대한 설정이 필요합니다. 아래 단계를 따라 설정을 완료하세요:
@@ -119,7 +125,12 @@ python main.py
 
 이후 터미널에서 아이디어를 작성하세요!
 
-unstable 버전을 실행하려면 아래 명령어를 사용할 수도 있습니다:
+MCP 도구 버전을 사용하려면 다음을 실행하세요:
+```bash
+python run_mcp.py
+```
+
+불안정한 멀티 에이전트 버전을 실행하려면 다음을 실행할 수 있습니다:
 
 ```bash
 python run_flow.py
@@ -150,6 +161,8 @@ Feishu 네트워킹 그룹에 참여하여 다른 개발자들과 경험을 공�
 [browser-use](https://github.com/browser-use/browser-use)에게 감사드립니다!
 
 또한, [AAAJ](https://github.com/metauto-ai/agent-as-a-judge), [MetaGPT](https://github.com/geekan/MetaGPT), [OpenHands](https://github.com/All-Hands-AI/OpenHands), [SWE-agent](https://github.com/SWE-agent/SWE-agent)에 깊은 감사를 드립니다.
+
+또한 Hugging Face 데모 공간을 지원해 주신 阶跃星辰 (stepfun)에게 감사드립니다.
 
 OpenManus는 MetaGPT 기여자들에 의해 개발되었습니다. 이 에이전트 커뮤니티에 깊은 감사를 전합니다!
 

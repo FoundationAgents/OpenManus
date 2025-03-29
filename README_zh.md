@@ -8,6 +8,7 @@
 &ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
 [![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
+[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
 
 # 👋 OpenManus
 
@@ -82,6 +83,11 @@ source .venv/bin/activate  # Unix/macOS 系统
 uv pip install -r requirements.txt
 ```
 
+### 浏览器自动化工具（可选）
+```bash
+playwright install
+```
+
 ## 配置说明
 
 OpenManus 需要配置使用的 LLM API，请按以下步骤设置：
@@ -120,7 +126,12 @@ python main.py
 
 然后通过终端输入你的创意！
 
-如需体验不稳定的开发版本，可运行：
+如需使用 MCP 工具版本，可运行：
+```bash
+python run_mcp.py
+```
+
+如需体验不稳定的多智能体版本，可运行：
 
 ```bash
 python run_flow.py
@@ -152,6 +163,8 @@ python run_flow.py
 和 [browser-use](https://github.com/browser-use/browser-use) 为本项目提供的基础支持！
 
 此外，我们感谢 [AAAJ](https://github.com/metauto-ai/agent-as-a-judge)，[MetaGPT](https://github.com/geekan/MetaGPT)，[OpenHands](https://github.com/All-Hands-AI/OpenHands) 和 [SWE-agent](https://github.com/SWE-agent/SWE-agent).
+
+我们也感谢阶跃星辰 (stepfun) 提供的 Hugging Face 演示空间支持。
 
 OpenManus 由 MetaGPT 社区的贡献者共同构建，感谢这个充满活力的智能体开发者社区！
 
