@@ -114,7 +114,7 @@ export default function ConfigDialog() {
   return (
     <Dialog open={open} onOpenChange={open => (open ? show() : hide())}>
       <DialogContent className="w-auto pb-1 pl-1" style={{ maxWidth: '100%' }}>
-        <div className="flex min-h-[500px] w-[800px] gap-4">
+        <div className="flex min-h-[500px] w-[800px] gap-4 pl-4">
           {/* Sidebar */}
           <div className="flex w-[200px] flex-col gap-2">
             <div
