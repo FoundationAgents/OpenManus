@@ -4,6 +4,7 @@ from typing import Any, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 
+
 class Role(str, Enum):
     """Message role options"""
 
@@ -50,6 +51,32 @@ class ToolCall(BaseModel):
     type: str = "function"
     function: Function
 
+def merge_tool_calls(tool_calls: list[ToolCall]) -> list[ToolCall]:
+    """
+    Merge ToolCalls with the same id and concatenate arguments
+    """
+    merged = dict()
+
+    for tool_call in tool_calls:
+
+        if not tool_call:
+            continue
+
+        tool_id = tool_call.id
+        func = tool_call.function
+
+        if not merged.get(tool_id,None):
+            merged[tool_id]=tool_call
+        else:
+            name=func.name
+            arguments=func.arguments
+            if name :
+                if name !=merged[tool_id].function.name:
+                    merged[tool_id].function.name+=name
+            if arguments:
+                merged[tool_id].function.arguments+=arguments
+
+    return [ item for item in merged.values()]
 
 class Message(BaseModel):
     """Represents a chat message in the conversation"""

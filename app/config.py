@@ -27,7 +27,7 @@ class LLMSettings(BaseModel):
     temperature: float = Field(1.0, description="Sampling temperature")
     api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
-
+    stream: bool = Field(..., description="Streaming output calls")
 
 class ProxySettings(BaseModel):
     server: str = Field(None, description="Proxy server address")
@@ -175,6 +175,7 @@ class Config:
             "temperature": base_llm.get("temperature", 1.0),
             "api_type": base_llm.get("api_type", ""),
             "api_version": base_llm.get("api_version", ""),
+            "stream": base_llm.get("stream",False)
         }
 
         # handle browser config.

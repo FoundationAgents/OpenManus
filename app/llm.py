@@ -28,6 +28,7 @@ from app.schema import (
     TOOL_CHOICE_VALUES,
     Message,
     ToolChoice,
+    merge_tool_calls,
 )
 
 
@@ -203,7 +204,6 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
-
             # Add token counting related attributes
             self.total_input_tokens = 0
             self.total_completion_tokens = 0
@@ -212,7 +212,7 @@ class LLM:
                 if hasattr(llm_config, "max_input_tokens")
                 else None
             )
-
+            self.stream = llm_config.stream
             # Initialize tokenizer
             try:
                 self.tokenizer = tiktoken.encoding_for_model(self.model)
@@ -735,22 +735,48 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
-            response: ChatCompletion = await self.client.chat.completions.create(
-                **params, stream=False
-            )
+            if self.stream:
+                params["stream"]=self.stream
 
-            # Check if response is valid
-            if not response.choices or not response.choices[0].message:
-                print(response)
-                # raise ValueError("Invalid or empty response from LLM")
-                return None
+            response = await self.client.chat.completions.create(**params)
 
-            # Update token counts
-            self.update_token_count(
-                response.usage.prompt_tokens, response.usage.completion_tokens
-            )
+            if not self.stream:
+                # Check if response is valid
+                if not response.choices or not response.choices[0].message:
+                    print(response)
+                    # raise ValueError("Invalid or empty response from LLM")
+                    return None
 
-            return response.choices[0].message
+                # Update token counts
+                self.update_token_count(
+                    response.usage.prompt_tokens, response.usage.completion_tokens
+                )
+
+                return response.choices[0].message
+
+            else:
+                tool_calls_content=''
+                tool_call_list=list()
+                async for chunk in response:
+
+                    # Safely retrieve the delta object
+                    choices = chunk.choices
+                    if not choices or len(choices) == 0:
+                        continue  # Skip invalid chunk
+
+                    delta=choices[0].delta
+                    if not delta:
+                        continue  # Skip chunk with no delta
+
+                    content=delta.content
+                    tool_calls=delta.tool_calls
+                    #check if content is None
+                    if content :
+                        tool_calls_content+=content
+                    if tool_calls:
+                        tool_call_list.extend(tool_calls)
+
+                return Message.from_tool_calls(tool_calls=merge_tool_calls(tool_call_list),content=tool_calls_content)
 
         except TokenLimitExceeded:
             # Re-raise token limit errors without logging
