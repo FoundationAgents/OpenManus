@@ -123,7 +123,7 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
 
         try {
           const parsed = JSON.parse(line.slice(6));
-          const { type, event_name, step, content } = parsed;
+          const { event_name, step, content } = parsed;
 
           // Write message to database
           await prisma.taskProgresses.create({
@@ -131,7 +131,7 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
           });
 
           // If complete message, update task status
-          if (type === 'complete') {
+          if (event_name === 'agent:lifecycle:complete') {
             await prisma.tasks.update({
               where: { id: taskId },
               data: { status: 'completed' },

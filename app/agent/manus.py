@@ -56,11 +56,12 @@ class Manus(BrowserAgent):
                 f"Task ID: `{self.task_id}`\n"
                 f"Task Directory: `{task_dir}`\n\n"
                 f"Important Instructions:\n"
-                f"1. For any file operations, always work within the task directory: `{task_dir}`\n"
-                f"2. If the task directory doesn't exist, create it before performing file operations\n"
-                f"3. Keep all task-related files organized within this directory\n"
-                f"4. Use relative paths within the task directory when possible\n"
-                f"5. You should ask the answer with language {self.language or 'English'} if user doesn't specify\n"
+                f"1. For any file operations, such as file creation, reading, writing, always work within the task directory: `{task_dir}`\n"
+                f"2. For any tools or scripts that you use, if they need to create files, always work within the task directory: `{task_dir}`\n"
+                f"3. If the task directory doesn't exist, create it before performing file operations\n"
+                f"4. Keep all task-related files organized within this directory\n"
+                f"5. Use relative paths within the task directory when possible\n"
+                f"6. You should ask the answer with language {self.language or 'English'} if user doesn't specify\n"
             )
         )
         return self

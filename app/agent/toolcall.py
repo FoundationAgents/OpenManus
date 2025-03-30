@@ -1,7 +1,7 @@
 import json
 from typing import Any, List, Optional, Union
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from app.agent.base import BaseAgent
 from app.agent.react import ReActAgent
@@ -218,7 +218,14 @@ class ToolCallAgent(ReActAgent):
             result = await self.available_tools.execute(name=name, tool_input=args)
             self.emit(
                 self.Events.TOOL_EXECUTE_COMPLETE,
-                {"name": name, "result": str(result)},
+                {
+                    "name": name,
+                    "result": (
+                        result.model_dump()
+                        if isinstance(result, BaseModel)
+                        else str(result)
+                    ),
+                },
             )
             # Handle special tools
             await self._handle_special_tool(name=name, result=result)

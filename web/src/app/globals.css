@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'github-markdown-css/github-markdown.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -121,104 +122,11 @@
   }
 }
 
-.markdown-content {
-  @apply max-w-full;
+.markdown-body {
+  @apply overflow-x-auto;
+}
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    @apply text-foreground mt-2 font-bold;
-  }
-
-  h1 {
-    @apply from-primary to-primary/80 mb-4 bg-gradient-to-r bg-clip-text text-4xl text-transparent;
-  }
-
-  h2 {
-    @apply border-border mb-3 border-b pb-1 text-2xl;
-  }
-
-  h3 {
-    @apply mb-2 text-xl;
-  }
-
-  h4 {
-    @apply mb-2 text-lg;
-  }
-
-  p,
-  ul,
-  ol,
-  blockquote,
-  pre,
-  hr {
-    @apply my-3;
-  }
-
-  p,
-  li {
-    @apply text-foreground/90 leading-normal;
-  }
-
-  strong {
-    @apply text-foreground font-semibold;
-  }
-
-  em {
-    @apply italic;
-  }
-
-  ul {
-    @apply text-foreground/90 list-inside list-disc space-y-1;
-  }
-
-  ol {
-    @apply text-foreground/90 list-inside list-decimal space-y-1;
-  }
-
-  blockquote {
-    @apply border-primary/20 bg-muted/50 text-muted-foreground border-l-4 py-1 pl-3 italic;
-  }
-
-  code {
-    @apply bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm;
-  }
-
-  pre {
-    @apply bg-muted rounded-md p-3;
-
-    code {
-      @apply text-muted-foreground bg-transparent p-0 text-sm leading-normal break-all whitespace-pre-wrap;
-    }
-  }
-
-  hr {
-    @apply border-border border-t;
-  }
-
-  a {
-    @apply text-primary hover:text-primary/80 underline transition-colors;
-  }
-
-  img {
-    @apply border-border my-3 max-w-full rounded-md border;
-  }
-
-  table {
-    @apply my-3 w-full border-collapse;
-
-    th,
-    td {
-      @apply border-border border px-4 py-2;
-    }
-
-    th {
-      @apply bg-muted text-muted-foreground text-left font-semibold;
-    }
-
-    td {
-      @apply text-foreground/90;
-    }
-  }
+.markdown-body.chat {
+  @apply bg-muted;
+  font-size: 0.875rem;
 }
