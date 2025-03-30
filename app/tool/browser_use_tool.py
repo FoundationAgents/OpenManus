@@ -279,8 +279,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     await page.goto(url_to_navigate)
                     await page.wait_for_load_state()
 
-                    # Use the to_tool_result method to get consistent formatting
-                    return search_response.to_tool_result()
+                    return search_response
 
                 # Element interaction actions
                 elif action == "click_element":
@@ -392,115 +391,71 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="Goal is required for 'extract_content' action"
                         )
+
                     page = await context.get_current_page()
-                    try:
-                        # Get page content and convert to markdown for better processing
-                        html_content = await page.content()
+                    import markdownify
 
-                        # Import markdownify here to avoid global import
-                        try:
-                            import markdownify
+                    content = markdownify.markdownify(await page.content())
 
-                            content = markdownify.markdownify(html_content)
-                        except ImportError:
-                            # Fallback if markdownify is not available
-                            content = html_content
-
-                        # Create prompt for LLM
-                        prompt_text = """
+                    prompt = f"""\
 Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
 Extraction goal: {goal}
 
 Page content:
-{page}
+{content[:max_content_length]}
 """
-                        # Format the prompt with the goal and content
-                        max_content_length = min(50000, len(content))
-                        formatted_prompt = prompt_text.format(
-                            goal=goal, page=content[:max_content_length]
-                        )
+                    messages = [{"role": "system", "content": prompt}]
 
-                        # Create a proper message list for the LLM
-                        from app.schema import Message
-
-                        messages = [Message.user_message(formatted_prompt)]
-
-                        # Define extraction function for the tool
-                        extraction_function = {
-                            "type": "function",
-                            "function": {
-                                "name": "extract_content",
-                                "description": "Extract specific information from a webpage based on a goal",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "extracted_content": {
-                                            "type": "object",
-                                            "description": "The content extracted from the page according to the goal",
-                                            "properties": {
-                                                "text": {
-                                                    "type": "string",
-                                                    "description": "Text content extracted from the page",
-                                                },
-                                                "metadata": {
-                                                    "type": "object",
-                                                    "description": "Additional metadata about the extracted content",
-                                                    "properties": {
-                                                        "source": {
-                                                            "type": "string",
-                                                            "description": "Source of the extracted content",
-                                                        }
-                                                    },
+                    # Define extraction function schema
+                    extraction_function = {
+                        "type": "function",
+                        "function": {
+                            "name": "extract_content",
+                            "description": "Extract specific information from a webpage based on a goal",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "extracted_content": {
+                                        "type": "object",
+                                        "description": "The content extracted from the page according to the goal",
+                                        "properties": {
+                                            "text": {
+                                                "type": "string",
+                                                "description": "Text content extracted from the page",
+                                            },
+                                            "metadata": {
+                                                "type": "object",
+                                                "description": "Additional metadata about the extracted content",
+                                                "properties": {
+                                                    "source": {
+                                                        "type": "string",
+                                                        "description": "Source of the extracted content",
+                                                    }
                                                 },
                                             },
-                                        }
-                                    },
-                                    "required": ["extracted_content"],
+                                        },
+                                    }
                                 },
+                                "required": ["extracted_content"],
                             },
-                        }
+                        },
+                    }
 
-                        # Use LLM to extract content with required function calling
-                        response = await self.llm.ask_tool(
-                            messages,
-                            tools=[extraction_function],
-                            tool_choice="required",
+                    # Use LLM to extract content with required function calling
+                    response = await self.llm.ask_tool(
+                        messages,
+                        tools=[extraction_function],
+                        tool_choice="required",
+                    )
+
+                    if response and response.tool_calls:
+                        args = json.loads(response.tool_calls[0].function.arguments)
+                        extracted_content = args.get("extracted_content", {})
+                        return ToolResult(
+                            output=f"Extracted from page:\n{extracted_content}\n"
                         )
 
-                        # Extract content from function call response
-                        if (
-                            response
-                            and response.tool_calls
-                            and len(response.tool_calls) > 0
-                        ):
-                            # Get the first tool call arguments
-                            tool_call = response.tool_calls[0]
-                            # Parse the JSON arguments
-                            try:
-                                args = json.loads(tool_call.function.arguments)
-                                extracted_content = args.get("extracted_content", {})
-                                # Format extracted content as JSON string
-                                content_json = json.dumps(
-                                    extracted_content, indent=2, ensure_ascii=False
-                                )
-                                msg = f"Extracted from page:\n{content_json}\n"
-                            except Exception as e:
-                                msg = f"Error parsing extraction result: {str(e)}\nRaw response: {tool_call.function.arguments}"
-                        else:
-                            msg = "No content was extracted from the page."
-
-                        return ToolResult(output=msg)
-                    except Exception as e:
-                        # Provide a more helpful error message
-                        error_msg = f"Failed to extract content: {str(e)}"
-                        try:
-                            # Try to return a portion of the page content as fallback
-                            return ToolResult(
-                                output=f"{error_msg}\nHere's a portion of the page content:\n{content[:2000]}..."
-                            )
-                        except:
-                            # If all else fails, just return the error
-                            return ToolResult(error=error_msg)
+                    return ToolResult(output="No content was extracted from the page.")
 
                 # Tab management actions
                 elif action == "switch_tab":
