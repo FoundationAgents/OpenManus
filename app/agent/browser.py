@@ -22,6 +22,7 @@ class BrowserAgent(ToolCallAgent):
         # Browser events
         BROWSER_BROWSER_USE_START = "agent:browser:browse:start"
         BROWSER_BROWSER_USE_COMPLETE = "agent:browser:browse:complete"
+        BROWSER_BROWSER_USE_ERROR = "agent:browser:browse:error"
 
     name: str = "browser"
     description: str = "A browser agent that can control a browser to accomplish tasks"
@@ -127,26 +128,32 @@ class BrowserAgent(ToolCallAgent):
             results_placeholder=results_info,
         )
 
-        self.emit(
-            self.Events.BROWSER_BROWSER_USE_COMPLETE,
-            {
-                "url": (
-                    browser_state.get("url", "N/A")
-                    if browser_state and not browser_state.get("error")
-                    else "N/A"
-                ),
-                "title": (
-                    browser_state.get("title", "N/A")
-                    if browser_state and not browser_state.get("error")
-                    else "N/A"
-                ),
-                "tabs": tabs_info,
-                "content_above": content_above_info,
-                "content_below": content_below_info,
-                "screenshot": self._current_base64_image,
-                "results": results_info,
-            },
-        )
+        if browser_state and not browser_state.get("error"):
+            self.emit(
+                self.Events.BROWSER_BROWSER_USE_COMPLETE,
+                {
+                    "url": (
+                        browser_state.get("url", "N/A")
+                        if browser_state and not browser_state.get("error")
+                        else "N/A"
+                    ),
+                    "title": (
+                        browser_state.get("title", "N/A")
+                        if browser_state and not browser_state.get("error")
+                        else "N/A"
+                    ),
+                    "tabs": tabs_info,
+                    "content_above": content_above_info,
+                    "content_below": content_below_info,
+                    "screenshot": self._current_base64_image,
+                    "results": results_info,
+                },
+            )
+        else:
+            self.emit(
+                self.Events.BROWSER_BROWSER_USE_ERROR,
+                {"error": browser_state.get("error", "Unknown error")},
+            )
 
         # Call parent implementation
         result = await super().think()
