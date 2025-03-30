@@ -267,32 +267,20 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="Query is required for 'web_search' action"
                         )
-                    search_results = await self.web_search_tool.execute(query)
+                    # Execute the web search and return results directly without browser navigation
+                    search_response = await self.web_search_tool.execute(
+                        query=query, fetch_content=True, num_results=1
+                    )
+                    # Navigate to the first search result
+                    first_search_result = search_response.results[0]
+                    url_to_navigate = first_search_result.url
 
-                    if search_results:
-                        # Navigate to the first search result
-                        first_result = search_results[0]
-                        if isinstance(first_result, dict) and "url" in first_result:
-                            url_to_navigate = first_result["url"]
-                        elif isinstance(first_result, str):
-                            url_to_navigate = first_result
-                        else:
-                            return ToolResult(
-                                error=f"Invalid search result format: {first_result}"
-                            )
+                    page = await context.get_current_page()
+                    await page.goto(url_to_navigate)
+                    await page.wait_for_load_state()
 
-                        page = await context.get_current_page()
-                        await page.goto(url_to_navigate)
-                        await page.wait_for_load_state()
-
-                        return ToolResult(
-                            output=f"Searched for '{query}' and navigated to first result: {url_to_navigate}\nAll results:"
-                            + "\n".join([str(r) for r in search_results])
-                        )
-                    else:
-                        return ToolResult(
-                            error=f"No search results found for '{query}'"
-                        )
+                    # Use the to_tool_result method to get consistent formatting
+                    return search_response.to_tool_result()
 
                 # Element interaction actions
                 elif action == "click_element":

@@ -33,3 +33,9 @@ httpx>=0.27.0
 tomli>=2.0.0
 
 boto3~=1.37.18
+
+requests~=2.32.3
+beautifulsoup4~=4.13.3
+
+huggingface-hub~=0.29.2
+setuptools~=75.8.0

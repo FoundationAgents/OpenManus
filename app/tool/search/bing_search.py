@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional, Tuple
 
 import requests
 from bs4 import BeautifulSoup
 
 from app.logger import logger
-from app.tool.search.base import WebSearchEngine
+from app.tool.search.base import SearchItem, WebSearchEngine
 
 
 ABSTRACT_MAX_LENGTH = 300
@@ -36,7 +36,7 @@ BING_SEARCH_URL = "https://www.bing.com/search?q="
 
 
 class BingSearchEngine(WebSearchEngine):
-    session: requests.Session = None
+    session: Optional[requests.Session] = None
 
     def __init__(self, **data):
         """Initialize the BingSearch tool with a requests session."""
@@ -44,21 +44,16 @@ class BingSearchEngine(WebSearchEngine):
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
 
-    def _search_sync(self, query: str, num_results: int = 10) -> List[str]:
+    def _search_sync(self, query: str, num_results: int = 10) -> List[SearchItem]:
         """
-        Synchronous Bing search implementation to retrieve a list of URLs matching a query.
+        Synchronous Bing search implementation to retrieve search results.
 
         Args:
-            query (str): The search query to submit to Bing. Must not be empty.
-            num_results (int, optional): The maximum number of URLs to return. Defaults to 10.
+            query (str): The search query to submit to Bing.
+            num_results (int, optional): Maximum number of results to return. Defaults to 10.
 
         Returns:
-            List[str]: A list of URLs from the search results, capped at `num_results`.
-                       Returns an empty list if the query is empty or no results are found.
-
-        Notes:
-            - Pagination is handled by incrementing the `first` parameter and following `next_url` links.
-            - If fewer results than `num_results` are available, all found URLs are returned.
+            List[SearchItem]: A list of search items with title, URL, and description.
         """
         if not query:
             return []
@@ -72,25 +67,21 @@ class BingSearchEngine(WebSearchEngine):
                 next_url, rank_start=len(list_result), first=first
             )
             if data:
-                list_result.extend([item["url"] for item in data])
+                list_result.extend(data)
             if not next_url:
                 break
             first += 10
 
         return list_result[:num_results]
 
-    def _parse_html(self, url: str, rank_start: int = 0, first: int = 1) -> tuple:
+    def _parse_html(
+        self, url: str, rank_start: int = 0, first: int = 1
+    ) -> Tuple[List[SearchItem], str]:
         """
-        Parse Bing search result HTML synchronously to extract search results and the next page URL.
+        Parse Bing search result HTML to extract search results and the next page URL.
 
-        Args:
-            url (str): The URL of the Bing search results page to parse.
-            rank_start (int, optional): The starting rank for numbering the search results. Defaults to 0.
-            first (int, optional): Unused parameter (possibly legacy). Defaults to 1.
         Returns:
-            tuple: A tuple containing:
-                - list: A list of dictionaries with keys 'title', 'abstract', 'url', and 'rank' for each result.
-                - str or None: The URL of the next results page, or None if there is no next page.
+            tuple: (List of SearchItem objects, next page URL or None)
         """
         try:
             res = self.session.get(url=url)
@@ -120,13 +111,14 @@ class BingSearchEngine(WebSearchEngine):
                         abstract = abstract[:ABSTRACT_MAX_LENGTH]
 
                     rank_start += 1
+
+                    # Create a SearchItem object
                     list_data.append(
-                        {
-                            "title": title,
-                            "abstract": abstract,
-                            "url": url,
-                            "rank": rank_start,
-                        }
+                        SearchItem(
+                            title=title or f"Bing Result {rank_start}",
+                            url=url,
+                            description=abstract,
+                        )
                     )
                 except Exception:
                     continue
@@ -141,6 +133,12 @@ class BingSearchEngine(WebSearchEngine):
             logger.warning(f"Error parsing HTML: {e}")
             return [], None
 
-    def perform_search(self, query, num_results=10, *args, **kwargs):
-        """Bing search engine."""
+    def perform_search(
+        self, query: str, num_results: int = 10, *args, **kwargs
+    ) -> List[SearchItem]:
+        """
+        Bing search engine.
+
+        Returns results formatted according to SearchItem model.
+        """
         return self._search_sync(query, num_results=num_results)

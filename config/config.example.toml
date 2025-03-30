@@ -17,7 +17,7 @@ temperature = 0.0                          # Controls randomness
 # [llm] #AZURE OPENAI:
 # api_type= 'azure'
 # model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
-# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPOLYMENT_ID}"
+# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT_ID}"
 # api_key = "AZURE API KEY"
 # max_tokens = 8096
 # temperature = 0.0
@@ -71,14 +71,18 @@ temperature = 0.0                          # Controls randomness for vision mode
 
 # Optional configuration, Search settings.
 # [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo".
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
 #engine = "Google"
-# Fallback engine order. Default is ["DuckDuckGo", "Baidu"] - will try in this order after primary engine fails.
-#fallback_engines = ["DuckDuckGo", "Baidu"]
+# Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
+#fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
 #retry_delay = 60
 # Maximum number of times to retry all engines when all fail. Default is 3.
 #max_retries = 3
+# Language code for search results. Options: "en" (English), "zh" (Chinese), etc.
+#lang = "en"
+# Country code for search results. Options: "us" (United States), "cn" (China), etc.
+#country = "us"
 
 
 ## Sandbox configuration

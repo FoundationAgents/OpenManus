@@ -1,0 +1,44 @@
+# Global LLM configuration
+[llm] #OLLAMA:
+api_type = 'ollama'
+model = "llama3.2"                                                 # The LLM model to use
+base_url = "http://localhost:11434/v1"                             # API endpoint URL
+api_key = "ollama"                                                 # Your API key
+max_tokens = 4096                                                  # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+# [llm.vision] #OLLAMA VISION:
+# api_type = 'ollama'
+# model = "llama3.2-vision"                                          # The vision model to use
+# base_url = "http://localhost:11434/v1"                             # API endpoint URL for vision model
+# api_key = "ollama"                                                 # Your API key for vision model
+# max_tokens = 4096                                                  # Maximum number of tokens in the response
+# temperature = 0.0                                                  # Controls randomness for vision model
+
+# Optional configuration for specific browser configuration
+# [browser]
+# Whether to run browser in headless mode (default: false)
+#headless = false
+# Disable browser security features (default: true)
+#disable_security = true
+# Extra arguments to pass to the browser
+#extra_chromium_args = []
+# Path to a Chrome instance to use to connect to your normal browser
+# e.g. '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+#chrome_instance_path = ""
+# Connect to a browser instance via WebSocket
+#wss_url = ""
+# Connect to a browser instance via CDP
+#cdp_url = ""
+
+# Optional configuration, Proxy settings for the browser
+# [browser.proxy]
+# server = "http://proxy-server:port"
+# username = "proxy-username"
+# password = "proxy-password"
+
+# Optional configuration, Search settings.
+# [search]
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo".
+#engine = "Google"
