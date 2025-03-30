@@ -193,7 +193,7 @@ export default function ConfigLlm(props: { onSuccess?: (success: boolean) => voi
                 <Label htmlFor="maxTokens">Max Tokens</Label>
                 <div className="flex items-center space-x-4">
                   <div className="flex-1">
-                    <Slider min={1} max={32000} step={1} value={[field.value]} onValueChange={([value]) => field.onChange(value)} />
+                    <Slider min={1} max={8192} step={1} value={[field.value]} onValueChange={([value]) => field.onChange(value)} />
                   </div>
                   <div className="w-20">
                     <Input

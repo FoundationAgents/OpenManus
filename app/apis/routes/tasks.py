@@ -116,7 +116,9 @@ async def create_task(
         Manus(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
-            llm=(LLM(llm_config=llm_config) if llm_config else None),
+            llm=(
+                LLM(config_name=task_id, llm_config=llm_config) if llm_config else None
+            ),
             enable_event_queue=True,  # Enable event queue
         ),
     )

@@ -35,11 +35,7 @@ class Manus(BrowserAgent):
     max_steps: int = 20
 
     # Add general-purpose tools to the tool collection
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(
-            PythonExecute(), BrowserUseTool(), StrReplaceEditor(), Terminate()
-        )
-    )
+    available_tools: ToolCollection = Field(default_factory=lambda: ToolCollection())
 
     task_id: Optional[str] = Field(None, description="Task ID for the agent")
     language: Optional[str] = Field(None, description="Language for the agent")
@@ -48,6 +44,14 @@ class Manus(BrowserAgent):
         self.task_id = task_id
         self.language = language
         task_dir = f"{config.workspace_root}/{task_id}"
+
+        self.available_tools.add_tools(
+            PythonExecute(),
+            BrowserUseTool(llm=self.llm),
+            StrReplaceEditor(),
+            Terminate(),
+        )
+
         if not os.path.exists(task_dir):
             os.makedirs(task_dir)
         self.memory.add_message(

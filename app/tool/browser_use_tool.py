@@ -15,6 +15,8 @@ from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
+BROWSER_USE_TOOL_NAME = "browser_use"
+
 _BROWSER_DESCRIPTION = """
 Interact with a web browser to perform various actions such as navigation, element interaction, content extraction, and tab management. This tool provides a comprehensive set of browser automation capabilities:
 
@@ -49,7 +51,7 @@ Context = TypeVar("Context")
 
 
 class BrowserUseTool(BaseTool, Generic[Context]):
-    name: str = "browser_use"
+    name: str = BROWSER_USE_TOOL_NAME
     description: str = _BROWSER_DESCRIPTION
     parameters: dict = {
         "type": "object",

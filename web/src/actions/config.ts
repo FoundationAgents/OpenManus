@@ -1,6 +1,6 @@
 'use server';
 import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
-import { maskDataForLlmApiKey } from '@/lib/maskdata';
+import { isMaybeSameMaskedLlmApiKey, maskDataForLlmApiKey } from '@/lib/maskdata';
 import { prisma } from '@/lib/prisma';
 import { encryptWithPublicKey, decryptWithPrivateKey } from '@/lib/crypto';
 import fs from 'fs';
@@ -58,10 +58,13 @@ export const updateLlmConfig = withUserAuth(
         },
       });
     } else {
+      const apiKey = isMaybeSameMaskedLlmApiKey(decryptWithPrivateKey(existingConfig.apiKey, privateKey), args.apiKey)
+        ? existingConfig.apiKey
+        : encryptedApiKey;
       await prisma.llmConfigs.update({
         where: { id: existingConfig.id, organizationId: organization.id },
         data: {
-          apiKey: encryptedApiKey,
+          apiKey: apiKey,
           baseUrl: args.baseUrl,
           model: args.model,
           maxTokens: args.maxTokens,

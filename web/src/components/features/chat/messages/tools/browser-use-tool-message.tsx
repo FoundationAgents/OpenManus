@@ -92,6 +92,40 @@ export const BrowserUseToolMessage = ({
 }) => {
   const { currentMessageIndex, setCurrentMessageIndex } = useCurrentMessageIndex();
   const browserMessage = message.messages.find(msg => msg.type === 'agent:browser:browse:complete');
+
+  const action = args.action;
+
+  const renderAction = (action: string) => {
+    if (action === 'go_to_url') {
+      return (
+        <>
+          Browsing{' '}
+          <span
+            className="cursor-pointer hover:underline"
+            onClick={e => {
+              e.preventDefault();
+              setCurrentMessageIndex(browserMessage?.index ?? currentMessageIndex);
+            }}
+          >
+            {browserMessage?.content.title}
+          </span>
+        </>
+      );
+    }
+    if (action === 'extract_content') {
+      return args.goal;
+    }
+    if (action === 'scroll_down') {
+      return `Scroll down ${args.scroll_amount}px`;
+    }
+    if (action === 'scroll_up') {
+      return `Scroll up ${args.scroll_amount}px`;
+    }
+    if (action === 'scroll_to_text') {
+      return `Scroll to text: ${args.text}`;
+    }
+  };
+
   return (
     <>
       <Popover>
@@ -99,16 +133,7 @@ export const BrowserUseToolMessage = ({
           <Badge variant="outline" className="flex cursor-pointer items-center gap-2">
             <div>
               <span className="font-mono">
-                {!result ? '🔍' : result.error ? '🚨' : '🎯'} Browsing{' '}
-                <span
-                  className="cursor-pointer hover:underline"
-                  onClick={e => {
-                    e.preventDefault();
-                    setCurrentMessageIndex(browserMessage?.index ?? currentMessageIndex);
-                  }}
-                >
-                  {browserMessage?.content.title}
-                </span>
+                {!result ? '🔍' : result.error ? '🚨' : '🎯'} {renderAction(action)}
               </span>
             </div>
           </Badge>
@@ -117,7 +142,7 @@ export const BrowserUseToolMessage = ({
           <BrowserUseToolTooltip args={args} result={result} />
         </PopoverContent>
       </Popover>
-      {browserMessage?.content.screenshot && (
+      {browserMessage?.content.screenshot && action === 'go_to_url' && (
         <Badge variant="outline" className="mt-2 cursor-pointer" onClick={() => setCurrentMessageIndex(browserMessage.index ?? currentMessageIndex)}>
           <img
             src={getBase64ImageUrl(browserMessage.content.screenshot)}

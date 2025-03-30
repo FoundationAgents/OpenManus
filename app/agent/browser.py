@@ -8,6 +8,7 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
+from app.tool.browser_use_tool import BROWSER_USE_TOOL_NAME
 
 
 class BrowserAgent(ToolCallAgent):
@@ -48,12 +49,12 @@ class BrowserAgent(ToolCallAgent):
         if not self._is_special_tool(name):
             return
         else:
-            await self.available_tools.get_tool(BrowserUseTool().name).cleanup()
+            await self.available_tools.get_tool(BROWSER_USE_TOOL_NAME).cleanup()
             await super()._handle_special_tool(name, result, **kwargs)
 
     async def get_browser_state(self) -> Optional[dict]:
         """Get the current browser state for context in next steps."""
-        browser_tool = self.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.available_tools.get_tool(BROWSER_USE_TOOL_NAME)
         if not browser_tool:
             return {"error": "Browser tool not found"}
 
@@ -75,7 +76,7 @@ class BrowserAgent(ToolCallAgent):
 
         except Exception as e:
             logger.debug(f"Failed to get browser state: {str(e)}")
-            return {"error": str(e)}
+            return None
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
