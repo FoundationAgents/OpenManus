@@ -11,7 +11,7 @@ import { createTask } from '@/actions/tasks';
 import { useRecentTasks } from '@/components/features/app-sidebar';
 
 const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center h-full opacity-50">
+  <div className="flex h-full flex-col items-center justify-center opacity-50">
     <Image src={logo} alt="OpenManus" className="mb-4 object-contain" width={240} height={240} />
     <div>No fortress, purely open ground. OpenManus is Coming.</div>
   </div>
@@ -63,20 +63,20 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      <div className="flex-1 overflow-y-auto p-4 pb-20 space-y-4">
+    <div className="flex h-screen flex-col bg-gray-100">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 pb-20">
         <EmptyState />
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
-        <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto pointer-events-auto">
-          <div className="relative flex bg-white rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.1)]">
+      <div className="pointer-events-none absolute right-0 bottom-0 left-0 p-4">
+        <form onSubmit={handleSubmit} className="pointer-events-auto mx-auto w-full max-w-2xl">
+          <div className="relative flex rounded-2xl bg-white shadow-[0_0_15px_rgba(0,0,0,0.1)]">
             <Input
               value={isLoading ? 'Thinking...' : input}
               aria-disabled={isLoading}
               onChange={e => setInput(e.target.value)}
               placeholder="Let's Imagine the Impossible, Create the Future Together"
-              className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-12 px-4"
+              className="h-12 flex-1 border-0 bg-transparent px-4 focus-visible:ring-0 focus-visible:ring-offset-0"
               disabled={isLoading}
             />
             <Button
@@ -84,7 +84,7 @@ export default function ChatPage() {
               disabled={isLoading}
               size="icon"
               variant="ghost"
-              className="absolute cursor-pointer right-1 top-1/2 -translate-y-1/2 h-10 w-10 hover:bg-gray-100 rounded-xl"
+              className="absolute top-1/2 right-1 h-10 w-10 -translate-y-1/2 cursor-pointer rounded-xl hover:bg-gray-100"
             >
               <Send className="h-5 w-5" />
             </Button>

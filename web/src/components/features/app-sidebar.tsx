@@ -100,16 +100,16 @@ export function AppSidebar() {
       <SidebarFooter>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full h-16">
-              <div className="flex items-center gap-3 w-full h-16">
+            <Button variant="ghost" className="h-16 w-full">
+              <div className="flex h-16 w-full items-center gap-3">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-base">{me?.name ? me.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col items-start flex-1 min-w-0 gap-1">
-                  <span className="text-sm font-medium truncate">{me?.name || me?.email}</span>
-                  <span className="text-xs text-muted-foreground truncate">{me?.email}</span>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                  <span className="truncate text-sm font-medium">{me?.name || me?.email}</span>
+                  <span className="text-muted-foreground truncate text-xs">{me?.email}</span>
                 </div>
-                <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ChevronsUpDown className="text-muted-foreground h-4 w-4 shrink-0" />
               </div>
             </Button>
           </DropdownMenuTrigger>

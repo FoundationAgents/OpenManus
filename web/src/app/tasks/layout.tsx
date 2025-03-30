@@ -12,7 +12,7 @@ export default function RootLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="relative w-full h-full">{children}</main>
+      <main className="relative h-full w-full">{children}</main>
       <ConfigDialog />
     </SidebarProvider>
   );

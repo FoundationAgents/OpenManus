@@ -149,10 +149,10 @@ export default function SignupPage() {
                 className="h-11"
               />
             </div>
-            <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isLoading}>
+            <Button type="submit" className="h-11 w-full text-base font-medium" disabled={isLoading}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
-            <div className="text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground text-center text-sm">
               Already have an account?{' '}
               <Link href="/login" className="text-primary hover:underline">
                 Sign in

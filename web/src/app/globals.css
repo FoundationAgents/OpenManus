@@ -128,23 +128,23 @@
   h2,
   h3,
   h4 {
-    @apply font-bold mt-2 text-foreground;
+    @apply text-foreground mt-2 font-bold;
   }
 
   h1 {
-    @apply text-4xl mb-4 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent;
+    @apply from-primary to-primary/80 mb-4 bg-gradient-to-r bg-clip-text text-4xl text-transparent;
   }
 
   h2 {
-    @apply text-2xl mb-3 border-b border-border pb-1;
+    @apply border-border mb-3 border-b pb-1 text-2xl;
   }
 
   h3 {
-    @apply text-xl mb-2;
+    @apply mb-2 text-xl;
   }
 
   h4 {
-    @apply text-lg mb-2;
+    @apply mb-2 text-lg;
   }
 
   p,
@@ -158,11 +158,11 @@
 
   p,
   li {
-    @apply leading-normal text-foreground/90;
+    @apply text-foreground/90 leading-normal;
   }
 
   strong {
-    @apply font-semibold text-foreground;
+    @apply text-foreground font-semibold;
   }
 
   em {
@@ -170,31 +170,31 @@
   }
 
   ul {
-    @apply list-disc list-inside space-y-1 text-foreground/90;
+    @apply text-foreground/90 list-inside list-disc space-y-1;
   }
 
   ol {
-    @apply list-decimal list-inside space-y-1 text-foreground/90;
+    @apply text-foreground/90 list-inside list-decimal space-y-1;
   }
 
   blockquote {
-    @apply pl-3 py-1 border-l-4 border-primary/20 bg-muted/50 italic text-muted-foreground;
+    @apply border-primary/20 bg-muted/50 text-muted-foreground border-l-4 py-1 pl-3 italic;
   }
 
   code {
-    @apply px-1.5 py-0.5 bg-muted text-sm text-muted-foreground font-mono rounded-sm;
+    @apply bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm;
   }
 
   pre {
-    @apply p-3 bg-muted rounded-md;
+    @apply bg-muted rounded-md p-3;
 
     code {
-      @apply bg-transparent text-muted-foreground p-0 text-sm leading-normal break-all whitespace-pre-wrap;
+      @apply text-muted-foreground bg-transparent p-0 text-sm leading-normal break-all whitespace-pre-wrap;
     }
   }
 
   hr {
-    @apply border-t border-border;
+    @apply border-border border-t;
   }
 
   a {
@@ -202,19 +202,19 @@
   }
 
   img {
-    @apply max-w-full my-3 rounded-md border border-border;
+    @apply border-border my-3 max-w-full rounded-md border;
   }
 
   table {
-    @apply w-full my-3 border-collapse;
+    @apply my-3 w-full border-collapse;
 
     th,
     td {
-      @apply border border-border px-4 py-2;
+      @apply border-border border px-4 py-2;
     }
 
     th {
-      @apply bg-muted text-left text-muted-foreground font-semibold;
+      @apply bg-muted text-muted-foreground text-left font-semibold;
     }
 
     td {

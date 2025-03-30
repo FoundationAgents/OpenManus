@@ -255,12 +255,12 @@ export default function ConfigDialog() {
                 )}
               />
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <Link
                     href="https://platform.deepseek.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
+                    className="text-primary text-sm hover:underline"
                   >
                     Get API Key from DeepSeek
                   </Link>
@@ -273,12 +273,12 @@ export default function ConfigDialog() {
                     </Button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-muted-foreground text-center text-xs">
                   Your key will be encrypted and stored using{' '}
                   <Link
                     href="https://pycryptodome.readthedocs.io/en/latest/src/cipher/oaep.html"
                     target="_blank"
-                    className="text-primary"
+                    className="text-primary hover:underline"
                     rel="noopener noreferrer"
                   >
                     PKCS1_OAEP

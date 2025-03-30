@@ -85,10 +85,10 @@ export default function LoginPage() {
                 className="h-11"
               />
             </div>
-            <Button type="submit" className="cursor-pointer w-full h-11 text-base font-medium" disabled={isLoading}>
+            <Button type="submit" className="h-11 w-full cursor-pointer text-base font-medium" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
-            <div className="text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground text-center text-sm">
               Don't have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline">
                 Sign up

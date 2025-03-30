@@ -21,7 +21,7 @@ export const BrowserUseToolMessage = ({ args, completeContent }: { args: any; co
       <div className="flex flex-col flex-wrap gap-2 text-wrap">
         {Object.entries(args).map(([key, value]) => (
           <div key={key} className="text-sm">
-            <Badge variant="outline" className="font-medium cursor-pointer">
+            <Badge variant="outline" className="cursor-pointer font-medium">
               {key}
             </Badge>
             <pre className="mt-1 ml-2 space-y-1 text-wrap">{typeof value === 'string' ? value : JSON.stringify(value)}</pre>
@@ -36,7 +36,7 @@ export const BrowserUseToolMessage = ({ args, completeContent }: { args: any; co
           </Badge>
           <pre className="mt-1 ml-2 space-y-1 text-wrap">
             {allResults.map((url, index) => (
-              <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block text-blue-500 hover:underline truncate">
+              <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block truncate text-blue-500 hover:underline">
                 {url}
               </a>
             ))}

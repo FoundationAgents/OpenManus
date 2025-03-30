@@ -17,7 +17,7 @@ interface ChatMessageProps {
 }
 
 const renderUserMessage = (message: Message<{ prompt: string }>) => (
-  <div className="border-l-2 border-muted">
+  <div className="border-muted border-l-2">
     <div className="prose prose-sm prose-neutral dark:prose-invert">
       <Markdown>{message.content.prompt}</Markdown>
     </div>
@@ -32,10 +32,10 @@ const renderAgentMessage = (message: Message) => {
   }
 
   return (
-    <div className="text-sm text-foreground">
+    <div className="text-foreground text-sm">
       <div className="prose prose-sm prose-neutral dark:prose-invert">
         <div>{title}</div>
-        <div className="pt-2 markdown-content">
+        <div className="markdown-content pt-2">
           <Markdown>{content}</Markdown>
         </div>
       </div>
@@ -44,12 +44,12 @@ const renderAgentMessage = (message: Message) => {
 };
 
 const renderStepMessage = (message: Message) => {
-  return <div className="mt-2 text-xs text-muted-foreground">{message.step}</div>;
+  return <div className="text-muted-foreground mt-2 text-xs">{message.step}</div>;
 };
 
 const renderResultMessage = (message: Message<{ results: string[] }>) => {
   return (
-    <div className="mt-2 text-xs markdown-content">
+    <div className="markdown-content mt-2 text-xs">
       <Markdown>{message.content.results.join('\n')}</Markdown>
     </div>
   );
@@ -91,7 +91,7 @@ const BrowserMessage = ({
   }>;
 }) => {
   return (
-    <div className="text-xs p-4 rounded-md border">
+    <div className="rounded-md border p-4 text-xs">
       <Link className="cursor-pointer hover:underline" href={message.content.url}>
         Browsing {message.content.title}
       </Link>
@@ -99,7 +99,7 @@ const BrowserMessage = ({
         <img
           src={getBase64ImageUrl(message.content.screenshot)}
           alt={message.content.title}
-          className="mt-2 cursor-pointer rounded object-cover object-top h-24 w-24"
+          className="mt-2 h-24 w-24 cursor-pointer rounded object-cover object-top"
         />
       )}
     </div>
@@ -169,13 +169,13 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
         return (
           <Popover key={call.index}>
             <PopoverTrigger asChild>
-              <Badge variant="outline" className="flex items-center gap-2 cursor-pointer">
+              <Badge variant="outline" className="flex cursor-pointer items-center gap-2">
                 <span className="font-mono">
                   {isCompleted ? '🎯' : '🚨'} {call.name}
                 </span>
               </Badge>
             </PopoverTrigger>
-            <PopoverContent className="max-w-md w-md" align="start">
+            <PopoverContent className="w-md max-w-md" align="start">
               {popoverContent(call)}
             </PopoverContent>
           </Popover>
@@ -190,28 +190,28 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
   if (message.role === 'user') {
     return (
       <div className="first:pt-0">
-        <div className="container max-w-2xl mx-auto">{renderUserMessage(message)}</div>
+        <div className="container mx-auto max-w-2xl">{renderUserMessage(message)}</div>
       </div>
     );
   }
   if (message.type === 'agent:lifecycle:complete') {
     return (
       <div className="first:pt-0">
-        <div className="container max-w-2xl mx-auto">{renderResultMessage(message)}</div>
+        <div className="container mx-auto max-w-2xl">{renderResultMessage(message)}</div>
       </div>
     );
   }
   if (message.type === 'tool') {
     return (
       <div className="first:pt-0">
-        <div className="container max-w-2xl mx-auto">{renderToolProgressCard(message)}</div>
+        <div className="container mx-auto max-w-2xl">{renderToolProgressCard(message)}</div>
       </div>
     );
   }
   if (message.type === 'agent:browser:browse:complete') {
     return (
       <div className="first:pt-0">
-        <div className="container max-w-2xl mx-auto">
+        <div className="container mx-auto max-w-2xl">
           <BrowserMessage message={message} />
         </div>
       </div>
@@ -220,7 +220,7 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
   if (message.type === 'agent:step:start') {
     return (
       <div className="first:pt-0">
-        <div className="container max-w-2xl mx-auto">{renderStepMessage(message)}</div>
+        <div className="container mx-auto max-w-2xl">{renderStepMessage(message)}</div>
       </div>
     );
   }
