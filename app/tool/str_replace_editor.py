@@ -42,7 +42,7 @@ _STR_REPLACE_EDITOR_DESCRIPTION = """Custom editing tool for viewing, creating a
 * The `create` command cannot be used if the specified `path` already exists as a file
 * The `create_dir` command creates a directory at the specified path
 * The `rename` command moves or renames a file or directory
-* The `delete` command removes a file or directory
+* The `delete` command removes a file or empty directory
 * If a `command` generates a long output, it will be truncated and marked with `<response clipped>`
 * The `undo_edit` command will revert the last edit made to the file at `path`
 
@@ -216,7 +216,7 @@ class StrReplaceEditor(BaseTool):
 
             # Check if path is a directory
             is_dir = await operator.is_directory(path)
-            if is_dir and command != "view":
+            if is_dir and command != "view" and command != "delete":
                 raise ToolError(
                     f"The path {path} is a directory and only the `view` command can be used on directories"
                 )

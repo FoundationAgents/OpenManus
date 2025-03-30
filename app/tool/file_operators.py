@@ -1,7 +1,6 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
-import shutil
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
@@ -38,9 +37,17 @@ class FileOperator(Protocol):
         """Run a shell command and return (return_code, stdout, stderr)."""
         ...
 
-    async def create_directory(self, path: PathLike) -> None: ...
-    async def rename(self, src: PathLike, dst: PathLike) -> None: ...
-    async def delete(self, path: PathLike) -> None: ...
+    async def create_directory(self, path: PathLike) -> None:
+        """Creates a new directory at the given path."""
+        ...
+
+    async def rename(self, src: PathLike, dst: PathLike) -> None:
+        """Renames/moves 'src' to 'dst' without overwriting if 'dst' already exists."""
+        ...
+
+    async def delete(self, path: PathLike) -> None:
+        """Deletes the file or empty directory if `path` is a file."""
+        ...
 
 
 class LocalFileOperator(FileOperator):
@@ -97,26 +104,66 @@ class LocalFileOperator(FileOperator):
             ) from exc
 
     async def create_directory(self, path: PathLike) -> None:
+        """
+        Creates a new directory at the given path.
+        Raises an error if the directory already exists.
+        """
         try:
             Path(path).mkdir(parents=True, exist_ok=False)
         except Exception as e:
             raise ToolError(f"Failed to create directory {path}: {str(e)}") from None
 
     async def rename(self, src: PathLike, dst: PathLike) -> None:
+        """
+        Renames/moves 'src' to 'dst' without overwriting if 'dst' already exists.
+        Raises error if the destination already exists.
+        """
+        source = Path(src)
+        destination = Path(dst)
+
+        # Check that source exists
+        if not source.exists():
+            raise ToolError(f"Cannot rename '{src}': source does not exist.")
+
+        # Check that destination does NOT exist
+        if destination.exists():
+            raise ToolError(
+                f"Cannot rename '{src}' to '{dst}': destination already exists."
+            )
+
         try:
-            Path(src).rename(dst)
+            source.rename(destination)
         except Exception as e:
-            raise ToolError(f"Failed to rename {src} to {dst}: {str(e)}") from None
+            raise ToolError(f"Failed to rename '{src}' to '{dst}': {str(e)}") from None
 
     async def delete(self, path: PathLike) -> None:
+        """
+        Deletes the file if `path` is a file.
+        Deletes the directory ONLY if it is empty.
+        The name must match exactly (p.name == Path(path).name).
+        """
+        p = Path(path)
+
+        # 1) Check if it exists.
+        if not p.exists():
+            raise ToolError(f"Cannot delete '{path}': does not exist.")
+
+        # 2) Verify that the name matches exactly (no extra resolution).
+        if p.name != Path(path).name:
+            raise ToolError(f"Name mismatch: '{p.name}' != '{Path(path).name}'")
+
         try:
-            p = Path(path)
+            # 3) If it's a directory, check if it is empty.
             if p.is_dir():
-                shutil.rmtree(p)
+                contents = list(p.iterdir())
+                if contents:
+                    raise ToolError(f"Directory '{path}' is not empty. Cannot delete.")
+                p.rmdir()
             else:
+                # Assume it's a file.
                 p.unlink()
         except Exception as e:
-            raise ToolError(f"Failed to delete {path}: {str(e)}") from None
+            raise ToolError(f"Failed to delete '{path}': {str(e)}") from None
 
 
 class SandboxFileOperator(FileOperator):
@@ -184,26 +231,105 @@ class SandboxFileOperator(FileOperator):
             return 1, "", f"Error executing command in sandbox: {str(exc)}"
 
     async def create_directory(self, path: PathLike) -> None:
+        """
+        Creates a new directory at the given path in the sandbox.
+        Fails if the directory (or any file) already exists at that path,
+        mirroring the local operator's behavior with exist_ok=False.
+        """
         await self._ensure_sandbox_initialized()
+
+        # 1) Check if there's already something at 'path'
+        exists_cmd = f"test -e {path} && echo 'true' || echo 'false'"
+        result = await self.sandbox_client.run_command(exists_cmd)
+        if result.strip() == "true":
+            # Something exists => fail
+            raise ToolError(
+                f"Cannot create directory {path}: it already exists in sandbox."
+            )
+
+        # 2) Actually create the directory (no '-p' here).
+        mkdir_cmd = f"mkdir {path}"
         try:
-            await self.sandbox_client.run_command(f"mkdir -p {path}")
+            await self.sandbox_client.run_command(mkdir_cmd)
         except Exception as e:
             raise ToolError(
                 f"Failed to create directory {path} in sandbox: {str(e)}"
             ) from None
 
     async def rename(self, src: PathLike, dst: PathLike) -> None:
+        """
+        Renames/moves 'src' to 'dst' within the sandbox, without overwriting if 'dst' exists.
+        Raises ToolError if the destination already exists.
+        """
         await self._ensure_sandbox_initialized()
+
+        # 1) Check if source exists
+        src_exists_cmd = f"test -e {src} && echo 'true' || echo 'false'"
+        src_exists_out = await self.sandbox_client.run_command(src_exists_cmd)
+        if src_exists_out.strip() != "true":
+            raise ToolError(f"Cannot rename '{src}': source does not exist in sandbox.")
+
+        # 2) Check if destination already exists
+        dst_exists_cmd = f"test -e {dst} && echo 'true' || echo 'false'"
+        dst_exists_out = await self.sandbox_client.run_command(dst_exists_cmd)
+        if dst_exists_out.strip() == "true":
+            raise ToolError(
+                f"Cannot rename '{src}' to '{dst}' in sandbox: destination already exists."
+            )
+
+        # 3) Do the move
+        mv_cmd = f"mv {src} {dst}"
         try:
-            await self.sandbox_client.run_command(f"mv {src} {dst}")
+            await self.sandbox_client.run_command(mv_cmd)
         except Exception as e:
             raise ToolError(
-                f"Failed to rename {src} to {dst} in sandbox: {str(e)}"
+                f"Failed to rename '{src}' to '{dst}' in sandbox: {str(e)}"
             ) from None
 
     async def delete(self, path: PathLike) -> None:
+        """
+        Deletes the file if it is not a directory.
+        Deletes the directory ONLY if it is empty.
+        The name must match exactly (p.name == Path(path).name).
+        """
         await self._ensure_sandbox_initialized()
+
+        # 1) Check if it exists.
+        exists_cmd = f"test -e {path} && echo 'true' || echo 'false'"
+        result = await self.sandbox_client.run_command(exists_cmd)
+        if result.strip() != "true":
+            raise ToolError(f"Cannot delete '{path}': does not exist in sandbox.")
+
+        # 2) Verify the exact name (via 'basename' in shell) to match Path(path).name
+        basename_cmd = f"basename {path}"
+        base_name = (await self.sandbox_client.run_command(basename_cmd)).strip()
+        if base_name != Path(path).name:
+            raise ToolError(
+                f"Name mismatch in sandbox: '{base_name}' != '{Path(path).name}'"
+            )
+
+        # 3) Determine if it's a directory or a file.
+        isdir_cmd = f"test -d {path} && echo 'true' || echo 'false'"
+        is_dir = (await self.sandbox_client.run_command(isdir_cmd)).strip() == "true"
+
+        if is_dir:
+            # Check if directory is empty.
+            ls_cmd = f"ls -A {path}"
+            ls_out = await self.sandbox_client.run_command(ls_cmd)
+            if ls_out.strip():
+                # Not empty.
+                raise ToolError(
+                    f"Directory '{path}' in sandbox is not empty. Cannot delete."
+                )
+
+            # It's empty, so we can remove it with rmdir.
+            rm_cmd = f"rmdir {path}"
+        else:
+            # It's a file.
+            rm_cmd = f"rm {path}"
+
+        # Execute final removal command.
         try:
-            await self.sandbox_client.run_command(f"rm -rf {path}")
+            await self.sandbox_client.run_command(rm_cmd)
         except Exception as e:
-            raise ToolError(f"Failed to delete {path} in sandbox: {str(e)}") from None
+            raise ToolError(f"Failed to delete '{path}' in sandbox: {str(e)}") from None
