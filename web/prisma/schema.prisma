@@ -30,6 +30,14 @@ model Organizations {
   updatedAt DateTime @updatedAt
 }
 
+model Preferences {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  language       String?
+}
+
 model OrganizationUsers {
   id             String   @id @default(cuid())
   organizationId String

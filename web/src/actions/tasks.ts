@@ -2,6 +2,7 @@
 
 import { AuthWrapperContext, withUserAuth } from '@/lib/auth-wrapper';
 import { decryptWithPrivateKey } from '@/lib/crypto';
+import { LANGUAGE_CODES } from '@/lib/language';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
 import fs from 'fs';
@@ -41,6 +42,10 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
     },
   });
 
+  const preferences = await prisma.preferences.findUnique({
+    where: { organizationId: organization.id },
+  });
+
   // Create task
   const task = await prisma.tasks.create({
     data: {
@@ -58,6 +63,8 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
+        task_id: task.id,
+        preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
         llm_config: llmConfig
           ? {
               model: llmConfig.model,
@@ -71,7 +78,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
             }
           : null,
       }),
-    }).then(res => res.json() as Promise<{ task_id: string }>)
+    }).then(res => res.json() as Promise<{ task_id: string }>),
   );
 
   if (error || !response) {
@@ -116,7 +123,6 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
 
         try {
           const parsed = JSON.parse(line.slice(6));
-          console.log(parsed);
           const { type, event_name, step, content } = parsed;
 
           // Write message to database

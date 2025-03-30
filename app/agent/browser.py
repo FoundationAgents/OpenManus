@@ -55,7 +55,7 @@ class BrowserAgent(ToolCallAgent):
         """Get the current browser state for context in next steps."""
         browser_tool = self.available_tools.get_tool(BrowserUseTool().name)
         if not browser_tool:
-            return None
+            return {"error": "Browser tool not found"}
 
         try:
             # Get browser state directly from the tool
@@ -63,7 +63,7 @@ class BrowserAgent(ToolCallAgent):
 
             if result.error:
                 logger.debug(f"Browser state error: {result.error}")
-                return None
+                return {"error": result.error}
 
             # Store screenshot if available
             if hasattr(result, "base64_image") and result.base64_image:
@@ -75,7 +75,7 @@ class BrowserAgent(ToolCallAgent):
 
         except Exception as e:
             logger.debug(f"Failed to get browser state: {str(e)}")
-            return None
+            return {"error": str(e)}
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
@@ -152,7 +152,13 @@ class BrowserAgent(ToolCallAgent):
         else:
             self.emit(
                 self.Events.BROWSER_BROWSER_USE_ERROR,
-                {"error": browser_state.get("error", "Unknown error")},
+                {
+                    "error": (
+                        browser_state.get("error", "Unknown error")
+                        if browser_state
+                        else "Unknown error"
+                    )
+                },
             )
 
         # Call parent implementation

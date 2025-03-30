@@ -1,9 +1,13 @@
+import os
+from typing import Optional
+
 from pydantic import Field
 
 from app.agent.browser import BrowserAgent
 from app.config import config
 from app.prompt.browser import NEXT_STEP_PROMPT as BROWSER_NEXT_STEP_PROMPT
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.schema import Message
 from app.tool import Terminate, ToolCollection
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.python_execute import PythonExecute
@@ -36,6 +40,30 @@ class Manus(BrowserAgent):
             PythonExecute(), BrowserUseTool(), StrReplaceEditor(), Terminate()
         )
     )
+
+    task_id: Optional[str] = Field(None, description="Task ID for the agent")
+    language: Optional[str] = Field(None, description="Language for the agent")
+
+    def initialize(self, task_id: str, language: Optional[str] = None):
+        self.task_id = task_id
+        self.language = language
+        task_dir = f"{config.workspace_root}/{task_id}"
+        if not os.path.exists(task_dir):
+            os.makedirs(task_dir)
+        self.memory.add_message(
+            Message.system_message(
+                f"{self.system_prompt}\n\n"
+                f"Task ID: `{self.task_id}`\n"
+                f"Task Directory: `{task_dir}`\n\n"
+                f"Important Instructions:\n"
+                f"1. For any file operations, always work within the task directory: `{task_dir}`\n"
+                f"2. If the task directory doesn't exist, create it before performing file operations\n"
+                f"3. Keep all task-related files organized within this directory\n"
+                f"4. Use relative paths within the task directory when possible\n"
+                f"5. You should ask the answer with language {self.language or 'English'} if user doesn't specify\n"
+            )
+        )
+        return self
 
     async def think(self) -> bool:
         """Process current state and decide next actions with appropriate context."""

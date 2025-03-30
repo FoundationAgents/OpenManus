@@ -1,20 +1,15 @@
 import asyncio
-import base64
 from json import dumps
-from typing import Optional, cast
+from typing import Optional
 
-from browser_use import DomService
-from fastapi import APIRouter, Body, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import Field
 
 from app.agent.manus import Manus
-from app.apis.models.task import Task
 from app.apis.services.task_manager import task_manager
 from app.config import LLMSettings
 from app.llm import LLM
 from app.logger import logger
-from app.tool.browser_use_tool import BrowserUseTool
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -38,7 +33,7 @@ async def handle_agent_event(task_id: str, event_name: str, step: int, **kwargs)
     )
 
 
-async def run_task(task_id: str):
+async def run_task(task_id: str, language: Optional[str] = None):
     """Run the task and set up corresponding event handlers.
 
     Args:
@@ -50,9 +45,10 @@ async def run_task(task_id: str):
         task = task_manager.tasks[task_id]
         agent = task.agent
 
+        agent.initialize(task_id, language=language)
+
         # Set up event handlers based on all event types defined in the Agent class hierarchy
         event_patterns = [r"agent:.*"]
-
         # Register handlers for each event pattern
         for pattern in event_patterns:
             agent.on(
@@ -66,18 +62,15 @@ async def run_task(task_id: str):
             )
 
         # Run the agent
-        result = await agent.run(task.prompt)
+        await agent.run(task.prompt)
 
         # Ensure all events have been processed
         queue = task_manager.queues[task_id]
         while not queue.empty():
             await asyncio.sleep(0.1)
 
-        await task_manager.complete_task(task_id)
-
     except Exception as e:
-        # Handle task failure
-        await task_manager.fail_task(task_id, str(e))
+        logger.error(f"Error in task {task_id}: {str(e)}")
 
 
 async def event_generator(task_id: str):
@@ -112,11 +105,13 @@ async def event_generator(task_id: str):
 
 @router.post("")
 async def create_task(
+    task_id: str = Body(..., embed=True),
     prompt: str = Body(..., embed=True),
+    preferences: Optional[dict] = Body(None, embed=True),
     llm_config: Optional[LLMSettings] = Body(None, embed=True),
 ):
-    logger.info(f"Creating task with prompt: {prompt}")
     task = task_manager.create_task(
+        task_id,
         prompt,
         Manus(
             name=AGENT_NAME,
@@ -125,7 +120,12 @@ async def create_task(
             enable_event_queue=True,  # Enable event queue
         ),
     )
-    asyncio.create_task(run_task(task.id))
+    asyncio.create_task(
+        run_task(
+            task.id,
+            language=preferences.get("language", "English") if preferences else None,
+        )
+    )
     return {"task_id": task.id}
 
 

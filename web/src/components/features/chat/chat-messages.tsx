@@ -165,6 +165,11 @@ const renderToolProgressCard = (message: AggregatedMessage) => {
 
   return (
     <div>
+      {selectedMessage.thoughts && (
+        <div className="text-muted-foreground text-xs">
+          <Markdown>{selectedMessage.thoughts}</Markdown>
+        </div>
+      )}
       {calls.map(call => {
         return (
           <Popover key={call.index}>

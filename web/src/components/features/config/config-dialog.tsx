@@ -23,6 +23,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import ConfigLlm from './config-llm';
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
+import ConfigPreferences from './config-preferences';
 
 interface ConfigFormData {
   model: string;
@@ -41,9 +45,8 @@ export const useConfigDialog = create<{ open: boolean; show: () => void; hide: (
 
 export default function ConfigDialog() {
   const { open, show, hide } = useConfigDialog();
-  const [loading, setLoading] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingData, setPendingData] = useState<ConfigFormData | null>(null);
+
+  const [currentTab, setCurrentTab] = useState<'llm' | 'preferences'>('llm');
 
   const form = useForm<ConfigFormData>({
     defaultValues: {
@@ -108,188 +111,46 @@ export default function ConfigDialog() {
     }
   }, [open, form]);
 
-  const onSubmit = async (data: ConfigFormData) => {
-    setPendingData(data);
-    setShowConfirm(true);
-  };
-
-  const handleConfirmedSubmit = async () => {
-    if (!pendingData) return;
-
-    try {
-      setLoading(true);
-      await updateLlmConfig(pendingData);
-      toast.success('Configuration updated');
-      setShowConfirm(false);
-      hide();
-    } catch (error) {
-      toast.error('Failed to update configuration');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <>
-      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Configuration</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to save these changes? This will update your LLM configuration.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmedSubmit} disabled={loading}>
-              {loading ? 'Saving...' : 'Confirm'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={open} onOpenChange={open => (open ? show() : hide())}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>LLM Configuration</DialogTitle>
-            <DialogDescription>Configure your LLM API settings</DialogDescription>
-          </DialogHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="model"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="model" className="flex items-center gap-1">
-                      Model
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input id="model" {...field} placeholder="e.g. deepseek-chat" />
-                    {form.formState.errors.model && <p className="text-sm text-red-500">{form.formState.errors.model.message}</p>}
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="apiKey"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="apiKey" className="flex items-center gap-1">
-                      API Key
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input id="apiKey" {...field} placeholder="Enter your API Key" />
-                    {form.formState.errors.apiKey && <p className="text-sm text-red-500">{form.formState.errors.apiKey.message}</p>}
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="baseUrl"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="baseUrl" className="flex items-center gap-1">
-                      API Base URL
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input id="baseUrl" {...field} placeholder="API Base URL" />
-                    {form.formState.errors.baseUrl && <p className="text-sm text-red-500">{form.formState.errors.baseUrl.message}</p>}
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="maxTokens"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="maxTokens">Max Tokens</Label>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <Slider min={1} max={32000} step={1} value={[field.value]} onValueChange={([value]) => field.onChange(value)} />
-                      </div>
-                      <div className="w-20">
-                        <Input
-                          type="number"
-                          value={field.value}
-                          onChange={e => {
-                            const value = parseInt(e.target.value);
-                            if (!isNaN(value) && value >= 1 && value <= 32000) {
-                              field.onChange(value);
-                            }
-                          }}
-                          min={1}
-                          max={32000}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="temperature"
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="temperature">Temperature</Label>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <Slider min={0} max={2} step={0.1} value={[field.value]} onValueChange={([value]) => field.onChange(value)} />
-                      </div>
-                      <div className="w-20">
-                        <Input
-                          type="number"
-                          value={field.value}
-                          onChange={e => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value) && value >= 0 && value <= 2) {
-                              field.onChange(value);
-                            }
-                          }}
-                          step={0.1}
-                          min={0}
-                          max={2}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              />
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Link
-                    href="https://platform.deepseek.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary text-sm hover:underline"
-                  >
-                    Get API Key from DeepSeek
-                  </Link>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" type="button" onClick={hide}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-muted-foreground text-center text-xs">
-                  Your key will be encrypted and stored using{' '}
-                  <Link
-                    href="https://pycryptodome.readthedocs.io/en/latest/src/cipher/oaep.html"
-                    target="_blank"
-                    className="text-primary hover:underline"
-                    rel="noopener noreferrer"
-                  >
-                    PKCS1_OAEP
-                  </Link>{' '}
-                  encryption technology
-                </p>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={open} onOpenChange={open => (open ? show() : hide())}>
+      <DialogContent className="w-auto pb-1 pl-1" style={{ maxWidth: '100%' }}>
+        <div className="flex min-h-[500px] w-[800px] gap-4">
+          {/* Sidebar */}
+          <div className="flex w-[200px] flex-col gap-2">
+            <div
+              onClick={() => setCurrentTab('llm')}
+              className={cn(
+                currentTab === 'llm' && 'text-primary',
+                'cursor-pointer',
+                'rounded-md p-2',
+                'hover:bg-muted',
+                'transition-colors',
+                currentTab === 'llm' && 'bg-muted',
+              )}
+            >
+              LLM Configuration
+            </div>
+            <div
+              onClick={() => setCurrentTab('preferences')}
+              className={cn(
+                currentTab === 'preferences' && 'text-primary',
+                'cursor-pointer',
+                'rounded-md p-2',
+                'hover:bg-muted',
+                'transition-colors',
+                currentTab === 'preferences' && 'bg-muted',
+              )}
+            >
+              Preferences
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1">
+            {currentTab === 'llm' && <ConfigLlm />}
+            {currentTab === 'preferences' && <ConfigPreferences />}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
