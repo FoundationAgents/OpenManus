@@ -39,3 +39,5 @@ beautifulsoup4~=4.13.3
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+
+pymupdf~=1.25.4

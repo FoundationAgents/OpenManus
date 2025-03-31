@@ -9,6 +9,7 @@ from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.python_execute import PythonExecute
+from app.tool.read_pdf import ReadPDFTool
 from app.tool.str_replace_editor import StrReplaceEditor
 
 
@@ -29,7 +30,11 @@ class Manus(ToolCallAgent):
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
-            PythonExecute(), BrowserUseTool(), StrReplaceEditor(), Terminate()
+            ReadPDFTool(),
+            PythonExecute(),
+            BrowserUseTool(),
+            StrReplaceEditor(),
+            Terminate(),
         )
     )
 
