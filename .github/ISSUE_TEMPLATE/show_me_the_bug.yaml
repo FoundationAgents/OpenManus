@@ -1,0 +1,44 @@
+name: "🪲 Show me the Bug"
+description: Report a bug encountered while using OpenManus and seek assistance.
+labels: bug
+body:
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: |
+        Clearly describe the bug you encountered
+    validations:
+      required: true
+  - type: textarea
+    id: solve-method
+    attributes:
+      label: Bug solved method
+      description: |
+        If resolved, explain the solution. Optionally, include a Pull Request URL.
+        If unresolved, provide additional details to aid investigation
+    validations:
+      required: true
+  - type: textarea
+    id: environment-information
+    attributes:
+      label: Environment information
+      description: |
+        System: e.g., Ubuntu 22.04
+        Python: e.g., 3.12
+        OpenManus version: e.g., 0.1.0
+      value: |
+        - System version:
+        - Python version:
+        - OpenManus version or branch:
+        - Installation method (e.g., `pip install -r requirements.txt` or `pip install -e .`):
+    validations:
+      required: true
+  - type: textarea
+    id: extra-information
+    attributes:
+      label: Extra information
+      description: |
+        For example, attach screenshots or logs to help diagnose the issue
+    validations:
+      required: false
