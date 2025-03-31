@@ -1,4 +1,8 @@
-English | [中文](README_zh.md)
+<p align="center">
+  <img src="assets/logo.jpg" width="200"/>
+</p>
+
+English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
 &ensp;
@@ -9,8 +13,7 @@ English | [中文](README_zh.md)
 
 Manus is incredible, but OpenManus can achieve any idea without an *Invite Code* 🛫!
 
-Our team
-members [@mannaandpoem](https://github.com/mannaandpoem) [@XiangJinyu](https://github.com/XiangJinyu) [@MoshiQAQ](https://github.com/MoshiQAQ) [@didiforgithub](https://github.com/didiforgithub) [@stellaHSR](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
+Our team members [@Xinbin Liang](https://github.com/mannaandpoem) and [@Jinyu Xiang](https://github.com/XiangJinyu) (core authors), along with [@Zhaoyang Yu](https://github.com/MoshiQAQ), [@Jiayi Zhang](https://github.com/didiforgithub), and [@Sirui Hong](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
 
 It's a simple implementation, so we welcome any suggestions, contributions, and feedback!
 
@@ -66,7 +69,7 @@ cd OpenManus
 3. Create a new virtual environment and activate it:
 
 ```bash
-uv venv
+uv venv --python 3.12
 source .venv/bin/activate  # On Unix/macOS
 # Or on Windows:
 # .venv\Scripts\activate
@@ -76,6 +79,11 @@ source .venv/bin/activate  # On Unix/macOS
 
 ```bash
 uv pip install -r requirements.txt
+```
+
+### Browser Automation Tool (Optional)
+```bash
+playwright install
 ```
 
 ## Configuration
@@ -116,7 +124,12 @@ python main.py
 
 Then input your idea via terminal!
 
-For unstable version, you also can run:
+For MCP tool version, you can run:
+```bash
+python run_mcp.py
+```
+
+For unstable multi-agent version, you also can run:
 
 ```bash
 python run_flow.py
@@ -127,6 +140,8 @@ python run_flow.py
 We welcome any friendly suggestions and helpful contributions! Just create issues or submit pull requests.
 
 Or contact @mannaandpoem via 📧email: mannaandpoem@gmail.com
+
+**Note**: Before submitting a pull request, please use the pre-commit tool to check your changes. Run `pre-commit run --all-files` to execute the checks.
 
 ## Community Group
 Join our networking group on Feishu and share your experience with other developers!
@@ -143,6 +158,8 @@ Join our networking group on Feishu and share your experience with other develop
 
 Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
 and [browser-use](https://github.com/browser-use/browser-use) for providing basic support for this project!
+
+Additionally, we are grateful to [AAAJ](https://github.com/metauto-ai/agent-as-a-judge), [MetaGPT](https://github.com/geekan/MetaGPT), [OpenHands](https://github.com/All-Hands-AI/OpenHands) and [SWE-agent](https://github.com/SWE-agent/SWE-agent).
 
 OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
 
