@@ -1,4 +1,4 @@
-# OpenManus 🙋
+# OpenManus 🙋假装在更改分支，
 Manus is incredible, but OpenManus can achieve any ideas without an Invite Code 🛫!
 
 Our team members @mannaandpoem @XiangJinyu @MoshiQAQ @didiforgithub from @MetaGPT built it within 3 hours!
