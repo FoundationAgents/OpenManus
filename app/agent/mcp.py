@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import Field
@@ -20,7 +21,9 @@ class MCPAgent(ToolCallAgent):
     name: str = "mcp_agent"
     description: str = "An agent that connects to an MCP server and uses its tools."
 
-    system_prompt: str = SYSTEM_PROMPT
+    system_prompt: str = SYSTEM_PROMPT.format(
+        current_time=datetime.now().astimezone().isoformat(timespec="seconds")
+    )
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     # Initialize MCP tool collection

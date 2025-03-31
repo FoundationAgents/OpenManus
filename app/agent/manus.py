@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import Field, model_validator
@@ -20,7 +21,10 @@ class Manus(ToolCallAgent):
         "A versatile agent that can solve various tasks using multiple tools"
     )
 
-    system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
+    system_prompt: str = SYSTEM_PROMPT.format(
+        directory=config.workspace_root,
+        current_time=datetime.now().astimezone().isoformat(timespec="seconds"),
+    )
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
