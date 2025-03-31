@@ -10,7 +10,7 @@ from openai import (
     OpenAIError,
     RateLimitError,
 )
-from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -735,8 +735,9 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
+            params["stream"] = False  # Always use non-streaming for tool requests
             response: ChatCompletion = await self.client.chat.completions.create(
-                **params, stream=False
+                **params
             )
 
             # Check if response is valid
