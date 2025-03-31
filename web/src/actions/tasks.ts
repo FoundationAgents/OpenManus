@@ -57,27 +57,28 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
   });
 
   // Send task to API
+  const body = JSON.stringify({
+    prompt,
+    task_id: task.id,
+    preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
+    llm_config: llmConfig
+      ? {
+          model: llmConfig.model,
+          base_url: llmConfig.baseUrl,
+          api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
+          max_tokens: llmConfig.maxTokens,
+          max_input_tokens: llmConfig.maxInputTokens,
+          temperature: llmConfig.temperature,
+          api_type: llmConfig.apiType || '',
+          api_version: llmConfig.apiVersion || '',
+        }
+      : null,
+  });
   const [error, response] = await to(
     fetch(`${API_BASE_URL}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        task_id: task.id,
-        preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
-        llm_config: llmConfig
-          ? {
-              model: llmConfig.model,
-              base_url: llmConfig.baseUrl,
-              api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
-              max_tokens: llmConfig.maxTokens,
-              max_input_tokens: llmConfig.maxInputTokens,
-              temperature: llmConfig.temperature,
-              api_type: llmConfig.apiType,
-              api_version: llmConfig.apiVersion,
-            }
-          : null,
-      }),
+      body,
     }).then(res => res.json() as Promise<{ task_id: string }>),
   );
 
