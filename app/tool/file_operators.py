@@ -63,8 +63,9 @@ class LocalFileOperator(FileOperator):
             raise ToolError(f"Failed to read {path}: {str(e)}") from None
 
     async def write_file(self, path: PathLike, content: str) -> None:
-        """Write content to a local file."""
+        """Writes content to a file. If the directory does not exist, it will be created."""
         try:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
             Path(path).write_text(content, encoding=self.encoding)
         except Exception as e:
             raise ToolError(f"Failed to write to {path}: {str(e)}") from None
