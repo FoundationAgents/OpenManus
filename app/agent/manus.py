@@ -10,6 +10,7 @@ from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
 from app.tool import Terminate, ToolCollection
 from app.tool.browser_use_tool import BrowserUseTool
+from app.tool.planning import PlanningTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 
@@ -28,7 +29,12 @@ class Manus(BrowserAgent):
         "A versatile agent that can solve various tasks using multiple tools"
     )
 
-    system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
+    system_prompt: str = SYSTEM_PROMPT.format(
+        directory=config.workspace_root,
+        task_id="Not Specified",
+        task_dir="Not Specified",
+        language="English",
+    )
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
@@ -46,28 +52,24 @@ class Manus(BrowserAgent):
         task_dir = f"{config.workspace_root}/{task_id}"
 
         self.available_tools.add_tools(
+            PlanningTool(),
             PythonExecute(),
-            BrowserUseTool(llm=self.llm),
             StrReplaceEditor(),
             Terminate(),
+            BrowserUseTool(llm=self.llm),
         )
 
         if not os.path.exists(task_dir):
             os.makedirs(task_dir)
-        self.memory.add_message(
-            Message.system_message(
-                f"{self.system_prompt}\n\n"
-                f"Task ID: `{self.task_id}`\n"
-                f"Task Directory: `{task_dir}`\n\n"
-                f"Important Instructions:\n"
-                f"1. For any file operations, such as file creation, reading, writing, always work within the task directory: `{task_dir}`\n"
-                f"2. For any tools or scripts that you use, if they need to create files, always work within the task directory: `{task_dir}`\n"
-                f"3. If the task directory doesn't exist, create it before performing file operations\n"
-                f"4. Keep all task-related files organized within this directory\n"
-                f"5. Use relative paths within the task directory when possible\n"
-                f"6. You should ask the answer with language {self.language or 'English'} if user doesn't specify\n"
-            )
+
+        self.system_prompt = SYSTEM_PROMPT.format(
+            task_id=self.task_id,
+            directory=config.workspace_root,
+            task_dir=task_dir,
+            language=self.language or "English",
         )
+
+        self.memory.add_message(Message.system_message(self.system_prompt))
         return self
 
     async def think(self) -> bool:

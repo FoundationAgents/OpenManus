@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentMessageIndex } from '@/app/tasks/hooks';
 import { StrReplaceEditorMessage } from './str_replace_editor';
 import { PythonExecuteMessage } from './python-execute-message';
+import { PlanningMessage } from './planning';
 
 export const ToolMessage = ({ message }: { message: AggregatedMessage }) => {
   if (message.type !== 'tool') return null;
@@ -34,6 +35,9 @@ export const ToolMessage = ({ message }: { message: AggregatedMessage }) => {
 
   if (toolName === 'python_execute') {
     return <PythonExecuteMessage args={args} result={result} message={message} />;
+  }
+  if (toolName == 'planning') {
+    return <PlanningMessage args={args} result={result} message={message} />;
   }
 
   return (
@@ -65,7 +69,7 @@ export const ToolMessage = ({ message }: { message: AggregatedMessage }) => {
           ))}
         </div>
         <div>
-          <div className="mt-2">{result}</div>
+          <div className="mt-2">{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</div>
         </div>
       </PopoverContent>
     </Popover>

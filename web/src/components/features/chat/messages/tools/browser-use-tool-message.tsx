@@ -12,22 +12,22 @@ export const BrowserUseToolTooltip = ({
   args: any;
   result: {
     error: string | null;
-    output: string;
+    output?: string;
     system: string | null;
     base64_image: string | null;
   };
 }) => {
   if (!result) return null;
 
-  const navigationMatch = result.output.match(/navigated to first result: ([^\s]+)/);
+  const navigationMatch = result.output?.match(/navigated to first result: ([^\s]+)/);
   const urlPattern = /All results:([\s\S]*)/;
-  const allResults = result.output.match(urlPattern)
+  const allResults = result.output?.match(urlPattern)
     ? result.output
         .match(urlPattern)![1]
         .split('\n')
         .map(url => url.trim())
     : [];
-  const extractedFromPageMatch = result.output.match(/Extracted from page:\n([\s\S]*)/);
+  const extractedFromPageMatch = result.output?.match(/Extracted from page:\n([\s\S]*)/);
   const extractedFromPage = extractedFromPageMatch ? JSON.parse(extractedFromPageMatch[1]) : {};
 
   return (
@@ -113,7 +113,7 @@ export const BrowserUseToolMessage = ({
       );
     }
     if (action === 'extract_content') {
-      return args.goal;
+      return 'Extract content';
     }
     if (action === 'scroll_down') {
       return `Scroll down ${args.scroll_amount}px`;
@@ -123,6 +123,21 @@ export const BrowserUseToolMessage = ({
     }
     if (action === 'scroll_to_text') {
       return `Scroll to text: ${args.text}`;
+    }
+    if (action === 'click_element') {
+      return `Click element Index: ${args.index}`;
+    }
+    if (action === 'input_text') {
+      return `Input text: ${args.text}`;
+    }
+    if (action === 'send_keys') {
+      return `Send keys: ${args.keys}`;
+    }
+    if (action === 'get_dropdown_options') {
+      return `Get dropdown options`;
+    }
+    if (action === 'refresh') {
+      return 'Refresh';
     }
   };
 
@@ -151,6 +166,7 @@ export const BrowserUseToolMessage = ({
           />
         </Badge>
       )}
+      {action === 'extract_content' && <div className="mt-2 rounded-lg border p-2 text-xs">{args.goal}</div>}
     </>
   );
 };

@@ -37,7 +37,7 @@ const renderCompleteMessage = (message: Message<{ results: string[] }>) => {
 
 const renderToolSelectedMessage = (message: Message) => {
   return (
-    <div className="container mx-auto max-w-2xl">
+    <div className="container mx-auto max-w-4xl">
       <div className="mb-2 flex items-center gap-2">
         <div className="text-lg font-bold">✨ Manus</div>
       </div>
@@ -108,28 +108,28 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
   if (message.role === 'user') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-2xl">{renderUserMessage(message)}</div>
+        <div className="container mx-auto max-w-4xl">{renderUserMessage(message)}</div>
       </div>
     );
   }
   if (message.type === 'agent:lifecycle:complete') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-2xl">{renderCompleteMessage(message)}</div>
+        <div className="container mx-auto max-w-4xl">{renderCompleteMessage(message)}</div>
       </div>
     );
   }
   if (message.type === 'agent:tool:selected') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-2xl">{renderToolSelectedMessage(message)}</div>
+        <div className="container mx-auto max-w-4xl">{renderToolSelectedMessage(message)}</div>
       </div>
     );
   }
   if (message.type === 'tool') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-2xl">
+        <div className="container mx-auto max-w-4xl">
           <ToolMessage message={message} />
         </div>
       </div>
@@ -138,7 +138,7 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
   if (message.type === 'agent:step:start') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-2xl">{renderStepMessage(message)}</div>
+        <div className="container mx-auto max-w-4xl">{renderStepMessage(message)}</div>
       </div>
     );
   }
