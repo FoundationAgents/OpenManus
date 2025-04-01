@@ -25,3 +25,7 @@ api_key = "sk-..."
 [server]
 host = "localhost"
 port = 5172
+
+# Search engine configuration
+[search]
+default_engine = "google"  # Available options: google, baidu, bing
