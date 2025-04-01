@@ -8,7 +8,7 @@ import { to } from '@/lib/to';
 import fs from 'fs';
 import path, { parse } from 'path';
 
-const API_BASE_URL = 'http://localhost:5172';
+const MANUS_URL = process.env.MANUS_URL || 'http://localhost:5172';
 
 const privateKey = fs.readFileSync(path.join(process.cwd(), 'keys', 'private.pem'), 'utf8');
 
@@ -75,7 +75,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
       : null,
   });
   const [error, response] = await to(
-    fetch(`${API_BASE_URL}/tasks`, {
+    fetch(`${MANUS_URL}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
@@ -99,7 +99,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
 
 // Handle event stream in background
 async function handleTaskEvents(taskId: string, outId: string, organizationId: string) {
-  const streamResponse = await fetch(`${API_BASE_URL}/tasks/${outId}/events`);
+  const streamResponse = await fetch(`${MANUS_URL}/tasks/${outId}/events`);
   const reader = streamResponse.body?.getReader();
   if (!reader) throw new Error('Failed to get response stream');
 
