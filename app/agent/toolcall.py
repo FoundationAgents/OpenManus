@@ -53,15 +53,14 @@ class ToolCallAgent(ReActAgent):
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
         if self.next_step_prompt:
-            user_msg = Message.user_message(self.next_step_prompt)
-            self.messages += [user_msg]
+            self.messages += [Message.assistant_message(self.next_step_prompt)]
 
         try:
             # Get response with tool options
             response = await self.llm.ask_tool(
                 messages=self.messages,
                 system_msgs=(
-                    [Message.system_message(self.system_prompt)]
+                    self.messages + [Message.system_message(SYSTEM_PROMPT)]
                     if self.system_prompt
                     else None
                 ),

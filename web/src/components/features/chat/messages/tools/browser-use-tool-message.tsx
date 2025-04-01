@@ -97,23 +97,32 @@ export const BrowserUseToolMessage = ({
 
   const renderAction = (action: string) => {
     if (action === 'go_to_url') {
+      // if agent:tool:execute:complete exist, but no browserMessage, then it means the agent is failed
+      const failed = message.messages.find(msg => msg.type === 'agent:tool:execute:complete') && !browserMessage;
       return (
         <>
-          Browsing{' '}
+          {failed ? 'Failed to navigate to' : 'Browsing '}
           <span
             className="cursor-pointer hover:underline"
             onClick={e => {
               e.preventDefault();
-              setCurrentMessageIndex(browserMessage?.index ?? currentMessageIndex);
+              if (browserMessage?.content.title) {
+                setCurrentMessageIndex(browserMessage?.index ?? currentMessageIndex);
+              } else {
+                window.open(args.url, '_blank');
+              }
             }}
           >
-            {browserMessage?.content.title}
+            {browserMessage?.content.title || args.url}
           </span>
         </>
       );
     }
+    if (action === 'web_search') {
+      return `Searching for ${args.query}`;
+    }
     if (action === 'extract_content') {
-      return 'Extract content';
+      return 'Extracting content';
     }
     if (action === 'scroll_down') {
       return `Scroll down ${args.scroll_amount}px`;
@@ -166,7 +175,7 @@ export const BrowserUseToolMessage = ({
           />
         </Badge>
       )}
-      {action === 'extract_content' && <div className="mt-2 rounded-lg border p-2 text-xs">{args.goal}</div>}
+      {action === 'extract_content' && <div className="mt-2 rounded-lg p-2 text-xs">{args.goal}</div>}
     </>
   );
 };
