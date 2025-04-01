@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import Any, List, Optional, Union
 
@@ -232,3 +233,26 @@ class ToolCallAgent(ReActAgent):
     def _is_special_tool(self, name: str) -> bool:
         """Check if tool name is in special tools list"""
         return name.lower() in [n.lower() for n in self.special_tool_names]
+
+    async def cleanup(self):
+        """Clean up resources used by the agent's tools."""
+        logger.info(f"🧹 Cleaning up resources for agent '{self.name}'...")
+        for tool_name, tool_instance in self.available_tools.tool_map.items():
+            if hasattr(tool_instance, "cleanup") and asyncio.iscoroutinefunction(
+                tool_instance.cleanup
+            ):
+                try:
+                    logger.debug(f"🧼 Cleaning up tool: {tool_name}")
+                    await tool_instance.cleanup()
+                except Exception as e:
+                    logger.error(
+                        f"🚨 Error cleaning up tool '{tool_name}': {e}", exc_info=True
+                    )
+        logger.info(f"✨ Cleanup complete for agent '{self.name}'.")
+
+    async def run(self, request: Optional[str] = None) -> str:
+        """Run the agent with cleanup when done."""
+        try:
+            return await super().run(request)
+        finally:
+            await self.cleanup()
