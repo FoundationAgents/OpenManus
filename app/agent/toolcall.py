@@ -111,8 +111,8 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(assistant_msg)
 
-            if self.tool_choices == ToolChoice.REQUIRED and not self.tool_calls:
-                return True  # Will be handled in act()
+            if self.tool_choices == ToolChoice.REQUIRED:
+                return bool(self.tool_calls)
 
             # For 'auto' mode, continue with content if no commands but content exists
             if self.tool_choices == ToolChoice.AUTO and not self.tool_calls:
@@ -131,9 +131,6 @@ class ToolCallAgent(ReActAgent):
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
         if not self.tool_calls:
-            if self.tool_choices == ToolChoice.REQUIRED:
-                raise ValueError(TOOL_CALL_REQUIRED)
-
             # Return last message content if no tool calls
             return self.messages[-1].content or "No content or commands to execute"
 
