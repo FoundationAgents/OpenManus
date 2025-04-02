@@ -248,8 +248,8 @@ class SandboxFileOperator(FileOperator):
                 f"Cannot create directory {path}: it already exists in sandbox."
             )
 
-        # 2) Actually create the directory (no '-p' here).
-        mkdir_cmd = f"mkdir {path}"
+        # 2) Actually create the directory ('-p' here -> create parents).
+        mkdir_cmd = f"mkdir -p {path}"
         try:
             await self.sandbox_client.run_command(mkdir_cmd)
         except Exception as e:
