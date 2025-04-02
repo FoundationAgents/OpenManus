@@ -10,8 +10,4 @@ COPY . .
 
 RUN uv pip install --system -r requirements.txt
 
-# 安装 Playwright 浏览器
-RUN playwright install chromium
-RUN playwright install-deps
-
 CMD ["bash"]

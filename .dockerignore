@@ -26,6 +26,7 @@ wheels/
 MANIFEST
 .env
 .venv
+.conda
 env/
 venv/
 ENV/
@@ -68,3 +69,9 @@ htmlcov/
 *.swo
 .DS_Store
 Thumbs.db
+
+# web
+web
+
+# workspace
+workspace
