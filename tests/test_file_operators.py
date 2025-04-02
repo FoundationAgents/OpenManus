@@ -97,3 +97,56 @@ async def test_delete_file_and_directory(file_operator: FileOperator):
     assert await file_operator.exists(dir_path)
     await file_operator.delete(dir_path)
     assert not await file_operator.exists(dir_path)
+
+
+@pytest.mark.asyncio
+async def test_delete_non_empty_directory(file_operator: FileOperator):
+    """Tests that deleting a non-empty directory raises an error."""
+    dir_path = "non_empty_dir"
+    file_path = f"{dir_path}/file_in_dir.txt"
+
+    # Create directory and a file inside it
+    await file_operator.create_directory(dir_path)
+    await file_operator.write_file(file_path, "Content inside directory")
+
+    # Attempt to delete the non-empty directory
+    with pytest.raises(
+        Exception
+    ):  # Replace Exception with the specific exception if known
+        await file_operator.delete(dir_path)
+
+    # Cleanup
+    await file_operator.delete(file_path)
+    await file_operator.delete(dir_path)
+
+
+@pytest.mark.asyncio
+async def test_create_directory_with_missing_parent(file_operator: FileOperator):
+    """Tests that creating a directory with a missing parent succeeds."""
+    nested_path = "missing_parent_dir/child_dir"
+
+    await file_operator.create_directory(nested_path)
+    assert await file_operator.exists(nested_path)
+    assert await file_operator.is_directory(nested_path)
+
+    # Cleanup
+    await file_operator.delete(nested_path)
+    await file_operator.delete("missing_parent_dir")
+
+
+@pytest.mark.asyncio
+async def test_delete_file_with_inexact_name(file_operator: FileOperator):
+    """Tests that deleting a file with an inexact name (e.g., using a wildcard) raises an error."""
+    file_path = "test_inexact_delete.txt"
+
+    # Create the file
+    await file_operator.write_file(file_path, "Content to delete")
+
+    # Attempt to delete using an inexact name
+    with pytest.raises(
+        Exception
+    ):  # Replace Exception with the specific exception if known
+        await file_operator.delete("test_inexact_*")
+
+    # Cleanup
+    await file_operator.delete(file_path)
