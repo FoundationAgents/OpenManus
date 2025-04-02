@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenManus - 智能聊天</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+  <meta name="description" content="OpenManus是一个开源的通用人工智能助手，能够执行各种复杂任务，无需邀请码即可使用。">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i class="ri-robot-line logo-icon"></i>
+          <h1>OpenManus</h1>
+        </div>
+        <button class="sidebar-toggle" id="sidebar-close">
+          <i class="ri-menu-fold-line"></i>
+        </button>
+      </div>
+      
+      <div class="sidebar-content">
+        <div class="chat-history">
+          <h3><i class="ri-history-line"></i> 最近对话
+            <button id="clear-history-button" class="history-action-button" title="清空历史记录">
+              <i class="ri-delete-bin-line"></i>
+            </button>
+          </h3>
+          <div class="history-list" id="history-list">
+            <!-- 历史对话将通过JavaScript动态添加 -->
+          </div>
+        </div>
+        
+        <div class="sidebar-section files-section">
+          <h3><i class="ri-file-list-line"></i> 文件管理</h3>
+          <div class="files-container">
+            <div class="files-list" id="files-list">
+              <!-- 文件列表将通过JavaScript动态添加 -->
+            </div>
+            <button class="action-button" id="refresh-files-button">
+              <i class="ri-refresh-line"></i> 刷新文件列表
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="avatar">
+            <i class="ri-user-3-line"></i>
+          </div>
+          <div class="user-info">
+            <div class="user-name">用户</div>
+            <div class="user-status">在线</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 顶部栏 -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button class="sidebar-toggle" id="sidebar-open">
+            <i class="ri-menu-line"></i>
+          </button>
+          <h2>智能对话</h2>
+        </div>
+        
+        <div class="top-bar-right">
+          <div class="connection-status" id="connection-status">
+            <span class="status-indicator"></span>
+            <span class="status-text">已连接</span>
+          </div>
+          <button class="new-chat-btn" id="new-chat-button">
+            <i class="ri-add-line"></i>
+            <span>新对话</span>
+          </button>
+        </div>
+      </header>
+      
+      <!-- 聊天区域 -->
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+          <!-- 初始欢迎消息 -->
+          <div class="system-message">
+            <span>对话已开始，请输入您的问题</span>
+          </div>
+          
+          <!-- 消息将通过JavaScript动态添加 -->
+        </div>
+        
+        <!-- 回到底部按钮 -->
+        <button class="scroll-bottom-btn" id="scroll-bottom">
+          <i class="ri-arrow-down-s-line"></i>
+        </button>
+        
+        <!-- 输入区域 -->
+        <div class="chat-input-container">
+          <form id="chat-form" class="chat-form">
+            <textarea 
+              id="chat-input" 
+              class="chat-input" 
+              placeholder="输入消息..." 
+              rows="1"
+              autofocus
+            ></textarea>
+            <button type="submit" class="send-button" id="send-button">
+              <i class="ri-send-plane-fill"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- 加载消息指示器 -->
+  <div class="loader" id="loader" style="display: none;">
+    <div class="loader-content">
+      <div class="loader-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="loader-text">思考中...</div>
+    </div>
+  </div>
+  
+  <!-- JavaScript -->
+  <script src="/static/js/script.js"></script>
+</body>
+</html> 
