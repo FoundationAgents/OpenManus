@@ -21,6 +21,8 @@ model Users {
   isFirstLogin Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([name])
 }
 
 model Organizations {
@@ -28,6 +30,8 @@ model Organizations {
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Preferences {
@@ -44,6 +48,9 @@ model OrganizationUsers {
   userId         String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, userId])
 }
 
 model Tasks {
@@ -57,6 +64,10 @@ model Tasks {
   organizationId String
   steps          TaskProcesses[]
   progresses     TaskProgresses[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([createdAt])
 }
 
 model TaskProgresses {
@@ -72,7 +83,10 @@ model TaskProgresses {
 
   task Tasks @relation(fields: [taskId], references: [id])
 
-  @@index([taskId, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, taskId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model TaskProcesses {
@@ -88,7 +102,10 @@ model TaskProcesses {
 
   task Tasks @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@index([taskId, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, taskId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model LlmConfigs {
@@ -108,6 +125,8 @@ model LlmConfigs {
   organizationId String
 
   @@unique([type, organizationId])
+  @@index([organizationId])
+  @@index([isActive])
 }
 
 model InviteCodes {
@@ -118,4 +137,6 @@ model InviteCodes {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([isUsed])
 }
