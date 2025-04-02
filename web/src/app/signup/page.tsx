@@ -137,18 +137,20 @@ export default function SignupPage() {
                 className="h-11"
               />
             </div>
-            <div>
-              <Input
-                name="inviteCode"
-                type="text"
-                placeholder="Invite Code"
-                value={formData.inviteCode}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-                className="h-11"
-              />
-            </div>
+            {process.env.NEXT_PUBLIC_NEED_INVITE_CODE === 'true' && (
+              <div>
+                <Input
+                  name="inviteCode"
+                  type="text"
+                  placeholder="Invite Code"
+                  value={formData.inviteCode}
+                  onChange={handleChange}
+                  required
+                  disabled={isLoading}
+                  className="h-11"
+                />
+              </div>
+            )}
             <Button type="submit" className="h-11 w-full text-base font-medium" disabled={isLoading}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>

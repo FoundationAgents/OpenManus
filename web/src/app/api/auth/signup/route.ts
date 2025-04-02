@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
+  const needInviteCode = process.env.NEXT_PUBLIC_NEED_INVITE_CODE === 'true';
   const { email, password, name, organizationName, inviteCode } = await request.json();
 
   // Verify invite code
@@ -10,16 +11,18 @@ export async function POST(request: Request) {
     where: { code: inviteCode, email, isUsed: false },
   });
 
-  if (!invite) {
+  if (needInviteCode && !invite) {
     return NextResponse.json({ error: 'Invalid invite code' }, { status: 400 });
   }
 
-  const existingOrganization = await prisma.organizations.findUnique({
-    where: { name: organizationName },
-  });
+  if (needInviteCode) {
+    const existingOrganization = await prisma.organizations.findUnique({
+      where: { name: organizationName },
+    });
 
-  if (existingOrganization) {
-    return NextResponse.json({ error: 'Organization already exists' }, { status: 400 });
+    if (existingOrganization) {
+      return NextResponse.json({ error: 'Organization already exists' }, { status: 400 });
+    }
   }
 
   const existingUser = await prisma.users.findUnique({
@@ -56,13 +59,15 @@ export async function POST(request: Request) {
     });
 
     // Mark invite code as used
-    await tx.inviteCodes.update({
-      where: { id: invite.id },
-      data: {
-        isUsed: true,
-        usedAt: new Date(),
-      },
-    });
+    if (needInviteCode && invite) {
+      await tx.inviteCodes.update({
+        where: { id: invite.id },
+        data: {
+          isUsed: true,
+          usedAt: new Date(),
+        },
+      });
+    }
 
     return { user, organization };
   });
