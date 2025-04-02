@@ -1,19 +1,11 @@
-import { AggregatedMessage } from '@/types/chat';
-import Markdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AggregatedMessage } from '@/types/chat';
 import { BrowserUseToolMessage } from './browser-use-tool-message';
-import { useMemo } from 'react';
-import Image from 'next/image';
-import { getBase64ImageUrl } from '@/lib/image';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useCurrentMessageIndex } from '@/app/tasks/hooks';
-import { StrReplaceEditorMessage } from './str_replace_editor';
-import { PythonExecuteMessage } from './python-execute-message';
 import { PlanningMessage } from './planning';
+import { PythonExecuteMessage } from './python-execute-message';
+import { StrReplaceEditorMessage } from './str_replace_editor';
 
 export const ToolMessage = ({ message }: { message: AggregatedMessage }) => {
   if (message.type !== 'tool') return null;

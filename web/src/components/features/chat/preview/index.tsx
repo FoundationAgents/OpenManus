@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getBase64ImageUrl } from '@/lib/image';
+import { getImageUrl } from '@/lib/image';
 import { Message } from '@/types/chat';
 import { Terminal } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -11,7 +11,13 @@ import { useEffect, useState } from 'react';
 import { getFileContent } from '@/actions/workspace';
 
 const BrowserPagePreview = ({ message }: { message: Message }) => {
-  return <img src={getBase64ImageUrl(message.content.screenshot)} alt="Manus's Computer Screen" className="w-full" />;
+  return (
+    <img
+      src={getImageUrl(message.content.screenshot, { quality: 100, width: 1920, height: 1920 })}
+      alt="Manus's Computer Screen"
+      className="w-full"
+    />
+  );
 };
 
 const NotPreview = () => {

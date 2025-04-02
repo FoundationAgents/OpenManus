@@ -43,7 +43,6 @@ class Manus(BrowserAgent):
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(default_factory=lambda: ToolCollection())
 
-    task_id: Optional[str] = Field(None, description="Task ID for the agent")
     language: Optional[str] = Field(None, description="Language for the agent")
 
     def initialize(self, task_id: str, language: Optional[str] = None):

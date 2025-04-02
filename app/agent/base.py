@@ -175,6 +175,8 @@ class BaseAgent(BaseModel, ABC):
         None, description="Prompt for determining next action"
     )
 
+    task_id: Optional[str] = Field(None, description="Task ID for the agent")
+
     # Dependencies
     llm: LLM = Field(default_factory=LLM, description="Language model instance")
     memory: Memory = Field(default_factory=Memory, description="Agent's memory store")

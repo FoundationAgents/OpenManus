@@ -1,9 +1,6 @@
 import { Message, AggregatedMessage } from '@/types/chat';
 import Markdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
-import { getBase64ImageUrl } from '@/lib/image';
-import Link from 'next/link';
-import { useCurrentMessageIndex } from '@/app/tasks/hooks';
 import { ToolMessage } from './tools';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
