@@ -17,6 +17,9 @@ async def main():
         logger.info("Request processing completed.")
     except KeyboardInterrupt:
         logger.warning("Operation interrupted.")
+    finally:
+        # Ensure agent resources are cleaned up before exiting
+        await agent.cleanup()
 
 
 if __name__ == "__main__":
