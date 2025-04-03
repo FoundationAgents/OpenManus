@@ -1,14 +1,13 @@
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { BrowserUseToolTooltip } from './browser-use-tool-message';
 import { AggregatedMessage } from '@/types/chat';
 import { useCurrentMessageIndex } from '@/app/tasks/hooks';
-import Link from 'next/link';
-
+import { getFilePath } from '@/lib/image';
 export const StrReplaceEditorTooltip = ({ args, result }: { args: any; result: string }) => {
   if (!result) return null;
 
-  const filePath = result.match(/File created successfully at: ([^\s]+)/)?.[1];
+  const originalFilePath = result.match(/File created successfully at: ([^\s]+)/)?.[1];
+  const filePath = getFilePath(originalFilePath);
 
   return (
     <div className="space-y-2">
@@ -36,6 +35,9 @@ export const StrReplaceEditorMessage = ({ args, result, message }: { args: any; 
   const { currentMessageIndex, setCurrentMessageIndex } = useCurrentMessageIndex();
   const strReplaceExecuteStartMessage = message.messages.find(msg => msg.type === 'agent:tool:execute:start');
 
+  const originalFilePath = strReplaceExecuteStartMessage?.content.args.path;
+  const filePath = getFilePath(originalFilePath);
+
   if (args.command === 'view') {
     return (
       <Popover>
@@ -50,7 +52,7 @@ export const StrReplaceEditorMessage = ({ args, result, message }: { args: any; 
                   setCurrentMessageIndex(strReplaceExecuteStartMessage?.index ?? currentMessageIndex);
                 }}
               >
-                {strReplaceExecuteStartMessage?.content.args.path}
+                {filePath}
               </span>
             </span>
           </Badge>

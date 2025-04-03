@@ -8,9 +8,13 @@ export const getBase64ImageUrl = (base64String: string) => {
   return `data:image/png;base64,${base64String}`;
 };
 
-export const getImageUrl = (path: string, params?: { quality?: number; width?: number; height?: number }) => {
+export const getImageUrl = (path: string) => {
   if (path.startsWith('/workspace')) {
-    return `/api${path}?${querystring.stringify(params)}`;
+    return `/api${path}`;
   }
   return getBase64ImageUrl(path);
+};
+
+export const getFilePath = (path: string | undefined) => {
+  return path?.includes('/workspace') ? `/api${path.slice(path.indexOf('/workspace'))}` : undefined;
 };

@@ -172,7 +172,7 @@ export const BrowserUseToolMessage = ({
         <Badge variant="outline" className="mt-2 cursor-pointer" onClick={() => setCurrentMessageIndex(browserMessage.index ?? currentMessageIndex)}>
           <div className="relative my-1 h-24 w-24 overflow-hidden rounded">
             <Image
-              src={getImageUrl(browserMessage.content.screenshot, { quality: 80, width: 100, height: 100 })}
+              src={getImageUrl(browserMessage.content.screenshot)}
               alt={browserMessage.content.title || 'Screenshot'}
               fill
               sizes="(max-width: 100px) 100vw, 100px"

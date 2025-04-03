@@ -1,25 +1,23 @@
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getImageUrl } from '@/lib/image';
+import { getFilePath, getImageUrl } from '@/lib/image';
 import { Message } from '@/types/chat';
-import { Terminal } from 'lucide-react';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { useEffect, useState } from 'react';
-import { getFileContent } from '@/actions/workspace';
 import Image from 'next/image';
 
 const BrowserPagePreview = ({ message }: { message: Message }) => {
   return (
-    <div className="relative h-[600px] w-full">
+    <div className="relative w-full">
       <Image
-        src={getImageUrl(message.content.screenshot, { quality: 100, width: 1920, height: 1920 })}
+        src={getImageUrl(message.content.screenshot)}
         alt="Manus's Computer Screen"
-        fill
+        width={1920}
+        height={1080}
+        className="h-auto w-full"
         sizes="(max-width: 1920px) 100vw, 1920px"
-        className="object-contain"
         priority
       />
     </div>
@@ -56,12 +54,15 @@ const StrReplaceEditorViewPreview = ({ message }: { message: Message }) => {
   const [fileContent, setFileContent] = useState('');
 
   useEffect(() => {
-    const path = message.content.args.path;
+    const path = getFilePath(message.content.args.path);
     if (!path) {
       return;
     }
-    getFileContent({ path }).then(data => {
-      setFileContent(data.data || '');
+
+    fetch(path).then(res => {
+      res.text().then(data => {
+        setFileContent(data);
+      });
     });
   }, [message.content.args.path]);
 
