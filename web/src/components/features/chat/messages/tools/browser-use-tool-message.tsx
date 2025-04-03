@@ -159,7 +159,7 @@ export const BrowserUseToolMessage = ({
           <Badge variant="outline" className="flex cursor-pointer items-center gap-2">
             <div>
               <span className="font-mono">
-                {!result ? '🔍' : result.error ? '🚨' : '🎯'} {renderAction(action)}
+                {!result ? <span className="searching-animation">🔍</span> : result.error ? <span>🚨</span> : <span>🎯</span>} {renderAction(action)}
               </span>
             </div>
           </Badge>

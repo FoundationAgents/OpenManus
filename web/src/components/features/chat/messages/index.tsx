@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { ToolMessage } from './tools';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import '@/styles/animations.css';
+
 interface ChatMessageProps {
   messages: Message[];
 }
@@ -19,17 +21,21 @@ const renderUserMessage = (message: Message<{ prompt: string }>) => (
 );
 
 const renderStepMessage = (message: Message) => {
-  return <div className="text-muted-foreground mt-2 text-xs">{message.step}</div>;
+  return (
+    <>
+      <div className="text-muted-foreground mt-2 font-mono text-xs">🚀 Step {message.content.count}</div>
+      {message.type === 'agent:step:start' && message.content.thinking && (
+        <Badge className="mt-2 ml-2 font-mono text-xs">
+          <span className="thinking-animation">🤔</span>
+          <span>Thinking...</span>
+        </Badge>
+      )}
+    </>
+  );
 };
 
 const renderCompleteMessage = (message: Message<{ results: string[] }>) => {
-  return (
-    <div className="mt-2 text-xs">
-      <Badge variant="outline" className="cursor-pointer font-mono">
-        🎯 Task Completed
-      </Badge>
-    </div>
-  );
+  return <Badge className="cursor-pointer font-mono">🎉 Awesome! Task Completed</Badge>;
 };
 
 const renderToolSelectedMessage = (message: Message) => {
@@ -96,6 +102,20 @@ const aggregateMessages = (messages: Message[]): AggregatedMessage[] => {
     acc.push(current);
     return acc;
   }, [] as AggregatedMessage[]);
+
+  // if step is last, add a thinking status to the last step
+  // expect agent:browser:browse:start, it would be blocked at the first step for a while
+  const list = result.filter(
+    msg =>
+      !(
+        msg.type === 'agent:browser:browse:start' ||
+        (msg.type === 'agent:browser:browse:error' && msg.content.error === 'Browser context not initialized')
+      ),
+  );
+  const lastStep = list[list.length - 1];
+  if (lastStep?.type === 'agent:step:start') {
+    lastStep.content.thinking = true;
+  }
 
   return result;
 };

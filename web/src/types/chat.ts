@@ -14,6 +14,7 @@ export type Message<T = any> = {
     | 'agent:tool:complete'
     | 'agent:browser:browse:start'
     | 'agent:browser:browse:complete'
+    | 'agent:browser:browse:error'
     | 'agent:tool:selected'
     | 'agent:tool:start'
     | 'agent:tool:complete'

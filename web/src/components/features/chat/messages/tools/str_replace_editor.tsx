@@ -36,7 +36,6 @@ export const StrReplaceEditorMessage = ({ args, result, message }: { args: any; 
   const strReplaceExecuteStartMessage = message.messages.find(msg => msg.type === 'agent:tool:execute:start');
 
   const originalFilePath = strReplaceExecuteStartMessage?.content.args.path;
-  const filePath = getFilePath(originalFilePath);
 
   if (args.command === 'view') {
     return (
@@ -52,7 +51,7 @@ export const StrReplaceEditorMessage = ({ args, result, message }: { args: any; 
                   setCurrentMessageIndex(strReplaceExecuteStartMessage?.index ?? currentMessageIndex);
                 }}
               >
-                {filePath}
+                {originalFilePath}
               </span>
             </span>
           </Badge>
