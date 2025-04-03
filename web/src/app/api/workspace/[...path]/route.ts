@@ -93,7 +93,7 @@ function getContentType(filePath: string): string {
   return contentTypes[ext] || 'application/octet-stream';
 }
 
-export const compressImage = async (
+const compressImage = async (
   fileBuffer: Buffer,
   { quality, width, height, format }: { quality: number; width: number; height: number; format: string },
 ): Promise<Buffer> => {
