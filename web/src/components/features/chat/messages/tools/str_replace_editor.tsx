@@ -6,7 +6,7 @@ import { getFilePath } from '@/lib/image';
 export const StrReplaceEditorTooltip = ({ args, result }: { args: any; result: string }) => {
   if (!result) return null;
 
-  const originalFilePath = result.match(/File created successfully at: ([^\s]+)/)?.[1];
+  const originalFilePath = typeof result === 'string' ? result.match(/File created successfully at: ([^\s]+)/)?.[1] : undefined;
   const filePath = getFilePath(originalFilePath);
 
   return (

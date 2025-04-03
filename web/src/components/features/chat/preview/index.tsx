@@ -4,7 +4,9 @@ import { Message } from '@/types/chat';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/default-highlight';
+import { githubGist } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
@@ -32,32 +34,60 @@ const NotPreview = () => {
   );
 };
 
-const StrReplaceEditorPreview = ({ message }: { message: Message }) => {
-  return (
-    <div className="markdown-body p-4">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-        components={{
-          a: ({ node, ...props }) => {
-            return <a {...props} target="_blank" />;
-          },
-        }}
-      >
-        {message.content.args.file_text}
-      </Markdown>
-    </div>
-  );
+const getFileLanguage = (path: string): string => {
+  const ext = path.split('.').pop()?.toLowerCase();
+  const languageMap: Record<string, string> = {
+    js: 'javascript',
+    jsx: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    py: 'python',
+    java: 'java',
+    c: 'c',
+    cpp: 'cpp',
+    cs: 'csharp',
+    go: 'go',
+    rb: 'ruby',
+    php: 'php',
+    swift: 'swift',
+    kt: 'kotlin',
+    rs: 'rust',
+    sh: 'bash',
+    bash: 'bash',
+    zsh: 'bash',
+    html: 'html',
+    css: 'css',
+    scss: 'scss',
+    less: 'less',
+    json: 'json',
+    yaml: 'yaml',
+    yml: 'yaml',
+    xml: 'xml',
+    sql: 'sql',
+    md: 'markdown',
+    txt: 'text',
+    log: 'text',
+    ini: 'ini',
+    toml: 'toml',
+    conf: 'conf',
+    env: 'env',
+    dockerfile: 'dockerfile',
+    'docker-compose': 'yaml',
+  };
+  return languageMap[ext || ''] || 'text';
 };
 
-const StrReplaceEditorViewPreview = ({ message }: { message: Message }) => {
+const StrReplaceEditorPreview = ({ message }: { message: Message }) => {
   const [fileContent, setFileContent] = useState('');
+  const [language, setLanguage] = useState('text');
 
   useEffect(() => {
     const path = getFilePath(message.content.args.path);
     if (!path) {
       return;
     }
+
+    setLanguage(getFileLanguage(message.content.args.path));
 
     fetch(path).then(res => {
       res.text().then(data => {
@@ -66,21 +96,39 @@ const StrReplaceEditorViewPreview = ({ message }: { message: Message }) => {
     });
   }, [message.content.args.path]);
 
+  if (language === 'markdown') {
+    return (
+      <div className="markdown-body p-4">
+        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+          {fileContent}
+        </Markdown>
+      </div>
+    );
+  }
+
   return (
-    <div className="markdown-body p-4">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+    <div className="p-4">
+      <SyntaxHighlighter language={language} showLineNumbers style={githubGist} customStyle={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
         {fileContent}
-      </Markdown>
+      </SyntaxHighlighter>
     </div>
   );
 };
 
 const PythonExecuteScriptPreview = ({ message }: { message: Message }) => {
-  return <SyntaxHighlighter language="python">{message.content.args.code.trim()}</SyntaxHighlighter>;
+  return (
+    <SyntaxHighlighter language="python" showLineNumbers style={githubGist} customStyle={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
+      {message.content.args.code.trim()}
+    </SyntaxHighlighter>
+  );
 };
 
 const PythonExecuteResultPreview = ({ message }: { message: Message }) => {
-  return <SyntaxHighlighter language="json">{message.content.result.trim()}</SyntaxHighlighter>;
+  return (
+    <SyntaxHighlighter language="json" showLineNumbers style={githubGist} customStyle={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
+      {message.content.result.trim()}
+    </SyntaxHighlighter>
+  );
 };
 
 const PreviewContent = ({ message }: { message: Message }) => {
@@ -88,7 +136,7 @@ const PreviewContent = ({ message }: { message: Message }) => {
     return <BrowserPagePreview message={message} />;
   }
   if (message?.type === 'agent:tool:execute:start' && message.content.name === 'str_replace_editor' && message.content.args.command === 'view') {
-    return <StrReplaceEditorViewPreview message={message} />;
+    return <StrReplaceEditorPreview message={message} />;
   }
   if (message?.type === 'agent:tool:execute:start' && message.content.name === 'str_replace_editor') {
     return <StrReplaceEditorPreview message={message} />;
