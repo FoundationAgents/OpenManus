@@ -5,6 +5,7 @@ import json
 import os
 import time
 from hashlib import sha256
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
@@ -17,6 +18,7 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
+from app.tool.base import normalize_workspace_path
 from app.tool.browser_use_tool import BROWSER_USE_TOOL_NAME
 
 
@@ -182,7 +184,7 @@ class BrowserAgent(ToolCallAgent):
                     "tabs": tabs_info,
                     "content_above": content_above_info,
                     "content_below": content_below_info,
-                    "screenshot": screenshot_path,
+                    "screenshot": normalize_workspace_path(screenshot_path),
                     "results": results_info,
                 },
             )

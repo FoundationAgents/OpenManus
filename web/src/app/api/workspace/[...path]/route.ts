@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * This route is used to serve assets for a task.
- * such like /workspace/[task_id]/[screenshot.png]
+ * such like /workspace/[organization_id]/[task_id]/[screenshot.png]
  * @param request
  * @param params
  * @returns
@@ -31,8 +31,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
+    const organizationId = path[0];
+    const taskId = path[1];
+
+    if (organizationId !== organizationUser.organizationId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
     const task = await prisma.tasks.findUnique({
-      where: { id: path[0] },
+      where: { organizationId: organizationId, id: taskId },
       select: { organizationId: true },
     });
 

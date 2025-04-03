@@ -59,7 +59,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
   // Send task to API
   const body = JSON.stringify({
     prompt,
-    task_id: task.id,
+    task_id: `${organization.id}/${task.id}`,
     preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
     llm_config: llmConfig
       ? {

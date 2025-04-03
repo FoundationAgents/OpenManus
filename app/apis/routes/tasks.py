@@ -131,10 +131,10 @@ async def create_task(
     return {"task_id": task.id}
 
 
-@router.get("/{task_id}/events")
-async def task_events(task_id: str):
+@router.get("/{organization_id}/{task_id}/events")
+async def task_events(organization_id: str, task_id: str):
     return StreamingResponse(
-        event_generator(task_id),
+        event_generator(f"{organization_id}/{task_id}"),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
