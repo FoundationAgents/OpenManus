@@ -8,13 +8,14 @@ from app.config import SandboxSettings
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
 
-
 PathLike = Union[str, Path]
 
 
 @runtime_checkable
 class FileOperator(Protocol):
     """Interface for file operations in different environments."""
+
+    base_path: Path
 
     async def read_file(self, path: PathLike) -> str:
         """Read content from a file."""
@@ -43,28 +44,56 @@ class LocalFileOperator(FileOperator):
     """File operations implementation for local filesystem."""
 
     encoding: str = "utf-8"
+    base_path: Path = None  # Will be set by StrReplaceEditor
+
+    def _resolve_path(self, path: PathLike) -> Path:
+        """Resolve path relative to base_path."""
+        if self.base_path is None:
+            raise ToolError(
+                "base_path is not set. Please set base_path before using LocalFileOperator."
+            )
+
+        path = Path(path)
+        # Convert Windows-style path to POSIX-style
+        path_str = str(path).replace("\\", "/")
+
+        if path_str.startswith("/workspace"):
+            # For sandbox paths, use the full path as is
+            resolved = Path(path_str)
+        else:
+            # For all other paths, join with base_path
+            resolved = self.base_path / path_str
+
+        # Ensure the directory exists
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+
+        return resolved
 
     async def read_file(self, path: PathLike) -> str:
         """Read content from a local file."""
         try:
-            return Path(path).read_text(encoding=self.encoding)
+            resolved_path = self._resolve_path(path)
+            return resolved_path.read_text(encoding=self.encoding)
         except Exception as e:
             raise ToolError(f"Failed to read {path}: {str(e)}") from None
 
     async def write_file(self, path: PathLike, content: str) -> None:
         """Write content to a local file."""
         try:
-            Path(path).write_text(content, encoding=self.encoding)
+            resolved_path = self._resolve_path(path)
+            resolved_path.write_text(content, encoding=self.encoding)
         except Exception as e:
             raise ToolError(f"Failed to write to {path}: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory."""
-        return Path(path).is_dir()
+        resolved_path = self._resolve_path(path)
+        return resolved_path.is_dir()
 
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists."""
-        return Path(path).exists()
+        resolved_path = self._resolve_path(path)
+        return resolved_path.exists()
 
     async def run_command(
         self, cmd: str, timeout: Optional[float] = 120.0
@@ -96,8 +125,17 @@ class LocalFileOperator(FileOperator):
 class SandboxFileOperator(FileOperator):
     """File operations implementation for sandbox environment."""
 
+    base_path: Path = Path("/workspace")
+
     def __init__(self):
         self.sandbox_client = SANDBOX_CLIENT
+
+    def _resolve_path(self, path: PathLike) -> str:
+        """Resolve path relative to base_path."""
+        path = str(path)
+        if path.startswith("/workspace"):
+            return path  # Sandbox already uses /workspace as base
+        return str(self.base_path / path)
 
     async def _ensure_sandbox_initialized(self):
         """Ensure sandbox is initialized."""
@@ -108,7 +146,8 @@ class SandboxFileOperator(FileOperator):
         """Read content from a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
-            return await self.sandbox_client.read_file(str(path))
+            resolved_path = self._resolve_path(path)
+            return await self.sandbox_client.read_file(resolved_path)
         except Exception as e:
             raise ToolError(f"Failed to read {path} in sandbox: {str(e)}") from None
 
@@ -116,23 +155,26 @@ class SandboxFileOperator(FileOperator):
         """Write content to a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
-            await self.sandbox_client.write_file(str(path), content)
+            resolved_path = self._resolve_path(path)
+            await self.sandbox_client.write_file(resolved_path, content)
         except Exception as e:
             raise ToolError(f"Failed to write to {path} in sandbox: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory in sandbox."""
         await self._ensure_sandbox_initialized()
+        resolved_path = self._resolve_path(path)
         result = await self.sandbox_client.run_command(
-            f"test -d {path} && echo 'true' || echo 'false'"
+            f"test -d {resolved_path} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists in sandbox."""
         await self._ensure_sandbox_initialized()
+        resolved_path = self._resolve_path(path)
         result = await self.sandbox_client.run_command(
-            f"test -e {path} && echo 'true' || echo 'false'"
+            f"test -e {resolved_path} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 

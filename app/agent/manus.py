@@ -30,7 +30,7 @@ class Manus(BrowserAgent):
     )
 
     system_prompt: str = SYSTEM_PROMPT.format(
-        directory=config.workspace_root,
+        directory="/workspace",
         task_id="Not Specified",
         task_dir="Not Specified",
         language="English",
@@ -48,7 +48,7 @@ class Manus(BrowserAgent):
     def initialize(self, task_id: str, language: Optional[str] = None):
         self.task_id = task_id
         self.language = language
-        task_dir = f"{config.workspace_root}/{task_id}"
+        task_dir = f"/workspace/{task_id}"
 
         self.available_tools.add_tools(
             PlanningTool(),
@@ -62,8 +62,8 @@ class Manus(BrowserAgent):
             os.makedirs(task_dir)
 
         self.system_prompt = SYSTEM_PROMPT.format(
+            directory="/workspace",
             task_id=self.task_id,
-            directory=config.workspace_root,
             task_dir=task_dir,
             language=self.language or "English",
         )

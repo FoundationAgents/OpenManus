@@ -18,7 +18,6 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-from app.tool.base import normalize_workspace_path
 from app.tool.browser_use_tool import BROWSER_USE_TOOL_NAME
 
 
@@ -184,7 +183,11 @@ class BrowserAgent(ToolCallAgent):
                     "tabs": tabs_info,
                     "content_above": content_above_info,
                     "content_below": content_below_info,
-                    "screenshot": normalize_workspace_path(screenshot_path),
+                    "screenshot": (
+                        Path(screenshot_path)
+                        .as_posix()
+                        .replace(config.workspace_root.as_posix(), "/workspace")
+                    ),
                     "results": results_info,
                 },
             )
