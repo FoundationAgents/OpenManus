@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getImageUrl } from '@/lib/image';
 import { AggregatedMessage } from '@/types/chat';
+import Image from 'next/image';
 
 export const BrowserUseToolTooltip = ({
   args,
@@ -169,23 +170,27 @@ export const BrowserUseToolMessage = ({
       </Popover>
       {isShowScreenshot && (
         <Badge variant="outline" className="mt-2 cursor-pointer" onClick={() => setCurrentMessageIndex(browserMessage.index ?? currentMessageIndex)}>
-          <img
-            src={getImageUrl(browserMessage.content.screenshot, { quality: 80, width: 100, height: 100 })}
-            alt={browserMessage.content.title}
-            className="my-1 h-24 w-24 cursor-pointer rounded object-cover object-top"
-            onError={e => {
-              e.currentTarget.style.display = 'none';
-              const parentNode = e.currentTarget.parentNode;
-              const existingIcon = parentNode?.querySelector('.image-fallback-icon');
-              if (!existingIcon) {
-                const iconContainer = document.createElement('div');
-                iconContainer.className = 'my-1 h-24 w-24 flex items-center justify-center rounded bg-muted image-fallback-icon';
-                iconContainer.innerHTML =
-                  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
-                parentNode?.appendChild(iconContainer);
-              }
-            }}
-          />
+          <div className="relative my-1 h-24 w-24 overflow-hidden rounded">
+            <Image
+              src={getImageUrl(browserMessage.content.screenshot, { quality: 80, width: 100, height: 100 })}
+              alt={browserMessage.content.title || 'Screenshot'}
+              fill
+              sizes="(max-width: 100px) 100vw, 100px"
+              className="cursor-pointer object-cover object-top"
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+                const parentNode = e.currentTarget.parentNode;
+                const existingIcon = parentNode?.querySelector('.image-fallback-icon');
+                if (!existingIcon) {
+                  const iconContainer = document.createElement('div');
+                  iconContainer.className = 'my-1 h-24 w-24 flex items-center justify-center rounded bg-muted image-fallback-icon';
+                  iconContainer.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                  parentNode?.appendChild(iconContainer);
+                }
+              }}
+            />
+          </div>
         </Badge>
       )}
       {action === 'extract_content' && <div className="mt-2 rounded-lg p-2 text-xs">{args.goal}</div>}

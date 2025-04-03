@@ -9,14 +9,20 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { useEffect, useState } from 'react';
 import { getFileContent } from '@/actions/workspace';
+import Image from 'next/image';
 
 const BrowserPagePreview = ({ message }: { message: Message }) => {
   return (
-    <img
-      src={getImageUrl(message.content.screenshot, { quality: 100, width: 1920, height: 1920 })}
-      alt="Manus's Computer Screen"
-      className="w-full"
-    />
+    <div className="relative h-[600px] w-full">
+      <Image
+        src={getImageUrl(message.content.screenshot, { quality: 100, width: 1920, height: 1920 })}
+        alt="Manus's Computer Screen"
+        fill
+        sizes="(max-width: 1920px) 100vw, 1920px"
+        className="object-contain"
+        priority
+      />
+    </div>
   );
 };
 
