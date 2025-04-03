@@ -1,6 +1,7 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
@@ -14,8 +15,6 @@ PathLike = Union[str, Path]
 @runtime_checkable
 class FileOperator(Protocol):
     """Interface for file operations in different environments."""
-
-    base_path: Path
 
     async def read_file(self, path: PathLike) -> str:
         """Read content from a file."""
@@ -55,7 +54,8 @@ class LocalFileOperator(FileOperator):
             raise ToolError(f"Path {path_str} is not a valid path")
 
         resolved = Path(self.base_path / path_str.replace("/workspace/", ""))
-
+        if not resolved.parent.exists():
+            os.makedirs(resolved.parent, exist_ok=True)
         return resolved
 
     async def read_file(self, path: PathLike) -> str:
