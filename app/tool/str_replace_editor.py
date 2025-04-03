@@ -101,14 +101,9 @@ class StrReplaceEditor(BaseTool):
     _local_operator: LocalFileOperator = LocalFileOperator()
     _sandbox_operator: SandboxFileOperator = SandboxFileOperator()
 
+    # def _get_operator(self, use_sandbox: bool) -> FileOperator:
     def _get_operator(self) -> FileOperator:
         """Get the appropriate file operator based on execution mode."""
-        # Convert /workspace path to actual physical path
-        if isinstance(self._sandbox_operator, SandboxFileOperator):
-            self._sandbox_operator.base_path = Path("/workspace")
-        if isinstance(self._local_operator, LocalFileOperator):
-            self._local_operator.base_path = config.workspace_root
-
         return (
             self._sandbox_operator
             if config.sandbox.use_sandbox

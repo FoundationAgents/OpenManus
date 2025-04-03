@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
-from app.config import SandboxSettings
+from app.config import SandboxSettings, config
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
 
@@ -44,28 +44,17 @@ class LocalFileOperator(FileOperator):
     """File operations implementation for local filesystem."""
 
     encoding: str = "utf-8"
-    base_path: Path = None  # Will be set by StrReplaceEditor
+    base_path: Path = config.workspace_root
 
     def _resolve_path(self, path: PathLike) -> Path:
         """Resolve path relative to base_path."""
-        if self.base_path is None:
-            raise ToolError(
-                "base_path is not set. Please set base_path before using LocalFileOperator."
-            )
-
-        path = Path(path)
         # Convert Windows-style path to POSIX-style
         path_str = str(path).replace("\\", "/")
 
-        if path_str.startswith("/workspace"):
-            # For sandbox paths, use the full path as is
-            resolved = Path(path_str)
-        else:
-            # For all other paths, join with base_path
-            resolved = self.base_path / path_str
+        if not path_str.startswith("/workspace"):
+            raise ToolError(f"Path {path_str} is not a valid path")
 
-        # Ensure the directory exists
-        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved = Path(self.base_path / path_str.replace("/workspace/", ""))
 
         return resolved
 
@@ -125,17 +114,8 @@ class LocalFileOperator(FileOperator):
 class SandboxFileOperator(FileOperator):
     """File operations implementation for sandbox environment."""
 
-    base_path: Path = Path("/workspace")
-
     def __init__(self):
         self.sandbox_client = SANDBOX_CLIENT
-
-    def _resolve_path(self, path: PathLike) -> str:
-        """Resolve path relative to base_path."""
-        path = str(path)
-        if path.startswith("/workspace"):
-            return path  # Sandbox already uses /workspace as base
-        return str(self.base_path / path)
 
     async def _ensure_sandbox_initialized(self):
         """Ensure sandbox is initialized."""
@@ -146,8 +126,7 @@ class SandboxFileOperator(FileOperator):
         """Read content from a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
-            resolved_path = self._resolve_path(path)
-            return await self.sandbox_client.read_file(resolved_path)
+            return await self.sandbox_client.read_file(str(path))
         except Exception as e:
             raise ToolError(f"Failed to read {path} in sandbox: {str(e)}") from None
 
@@ -155,26 +134,23 @@ class SandboxFileOperator(FileOperator):
         """Write content to a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
-            resolved_path = self._resolve_path(path)
-            await self.sandbox_client.write_file(resolved_path, content)
+            await self.sandbox_client.write_file(str(path), content)
         except Exception as e:
             raise ToolError(f"Failed to write to {path} in sandbox: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory in sandbox."""
         await self._ensure_sandbox_initialized()
-        resolved_path = self._resolve_path(path)
         result = await self.sandbox_client.run_command(
-            f"test -d {resolved_path} && echo 'true' || echo 'false'"
+            f"test -d {path} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists in sandbox."""
         await self._ensure_sandbox_initialized()
-        resolved_path = self._resolve_path(path)
         result = await self.sandbox_client.run_command(
-            f"test -e {resolved_path} && echo 'true' || echo 'false'"
+            f"test -e {path} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 
