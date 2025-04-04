@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import Field, model_validator
@@ -23,7 +22,6 @@ class Manus(ToolCallAgent):
 
     system_prompt: str = SYSTEM_PROMPT.format(
         directory=config.workspace_root,
-        current_time=datetime.now().astimezone().isoformat(timespec="seconds"),
     )
     next_step_prompt: str = NEXT_STEP_PROMPT
 
