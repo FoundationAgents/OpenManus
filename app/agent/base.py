@@ -357,7 +357,9 @@ class BaseAgent(BaseModel, ABC):
 
         def decorator(func: Callable[P, R]) -> Callable[P, R]:
             @wraps(func)
-            async def wrapper(self, *args: P.args, **kwargs: P.kwargs) -> R:
+            async def wrapper(
+                self: "BaseAgent", *args: P.args, **kwargs: P.kwargs
+            ) -> R:
                 # Get counter for this specific method
                 method_name = func.__name__
                 counter_name = f"_{method_name}_counter"

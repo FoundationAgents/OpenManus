@@ -53,8 +53,10 @@ class Manus(ToolCallAgent):
             PythonExecute(),
             StrReplaceEditor(),
             Terminate(),
-            BrowserUseTool(llm=self.llm),
+            BrowserUseTool(),
         )
+
+        self.available_tools.get_tool(BrowserUseTool().name).llm = self.llm
 
         if not os.path.exists(task_dir):
             os.makedirs(task_dir)

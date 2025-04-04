@@ -15,8 +15,6 @@ from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
-BROWSER_USE_TOOL_NAME = "browser_use"
-
 _BROWSER_DESCRIPTION = """\
 A powerful browser automation tool that allows interaction with web pages through various actions.
 * This tool provides commands for controlling a browser session, navigating web pages, and extracting information
@@ -38,7 +36,7 @@ Context = TypeVar("Context")
 
 
 class BrowserUseTool(BaseTool, Generic[Context]):
-    name: str = BROWSER_USE_TOOL_NAME
+    name: str = "browser_use"
     description: str = _BROWSER_DESCRIPTION
     parameters: dict = {
         "type": "object",
@@ -131,7 +129,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
     # Context for generic functionality
     tool_context: Optional[Context] = Field(default=None, exclude=True)
 
-    llm: Optional[LLM] = Field(default_factory=LLM)
+    llm: Optional[LLM] = Field(default=None)
 
     @field_validator("parameters", mode="before")
     def validate_parameters(cls, v: dict, info: ValidationInfo) -> dict:

@@ -27,8 +27,8 @@ export const BrowserUseToolTooltip = ({
         .split('\n')
         .map(url => url.trim())
     : [];
-  const extractedFromPageMatch = result.output?.match(/Extracted from page:\n([\s\S]*)/);
-  const extractedFromPage = extractedFromPageMatch ? JSON.parse(extractedFromPageMatch[1]) : {};
+
+  const extractedFromPage = result.output?.startsWith('Extracted from page:\n') ? result.output.split('Extracted from page:\n')[1] : result.output;
 
   return (
     <div className="space-y-2">
@@ -69,12 +69,12 @@ export const BrowserUseToolTooltip = ({
           </pre>
         </div>
       )}
-      {Object.keys(extractedFromPage).length > 0 && (
+      {extractedFromPage && (
         <div className="text-sm">
           <Badge variant="outline" className="font-medium">
             Extracted from page
           </Badge>
-          <pre className="mt-1 ml-2 space-y-1 text-wrap">{JSON.stringify(extractedFromPage, null, 2)}</pre>
+          <pre className="mt-1 ml-2 space-y-1 text-wrap">{extractedFromPage}</pre>
         </div>
       )}
     </div>
