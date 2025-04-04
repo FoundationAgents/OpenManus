@@ -1,15 +1,23 @@
 # Global LLM configuration
 [llm]
-model = "claude-3-7-sonnet-20250219"        # The LLM model to use
-base_url = "https://api.anthropic.com/v1/"  # API endpoint URL
-api_key = "YOUR_API_KEY"                    # Your API key
-max_tokens = 8192                           # Maximum number of tokens in the response
-temperature = 0.0                           # Controls randomness
+model = "claude-3-7-sonnet-20250219"       # The LLM model to use
+base_url = "https://api.anthropic.com/v1/" # API endpoint URL
+api_key = "YOUR_API_KEY"                   # Your API key
+max_tokens = 8192                          # Maximum number of tokens in the response
+temperature = 0.0                          # Controls randomness
+
+# [llm] # Amazon Bedrock
+# api_type = "aws"                                       # Required
+# model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Bedrock supported modelID
+# base_url = "bedrock-runtime.us-west-2.amazonaws.com"   # Not used now
+# max_tokens = 8192
+# temperature = 1.0
+# api_key = "bear"                                       # Required but not used for Bedrock
 
 # [llm] #AZURE OPENAI:
 # api_type= 'azure'
 # model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
-# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPOLYMENT_ID}"
+# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT_ID}"
 # api_key = "AZURE API KEY"
 # max_tokens = 8096
 # temperature = 0.0
@@ -25,11 +33,11 @@ temperature = 0.0                           # Controls randomness
 
 # Optional configuration for specific LLM models
 [llm.vision]
-model = "claude-3-7-sonnet-20250219"        # The vision model to use
-base_url = "https://api.anthropic.com/v1/"  # API endpoint URL for vision model
-api_key = "YOUR_API_KEY"                    # Your API key for vision model
-max_tokens = 8192                           # Maximum number of tokens in the response
-temperature = 0.0                           # Controls randomness for vision model
+model = "claude-3-7-sonnet-20250219"       # The vision model to use
+base_url = "https://api.anthropic.com/v1/" # API endpoint URL for vision model
+api_key = "YOUR_API_KEY"                   # Your API key for vision model
+max_tokens = 8192                          # Maximum number of tokens in the response
+temperature = 0.0                          # Controls randomness for vision model
 
 # [llm.vision] #OLLAMA VISION:
 # api_type = 'ollama'
@@ -63,8 +71,19 @@ temperature = 0.0                           # Controls randomness for vision mod
 
 # Optional configuration, Search settings.
 # [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo".
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
 #engine = "Google"
+# Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
+#fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+# Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
+#retry_delay = 60
+# Maximum number of times to retry all engines when all fail. Default is 3.
+#max_retries = 3
+# Language code for search results. Options: "en" (English), "zh" (Chinese), etc.
+#lang = "en"
+# Country code for search results. Options: "us" (United States), "cn" (China), etc.
+#country = "us"
+
 
 ## Sandbox configuration
 #[sandbox]
@@ -75,3 +94,7 @@ temperature = 0.0                           # Controls randomness for vision mod
 #cpu_limit = 2.0
 #timeout = 300
 #network_enabled = true
+
+# MCP (Model Context Protocol) configuration
+[mcp]
+server_reference = "app.mcp.server" # default server module reference

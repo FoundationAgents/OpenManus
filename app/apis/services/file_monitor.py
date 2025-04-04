@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Dict, Set
 
 from fastapi import WebSocket, WebSocketDisconnect
-from watchfiles import Change, awatch
 
 from app.apis.models.file import FileInfo
 from app.apis.services.workspace import get_file_info, get_workspace_path, is_safe_path
