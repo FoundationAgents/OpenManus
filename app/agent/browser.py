@@ -3,12 +3,11 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, model_validator
 
-from app.agent.toolcall import ToolCallAgent
+from app.agent.toolcall import ToolCallAgent, ToolCallContextHelper
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
@@ -21,7 +20,9 @@ class BrowserContextHelper:
         self._current_base64_image: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.agent.tool_call_context_helper.available_tools.get_tool(
+            BrowserUseTool().name
+        )
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
             logger.warning("BrowserUseTool not found or doesn't have get_current_state")
             return None
@@ -74,7 +75,9 @@ class BrowserContextHelper:
         )
 
     async def cleanup_browser(self):
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.agent.tool_call_context_helper.available_tools.get_tool(
+            BrowserUseTool().name
+        )
         if browser_tool and hasattr(browser_tool, "cleanup"):
             await browser_tool.cleanup()
 
@@ -96,20 +99,21 @@ class BrowserAgent(ToolCallAgent):
     max_observe: int = 10000
     max_steps: int = 20
 
-    # Configure the available tools
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
-    )
-
     # Use Auto for tool choice to allow both tool usage and free-form responses
     tool_choices: ToolChoice = ToolChoice.AUTO
     special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name])
 
     browser_context_helper: Optional[BrowserContextHelper] = None
+    tool_call_context_helper: Optional[ToolCallContextHelper] = None
 
     @model_validator(mode="after")
     def initialize_helper(self) -> "BrowserAgent":
         self.browser_context_helper = BrowserContextHelper(self)
+        self.tool_call_context_helper = ToolCallContextHelper(self)
+        # Configure the available tools
+        self.tool_call_context_helper.available_tools = ToolCollection(
+            BrowserUseTool(), Terminate()
+        )
         return self
 
     async def think(self) -> bool:
