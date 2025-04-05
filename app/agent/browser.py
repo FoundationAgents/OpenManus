@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 from pydantic import Field, model_validator
 
-from app.agent.toolcall import ToolCallAgent
+from app.agent.toolcall import ToolCallAgent, ToolCallAgentEvents, ToolCallContextHelper
 from app.config import config
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
@@ -24,6 +24,13 @@ if TYPE_CHECKING:
     from app.agent.base import BaseAgent  # Or wherever memory is defined
 
 
+class BrowserAgentEvents(ToolCallAgentEvents):
+    # Browser events
+    BROWSER_BROWSER_USE_START = "agent:browser:browse:start"
+    BROWSER_BROWSER_USE_COMPLETE = "agent:browser:browse:complete"
+    BROWSER_BROWSER_USE_ERROR = "agent:browser:browse:error"
+
+
 class BrowserContextHelper:
     def __init__(self, agent: "BaseAgent"):
         self.agent = agent
@@ -32,7 +39,9 @@ class BrowserContextHelper:
         self._pre_base64_path: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.agent.tool_call_context_helper.available_tools.get_tool(
+            BrowserUseTool().name
+        )
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
             logger.warning("BrowserUseTool not found or doesn't have get_current_state")
             return None
@@ -103,7 +112,7 @@ class BrowserContextHelper:
                 self._current_base64_image = None  # Consume the image after adding
 
             self.agent.emit(
-                BrowserAgent.Events.BROWSER_BROWSER_USE_COMPLETE,
+                BrowserAgentEvents.BROWSER_BROWSER_USE_COMPLETE,
                 {
                     "url": (
                         browser_state.get("url", "N/A")
@@ -128,7 +137,7 @@ class BrowserContextHelper:
             )
         else:
             self.agent.emit(
-                BrowserAgent.Events.BROWSER_BROWSER_USE_ERROR,
+                BrowserAgentEvents.BROWSER_BROWSER_USE_ERROR,
                 {
                     "error": (
                         browser_state.get("error", "Unknown error")
@@ -147,7 +156,9 @@ class BrowserContextHelper:
         )
 
     async def cleanup_browser(self):
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.agent.tool_call_context_helper.available_tools.get_tool(
+            BrowserUseTool().name
+        )
         if browser_tool and hasattr(browser_tool, "cleanup"):
             await browser_tool.cleanup()
 
@@ -160,12 +171,6 @@ class BrowserAgent(ToolCallAgent):
     extract content, and perform other browser-based actions to accomplish tasks.
     """
 
-    class Events(ToolCallAgent.Events):
-        # Browser events
-        BROWSER_BROWSER_USE_START = "agent:browser:browse:start"
-        BROWSER_BROWSER_USE_COMPLETE = "agent:browser:browse:complete"
-        BROWSER_BROWSER_USE_ERROR = "agent:browser:browse:error"
-
     name: str = "browser"
     description: str = "A browser agent that can control a browser to accomplish tasks"
 
@@ -175,25 +180,26 @@ class BrowserAgent(ToolCallAgent):
     max_observe: int = 10000
     max_steps: int = 20
 
-    # Configure the available tools
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
-    )
-
     # Use Auto for tool choice to allow both tool usage and free-form responses
     tool_choices: ToolChoice = ToolChoice.AUTO
     special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name])
 
     browser_context_helper: Optional[BrowserContextHelper] = None
+    tool_call_context_helper: Optional[ToolCallContextHelper] = None
 
     @model_validator(mode="after")
     def initialize_helper(self) -> "BrowserAgent":
         self.browser_context_helper = BrowserContextHelper(self)
+        self.tool_call_context_helper = ToolCallContextHelper(self)
+        # Configure the available tools
+        self.tool_call_context_helper.available_tools = ToolCollection(
+            BrowserUseTool(), Terminate()
+        )
         return self
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
-        self.emit(self.Events.BROWSER_BROWSER_USE_START, {})
+        self.emit(BrowserAgentEvents.BROWSER_BROWSER_USE_START, {})
         self.next_step_prompt = (
             await self.browser_context_helper.format_next_step_prompt()
         )

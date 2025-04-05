@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.agent.base import BaseAgentEvents
 from app.agent.manus import Manus
 from app.apis.services.task_manager import task_manager
 from app.config import LLMSettings
@@ -88,7 +89,7 @@ async def event_generator(task_id: str):
             # Send actual event data
             if event.get("type"):
                 yield f"data: {formatted_event}\n\n"
-                if event.get("event_name") == Manus.Events.LIFECYCLE_COMPLETE:
+                if event.get("event_name") == BaseAgentEvents.LIFECYCLE_COMPLETE:
                     break
 
             # Send heartbeat

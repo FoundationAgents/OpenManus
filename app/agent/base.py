@@ -43,6 +43,28 @@ class EventPattern:
         self.pattern: Pattern = re.compile(pattern)
         self.handler: EventHandler = handler
 
+    # Event constants
+
+
+class BaseAgentEvents:
+    # Lifecycle events
+    LIFECYCLE_START = "agent:lifecycle:start"
+    LIFECYCLE_COMPLETE = "agent:lifecycle:complete"
+
+    # State events
+    STATE_CHANGE = "agent:state:change"
+    STATE_STUCK_DETECTED = "agent:state:stuck:detected"
+    STATE_STUCK_HANDLED = "agent:state:stuck:handled"
+
+    # Step events
+    STEP_START = "agent:step:start"
+    STEP_COMPLETE = "agent:step:complete"
+    STEP_ERROR = "agent:step:error"
+    STEP_MAX_REACHED = "agent:step:max_reached"
+
+    # Memory events
+    MEMORY_ADDED = "agent:memory:added"
+
 
 class EventQueue:
     def __init__(self):
@@ -143,26 +165,6 @@ class BaseAgent(BaseModel, ABC):
     enable_event_queue: bool = Field(default=True, description="Enable event queue")
     _private_event_queue: EventQueue = PrivateAttr(default_factory=EventQueue)
 
-    # Event constants
-    class Events:
-        # Lifecycle events
-        LIFECYCLE_START = "agent:lifecycle:start"
-        LIFECYCLE_COMPLETE = "agent:lifecycle:complete"
-
-        # State events
-        STATE_CHANGE = "agent:state:change"
-        STATE_STUCK_DETECTED = "agent:state:stuck:detected"
-        STATE_STUCK_HANDLED = "agent:state:stuck:handled"
-
-        # Step events
-        STEP_START = "agent:step:start"
-        STEP_COMPLETE = "agent:step:complete"
-        STEP_ERROR = "agent:step:error"
-        STEP_MAX_REACHED = "agent:step:max_reached"
-
-        # Memory events
-        MEMORY_ADDED = "agent:memory:added"
-
     # Core attributes
     name: str = Field(..., description="Unique name of the agent")
     description: Optional[str] = Field(None, description="Optional agent description")
@@ -231,21 +233,21 @@ class BaseAgent(BaseModel, ABC):
         self.state = new_state
         try:
             self.emit(
-                self.Events.STATE_CHANGE,
+                BaseAgentEvents.STATE_CHANGE,
                 {"old_state": previous_state.value, "new_state": self.state.value},
             )
             yield
         except Exception as e:
             self.state = AgentState.ERROR  # Transition to ERROR on failure
             self.emit(
-                self.Events.STATE_CHANGE,
+                BaseAgentEvents.STATE_CHANGE,
                 {"old_state": self.state.value, "new_state": AgentState.ERROR.value},
             )
             raise e
         finally:
             self.state = previous_state  # Revert to previous state
             self.emit(
-                self.Events.STATE_CHANGE,
+                BaseAgentEvents.STATE_CHANGE,
                 {"old_state": self.state.value, "new_state": previous_state.value},
             )
 
@@ -283,7 +285,7 @@ class BaseAgent(BaseModel, ABC):
         logger.info(f"Adding message to memory: {message}")
         self.memory.add_message(message)
         self.emit(
-            self.Events.MEMORY_ADDED, {"role": role, "message": message.to_dict()}
+            BaseAgentEvents.MEMORY_ADDED, {"role": role, "message": message.to_dict()}
         )
 
     async def run(self, request: Optional[str] = None) -> str:
@@ -301,7 +303,7 @@ class BaseAgent(BaseModel, ABC):
         if self.state != AgentState.IDLE:
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
-        self.emit(self.Events.LIFECYCLE_START, {"request": request})
+        self.emit(BaseAgentEvents.LIFECYCLE_START, {"request": request})
 
         if request:
             self.update_memory("user", request)
@@ -321,7 +323,7 @@ class BaseAgent(BaseModel, ABC):
 
                 # Check for stuck state
                 if self.is_stuck():
-                    self.emit(self.Events.STATE_STUCK_DETECTED, {})
+                    self.emit(BaseAgentEvents.STATE_STUCK_DETECTED, {})
                     self.handle_stuck_state()
 
                 results.append(f"Step {self.current_step}: {step_result}")
@@ -329,10 +331,12 @@ class BaseAgent(BaseModel, ABC):
             if self.current_step >= self.max_steps:
                 self.current_step = 0
                 self.state = AgentState.IDLE
-                self.emit(self.Events.STEP_MAX_REACHED, {"max_steps": self.max_steps})
+                self.emit(
+                    BaseAgentEvents.STEP_MAX_REACHED, {"max_steps": self.max_steps}
+                )
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
-        self.emit(self.Events.LIFECYCLE_COMPLETE, {"results": results})
+        self.emit(BaseAgentEvents.LIFECYCLE_COMPLETE, {"results": results})
         return "\n".join(results) if results else "No steps executed"
 
     def event_wrapper(
@@ -410,7 +414,11 @@ class BaseAgent(BaseModel, ABC):
         return decorator
 
     @abstractmethod
-    @event_wrapper(Events.STEP_START, Events.STEP_COMPLETE, Events.STEP_ERROR)
+    @event_wrapper(
+        BaseAgentEvents.STEP_START,
+        BaseAgentEvents.STEP_COMPLETE,
+        BaseAgentEvents.STEP_ERROR,
+    )
     async def step(self) -> str:
         """Execute a single step in the agent's workflow.
 
@@ -430,7 +438,7 @@ class BaseAgent(BaseModel, ABC):
         logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
 
         self.emit(
-            self.Events.STATE_STUCK_HANDLED, {"new_prompt": self.next_step_prompt}
+            BaseAgentEvents.STATE_STUCK_HANDLED, {"new_prompt": self.next_step_prompt}
         )
 
     def is_stuck(self) -> bool:
