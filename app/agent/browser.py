@@ -177,7 +177,6 @@ class BrowserAgent(ToolCallAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
 
-    max_observe: int = 10000
     max_steps: int = 20
 
     # Use Auto for tool choice to allow both tool usage and free-form responses

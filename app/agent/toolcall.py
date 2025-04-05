@@ -30,9 +30,6 @@ class ToolCallAgentEvents(BaseAgentEvents):
 
 
 class ToolCallContextHelper:
-    system_prompt: str = SYSTEM_PROMPT
-    next_step_prompt: str = NEXT_STEP_PROMPT
-
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate()
     )
@@ -42,15 +39,15 @@ class ToolCallContextHelper:
 
     tool_calls: List[ToolCall] = []
 
-    max_observe: Optional[Union[int, bool]] = None
+    max_observe: int = 10000
 
     def __init__(self, agent: "BaseAgent"):
         self.agent = agent
 
     async def ask_tool(self) -> bool:
         """Process current state and decide next actions using tools"""
-        if self.next_step_prompt:
-            user_msg = Message.user_message(self.next_step_prompt)
+        if self.agent.next_step_prompt:
+            user_msg = Message.user_message(self.agent.next_step_prompt)
             self.agent.messages += [user_msg]
 
         try:
@@ -58,8 +55,8 @@ class ToolCallContextHelper:
             response = await self.agent.llm.ask_tool(
                 messages=self.agent.messages,
                 system_msgs=(
-                    self.agent.messages + [Message.system_message(SYSTEM_PROMPT)]
-                    if self.system_prompt
+                    [Message.system_message(self.agent.system_prompt)]
+                    if self.agent.system_prompt
                     else None
                 ),
                 tools=self.available_tools.to_params(),
