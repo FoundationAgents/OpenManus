@@ -34,8 +34,10 @@ tomli>=2.0.0
 
 boto3~=1.37.18
 
+gradio~=4.41.0
 requests~=2.32.3
 beautifulsoup4~=4.13.3
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+

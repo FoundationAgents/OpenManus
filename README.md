@@ -2,17 +2,31 @@
   <img src="assets/logo.jpg" width="200"/>
 </p>
 
-English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
+<p align="center">
+  <strong>OpenManus: Your Versatile AI Agent Framework</strong>
+</p>
 
-[![GitHub stars](https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social)](https://github.com/mannaandpoem/OpenManus/stargazers)
-&ensp;
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
-[![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
-[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
+<p align="center">
+  English | <a href="README_zh.md">中文</a> | <a href="README_ko.md">한국어</a> | <a href="README_ja.md">日本語</a>
+</p>
 
-# 👋 OpenManus
+<p align="center">
+  <a href="https://github.com/mannaandpoem/OpenManus/stargazers"><img src="https://img.shields.io/github/stars/mannaandpoem/OpenManus?style=social" alt="GitHub stars"></a>
+  &ensp;
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  &ensp;
+  <a href="https://discord.gg/DYn29wFk9z"><img src="https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat" alt="Discord Follow"></a>
+  &ensp;
+  <a href="https://huggingface.co/spaces/lyh-917/OpenManusDemo"><img src="https://img.shields.io/badge/Demo-Hugging%20Face-yellow" alt="Demo"></a>
+</p>
+
+---
+
+## 👋 Introduction
 
 Manus is incredible, but OpenManus can achieve any idea without an *Invite Code* 🛫!
+
+**This fork enhances the original OpenManus by adding a user-friendly Web UI, an OpenAI-compatible API, a dedicated CLI entry point, multi-turn conversation support, and persistent chat history.**
 
 Our team members [@Xinbin Liang](https://github.com/mannaandpoem) and [@Jinyu Xiang](https://github.com/XiangJinyu) (core authors), along with [@Zhaoyang Yu](https://github.com/MoshiQAQ), [@Jiayi Zhang](https://github.com/didiforgithub), and [@Sirui Hong](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
 
@@ -22,163 +36,216 @@ Enjoy your own agent with OpenManus!
 
 We're also excited to introduce [OpenManus-RL](https://github.com/OpenManus/OpenManus-RL), an open-source project dedicated to reinforcement learning (RL)- based (such as GRPO) tuning methods for LLM agents, developed collaboratively by researchers from UIUC and OpenManus.
 
-## Project Demo
+## ✨ Features (Enhanced in this Fork)
 
-<video src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" data-canonical-src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="max-height:640px; min-height: 200px"></video>
+*   **Multi-Turn Conversation**: Engage in extended dialogues with context retention.
+*   **Web UI (Gradio)**: Interact with the agent through an intuitive web interface featuring:
+    *   Streaming responses for real-time updates.
+    *   Session management (create, rename, delete, switch conversations).
+    *   Persistent chat history stored locally in the `chatsHistory/` directory.
+*   **OpenAI-Compatible API (FastAPI)**: Integrate OpenManus into your applications using the familiar OpenAI SDK format (`/v1/chat/completions` endpoint). Supports both streaming and non-streaming modes.
+*   **Command-Line Interface (CLI)**: A dedicated entry point (`cli_main.py`) for terminal-based interaction.
+*   **Versatile Tools**: Equipped with tools for:
+    *   Web Browsing (`BrowserUseTool`)
+    *   Code Execution (Python in a sandbox environment)
+    *   File Operations (String replacement editor)
+    *   Web Search (Google, Bing, DuckDuckGo, Baidu)
+    *   Bash Command Execution (via sandbox terminal)
+*   **Extensible Framework**: Built with a clear, object-oriented structure (`BaseAgent` -> `ReActAgent` -> `ToolCallAgent` -> `BrowserAgent` -> `Manus`).
 
-## Installation
+## 📸 Screenshots
 
-We provide two installation methods. Method 2 (using uv) is recommended for faster installation and better dependency management.
+**Web UI:**
+![OpenManus Web UI Screenshot 1](https://github.com/Hank-Chromela/Hank-Chroela-images/blob/main/1743753144854.png?raw=true)
+
+**Session Management:**
+![OpenManus Web UI Screenshot 2](https://github.com/Hank-Chromela/Hank-Chroela-images/blob/main/1743753160804.png?raw=true)
+
+## 🚀 Installation
+
+We recommend using `uv` for faster installation and dependency management.
 
 ### Method 1: Using conda
 
-1. Create a new conda environment:
-
-```bash
-conda create -n open_manus python=3.12
-conda activate open_manus
-```
-
-2. Clone the repository:
-
-```bash
-git clone https://github.com/mannaandpoem/OpenManus.git
-cd OpenManus
-```
-
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
+1.  Create a new conda environment:
+    ```bash
+    conda create -n open_manus python=3.12 -y
+    conda activate open_manus
+    ```
+2.  Clone this repository (Your Fork):
+    ```bash
+    git clone https://github.com/Hank-Chromela/OpenManus-GUI.git
+    cd OpenManus-GUI
+    ```
+3.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ### Method 2: Using uv (Recommended)
 
-1. Install uv (A fast Python package installer and resolver):
+1.  Install `uv` (if you haven't already):
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Or follow instructions at https://github.com/astral-sh/uv
+    ```
+2.  Clone this repository (Your Fork):
+    ```bash
+    git clone https://github.com/Hank-Chromela/OpenManus-GUI.git
+    cd OpenManus-GUI
+    ```
+3.  Create and activate a virtual environment:
+    ```bash
+    uv venv --python 3.12 # Or your preferred Python 3.10+ version
+    source .venv/bin/activate  # Unix/macOS
+    # .venv\Scripts\activate    # Windows
+    ```
+4.  Install dependencies:
+    ```bash
+    uv pip install -r requirements.txt
+    ```
 
+### Install Playwright Browsers (Required for Browser Tool)
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+playwright install --with-deps
+⚙️ Configuration
+OpenManus requires configuration for the Large Language Model (LLM) you intend to use.
 
-2. Clone the repository:
-
-```bash
-git clone https://github.com/mannaandpoem/OpenManus.git
-cd OpenManus
-```
-
-3. Create a new virtual environment and activate it:
-
-```bash
-uv venv --python 3.12
-source .venv/bin/activate  # On Unix/macOS
-# Or on Windows:
-# .venv\Scripts\activate
-```
-
-4. Install dependencies:
-
-```bash
-uv pip install -r requirements.txt
-```
-
-### Browser Automation Tool (Optional)
-```bash
-playwright install
-```
-
-## Configuration
-
-OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
-
-1. Create a `config.toml` file in the `config` directory (you can copy from the example):
-
-```bash
+Ensure config/config.example.toml exists: This file serves as the configuration template.
+Create config/config.toml:
 cp config/config.example.toml config/config.toml
-```
-
-2. Edit `config/config.toml` to add your API keys and customize settings:
-
-```toml
-# Global LLM configuration
-[llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+Edit config/config.toml to add your API keys and customize settings:
+# Global LLM configuration (primarily uses default)
+[llm.default]
+model = "gpt-4o" # e.g., gpt-4o, gpt-3.5-turbo, claude-3-opus-20240229, etc.
+api_type = "openai" # Supported: "openai", "azure", "aws" (Bedrock), etc. depending on your LLM config
+base_url = "https://api.openai.com/v1" # Replace with your API endpoint
+api_key = "sk-..."  # IMPORTANT: Replace with your actual API key!
 max_tokens = 4096
 temperature = 0.0
+# api_version = "..." # Required for Azure OpenAI
 
-# Optional configuration for specific LLM models
-[llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
-```
+# Optional configuration for specific LLM models (e.g., for vision)
+# [llm.vision]
+# model = "gpt-4o"
+# base_url = "https://api.openai.com/v1"
+# api_key = "sk-..."
+Note: config/config.toml contains sensitive information and is included in .gitignore to prevent accidental commits.
+▶️ Running the Application
+You can now run different modes using separate entry points or the main launcher:
 
-## Quick Start
+1. Run Web UI & API Server (Recommended)
 
-One line for run OpenManus:
+Use the main.py launcher script:
 
-```bash
 python main.py
-```
+# Or explicitly (default behavior):
+# python main.py --service all
+This will:
 
-Then input your idea via terminal!
+Start the Gradio Web UI server (default: http://127.0.0.1:7860).
+Start the FastAPI API server (default: http://0.0.0.0:8000).
+Attempt to automatically open the Web UI in your browser.
+2. Run Only Web UI
 
-For MCP tool version, you can run:
-```bash
-python run_mcp.py
-```
+python main.py --service ui
+Starts only the Gradio Web UI server (default: http://127.0.0.1:7860).
+Attempts to open the browser.
+3. Run Only API Server
 
-For unstable multi-agent version, you also can run:
+python main.py --service api
+Starts only the FastAPI API server (default: http://0.0.0.0:8000).
+4. Run Command-Line Interface (CLI)
 
-```bash
-python run_flow.py
-```
+python cli_main.py
+Starts the pure command-line interaction mode.
+💻 Using the Web UI
+Navigate to http://127.0.0.1:7860 in your browser if it didn't open automatically.
+Chat: Enter your requests in the message box at the bottom and press Enter or click "Send". The agent's thoughts, tool usage, and final response will stream into the chat window.
+Session Management:
+Use the left sidebar to manage conversations.
+Click "➕ New Chat" to start a fresh conversation.
+Select a session from the list to load its history.
+Use the "Manage Selected Session" section below the list to rename or delete the currently selected chat (you cannot delete the last remaining chat).
+Persistence: Chat history and session names are automatically saved in the chatsHistory/ directory as JSON files and will be reloaded when you restart the application.
+🔌 Using the API
+The server exposes an OpenAI-compatible API endpoint at /v1/chat/completions (default runs on http://0.0.0.0:8000). You can use standard OpenAI client libraries (like the official Python openai library) to interact with it.
 
-## How to contribute
+Configuration in Client:
 
+Base URL: http://<your-server-ip-or-localhost>:8000/v1 (e.g., http://127.0.0.1:8000/v1)
+API Key: Any non-empty string (e.g., "not-needed"). The server does not validate the key.
+Model: Any non-empty string (e.g., "openmanus"). The server uses the configured Manus agent regardless of the model name sent.
+Example using openai Python library:
+
+# test_api.py
+import openai
+
+# Configure the client (assuming API server runs on localhost:8000)
+client = openai.OpenAI(
+    base_url="http://127.0.0.1:8000/v1",
+    api_key="not-needed", # Provide a dummy key
+)
+
+# Non-streaming request
+try:
+    completion = client.chat.completions.create(
+        model="openmanus-local", # Model name is required but ignored by server
+        messages=[
+            {"role": "user", "content": "What is the capital of France?"}
+        ]
+    )
+    print("Non-Streaming Response:")
+    print(completion.choices[0].message.content)
+except Exception as e:
+    print(f"API Error: {e}")
+
+# Streaming request
+try:
+    stream = client.chat.completions.create(
+        model="openmanus-local",
+        messages=[
+            {"role": "user", "content": "Explain quantum entanglement briefly."}
+        ],
+        stream=True
+    )
+    print("\nStreaming Response:")
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            print(chunk.choices[0].delta.content, end="")
+    print()
+except Exception as e:
+    print(f"API Streaming Error: {e}")
+🙌 How to contribute
 We welcome any friendly suggestions and helpful contributions! Just create issues or submit pull requests.
 
 Or contact @mannaandpoem via 📧email: mannaandpoem@gmail.com
 
-**Note**: Before submitting a pull request, please use the pre-commit tool to check your changes. Run `pre-commit run --all-files` to execute the checks.
+Note: Before submitting a pull request, please use the pre-commit tool to check your changes. Run pre-commit run --all-files to execute the checks.
 
-## Community Group
+💬 Community Group
 Join our networking group on Feishu and share your experience with other developers!
 
-<div align="center" style="display: flex; gap: 20px;">
-    <img src="assets/community_group.jpg" alt="OpenManus 交流群" width="300" />
-</div>
+⭐ Star History
+Star History Chart
 
-## Star History
+🙏 Acknowledgement
+Thanks to anthropic-computer-use and browser-use for providing basic support for this project!
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
-
-## Sponsors
-Thanks to [PPIO](https://ppinfra.com/user/register?invited_by=OCPKCN&utm_source=github_openmanus&utm_medium=github_readme&utm_campaign=link) for computing source support.
-> PPIO: The most affordable and easily-integrated MaaS and GPU cloud solution.
-
-
-## Acknowledgement
-
-Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
-and [browser-use](https://github.com/browser-use/browser-use) for providing basic support for this project!
-
-Additionally, we are grateful to [AAAJ](https://github.com/metauto-ai/agent-as-a-judge), [MetaGPT](https://github.com/geekan/MetaGPT), [OpenHands](https://github.com/All-Hands-AI/OpenHands) and [SWE-agent](https://github.com/SWE-agent/SWE-agent).
+Additionally, we are grateful to AAAJ, MetaGPT, OpenHands and SWE-agent.
 
 We also thank stepfun(阶跃星辰) for supporting our Hugging Face demo space.
 
 OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
 
-## Cite
-```bibtex
-@misc{openmanus2025,
-  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong},
-  title = {OpenManus: An open-source framework for building general AI agents},
+📜 Cite
+If you use OpenManus in your research or work, please cite it as follows:
+
+@misc{openmanusGUI2025,
+  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Hank-Chromela (UI/API Integration)},
+  title = {OpenManus-GUI: An Enhanced Open-Source Framework for Versatile AI Agents with UI and API},
   year = {2025},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/mannaandpoem/OpenManus}},
+  howpublished = {\url{https://github.com/Hank-Chromela/OpenManus-GUI}},
 }
-```
