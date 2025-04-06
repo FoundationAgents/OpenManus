@@ -20,6 +20,7 @@ from typing import (
 
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
+from app.config import Config
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -336,7 +337,14 @@ class BaseAgent(BaseModel, ABC):
                 )
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
-        self.emit(BaseAgentEvents.LIFECYCLE_COMPLETE, {"results": results})
+        self.emit(
+            BaseAgentEvents.LIFECYCLE_COMPLETE,
+            {
+                "results": results,
+                "total_input_tokens": self.llm.total_input_tokens,
+                "total_completion_tokens": self.llm.total_completion_tokens,
+            },
+        )
         return "\n".join(results) if results else "No steps executed"
 
     def event_wrapper(

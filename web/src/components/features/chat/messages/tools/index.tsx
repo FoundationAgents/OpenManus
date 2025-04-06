@@ -7,7 +7,7 @@ import { PlanningMessage } from './planning';
 import { PythonExecuteMessage } from './python-execute-message';
 import { StrReplaceEditorMessage } from './str_replace_editor';
 
-export const ToolMessage = ({ message }: { message: AggregatedMessage }) => {
+export const ToolMessage = ({ message }: { message: AggregatedMessage<'tool'> }) => {
   if (message.type !== 'tool') return null;
 
   const executeStartMessage = message.messages.find(msg => msg.type === 'agent:tool:execute:start');

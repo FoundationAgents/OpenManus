@@ -5,6 +5,8 @@ import { ToolMessage } from './tools';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import '@/styles/animations.css';
+import { StepMessage } from './step';
+import { formatNumber } from '@/lib/utils';
 
 interface ChatMessageProps {
   messages: Message[];
@@ -20,22 +22,23 @@ const renderUserMessage = (message: Message<{ prompt: string }>) => (
   </div>
 );
 
-const renderStepMessage = (message: Message) => {
+const renderCompleteMessage = (message: Message<{ results: string[]; total_input_tokens: number; total_completion_tokens: number }>) => {
+  const showTokenCount = message.content.total_input_tokens || message.content.total_completion_tokens;
   return (
-    <>
-      <div className="text-muted-foreground mt-2 font-mono text-xs">🚀 Step {message.content.count}</div>
-      {message.type === 'agent:step:start' && message.content.thinking && (
-        <Badge className="mt-2 ml-2 font-mono text-xs">
-          <span className="thinking-animation">🤔</span>
-          <span>Thinking...</span>
-        </Badge>
+    <Badge className="cursor-pointer font-mono">
+      🎉 Awesome! Task Completed{' '}
+      {showTokenCount && (
+        <>
+          (
+          <span>
+            {formatNumber(message.content.total_input_tokens || 0, { autoUnit: true })} input;{' '}
+            {formatNumber(message.content.total_completion_tokens || 0, { autoUnit: true })} completion
+          </span>
+          )
+        </>
       )}
-    </>
+    </Badge>
   );
-};
-
-const renderCompleteMessage = (message: Message<{ results: string[] }>) => {
-  return <Badge className="cursor-pointer font-mono">🎉 Awesome! Task Completed</Badge>;
 };
 
 const renderToolSelectedMessage = (message: Message) => {
@@ -77,6 +80,7 @@ const renderToolSelectedMessage = (message: Message) => {
  */
 const aggregateMessages = (messages: Message[]): AggregatedMessage[] => {
   const result = messages.reduce((acc, current) => {
+    // Aggregate Tool Messages
     if (['agent:tool:start'].includes(current.type!)) {
       // need to create a new aggregatec message
       acc.push({ ...current, role: 'assistant', type: 'tool', messages: [current] });
@@ -99,6 +103,32 @@ const aggregateMessages = (messages: Message[]): AggregatedMessage[] => {
       }
       return acc;
     }
+
+    // Aggregate Step Messages
+    if (['agent:step:start'].includes(current.type!)) {
+      // need to create a new aggregatec message
+      acc.push({ ...current, role: 'assistant', type: 'step', messages: [current] });
+      return acc;
+    }
+    if (
+      [
+        'agent:think:start',
+        'agent:think:token:count',
+        'agent:think:complete',
+        'agent:act:start',
+        'agent:act:token:count',
+        'agent:act:complete',
+        'agent:step:complete',
+      ].includes(current.type!)
+    ) {
+      // find the nearest agent:step:start from the end
+      const selectedMessage = acc.findLast(msg => msg.type === 'step');
+      if (selectedMessage) {
+        (selectedMessage as { messages: Message[] }).messages.push(current);
+      }
+      return acc;
+    }
+
     acc.push(current);
     return acc;
   }, [] as AggregatedMessage[]);
@@ -147,15 +177,17 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
     return (
       <div className="first:pt-0">
         <div className="container mx-auto max-w-4xl">
-          <ToolMessage message={message} />
+          <ToolMessage message={message as AggregatedMessage<'tool'>} />
         </div>
       </div>
     );
   }
-  if (message.type === 'agent:step:start') {
+  if (message.type === 'step') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-4xl">{renderStepMessage(message)}</div>
+        <div className="container mx-auto max-w-4xl">
+          <StepMessage message={message as AggregatedMessage<'step'>} />
+        </div>
       </div>
     );
   }

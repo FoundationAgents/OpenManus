@@ -9,6 +9,12 @@ export type Message<T = any> = {
     | 'agent:step:error'
     | 'agent:memory:added'
     | 'agent:state:change'
+    | 'agent:think:start'
+    | 'agent:think:token:count'
+    | 'agent:think:complete'
+    | 'agent:act:start'
+    | 'agent:act:token:count'
+    | 'agent:act:complete'
     | 'agent:tool:selected'
     | 'agent:tool:start'
     | 'agent:tool:complete'
@@ -29,7 +35,10 @@ export type Message<T = any> = {
   content: T;
 };
 
-export type AggregatedMessage = Message | { role: 'assistant'; type: 'tool'; messages: Message[]; step?: number; timestamp?: string; index?: number };
+type AggregatedMessageType = 'tool' | 'step';
+
+export type AggregatedMessage<T extends AggregatedMessageType | Message['type'] = AggregatedMessageType | Message['type']> =
+  T extends AggregatedMessageType ? { role: 'assistant'; type: T; messages: Message[]; step?: number; timestamp?: string; index?: number } : Message;
 
 export interface TaskEvent {
   type: 'status' | 'think' | 'tool' | 'act' | 'complete' | 'error';

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Optional
 
 from pydantic import Field, model_validator
@@ -29,6 +30,7 @@ class Manus(ReActAgent):
         task_id="Not Specified",
         task_dir="Not Specified",
         language="English",
+        current_date=datetime.now().strftime("%Y-%m-%d"),
     )
     next_step_prompt: str = NEXT_STEP_PROMPT
 
@@ -52,6 +54,7 @@ class Manus(ReActAgent):
             task_id=self.task_id,
             task_dir=task_dir,
             language=self.language or "English",
+            current_date=datetime.now().strftime("%Y-%m-%d"),
         )
 
         self.memory.add_message(Message.system_message(self.system_prompt))

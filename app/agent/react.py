@@ -12,9 +12,11 @@ class ReActAgentEvents(BaseAgentEvents):
     THINK_START = "agent:think:start"
     THINK_COMPLETE = "agent:think:complete"
     THINK_ERROR = "agent:think:error"
+    THINK_TOKEN_COUNT = "agent:think:token:count"
     ACT_START = "agent:act:start"
     ACT_COMPLETE = "agent:act:complete"
     ACT_ERROR = "agent:act:error"
+    ACT_TOKEN_COUNT = "agent:act:token:count"
 
 
 class ReActAgent(BaseAgent, ABC):
@@ -31,21 +33,12 @@ class ReActAgent(BaseAgent, ABC):
     max_steps: int = 10
     current_step: int = 0
 
-    @abstractmethod
-    @BaseAgent.event_wrapper(
-        ReActAgentEvents.THINK_START,
-        ReActAgentEvents.THINK_COMPLETE,
-        ReActAgentEvents.THINK_ERROR,
-    )
+    pre_step_input_tokens: int = 0
+    pre_step_completion_tokens: int = 0
+
     async def think(self) -> bool:
         """Process current state and decide next action"""
 
-    @abstractmethod
-    @BaseAgent.event_wrapper(
-        ReActAgentEvents.ACT_START,
-        ReActAgentEvents.ACT_COMPLETE,
-        ReActAgentEvents.ACT_ERROR,
-    )
     async def act(self) -> str:
         """Execute decided actions"""
 
@@ -56,8 +49,43 @@ class ReActAgent(BaseAgent, ABC):
     )
     async def step(self) -> str:
         """Execute a single step: think and act."""
+        self.emit(ReActAgentEvents.THINK_START, {})
         should_act = await self.think()
+        total_input_tokens = self.llm.total_input_tokens
+        total_completion_tokens = self.llm.total_completion_tokens
+        input_tokens = total_input_tokens - self.pre_step_input_tokens
+        completion_tokens = total_completion_tokens - self.pre_step_completion_tokens
+        self.emit(
+            ReActAgentEvents.THINK_TOKEN_COUNT,
+            {
+                "input": input_tokens,
+                "completion": completion_tokens,
+                "total_input": total_input_tokens,
+                "total_completion": total_completion_tokens,
+            },
+        )
+        self.pre_step_input_tokens = total_input_tokens
+        self.pre_step_completion_tokens = total_completion_tokens
+        self.emit(ReActAgentEvents.THINK_COMPLETE, {})
         if not should_act:
             return "Thinking complete - no action needed"
+        self.emit(ReActAgentEvents.ACT_START, {})
         result = await self.act()
+
+        total_input_tokens = self.llm.total_input_tokens
+        total_completion_tokens = self.llm.total_completion_tokens
+        input_tokens = total_input_tokens - self.pre_step_input_tokens
+        completion_tokens = total_completion_tokens - self.pre_step_completion_tokens
+        self.emit(
+            ReActAgentEvents.ACT_TOKEN_COUNT,
+            {
+                "input": input_tokens,
+                "completion": completion_tokens,
+                "total_input": total_input_tokens,
+                "total_completion": total_completion_tokens,
+            },
+        )
+        self.pre_step_input_tokens = total_input_tokens
+        self.pre_step_completion_tokens = total_completion_tokens
+        self.emit(ReActAgentEvents.ACT_COMPLETE, {})
         return result
