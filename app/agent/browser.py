@@ -5,7 +5,7 @@ from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
-from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT, BROWSER_AGENT_DESCRIPTION
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
 
@@ -19,7 +19,7 @@ class BrowserAgent(ToolCallAgent):
     """
 
     name: str = "browser"
-    description: str = "A browser agent that can control a browser to accomplish tasks"
+    description: str = BROWSER_AGENT_DESCRIPTION
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT

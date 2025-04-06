@@ -20,6 +20,7 @@ class BaseAgent(BaseModel, ABC):
     # Core attributes
     name: str = Field(..., description="Unique name of the agent")
     description: Optional[str] = Field(None, description="Optional agent description")
+    request: Optional[str] = Field(None, description="Optional agent request")
 
     # Prompts
     system_prompt: Optional[str] = Field(
@@ -113,6 +114,10 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
+    async def cleanup(self):
+        self.current_step = 0
+        self.memory.messages.clear()
+
     async def run(self, request: Optional[str] = None) -> str:
         """Execute the agent's main loop asynchronously.
 
@@ -129,6 +134,7 @@ class BaseAgent(BaseModel, ABC):
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
         if request:
+            self.request = request
             self.update_memory("user", request)
 
         results: List[str] = []

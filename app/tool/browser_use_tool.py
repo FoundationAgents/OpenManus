@@ -78,6 +78,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 ],
                 "description": "The browser action to perform",
             },
+            "query": {
+                "type": "string",
+                "description": "Search query for 'web_search' action",
+            },
             "url": {
                 "type": "string",
                 "description": "URL for 'go_to_url' or 'open_tab' actions",
@@ -98,10 +102,6 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 "type": "integer",
                 "description": "Tab ID for 'switch_tab' action",
             },
-            "query": {
-                "type": "string",
-                "description": "Search query for 'web_search' action",
-            },
             "goal": {
                 "type": "string",
                 "description": "Extraction goal for 'extract_content' action",
@@ -117,6 +117,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
         },
         "required": ["action"],
         "dependencies": {
+            "web_search": ["query"],
             "go_to_url": ["url"],
             "click_element": ["index"],
             "input_text": ["index", "text"],
@@ -129,7 +130,6 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             "get_dropdown_options": ["index"],
             "select_dropdown_option": ["index", "text"],
             "go_back": [],
-            "web_search": ["query"],
             "wait": ["seconds"],
             "extract_content": ["goal"],
         },

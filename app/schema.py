@@ -16,6 +16,13 @@ class Role(str, Enum):
 ROLE_VALUES = tuple(role.value for role in Role)
 ROLE_TYPE = Literal[ROLE_VALUES]  # type: ignore
 
+class ExecutorChoice(str, Enum):
+    """Run planning step options"""
+
+    NONE = "none"
+    AGENT = "agent"
+    TOOL = "tool"
+
 
 class ToolChoice(str, Enum):
     """Tool choice options"""

@@ -3,7 +3,7 @@ from pydantic import Field
 from app.agent.browser import BrowserAgent
 from app.config import config
 from app.prompt.browser import NEXT_STEP_PROMPT as BROWSER_NEXT_STEP_PROMPT
-from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT, MANUS_AGENT_DESCRIPTION
 from app.tool import Terminate, ToolCollection
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.python_execute import PythonExecute
@@ -20,9 +20,7 @@ class Manus(BrowserAgent):
     """
 
     name: str = "Manus"
-    description: str = (
-        "A versatile agent that can solve various tasks using multiple tools"
-    )
+    description: str = MANUS_AGENT_DESCRIPTION
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT

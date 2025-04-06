@@ -81,6 +81,7 @@ When you see [Current state starts here], focus on the following:
 - Any action results or errors{results_placeholder}
 
 For browser interactions:
+- To web search: browser_use with action="web_search", query="..."
 - To navigate: browser_use with action="go_to_url", url="..."
 - To click: browser_use with action="click_element", index=N
 - To type: browser_use with action="input_text", index=N, text="..."
@@ -89,4 +90,16 @@ For browser interactions:
 
 Consider both what's visible and what might be beyond the current viewport.
 Be methodical - remember your progress and what you've learned so far.
+"""
+
+BROWSER_AGENT_DESCRIPTION = """
+Browser Agent is an AI agent designed to automate browser tasks.
+
+It can accomplish following tasks:
+- To web search: browser_use with action="web_search", query="..."
+- To navigate: browser_use with action="go_to_url", url="..."
+- To click: browser_use with action="click_element", index=N
+- To type: browser_use with action="input_text", index=N, text="..."
+- To extract: browser_use with action="extract_content", goal="..."
+- To scroll: browser_use with action="scroll_down" or "scroll_up"
 """

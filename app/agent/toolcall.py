@@ -236,6 +236,7 @@ class ToolCallAgent(ReActAgent):
 
     async def cleanup(self):
         """Clean up resources used by the agent's tools."""
+        await super().cleanup()
         logger.info(f"🧹 Cleaning up resources for agent '{self.name}'...")
         for tool_name, tool_instance in self.available_tools.tool_map.items():
             if hasattr(tool_instance, "cleanup") and asyncio.iscoroutinefunction(
