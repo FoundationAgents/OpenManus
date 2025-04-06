@@ -6,7 +6,7 @@ import { LANGUAGE_CODES } from '@/lib/language';
 import { prisma } from '@/lib/prisma';
 import { to } from '@/lib/to';
 import fs from 'fs';
-import path, { parse } from 'path';
+import path from 'path';
 
 const MANUS_URL = process.env.MANUS_URL || 'http://localhost:5172';
 
@@ -82,7 +82,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
     }).then(res => res.json() as Promise<{ task_id: string }>),
   );
 
-  if (error || !response) {
+  if (error || !response.task_id) {
     await prisma.tasks.update({ where: { id: task.id }, data: { status: 'failed' } });
     throw new Error('Failed to create task');
   }
@@ -97,6 +97,108 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
   return { id: task.id, outId: response.task_id };
 });
 
+export const restartTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string; prompt: string }>) => {
+  const { taskId, prompt } = args;
+
+  const llmConfig = await prisma.llmConfigs.findFirst({
+    where: {
+      type: 'default',
+      organizationId: organization.id,
+    },
+  });
+
+  const preferences = await prisma.preferences.findUnique({
+    where: { organizationId: organization.id },
+  });
+
+  const task = await prisma.tasks.findUnique({ where: { id: taskId, organizationId: organization.id } });
+  if (!task) throw new Error('Task not found');
+  if (task.status !== 'completed' && task.status !== 'terminated' && task.status !== 'failed') throw new Error('Task is processing');
+
+  const progresses = await prisma.taskProgresses.findMany({
+    where: { taskId: task.id, type: { in: ['agent:lifecycle:start', 'agent:lifecycle:complete'] } },
+    select: { type: true, content: true },
+    orderBy: { index: 'asc' },
+  });
+
+  const history = progresses.reduce(
+    (acc, progress) => {
+      if (progress.type === 'agent:lifecycle:start') {
+        acc.push({ role: 'user', message: (progress.content as { request: string }).request });
+      } else if (progress.type === 'agent:lifecycle:complete') {
+        const latestUserProgress = acc.findLast(item => item.role === 'user');
+        if (latestUserProgress) {
+          acc.push({ role: 'assistant', message: (progress.content as { results: string[] }).results.join('\n') });
+        }
+      }
+      return acc;
+    },
+    [] as { role: string; message: string }[],
+  );
+
+  // Send task to API
+  const body = JSON.stringify({
+    prompt,
+    task_id: `${organization.id}/${task.id}`,
+    preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
+    llm_config: llmConfig
+      ? {
+          model: llmConfig.model,
+          base_url: llmConfig.baseUrl,
+          api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
+          max_tokens: llmConfig.maxTokens,
+          max_input_tokens: llmConfig.maxInputTokens,
+          temperature: llmConfig.temperature,
+          api_type: llmConfig.apiType || '',
+          api_version: llmConfig.apiVersion || '',
+        }
+      : null,
+    history,
+  });
+
+  const [error, response] = await to(
+    fetch(`${MANUS_URL}/tasks/restart`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    }).then(res => res.json() as Promise<{ task_id: string }>),
+  );
+
+  if (error || !response.task_id) {
+    throw new Error('Failed to restart task');
+  }
+
+  await prisma.tasks.update({ where: { id: task.id }, data: { outId: response.task_id, status: 'processing' } });
+
+  // Handle event stream in background
+  handleTaskEvents(task.id, response.task_id, organization.id).catch(error => {
+    console.error('Failed to handle task events:', error);
+  });
+
+  return { id: task.id, outId: response.task_id };
+});
+
+export const terminateTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string }>) => {
+  const { taskId } = args;
+
+  const task = await prisma.tasks.findUnique({ where: { id: taskId, organizationId: organization.id } });
+  if (!task) throw new Error('Task not found');
+  if (task.status !== 'processing' && task.status !== 'terminating') {
+    return;
+  }
+
+  const [error] = await to(
+    fetch(`${MANUS_URL}/tasks/terminate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: `${organization.id}/${taskId}` }),
+    }),
+  );
+  if (error && error.message !== 'Task not found') throw new Error('Failed to terminate task');
+
+  await prisma.tasks.update({ where: { id: taskId, organizationId: organization.id }, data: { status: 'terminated' } });
+});
+
 // Handle event stream in background
 async function handleTaskEvents(taskId: string, outId: string, organizationId: string) {
   const streamResponse = await fetch(`${MANUS_URL}/tasks/${outId}/events`);
@@ -104,9 +206,12 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
   if (!reader) throw new Error('Failed to get response stream');
 
   const decoder = new TextDecoder();
-  let messageIndex = 0;
-  let buffer = '';
 
+  const taskProgresses = await prisma.taskProgresses.findMany({ where: { taskId }, orderBy: { index: 'asc' } });
+  const rounds = taskProgresses.map(progress => progress.round);
+  const round = Math.max(...rounds, 1);
+  let messageIndex = taskProgresses.length || 0;
+  let buffer = '';
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -128,7 +233,7 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
 
           // Write message to database
           await prisma.taskProgresses.create({
-            data: { taskId, organizationId, index: messageIndex++, step, type: event_name, content },
+            data: { taskId, organizationId, index: messageIndex++, step, round, type: event_name, content },
           });
 
           // If complete message, update task status
@@ -136,6 +241,19 @@ async function handleTaskEvents(taskId: string, outId: string, organizationId: s
             await prisma.tasks.update({
               where: { id: taskId },
               data: { status: 'completed' },
+            });
+            return;
+          }
+          if (event_name === 'agent:lifecycle:terminating') {
+            await prisma.tasks.update({
+              where: { id: taskId },
+              data: { status: 'terminating' },
+            });
+          }
+          if (event_name === 'agent:lifecycle:terminated') {
+            await prisma.tasks.update({
+              where: { id: taskId },
+              data: { status: 'terminated' },
             });
             return;
           }

@@ -31,7 +31,9 @@ export type Message<T = any> = {
     | 'agent:tool:start'
     | 'agent:tool:complete'
     | 'agent:state:change'
-    | 'agent:lifecycle:complete';
+    | 'agent:lifecycle:start'
+    | 'agent:lifecycle:complete'
+    | 'agent:lifecycle:terminated';
   content: T;
 };
 

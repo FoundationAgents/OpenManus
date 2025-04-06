@@ -51,6 +51,8 @@ class BaseAgentEvents:
     # Lifecycle events
     LIFECYCLE_START = "agent:lifecycle:start"
     LIFECYCLE_COMPLETE = "agent:lifecycle:complete"
+    LIFECYCLE_TERMINATING = "agent:lifecycle:terminating"
+    LIFECYCLE_TERMINATED = "agent:lifecycle:terminated"
 
     # State events
     STATE_CHANGE = "agent:state:change"
@@ -186,6 +188,8 @@ class BaseAgent(BaseModel, ABC):
     state: AgentState = Field(
         default=AgentState.IDLE, description="Current agent state"
     )
+
+    should_terminate: bool = Field(default=False, description="Terminate the agent")
 
     # Execution control
     max_steps: int = Field(default=10, description="Maximum steps before termination")
@@ -329,6 +333,9 @@ class BaseAgent(BaseModel, ABC):
 
                 results.append(f"Step {self.current_step}: {step_result}")
 
+                if self.should_terminate:
+                    self.state = AgentState.FINISHED
+
             if self.current_step >= self.max_steps:
                 self.current_step = 0
                 self.state = AgentState.IDLE
@@ -337,14 +344,23 @@ class BaseAgent(BaseModel, ABC):
                 )
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
-        self.emit(
-            BaseAgentEvents.LIFECYCLE_COMPLETE,
-            {
-                "results": results,
-                "total_input_tokens": self.llm.total_input_tokens,
-                "total_completion_tokens": self.llm.total_completion_tokens,
-            },
-        )
+        if self.should_terminate:
+            self.emit(
+                BaseAgentEvents.LIFECYCLE_TERMINATED,
+                {
+                    "total_input_tokens": self.llm.total_input_tokens,
+                    "total_completion_tokens": self.llm.total_completion_tokens,
+                },
+            )
+        else:
+            self.emit(
+                BaseAgentEvents.LIFECYCLE_COMPLETE,
+                {
+                    "results": results,
+                    "total_input_tokens": self.llm.total_input_tokens,
+                    "total_completion_tokens": self.llm.total_completion_tokens,
+                },
+            )
         return "\n".join(results) if results else "No steps executed"
 
     def event_wrapper(
@@ -535,3 +551,9 @@ class BaseAgent(BaseModel, ABC):
             timestamp=datetime.now(),
         )
         self._private_event_queue.put(event)
+
+    async def terminate(self):
+        """Request to terminate the current task."""
+        logger.info(f"Terminating task {self.task_id}")
+        self.should_terminate = True
+        self.emit(BaseAgentEvents.LIFECYCLE_TERMINATING, {})

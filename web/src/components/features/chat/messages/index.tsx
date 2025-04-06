@@ -12,13 +12,11 @@ interface ChatMessageProps {
   messages: Message[];
 }
 
-const renderUserMessage = (message: Message<{ prompt: string }>) => (
-  <div className="border-muted border-l-2">
-    <div className="prose prose-sm prose-neutral dark:prose-invert">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-        {message.content.prompt}
-      </Markdown>
-    </div>
+const renderStartMessage = (message: Message<{ request: string }>) => (
+  <div className="markdown-body chat mt-2 rounded-md p-4">
+    <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+      {message.content.request}
+    </Markdown>
   </div>
 );
 
@@ -27,6 +25,25 @@ const renderCompleteMessage = (message: Message<{ results: string[]; total_input
   return (
     <Badge className="cursor-pointer font-mono">
       🎉 Awesome! Task Completed{' '}
+      {showTokenCount && (
+        <>
+          (
+          <span>
+            {formatNumber(message.content.total_input_tokens || 0, { autoUnit: true })} input;{' '}
+            {formatNumber(message.content.total_completion_tokens || 0, { autoUnit: true })} completion
+          </span>
+          )
+        </>
+      )}
+    </Badge>
+  );
+};
+
+const renderTerminatedMessage = (message: Message) => {
+  const showTokenCount = message.content.total_input_tokens || message.content.total_completion_tokens;
+  return (
+    <Badge className="cursor-pointer font-mono">
+      🚫 Task Terminated By User{' '}
       {showTokenCount && (
         <>
           (
@@ -152,10 +169,10 @@ const aggregateMessages = (messages: Message[]): AggregatedMessage[] => {
 
 const ChatMessage = (props: { message: AggregatedMessage }) => {
   const { message } = props;
-  if (message.role === 'user') {
+  if (message.type === 'agent:lifecycle:start') {
     return (
       <div className="first:pt-0">
-        <div className="container mx-auto max-w-4xl">{renderUserMessage(message)}</div>
+        <div className="container mx-auto flex max-w-4xl justify-end">{renderStartMessage(message)}</div>
       </div>
     );
   }
@@ -163,6 +180,13 @@ const ChatMessage = (props: { message: AggregatedMessage }) => {
     return (
       <div className="first:pt-0">
         <div className="container mx-auto max-w-4xl">{renderCompleteMessage(message)}</div>
+      </div>
+    );
+  }
+  if (message.type === 'agent:lifecycle:terminated') {
+    return (
+      <div className="first:pt-0">
+        <div className="container mx-auto max-w-4xl">{renderTerminatedMessage(message)}</div>
       </div>
     );
   }

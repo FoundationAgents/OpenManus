@@ -38,5 +38,16 @@ class TaskManager:
                 }
             )
 
+    async def terminate_task(self, task_id: str):
+        if task_id in self.tasks:
+            task = self.tasks[task_id]
+            await task.agent.terminate()
+            await self.remove_task(task_id)
+
+    async def remove_task(self, task_id: str):
+        if task_id in self.tasks:
+            del self.tasks[task_id]
+            del self.queues[task_id]
+
 
 task_manager = TaskManager()

@@ -58,7 +58,7 @@ async def run_task(task_id: str, language: Optional[str] = None):
                     task_id=task_id,
                     event_name=event_name,
                     step=step,
-                    **kwargs,
+                    **{k: v for k, v in kwargs.items() if k != "task_id"},
                 ),
             )
 
@@ -102,6 +102,7 @@ async def event_generator(task_id: str):
             logger.error(f"Error in event stream: {str(e)}")
             yield f"event: error\ndata: {dumps({'message': str(e)})}\n\n"
             break
+    await task_manager.remove_task(task_id)
 
 
 @router.post("")
@@ -154,3 +155,60 @@ async def get_tasks():
         content=[task.model_dump() for task in sorted_tasks],
         headers={"Content-Type": "application/json"},
     )
+
+
+@router.post("/restart")
+async def restart_task(
+    task_id: str = Body(..., embed=True),
+    prompt: str = Body(..., embed=True),
+    preferences: Optional[dict] = Body(None, embed=True),
+    llm_config: Optional[LLMSettings] = Body(None, embed=True),
+    history: Optional[list[dict]] = Body(None, embed=True),
+):
+    """Restart a task."""
+    if task_id in task_manager.tasks:
+        task = task_manager.tasks[task_id]
+        await task.agent.terminate()
+
+    task = task_manager.create_task(
+        task_id,
+        prompt,
+        Manus(
+            name=AGENT_NAME,
+            description="A versatile agent that can solve various tasks using multiple tools",
+            llm=(
+                LLM(config_name=task_id, llm_config=llm_config) if llm_config else None
+            ),
+            enable_event_queue=True,
+        ),
+    )
+
+    for message in history:
+        if message["role"] == "user":
+            task.agent.update_memory(role="user", content=message["message"])
+        else:
+            task.agent.update_memory(role="assistant", content=message["message"])
+
+    asyncio.create_task(
+        run_task(
+            task.id,
+            language=preferences.get("language", "English") if preferences else None,
+        )
+    )
+    return {"task_id": task.id}
+
+
+@router.post("/terminate")
+async def terminate_task(task_id: str = Body(..., embed=True)):
+    """Terminate a task immediately.
+
+    Args:
+        task_id: The ID of the task to terminate
+    """
+    if task_id not in task_manager.tasks:
+        return {"message": f"Task {task_id} not found"}
+
+    task = task_manager.tasks[task_id]
+    await task.agent.terminate()
+
+    return {"message": f"Task {task_id} terminated successfully", "task_id": task_id}

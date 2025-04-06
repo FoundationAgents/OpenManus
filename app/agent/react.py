@@ -67,7 +67,7 @@ class ReActAgent(BaseAgent, ABC):
         self.pre_step_input_tokens = total_input_tokens
         self.pre_step_completion_tokens = total_completion_tokens
         self.emit(ReActAgentEvents.THINK_COMPLETE, {})
-        if not should_act:
+        if not should_act and not self.should_terminate:
             return "Thinking complete - no action needed"
         self.emit(ReActAgentEvents.ACT_START, {})
         result = await self.act()
