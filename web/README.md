@@ -6,6 +6,31 @@ Hey! Welcome to the OpenManus Web Project 👋
 
 This is a learning project for an AI Agent development platform that's still in its early stages. As a personal developer's work, it's currently taking its first steps, and I hope to learn and grow together with others who are interested in AI Agent development!
 
+### 🚀 Project Features
+
+- 💫 **Simple yet Sophisticated Interface**
+
+  - Clean interface built with Next.js and Shadcn UI
+  - User experience-focused interaction design
+
+- 📦 **Data Persistence Capability**
+
+  - Database integration with Prisma for persistent storage of task details
+
+- 👥 **User Data Isolation**
+
+  - Support for independent multi-user usage
+  - Ensures data security for each user
+
+- 🔄 **Full Agent Execution Visibility**
+
+  - Modified official source code with event system for execution tracking and structured output
+  - Real-time status feedback
+  - In OpenManus Core, use `agent.on()` for easier execution detail monitoring
+
+- 🎯 **Prompt Engineering Optimization**
+  - Continuous improvement based on official prompts for more stable output
+
 ### 🌟 Project Vision
 
 - Learn and explore best practices in AI Agent development
@@ -39,7 +64,14 @@ This is a learning and experimental project. Everyone is welcome to discuss, lea
 
 ### Initial Configuration Steps
 
-1. **Install Dependencies**
+#### 0. **OpenManus Core**
+
+The current `/web` project only starts the application layer, OpenManus Core needs to be configured separately:
+
+1. No need to configure LLM parameters in `config` (this configuration will be written directly to the database through the page's bottom-left corner configuration after project startup and login, rather than being stored locally in the project)
+2. Start command is `python run_api.py`
+
+#### 1. **Install Dependencies**
 
 ```bash
 # Skip if already in web directory
@@ -49,8 +81,9 @@ cd web
 npm install
 ```
 
-2. **Generate Key Pair**
-   The project needs a pair of public and private keys for authentication. You can generate them using the following command (ignore if you can generate certificates yourself):
+#### 2. **Generate Key Pair**
+
+The project needs a pair of public and private keys for authentication. You can generate them using the following command (ignore if you can generate certificates yourself):
 
 ```bash
 npm run generate-keys
@@ -61,15 +94,23 @@ This will generate in the `web/keys` directory:
 - `private.pem`: Private key file
 - `public.pem`: Public key file
 
-3. **Database Configuration**
+#### 3. **Environment Variables**
 
+- Create a `.env` file in the project root directory and configure necessary environment variables (refer to `/web/.env.example`)
 - Ensure database connection information is properly configured
-- Create a `.env` file in the project root directory and configure necessary environment variables
 
-4. **Generate Prisma Client**
+#### 4. **Generate Prisma Client & Initialize Database**
 
 ```bash
+# Run this command to update Prisma Client if:
+# - First time starting the project
+# - Dependencies reinstalled
+# - schema.prisma has updates
 npx prisma generate
+
+# For first time project setup, initialize the database
+# This command will automatically sync table structure to the configured database
+npx prisma db push
 ```
 
 ## Project Launch
