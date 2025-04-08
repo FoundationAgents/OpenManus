@@ -24,7 +24,7 @@ class Manus(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
-    max_steps: int = 3 # 3 or less for debug the default is 20
+    max_steps: int = 20
 
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
