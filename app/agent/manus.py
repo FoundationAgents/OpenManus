@@ -41,7 +41,7 @@ class Manus(ReActAgent):
 
     language: Optional[str] = Field(None, description="Language for the agent")
 
-    def initialize(self, task_id: str, language: Optional[str] = None):
+    async def initialize(self, task_id: str, language: Optional[str] = None):
         self.task_id = task_id
         self.language = language
         task_dir = f"/workspace/{task_id}"
@@ -58,19 +58,23 @@ class Manus(ReActAgent):
         )
 
         self.memory.add_message(Message.system_message(self.system_prompt))
-        return self
 
-    @model_validator(mode="after")
-    def initialize_helper(self) -> "Manus":
         self.browser_context_helper = BrowserContextHelper(self)
         self.tool_call_context_helper = ToolCallContextHelper(self)
         # Add general-purpose tools to the tool collection
         self.tool_call_context_helper.available_tools = ToolCollection(
-            PythonExecute(), BrowserUseTool(), StrReplaceEditor(), Terminate()
+            PythonExecute(),
+            BrowserUseTool(),
+            StrReplaceEditor(),
+            Terminate(),
         )
         self.tool_call_context_helper.available_tools.get_tool(
             BrowserUseTool().name
         ).llm = self.llm
+        return self
+
+    @model_validator(mode="after")
+    def initialize_helper(self) -> "Manus":
         return self
 
     async def think(self) -> bool:

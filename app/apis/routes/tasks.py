@@ -46,7 +46,15 @@ async def run_task(task_id: str, language: Optional[str] = None):
         task = task_manager.tasks[task_id]
         agent = task.agent
 
-        agent.initialize(task_id, language=language)
+        await agent.initialize(task_id, language=language)
+        # Register MCP Server
+        await agent.tool_call_context_helper.add_mcp(
+            {
+                "client_id": "mcp-everything",
+                "command": "npx.cmd",
+                "args": ["-y", "@modelcontextprotocol/server-everything"],
+            }
+        )
 
         # Set up event handlers based on all event types defined in the Agent class hierarchy
         event_patterns = [r"agent:.*"]

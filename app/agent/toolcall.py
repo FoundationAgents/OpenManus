@@ -1,16 +1,17 @@
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 from app.agent.base import BaseAgent, BaseAgentEvents
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
-from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool.base import BaseTool
+from app.tool.mcp import MCPClients
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
@@ -29,10 +30,126 @@ class ToolCallAgentEvents(BaseAgentEvents):
     TOOL_EXECUTE_COMPLETE = "agent:tool:execute:complete"
 
 
+class MCPToolCallExtension:
+    """A context manager for handling multiple MCP client connections.
+
+    This class is responsible for:
+    1. Maintaining multiple MCP client connections
+    2. Managing client lifecycles
+    3. Providing CRUD operations for clients
+    """
+
+    def __init__(self):
+        # Dictionary to store multiple client connections
+        # key: client_id, value: MCPClients instance
+        self.clients: Dict[str, MCPClients] = {}
+
+    async def add_sse_client(self, client_id: str, server_url: str) -> MCPClients:
+        """Add a new SSE-based MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+            server_url: URL of the MCP server
+
+        Returns:
+            MCPClients: The newly created client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPClients(client_id=client_id)
+        await client.connect_sse(server_url=server_url)
+        self.clients[client_id] = client
+        return client
+
+    async def add_stdio_client(
+        self, client_id: str, command: str, args: Optional[List[str]] = None
+    ) -> MCPClients:
+        """Add a new STDIO-based MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+            command: Command to execute
+            args: List of command arguments
+
+        Returns:
+            MCPClients: The newly created client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPClients(client_id=client_id)
+        await client.connect_stdio(command=command, args=args or [])
+        self.clients[client_id] = client
+        return client
+
+    def get_client(self, client_id: str) -> Optional[MCPClients]:
+        """Retrieve a specific MCP client.
+
+        Args:
+            client_id: Unique identifier for the client
+
+        Returns:
+            Optional[MCPClients]: The client instance if found, None otherwise
+        """
+        return self.clients.get(client_id)
+
+    async def remove_client(self, client_id: str) -> bool:
+        """Remove and disconnect a specific MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+
+        Returns:
+            bool: True if client was found and removed, False otherwise
+        """
+        if client := self.clients.pop(client_id, None):
+            await client.disconnect()
+            return True
+        return False
+
+    async def disconnect_all(self) -> None:
+        """Disconnect all MCP client connections."""
+        for client_id in list(self.clients.keys()):
+            await self.remove_client(client_id)
+
+    def list_clients(self) -> List[str]:
+        """Get a list of all client IDs.
+
+        Returns:
+            List[str]: List of all connected client IDs
+        """
+        return list(self.clients.keys())
+
+    def get_client_count(self) -> int:
+        """Get the current number of connected clients.
+
+        Returns:
+            int: Number of clients
+        """
+        return len(self.clients)
+
+    async def __aenter__(self) -> "MCPToolCallExtension":
+        """Async context manager entry point."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit point, ensures all connections are properly closed."""
+        await self.disconnect_all()
+
+
 class ToolCallContextHelper:
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate()
     )
+
+    mcp: MCPToolCallExtension = None
 
     tool_choices: TOOL_CHOICE_TYPE = ToolChoice.AUTO  # type: ignore
     special_tool_names: List[str] = [Terminate().name]
@@ -43,6 +160,28 @@ class ToolCallContextHelper:
 
     def __init__(self, agent: "BaseAgent"):
         self.agent = agent
+        self.mcp = MCPToolCallExtension()
+
+    async def add_tool(self, tool: BaseTool) -> None:
+        """Add a new tool to the available tools collection."""
+        self.available_tools.add_tool(tool)
+
+    async def add_mcp(self, tool: dict) -> None:
+        """Add a new MCP client to the available tools collection."""
+        if isinstance(tool, dict) and "client_id" in tool and "server_url" in tool:
+            await self.mcp.add_sse_client(tool["client_id"], tool["server_url"])
+            client = self.mcp.get_client(tool["client_id"])
+            if client:
+                for mcp_tool in client.tool_map.values():
+                    self.available_tools.add_tool(mcp_tool)
+        elif isinstance(tool, dict) and "client_id" in tool and "command" in tool:
+            await self.mcp.add_stdio_client(
+                tool["client_id"], tool["command"], tool.get("args", [])
+            )
+            client = self.mcp.get_client(tool["client_id"])
+            if client:
+                for mcp_tool in client.tool_map.values():
+                    self.available_tools.add_tool(mcp_tool)
 
     async def ask_tool(self) -> bool:
         """Process current state and decide next actions using tools"""
