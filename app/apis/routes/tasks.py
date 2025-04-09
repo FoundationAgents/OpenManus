@@ -36,12 +36,7 @@ async def handle_agent_event(task_id: str, event_name: str, step: int, **kwargs)
     )
 
 
-async def run_task(
-    task_id: str,
-    language: Optional[str] = None,
-    tools: Optional[list[str]] = None,
-    files: Optional[list[UploadFile]] = [],
-):
+async def run_task(task_id: str):
     """Run the task and set up corresponding event handlers.
 
     Args:
@@ -52,36 +47,6 @@ async def run_task(
     try:
         task = task_manager.tasks[task_id]
         agent = task.agent
-
-        await agent.initialize(task_id, language=language, tools=tools)
-        if files:
-            import os
-
-            task_dir = Path(os.path.join(config.workspace_root, agent.task_dir))
-            task_dir.mkdir(parents=True, exist_ok=True)
-
-            for file in files or []:
-                file = cast(UploadFile, file)
-                try:
-                    safe_filename = Path(file.filename).name
-                    if not safe_filename:
-                        raise HTTPException(status_code=400, detail="Invalid filename")
-
-                    file_path = task_dir / safe_filename
-
-                    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-                    file_content = file.file.read()
-                    if len(file_content) > MAX_FILE_SIZE:
-                        raise HTTPException(status_code=400, detail="File too large")
-
-                    with open(file_path, "wb") as f:
-                        f.write(file_content)
-
-                except Exception as e:
-                    logger.error(f"Error saving file {file.filename}: {str(e)}")
-                    raise HTTPException(
-                        status_code=500, detail=f"Error saving file: {str(e)}"
-                    )
 
         # Set up event handlers based on all event types defined in the Agent class hierarchy
         event_patterns = [r"agent:.*"]
@@ -182,18 +147,51 @@ async def create_task(
             enable_event_queue=True,  # Enable event queue
         ),
     )
-    asyncio.create_task(
-        run_task(
-            task.id,
-            language=(
-                preferences_dict.get("language", "English")
-                if preferences_dict
-                else None
-            ),
-            tools=tools,
-            files=files,
-        )
+
+    await task.agent.initialize(
+        task_id,
+        language=(
+            preferences_dict.get("language", "English") if preferences_dict else None
+        ),
+        tools=tools,
     )
+
+    if files:
+        import os
+
+        task_dir = Path(
+            os.path.join(
+                config.workspace_root,
+                task.agent.task_dir.replace("/workspace/", ""),
+            )
+        )
+        task_dir.mkdir(parents=True, exist_ok=True)
+        for file in files or []:
+            print(task_dir)
+            print(file.filename)
+            file = cast(UploadFile, file)
+            try:
+                safe_filename = Path(file.filename).name
+                if not safe_filename:
+                    raise HTTPException(status_code=400, detail="Invalid filename")
+
+                file_path = task_dir / safe_filename
+
+                MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+                file_content = file.file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    raise HTTPException(status_code=400, detail="File too large")
+
+                with open(file_path, "wb") as f:
+                    f.write(file_content)
+
+            except Exception as e:
+                logger.error(f"Error saving file {file.filename}: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Error saving file: {str(e)}"
+                )
+
+    asyncio.create_task(run_task(task.id))
     return {"task_id": task.id}
 
 
@@ -284,18 +282,44 @@ async def restart_task(
             else:
                 task.agent.update_memory(role="assistant", content=message["message"])
 
-    asyncio.create_task(
-        run_task(
-            task.id,
-            language=(
-                preferences_dict.get("language", "English")
-                if preferences_dict
-                else None
-            ),
-            tools=tools,
-            files=files,
-        )
+    await task.agent.initialize(
+        task_id,
+        language=(
+            preferences_dict.get("language", "English") if preferences_dict else None
+        ),
+        tools=tools,
     )
+
+    if files:
+        import os
+
+        task_dir = Path(os.path.join(config.workspace_root, task.agent.task_dir))
+        task_dir.mkdir(parents=True, exist_ok=True)
+
+        for file in files or []:
+            file = cast(UploadFile, file)
+            try:
+                safe_filename = Path(file.filename).name
+                if not safe_filename:
+                    raise HTTPException(status_code=400, detail="Invalid filename")
+
+                file_path = task_dir / safe_filename
+
+                MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+                file_content = file.file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    raise HTTPException(status_code=400, detail="File too large")
+
+                with open(file_path, "wb") as f:
+                    f.write(file_content)
+
+            except Exception as e:
+                logger.error(f"Error saving file {file.filename}: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Error saving file: {str(e)}"
+                )
+
+    asyncio.create_task(run_task(task.id))
     return {"task_id": task.id}
 
 

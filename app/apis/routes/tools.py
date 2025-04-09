@@ -2,7 +2,7 @@ from typing import cast
 
 from fastapi import APIRouter
 
-from app.agent.manus import SYSTEM_MCP_TOOLS, SYSTEM_TOOLS
+from app.agent.manus import SYSTEM_MCP_TOOLS_MAP, SYSTEM_TOOLS
 from app.tool.base import BaseTool
 
 router = APIRouter(prefix="/tools", tags=["tools"])
@@ -21,12 +21,15 @@ async def get_tools_info():
                 "parameters": t.parameters,
             }
         )
-    for tool in SYSTEM_MCP_TOOLS:
+    for tool_key in SYSTEM_MCP_TOOLS_MAP.keys():
+        tool_info = SYSTEM_MCP_TOOLS_MAP[tool_key]
+        if "description" not in tool_info:
+            tool_info["description"] = "Not Specified"
         tools_info.append(
             {
-                "name": tool["client_id"],
+                "name": tool_key,
                 "type": "mcp",
-                "description": tool["description"],
+                "description": tool_info["description"],
             }
         )
 

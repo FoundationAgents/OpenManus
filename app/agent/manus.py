@@ -35,18 +35,17 @@ SYSTEM_TOOLS: list[BaseTool] = [
 SYSTEM_TOOLS_MAP = {tool.name: tool.__class__ for tool in SYSTEM_TOOLS}
 
 
-SYSTEM_MCP_TOOLS = [
-    {
-        "client_id": "mcp-everything",
-        "command": "npx.cmd",
+SYSTEM_MCP_TOOLS_MAP = {
+    "mcp-everything": {
+        "command": "npx",
         "args": ["-y", "@modelcontextprotocol/server-everything"],
         "description": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
     },
-]
-
-SYSTEM_MCP_TOOLS_MAP = {
-    tool["client_id"]: {k: v for k, v in tool.items() if k != "description"}
-    for tool in SYSTEM_MCP_TOOLS
+    "excel": {
+        "command": "npx",
+        "args": ["-y", "@negokaz/excel-mcp-server"],
+        "env": {"EXCEL_MCP_PAGING_CELLS_LIMIT": "4000"},
+    },
 }
 
 
@@ -62,6 +61,7 @@ class Manus(ReActAgent):
         directory="/workspace",
         task_id="Not Specified",
         task_dir="Not Specified",
+        real_task_dir=config.workspace_root,
         language="English",
         current_date=datetime.now().strftime("%Y-%m-%d"),
     )
@@ -92,6 +92,9 @@ class Manus(ReActAgent):
             directory="/workspace",
             task_id=self.task_id,
             task_dir=self.task_dir,
+            real_task_dir=os.path.join(
+                config.workspace_root, self.task_dir.replace("/workspace/", "")
+            ),
             language=self.language or "English",
             current_date=datetime.now().strftime("%Y-%m-%d"),
         )
@@ -108,15 +111,21 @@ class Manus(ReActAgent):
             Terminate(),
         )
         if tools:
-            for tool in tools:
-                if tool in SYSTEM_TOOLS_MAP:
-                    inst = SYSTEM_TOOLS_MAP[tool]()
+            for tool_name in tools:
+                if tool_name in SYSTEM_TOOLS_MAP:
+                    inst = SYSTEM_TOOLS_MAP[tool_name]()
                     await self.tool_call_context_helper.add_tool(inst)
                     if hasattr(inst, "llm"):
                         inst.llm = self.llm
-                elif tool in SYSTEM_MCP_TOOLS_MAP:
+                elif tool_name in SYSTEM_MCP_TOOLS_MAP:
+                    t = SYSTEM_MCP_TOOLS_MAP[tool_name]
                     await self.tool_call_context_helper.add_mcp(
-                        SYSTEM_MCP_TOOLS_MAP[tool]
+                        {
+                            "client_id": tool_name,
+                            "command": t["command"],
+                            "args": t["args"],
+                            "env": t["env"],
+                        }
                     )
         return self
 
