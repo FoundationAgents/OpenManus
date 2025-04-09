@@ -148,6 +148,7 @@ class BrowserContextHelper:
             )
 
         return NEXT_STEP_PROMPT.format(
+            language=self.agent.language or "English",
             url_placeholder=url_info,
             tabs_placeholder=tabs_info,
             content_above_placeholder=content_above_info,
@@ -193,6 +194,9 @@ class BrowserAgent(ToolCallAgent):
         # Configure the available tools
         self.tool_call_context_helper.available_tools = ToolCollection(
             BrowserUseTool(), Terminate()
+        )
+        self.next_step_prompt = NEXT_STEP_PROMPT.format(
+            language=self.language or "English",
         )
         return self
 

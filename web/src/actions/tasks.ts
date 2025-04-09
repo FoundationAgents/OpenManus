@@ -33,14 +33,16 @@ export const pageTasks = withUserAuth(async ({ organization, args }: AuthWrapper
   return { tasks, total };
 });
 
-export const createTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ prompt: string }>) => {
-  const { prompt } = args;
+export const createTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ prompt: string; tools: string[]; files: File[] }>) => {
+  const { prompt, tools, files } = args;
   const llmConfig = await prisma.llmConfigs.findFirst({
     where: {
       type: 'default',
       organizationId: organization.id,
     },
   });
+
+  if (!llmConfig) throw new Error('LLM config not found');
 
   const preferences = await prisma.preferences.findUnique({
     where: { organizationId: organization.id },
@@ -51,34 +53,36 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
     data: {
       prompt,
       status: 'pending',
-      llmId: llmConfig?.id || '',
+      llmId: llmConfig.id,
       organizationId: organization.id,
+      tools,
     },
   });
 
-  // Send task to API
-  const body = JSON.stringify({
-    prompt,
-    task_id: `${organization.id}/${task.id}`,
-    preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
-    llm_config: llmConfig
-      ? {
-          model: llmConfig.model,
-          base_url: llmConfig.baseUrl,
-          api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
-          max_tokens: llmConfig.maxTokens,
-          max_input_tokens: llmConfig.maxInputTokens,
-          temperature: llmConfig.temperature,
-          api_type: llmConfig.apiType || '',
-          api_version: llmConfig.apiVersion || '',
-        }
-      : null,
-  });
+  const formData = new FormData();
+  formData.append('task_id', `${organization.id}/${task.id}`);
+  formData.append('prompt', prompt);
+  tools.forEach(tool => formData.append('tools', tool));
+  formData.append('preferences', JSON.stringify({ language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] }));
+  formData.append(
+    'llm_config',
+    JSON.stringify({
+      model: llmConfig.model,
+      base_url: llmConfig.baseUrl,
+      api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
+      max_tokens: llmConfig.maxTokens,
+      max_input_tokens: llmConfig.maxInputTokens,
+      temperature: llmConfig.temperature,
+      api_type: llmConfig.apiType || '',
+      api_version: llmConfig.apiVersion || '',
+    }),
+  );
+  files.forEach(file => formData.append('files', file, file.name));
+
   const [error, response] = await to(
     fetch(`${MANUS_URL}/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
+      body: formData,
     }).then(res => res.json() as Promise<{ task_id: string }>),
   );
 
@@ -97,86 +101,91 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
   return { id: task.id, outId: response.task_id };
 });
 
-export const restartTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string; prompt: string }>) => {
-  const { taskId, prompt } = args;
+export const restartTask = withUserAuth(
+  async ({ organization, args }: AuthWrapperContext<{ taskId: string; prompt: string; tools: string[]; files: File[] }>) => {
+    const { taskId, prompt, tools, files } = args;
 
-  const llmConfig = await prisma.llmConfigs.findFirst({
-    where: {
-      type: 'default',
-      organizationId: organization.id,
-    },
-  });
+    const llmConfig = await prisma.llmConfigs.findFirst({
+      where: {
+        type: 'default',
+        organizationId: organization.id,
+      },
+    });
 
-  const preferences = await prisma.preferences.findUnique({
-    where: { organizationId: organization.id },
-  });
+    if (!llmConfig) throw new Error('LLM config not found');
 
-  const task = await prisma.tasks.findUnique({ where: { id: taskId, organizationId: organization.id } });
-  if (!task) throw new Error('Task not found');
-  if (task.status !== 'completed' && task.status !== 'terminated' && task.status !== 'failed') throw new Error('Task is processing');
+    const preferences = await prisma.preferences.findUnique({
+      where: { organizationId: organization.id },
+    });
 
-  const progresses = await prisma.taskProgresses.findMany({
-    where: { taskId: task.id, type: { in: ['agent:lifecycle:start', 'agent:lifecycle:complete'] } },
-    select: { type: true, content: true },
-    orderBy: { index: 'asc' },
-  });
+    const task = await prisma.tasks.findUnique({ where: { id: taskId, organizationId: organization.id } });
+    if (!task) throw new Error('Task not found');
+    if (task.status !== 'completed' && task.status !== 'terminated' && task.status !== 'failed') throw new Error('Task is processing');
 
-  const history = progresses.reduce(
-    (acc, progress) => {
-      if (progress.type === 'agent:lifecycle:start') {
-        acc.push({ role: 'user', message: (progress.content as { request: string }).request });
-      } else if (progress.type === 'agent:lifecycle:complete') {
-        const latestUserProgress = acc.findLast(item => item.role === 'user');
-        if (latestUserProgress) {
-          acc.push({ role: 'assistant', message: (progress.content as { results: string[] }).results.join('\n') });
+    const progresses = await prisma.taskProgresses.findMany({
+      where: { taskId: task.id, type: { in: ['agent:lifecycle:start', 'agent:lifecycle:complete'] } },
+      select: { type: true, content: true },
+      orderBy: { index: 'asc' },
+    });
+
+    const history = progresses.reduce(
+      (acc, progress) => {
+        if (progress.type === 'agent:lifecycle:start') {
+          acc.push({ role: 'user', message: (progress.content as { request: string }).request });
+        } else if (progress.type === 'agent:lifecycle:complete') {
+          const latestUserProgress = acc.findLast(item => item.role === 'user');
+          if (latestUserProgress) {
+            acc.push({ role: 'assistant', message: (progress.content as { results: string[] }).results.join('\n') });
+          }
         }
-      }
-      return acc;
-    },
-    [] as { role: string; message: string }[],
-  );
+        return acc;
+      },
+      [] as { role: string; message: string }[],
+    );
 
-  // Send task to API
-  const body = JSON.stringify({
-    prompt,
-    task_id: `${organization.id}/${task.id}`,
-    preferences: { language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] },
-    llm_config: llmConfig
-      ? {
-          model: llmConfig.model,
-          base_url: llmConfig.baseUrl,
-          api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
-          max_tokens: llmConfig.maxTokens,
-          max_input_tokens: llmConfig.maxInputTokens,
-          temperature: llmConfig.temperature,
-          api_type: llmConfig.apiType || '',
-          api_version: llmConfig.apiVersion || '',
-        }
-      : null,
-    history,
-  });
+    // Send task to API
+    const formData = new FormData();
+    formData.append('task_id', `${organization.id}/${task.id}`);
+    formData.append('prompt', prompt);
+    tools.forEach(tool => formData.append('tools', tool));
+    formData.append('preferences', JSON.stringify({ language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] }));
+    formData.append(
+      'llm_config',
+      JSON.stringify({
+        model: llmConfig.model,
+        base_url: llmConfig.baseUrl,
+        api_key: decryptWithPrivateKey(llmConfig.apiKey, privateKey),
+        max_tokens: llmConfig.maxTokens,
+        max_input_tokens: llmConfig.maxInputTokens,
+        temperature: llmConfig.temperature,
+        api_type: llmConfig.apiType || '',
+        api_version: llmConfig.apiVersion || '',
+      }),
+    );
+    formData.append('history', JSON.stringify(history));
+    files.forEach(file => formData.append('files', file));
 
-  const [error, response] = await to(
-    fetch(`${MANUS_URL}/tasks/restart`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    }).then(res => res.json() as Promise<{ task_id: string }>),
-  );
+    const [error, response] = await to(
+      fetch(`${MANUS_URL}/tasks/restart`, {
+        method: 'POST',
+        body: formData,
+      }).then(res => res.json() as Promise<{ task_id: string }>),
+    );
 
-  if (error || !response.task_id) {
-    throw new Error('Failed to restart task');
-  }
+    if (error || !response.task_id) {
+      throw new Error('Failed to restart task');
+    }
 
-  await prisma.tasks.update({ where: { id: task.id }, data: { outId: response.task_id, status: 'processing' } });
+    await prisma.tasks.update({ where: { id: task.id }, data: { outId: response.task_id, status: 'processing' } });
 
-  // Handle event stream in background
-  handleTaskEvents(task.id, response.task_id, organization.id).catch(error => {
-    console.error('Failed to handle task events:', error);
-  });
+    // Handle event stream in background
+    handleTaskEvents(task.id, response.task_id, organization.id).catch(error => {
+      console.error('Failed to handle task events:', error);
+    });
 
-  return { id: task.id, outId: response.task_id };
-});
+    return { id: task.id, outId: response.task_id };
+  },
+);
 
 export const terminateTask = withUserAuth(async ({ organization, args }: AuthWrapperContext<{ taskId: string }>) => {
   const { taskId } = args;

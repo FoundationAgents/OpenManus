@@ -194,7 +194,7 @@ class LLM:
     ):
         if not hasattr(self, "client"):  # Only initialize if not already initialized
             llm_config = llm_config or config.llm.get(
-                config_name, llm_config["default"]
+                config_name, config.llm["default"]
             )
             self.model = llm_config.model
             self.max_tokens = llm_config.max_tokens
@@ -678,6 +678,7 @@ class LLM:
             Exception: For unexpected errors
         """
         try:
+            print(tools)
             # Validate tool_choice
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")

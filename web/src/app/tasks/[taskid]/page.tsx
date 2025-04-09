@@ -3,16 +3,12 @@
 import { getTask, restartTask, terminateTask } from '@/actions/tasks';
 import { ChatMessages } from '@/components/features/chat/messages';
 import { ChatPreview } from '@/components/features/chat/preview';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Message } from '@/types/chat';
 import { Tasks } from '@prisma/client';
-import { PauseCircle, Rocket, Send } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useCurrentMessageIndex } from '../hooks';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChatInput } from '@/components/features/chat/input';
 
 export default function ChatPage() {
   const params = useParams();
@@ -28,8 +24,6 @@ export default function ChatPage() {
   const [isTerminating, setIsTerminating] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const [openDialogConfirmTerminate, setOpenDialogConfirmTerminate] = useState(false);
 
   const shouldAutoScroll = isNearBottom && currentMessageIndex === messages.length - 1;
 
@@ -94,13 +88,9 @@ export default function ChatPage() {
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!value.trim()) return;
-
+  const handleSubmit = async (value: { prompt: string; tools: string[]; files: File[] }) => {
     try {
-      const res = await restartTask({ taskId, prompt: value });
+      const res = await restartTask({ taskId, prompt: value.prompt, tools: value.tools, files: value.files });
       if (res.error) {
         console.error('Error restarting task:', res.error);
       }
@@ -112,25 +102,13 @@ export default function ChatPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (isThinking || isTerminating) {
-        return;
-      }
-      if (value.trim()) {
-        handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-      }
-    }
-  };
-
   return (
     <div className="flex h-screen w-full flex-row justify-between">
       <div className="flex-1">
         <div className="relative flex h-screen flex-col">
           <div
             ref={messagesContainerRef}
-            className="flex-3/5 space-y-4 overflow-y-auto p-4 pb-20"
+            className="flex-3/5 space-y-4 overflow-y-auto p-4 pb-60"
             style={{
               scrollBehavior: 'smooth',
               overscrollBehavior: 'contain',
@@ -139,81 +117,19 @@ export default function ChatPage() {
           >
             <ChatMessages messages={messages} />
           </div>
-          <div className="pointer-events-none absolute right-0 bottom-0 left-0 p-4">
-            <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="cursor-pointer rounded-full"
-                    size="icon"
-                    type="button"
-                    onClick={() => {
-                      router.push('/tasks');
-                    }}
-                  >
-                    <Rocket className="h-5 w-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>New Task</p>
-                </TooltipContent>
-              </Tooltip>
-              <div className="relative flex w-full rounded-2xl bg-white shadow-[0_0_15px_rgba(0,0,0,0.1)]">
-                <Input
-                  value={value}
-                  onChange={e => setValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isThinking || isTerminating}
-                  placeholder={isTerminating ? 'Terminating...' : isThinking ? 'Thinking...' : 'Task completed!'}
-                  className="h-12 flex-1 border-0 bg-transparent px-4 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="absolute top-1/2 right-1 h-10 w-10 -translate-y-1/2 cursor-pointer rounded-xl hover:bg-gray-100"
-                  onClick={e => {
-                    if (isThinking || isTerminating) {
-                      setOpenDialogConfirmTerminate(true);
-                      refreshTask();
-                    } else if (value.trim()) {
-                      handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-                    }
-                  }}
-                >
-                  {isThinking || isTerminating ? <PauseCircle className="h-5 w-5" /> : <Send className="h-5 w-5" />}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ChatInput
+            status={isThinking ? 'thinking' : isTerminating ? 'terminating' : 'completed'}
+            onSubmit={handleSubmit}
+            onTerminate={async () => {
+              await terminateTask({ taskId });
+              router.refresh();
+            }}
+          />
         </div>
       </div>
       <div className="min-w-[800px] flex-1 items-center justify-center p-2">
         <ChatPreview message={messages[currentMessageIndex]} />
       </div>
-      <Dialog open={openDialogConfirmTerminate} onOpenChange={setOpenDialogConfirmTerminate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Terminate Task</DialogTitle>
-            <DialogDescription>Are you sure you want to terminate this task?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialogConfirmTerminate(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={async () => {
-                await terminateTask({ taskId });
-                router.refresh();
-                setOpenDialogConfirmTerminate(false);
-              }}
-            >
-              Terminate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

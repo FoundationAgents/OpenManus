@@ -1,5 +1,6 @@
 SYSTEM_PROMPT = """\
 You are an AI agent designed to automate browser tasks. Your goal is to accomplish the ultimate task following the rules.
+You should think and answer by the language {language}.
 
 # Input Format
 Task
@@ -72,6 +73,9 @@ Your responses must be always JSON with the specified format.
 
 NEXT_STEP_PROMPT = """
 [Browser State Analysis]
+
+Language:
+You should think and answer by the language {language}.
 
 Context evaluation:
 - Current URL and page title{url_placeholder}

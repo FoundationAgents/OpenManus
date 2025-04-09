@@ -62,6 +62,7 @@ model Tasks {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   organizationId String
+  tools          Json             @default("[]")
   steps          TaskProcesses[]
   progresses     TaskProgresses[]
 

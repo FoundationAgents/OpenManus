@@ -225,7 +225,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 # Get max content length from config
                 max_content_length = getattr(
-                    config.browser_config, "max_content_length", 2000
+                    config.browser_config, "max_content_length", 40000
                 )
 
                 # Navigation actions

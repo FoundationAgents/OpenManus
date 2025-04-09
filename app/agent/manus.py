@@ -11,10 +11,43 @@ from app.config import config
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
 from app.tool import Terminate, ToolCollection
+from app.tool.base import BaseTool
+from app.tool.bash import Bash
 from app.tool.browser_use_tool import BrowserUseTool
+from app.tool.create_chat_completion import CreateChatCompletion
+from app.tool.deep_research import DeepResearch
 from app.tool.planning import PlanningTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
+from app.tool.web_search import WebSearch
+
+SYSTEM_TOOLS: list[BaseTool] = [
+    Bash(),
+    WebSearch(),
+    DeepResearch(),
+    BrowserUseTool(),
+    StrReplaceEditor(),
+    PlanningTool(),
+    CreateChatCompletion(),
+    PythonExecute(),
+]
+
+SYSTEM_TOOLS_MAP = {tool.name: tool.__class__ for tool in SYSTEM_TOOLS}
+
+
+SYSTEM_MCP_TOOLS = [
+    {
+        "client_id": "mcp-everything",
+        "command": "npx.cmd",
+        "args": ["-y", "@modelcontextprotocol/server-everything"],
+        "description": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
+    },
+]
+
+SYSTEM_MCP_TOOLS_MAP = {
+    tool["client_id"]: {k: v for k, v in tool.items() if k != "description"}
+    for tool in SYSTEM_MCP_TOOLS
+}
 
 
 class Manus(ReActAgent):
@@ -39,22 +72,31 @@ class Manus(ReActAgent):
     tool_call_context_helper: Optional[ToolCallContextHelper] = None
     browser_context_helper: Optional[BrowserContextHelper] = None
 
+    task_dir: str = ""
     language: Optional[str] = Field(None, description="Language for the agent")
 
-    async def initialize(self, task_id: str, language: Optional[str] = None):
+    async def initialize(
+        self,
+        task_id: str,
+        language: Optional[str] = None,
+        tools: Optional[list[str]] = None,
+    ):
         self.task_id = task_id
         self.language = language
-        task_dir = f"/workspace/{task_id}"
+        self.task_dir = f"/workspace/{task_id}"
 
-        if not os.path.exists(task_dir):
-            os.makedirs(task_dir)
+        if not os.path.exists(self.task_dir):
+            os.makedirs(self.task_dir)
 
         self.system_prompt = SYSTEM_PROMPT.format(
             directory="/workspace",
             task_id=self.task_id,
-            task_dir=task_dir,
+            task_dir=self.task_dir,
             language=self.language or "English",
             current_date=datetime.now().strftime("%Y-%m-%d"),
+        )
+        self.next_step_prompt = NEXT_STEP_PROMPT.format(
+            language=self.language or "English",
         )
 
         self.memory.add_message(Message.system_message(self.system_prompt))
@@ -63,14 +105,19 @@ class Manus(ReActAgent):
         self.tool_call_context_helper = ToolCallContextHelper(self)
         # Add general-purpose tools to the tool collection
         self.tool_call_context_helper.available_tools = ToolCollection(
-            PythonExecute(),
-            BrowserUseTool(),
-            StrReplaceEditor(),
             Terminate(),
         )
-        self.tool_call_context_helper.available_tools.get_tool(
-            BrowserUseTool().name
-        ).llm = self.llm
+        if tools:
+            for tool in tools:
+                if tool in SYSTEM_TOOLS_MAP:
+                    inst = SYSTEM_TOOLS_MAP[tool]()
+                    await self.tool_call_context_helper.add_tool(inst)
+                    if hasattr(inst, "llm"):
+                        inst.llm = self.llm
+                elif tool in SYSTEM_MCP_TOOLS_MAP:
+                    await self.tool_call_context_helper.add_mcp(
+                        SYSTEM_MCP_TOOLS_MAP[tool]
+                    )
         return self
 
     @model_validator(mode="after")

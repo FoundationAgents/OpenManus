@@ -1,14 +1,16 @@
 import asyncio
+import json
 from json import dumps
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional, cast
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent.base import BaseAgentEvents
 from app.agent.manus import Manus
 from app.apis.services.task_manager import task_manager
-from app.config import LLMSettings
+from app.config import LLMSettings, config
 from app.llm import LLM
 from app.logger import logger
 
@@ -34,7 +36,12 @@ async def handle_agent_event(task_id: str, event_name: str, step: int, **kwargs)
     )
 
 
-async def run_task(task_id: str, language: Optional[str] = None):
+async def run_task(
+    task_id: str,
+    language: Optional[str] = None,
+    tools: Optional[list[str]] = None,
+    files: Optional[list[UploadFile]] = [],
+):
     """Run the task and set up corresponding event handlers.
 
     Args:
@@ -46,15 +53,35 @@ async def run_task(task_id: str, language: Optional[str] = None):
         task = task_manager.tasks[task_id]
         agent = task.agent
 
-        await agent.initialize(task_id, language=language)
-        # Register MCP Server
-        await agent.tool_call_context_helper.add_mcp(
-            {
-                "client_id": "mcp-everything",
-                "command": "npx.cmd",
-                "args": ["-y", "@modelcontextprotocol/server-everything"],
-            }
-        )
+        await agent.initialize(task_id, language=language, tools=tools)
+        if files:
+            import os
+
+            task_dir = Path(os.path.join(config.workspace_root, agent.task_dir))
+            task_dir.mkdir(parents=True, exist_ok=True)
+
+            for file in files or []:
+                file = cast(UploadFile, file)
+                try:
+                    safe_filename = Path(file.filename).name
+                    if not safe_filename:
+                        raise HTTPException(status_code=400, detail="Invalid filename")
+
+                    file_path = task_dir / safe_filename
+
+                    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+                    file_content = file.file.read()
+                    if len(file_content) > MAX_FILE_SIZE:
+                        raise HTTPException(status_code=400, detail="File too large")
+
+                    with open(file_path, "wb") as f:
+                        f.write(file_content)
+
+                except Exception as e:
+                    logger.error(f"Error saving file {file.filename}: {str(e)}")
+                    raise HTTPException(
+                        status_code=500, detail=f"Error saving file: {str(e)}"
+                    )
 
         # Set up event handlers based on all event types defined in the Agent class hierarchy
         event_patterns = [r"agent:.*"]
@@ -115,11 +142,32 @@ async def event_generator(task_id: str):
 
 @router.post("")
 async def create_task(
-    task_id: str = Body(..., embed=True),
-    prompt: str = Body(..., embed=True),
-    preferences: Optional[dict] = Body(None, embed=True),
-    llm_config: Optional[LLMSettings] = Body(None, embed=True),
+    task_id: str = Form(...),
+    prompt: str = Form(...),
+    tools: List[str] = Form(...),
+    preferences: Optional[str] = Form(None),
+    llm_config: Optional[str] = Form(None),
+    files: Optional[List[UploadFile]] = File(None),
 ):
+    # Parse preferences and llm_config from JSON strings
+    preferences_dict = None
+    if preferences:
+        try:
+            preferences_dict = json.loads(preferences)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400, detail="Invalid preferences JSON format"
+            )
+
+    llm_config_obj = None
+    if llm_config:
+        try:
+            llm_config_obj = LLMSettings.model_validate_json(llm_config)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid llm_config format: {str(e)}"
+            )
+
     task = task_manager.create_task(
         task_id,
         prompt,
@@ -127,7 +175,9 @@ async def create_task(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
             llm=(
-                LLM(config_name=task_id, llm_config=llm_config) if llm_config else None
+                LLM(config_name=task_id, llm_config=llm_config_obj)
+                if llm_config_obj
+                else None
             ),
             enable_event_queue=True,  # Enable event queue
         ),
@@ -135,7 +185,13 @@ async def create_task(
     asyncio.create_task(
         run_task(
             task.id,
-            language=preferences.get("language", "English") if preferences else None,
+            language=(
+                preferences_dict.get("language", "English")
+                if preferences_dict
+                else None
+            ),
+            tools=tools,
+            files=files,
         )
     )
     return {"task_id": task.id}
@@ -167,13 +223,41 @@ async def get_tasks():
 
 @router.post("/restart")
 async def restart_task(
-    task_id: str = Body(..., embed=True),
-    prompt: str = Body(..., embed=True),
-    preferences: Optional[dict] = Body(None, embed=True),
-    llm_config: Optional[LLMSettings] = Body(None, embed=True),
-    history: Optional[list[dict]] = Body(None, embed=True),
+    task_id: str = Form(...),
+    prompt: str = Form(...),
+    tools: list[str] = Form(...),
+    preferences: Optional[str] = Form(None),
+    llm_config: Optional[str] = Form(None),
+    history: Optional[str] = Form(None),
+    files: list[UploadFile] = Form([]),
 ):
     """Restart a task."""
+    # Parse JSON strings
+    preferences_dict = None
+    if preferences:
+        try:
+            preferences_dict = json.loads(preferences)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400, detail="Invalid preferences JSON format"
+            )
+
+    llm_config_obj = None
+    if llm_config:
+        try:
+            llm_config_obj = LLMSettings.model_validate_json(llm_config)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid llm_config format: {str(e)}"
+            )
+
+    history_list = None
+    if history:
+        try:
+            history_list = json.loads(history)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid history JSON format")
+
     if task_id in task_manager.tasks:
         task = task_manager.tasks[task_id]
         await task.agent.terminate()
@@ -185,22 +269,31 @@ async def restart_task(
             name=AGENT_NAME,
             description="A versatile agent that can solve various tasks using multiple tools",
             llm=(
-                LLM(config_name=task_id, llm_config=llm_config) if llm_config else None
+                LLM(config_name=task_id, llm_config=llm_config_obj)
+                if llm_config_obj
+                else None
             ),
             enable_event_queue=True,
         ),
     )
 
-    for message in history:
-        if message["role"] == "user":
-            task.agent.update_memory(role="user", content=message["message"])
-        else:
-            task.agent.update_memory(role="assistant", content=message["message"])
+    if history_list:
+        for message in history_list:
+            if message["role"] == "user":
+                task.agent.update_memory(role="user", content=message["message"])
+            else:
+                task.agent.update_memory(role="assistant", content=message["message"])
 
     asyncio.create_task(
         run_task(
             task.id,
-            language=preferences.get("language", "English") if preferences else None,
+            language=(
+                preferences_dict.get("language", "English")
+                if preferences_dict
+                else None
+            ),
+            tools=tools,
+            files=files,
         )
     )
     return {"task_id": task.id}
