@@ -2,13 +2,13 @@ import asyncio
 import json
 from json import dumps
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import List, Optional, Union, cast
 
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agent.base import BaseAgentEvents
-from app.agent.manus import Manus
+from app.agent.manus import Manus, McpToolConfig
 from app.apis.services.task_manager import task_manager
 from app.config import LLMSettings, config
 from app.llm import LLM
@@ -105,11 +105,42 @@ async def event_generator(task_id: str):
     await task_manager.remove_task(task_id)
 
 
+def parse_tools(tools: list[str]) -> list[Union[str, McpToolConfig]]:
+    """Parse tools list which may contain both tool names and MCP configurations.
+
+    Args:
+        tools: List of tool strings, which can be either tool names or MCP config JSON strings
+
+    Returns:
+        List of processed tools, containing both tool names and McpToolConfig objects
+
+    Raises:
+        HTTPException: If any tool configuration is invalid
+    """
+    processed_tools = []
+    for tool in tools:
+        try:
+            tool_config = json.loads(tool)
+            if isinstance(tool_config, dict):
+                mcp_tool = McpToolConfig.model_validate(tool_config)
+                processed_tools.append(mcp_tool)
+            else:
+                processed_tools.append(tool)
+        except json.JSONDecodeError:
+            processed_tools.append(tool)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid tool configuration for '{tool}': {str(e)}",
+            )
+    return processed_tools
+
+
 @router.post("")
 async def create_task(
     task_id: str = Form(...),
     prompt: str = Form(...),
-    tools: List[str] = Form(...),
+    tools: list[str] = Form(...),
     preferences: Optional[str] = Form(None),
     llm_config: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None),
@@ -133,6 +164,8 @@ async def create_task(
                 status_code=400, detail=f"Invalid llm_config format: {str(e)}"
             )
 
+    processed_tools = parse_tools(tools)
+
     task = task_manager.create_task(
         task_id,
         prompt,
@@ -153,7 +186,7 @@ async def create_task(
         language=(
             preferences_dict.get("language", "English") if preferences_dict else None
         ),
-        tools=tools,
+        tools=processed_tools,
     )
 
     if files:
@@ -256,6 +289,8 @@ async def restart_task(
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid history JSON format")
 
+    processed_tools = parse_tools(tools)
+
     if task_id in task_manager.tasks:
         task = task_manager.tasks[task_id]
         await task.agent.terminate()
@@ -287,7 +322,7 @@ async def restart_task(
         language=(
             preferences_dict.get("language", "English") if preferences_dict else None
         ),
-        tools=tools,
+        tools=processed_tools,
     )
 
     if files:

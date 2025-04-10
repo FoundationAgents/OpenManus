@@ -48,6 +48,30 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
     where: { organizationId: organization.id },
   });
 
+  // Query tool configurations
+  const organizationTools = await prisma.organizationTools.findMany({
+    where: { organizationId: organization.id, tool: { id: { in: tools } } },
+    include: { tool: true },
+  });
+
+  // Build tool list, use configuration if available, otherwise use tool name
+  const processedTools = tools.map(tool => {
+    const orgTool = organizationTools.find(ot => ot.tool.id === tool);
+    if (orgTool) {
+      const env = orgTool.env ? JSON.parse(decryptWithPrivateKey(orgTool.env, privateKey)) : {};
+      return JSON.stringify({
+        id: orgTool.tool.id,
+        name: orgTool.tool.name,
+        command: orgTool.tool.command,
+        args: orgTool.tool.args,
+        env: env,
+      });
+    }
+    return tool;
+  });
+
+  console.log(processedTools);
+
   // Create task
   const task = await prisma.tasks.create({
     data: {
@@ -62,7 +86,7 @@ export const createTask = withUserAuth(async ({ organization, args }: AuthWrappe
   const formData = new FormData();
   formData.append('task_id', `${organization.id}/${task.id}`);
   formData.append('prompt', prompt);
-  tools.forEach(tool => formData.append('tools', tool));
+  processedTools.forEach(tool => formData.append('tools', tool));
   formData.append('preferences', JSON.stringify({ language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] }));
   formData.append(
     'llm_config',
@@ -118,6 +142,28 @@ export const restartTask = withUserAuth(
       where: { organizationId: organization.id },
     });
 
+    // Query tool configurations
+    const organizationTools = await prisma.organizationTools.findMany({
+      where: { organizationId: organization.id, tool: { id: { in: tools } } },
+      include: { tool: true },
+    });
+
+    // Build tool list, use configuration if available, otherwise use tool name
+    const processedTools = tools.map(tool => {
+      const orgTool = organizationTools.find(ot => ot.tool.id === tool);
+      if (orgTool) {
+        const env = orgTool.env ? JSON.parse(decryptWithPrivateKey(orgTool.env, privateKey)) : {};
+        return JSON.stringify({
+          id: orgTool.tool.id,
+          name: orgTool.tool.name,
+          command: orgTool.tool.command,
+          args: orgTool.tool.args,
+          env: env,
+        });
+      }
+      return tool;
+    });
+
     const task = await prisma.tasks.findUnique({ where: { id: taskId, organizationId: organization.id } });
     if (!task) throw new Error('Task not found');
     if (task.status !== 'completed' && task.status !== 'terminated' && task.status !== 'failed') throw new Error('Task is processing');
@@ -147,7 +193,7 @@ export const restartTask = withUserAuth(
     const formData = new FormData();
     formData.append('task_id', `${organization.id}/${task.id}`);
     formData.append('prompt', prompt);
-    tools.forEach(tool => formData.append('tools', tool));
+    processedTools.forEach(tool => formData.append('tools', tool));
     formData.append('preferences', JSON.stringify({ language: LANGUAGE_CODES[preferences?.language as keyof typeof LANGUAGE_CODES] }));
     formData.append(
       'llm_config',

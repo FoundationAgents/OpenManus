@@ -1,12 +1,12 @@
-import { Send, Paperclip, Wrench, X, PauseCircle, Rocket } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { confirm } from '@/components/block/confirm';
+import { ToolsConfigDialog, useSelectedTools } from '@/components/features/tools/tools-config-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ToolsConfigDialog, useSelectedTools } from './tools-config-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Paperclip, PauseCircle, Rocket, Send, Wrench, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 
 interface ChatInputProps {
   status?: 'idle' | 'thinking' | 'terminating' | 'completed';

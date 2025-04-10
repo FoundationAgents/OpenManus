@@ -1,4 +1,4 @@
-import { getToolsInfo } from '@/actions/tools';
+import { getOrganizationToolsInfo } from '@/actions/tools';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
@@ -9,6 +9,7 @@ import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import { create } from 'zustand';
+import { Button } from '@/components/ui/button';
 
 export const useSelectedTools = create<{
   selected: string[];
@@ -26,23 +27,23 @@ interface ToolsConfigDialogProps {
 }
 
 export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: ToolsConfigDialogProps) => {
-  const [allTools, setAllTools] = useState<NonNullable<Awaited<ReturnType<typeof getToolsInfo>>['data']>>([]);
+  const [allTools, setAllTools] = useState<NonNullable<Awaited<ReturnType<typeof getOrganizationToolsInfo>>['data']>>([]);
   const [showTool, setShowTool] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    getToolsInfo({}).then(res => {
+    getOrganizationToolsInfo({}).then(res => {
       const tools = res.data ?? [];
       setAllTools(tools);
     });
   }, [open]);
 
-  const handleToggleTool = (toolName: string) => {
-    onSelected?.(selected?.includes(toolName) ? selected.filter(name => name !== toolName) : [...(selected ?? []), toolName]);
+  const handleToggleTool = (toolId: string) => {
+    onSelected?.(selected?.includes(toolId) ? selected.filter(id => id !== toolId) : [...(selected ?? []), toolId]);
   };
 
-  const handleShowToolInfo = (toolName: string) => {
-    setShowTool(toolName);
+  const handleShowToolInfo = (toolId: string) => {
+    setShowTool(toolId);
   };
 
   return (
@@ -58,12 +59,12 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Selected Tools</h3>
               <div className="flex flex-wrap gap-2">
-                {selected?.map(toolName => {
-                  const tool = allTools.find(t => t.name === toolName);
+                {selected?.map(toolId => {
+                  const tool = allTools.find(t => t.id === toolId);
                   return (
-                    <Badge key={toolName} variant="secondary" className="flex items-center gap-1">
-                      {toolName}
-                      <X className="hover:text-destructive h-3 w-3 cursor-pointer" onClick={() => handleToggleTool(toolName)} />
+                    <Badge key={toolId} variant="secondary" className="flex items-center gap-1">
+                      {tool?.name}
+                      <X className="hover:text-destructive h-3 w-3 cursor-pointer" onClick={() => handleToggleTool(toolId)} />
                     </Badge>
                   );
                 })}
@@ -74,11 +75,11 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
             <div className="grid flex-1 grid-cols-4 content-start items-start gap-4 overflow-y-auto">
               {allTools.map(tool => (
                 <div
-                  key={tool.name}
+                  key={tool.id}
                   className={`group hover:bg-muted relative flex h-[80px] cursor-pointer flex-col justify-between rounded-md border p-2 transition-colors ${
-                    selected?.includes(tool.name) ? 'border-primary bg-muted' : ''
+                    selected?.includes(tool.id) ? 'border-primary bg-muted' : ''
                   }`}
-                  onClick={() => handleShowToolInfo(tool.name)}
+                  onClick={() => handleShowToolInfo(tool.id)}
                 >
                   <div className="flex items-center justify-between">
                     <span className="line-clamp-1 text-sm font-medium">{tool.name}</span>
@@ -89,7 +90,7 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
                           <TooltipTrigger asChild>
                             <Info
                               className="text-muted-foreground hover:text-foreground h-4 w-4 cursor-pointer"
-                              onClick={() => handleShowToolInfo(tool.name)}
+                              onClick={() => handleShowToolInfo(tool.id)}
                             />
                           </TooltipTrigger>
                           <TooltipContent>
@@ -101,8 +102,8 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
                         onClick={e => {
                           e.stopPropagation();
                         }}
-                        checked={selected?.includes(tool.name)}
-                        onCheckedChange={() => handleToggleTool(tool.name)}
+                        checked={selected?.includes(tool.id)}
+                        onCheckedChange={() => handleToggleTool(tool.id)}
                         className="h-4 w-4"
                       />
                     </div>
@@ -110,6 +111,17 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
                   <p className="text-muted-foreground line-clamp-2 text-xs">{tool.description}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Tool Market Entry */}
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Tool Market</h3>
+                <p className="text-muted-foreground text-sm">Discover and install new tools from our marketplace</p>
+              </div>
+              <Button variant="outline" onClick={() => window.open('/tools/market', '_blank')}>
+                Browse Market
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -138,7 +150,7 @@ export const ToolsConfigDialog = ({ open, onOpenChange, selected, onSelected }: 
                       },
                     }}
                   >
-                    {allTools.find(t => t.name === showTool)?.description}
+                    {allTools.find(t => t.id === showTool)?.description}
                   </Markdown>
                 </div>
               </div>

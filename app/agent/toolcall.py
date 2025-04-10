@@ -193,11 +193,6 @@ class ToolCallContextHelper:
             # Get response with tool options
             response = await self.agent.llm.ask_tool(
                 messages=self.agent.messages,
-                system_msgs=(
-                    [Message.system_message(self.agent.system_prompt)]
-                    if self.agent.system_prompt
-                    else None
-                ),
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )

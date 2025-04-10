@@ -142,3 +142,35 @@ model InviteCodes {
 
   @@index([isUsed])
 }
+
+model Tools {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  command     String
+  args        Json     @default("[]")
+  envSchema   Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationTools OrganizationTools[]
+
+  @@index([name])
+  @@index([createdAt])
+}
+
+model OrganizationTools {
+  id             String   @id @default(cuid())
+  toolId         String
+  organizationId String
+  env            String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tool Tools @relation(fields: [toolId], references: [id])
+
+  @@unique([toolId, organizationId])
+  @@index([toolId])
+  @@index([organizationId])
+  @@index([createdAt])
+}

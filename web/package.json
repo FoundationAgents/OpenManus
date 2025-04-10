@@ -41,7 +41,7 @@
     "prisma": "^6.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.54.2",
+    "react-hook-form": "^7.55.0",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^15.6.1",
     "react-use-websocket": "^4.13.0",

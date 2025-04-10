@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.agent.browser import BrowserContextHelper
 from app.agent.react import ReActAgent
@@ -35,18 +35,12 @@ SYSTEM_TOOLS: list[BaseTool] = [
 SYSTEM_TOOLS_MAP = {tool.name: tool.__class__ for tool in SYSTEM_TOOLS}
 
 
-SYSTEM_MCP_TOOLS_MAP = {
-    "mcp-everything": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-everything"],
-        "description": "https://github.com/modelcontextprotocol/servers/tree/main/src/everything",
-    },
-    "excel": {
-        "command": "npx",
-        "args": ["-y", "@negokaz/excel-mcp-server"],
-        "env": {"EXCEL_MCP_PAGING_CELLS_LIMIT": "4000"},
-    },
-}
+class McpToolConfig(BaseModel):
+    id: str
+    name: str
+    command: str
+    args: list[str]
+    env: dict[str, str]
 
 
 class Manus(ReActAgent):
@@ -79,7 +73,7 @@ class Manus(ReActAgent):
         self,
         task_id: str,
         language: Optional[str] = None,
-        tools: Optional[list[str]] = None,
+        tools: Optional[list[Union[McpToolConfig, str]]] = None,
     ):
         self.task_id = task_id
         self.language = language
@@ -88,18 +82,21 @@ class Manus(ReActAgent):
         if not os.path.exists(self.task_dir):
             os.makedirs(self.task_dir)
 
+        real_task_dir = os.path.join(
+            config.workspace_root, self.task_dir.replace("/workspace/", "")
+        )
         self.system_prompt = SYSTEM_PROMPT.format(
             directory="/workspace",
             task_id=self.task_id,
             task_dir=self.task_dir,
-            real_task_dir=os.path.join(
-                config.workspace_root, self.task_dir.replace("/workspace/", "")
-            ),
+            real_task_dir=real_task_dir,
             language=self.language or "English",
             current_date=datetime.now().strftime("%Y-%m-%d"),
         )
         self.next_step_prompt = NEXT_STEP_PROMPT.format(
             language=self.language or "English",
+            task_dir=self.task_dir,
+            real_task_dir=real_task_dir,
         )
 
         self.memory.add_message(Message.system_message(self.system_prompt))
@@ -111,20 +108,19 @@ class Manus(ReActAgent):
             Terminate(),
         )
         if tools:
-            for tool_name in tools:
-                if tool_name in SYSTEM_TOOLS_MAP:
-                    inst = SYSTEM_TOOLS_MAP[tool_name]()
+            for tool in tools:
+                if isinstance(tool, str) and tool in SYSTEM_TOOLS_MAP:
+                    inst = SYSTEM_TOOLS_MAP[tool]()
                     await self.tool_call_context_helper.add_tool(inst)
                     if hasattr(inst, "llm"):
                         inst.llm = self.llm
-                elif tool_name in SYSTEM_MCP_TOOLS_MAP:
-                    t = SYSTEM_MCP_TOOLS_MAP[tool_name]
+                elif isinstance(tool, McpToolConfig):
                     await self.tool_call_context_helper.add_mcp(
                         {
-                            "client_id": tool_name,
-                            "command": t["command"],
-                            "args": t["args"],
-                            "env": t["env"],
+                            "client_id": tool.id,
+                            "command": tool.command,
+                            "args": tool.args,
+                            "env": tool.env,
                         }
                     )
         return self
