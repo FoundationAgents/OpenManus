@@ -106,7 +106,7 @@ class MCPSandboxClients(ToolCollection):
         if command_type == "uvx":
             docker_args.extend(
                 [
-                    "openmanus-sandbox-uvenv:latest",
+                    "iheytang/openmanus-sandbox-uvenv:latest",
                     "bash",
                     "-c",
                 ]
@@ -118,9 +118,7 @@ class MCPSandboxClients(ToolCollection):
         elif command_type == "npx":
             docker_args.extend(
                 [
-                    "-v",
-                    "/tmp/npm_cache:/tmp/npm_cache:rw",
-                    "node:18-slim",
+                    "iheytang/openmanus-sandbox-nodejs:latest",
                     "bash",
                     "-c",
                 ]
