@@ -2,8 +2,8 @@
 setlocal
 cd /d %~dp0
 
-set "VENV_DIR=%~dp0venv"
-set "PYTHON_PATH=%VENV_DIR%\python.exe"
+set "VENV_DIR=%~dp0.venv"
+set "PYTHON_PATH=%VENV_DIR%\Scripts\python.exe"
 
 where git >nul 2>&1
 if %errorlevel% == 0 (
