@@ -8,10 +8,12 @@ from app.agent.base import BaseAgent, BaseAgentEvents
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
+from app.sandbox.core.manager import SandboxManager
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 from app.tool.base import BaseTool
 from app.tool.mcp import MCPClients
+from app.tool.mcp_sandbox import MCPSandboxClients
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
@@ -42,7 +44,7 @@ class MCPToolCallExtension:
     def __init__(self):
         # Dictionary to store multiple client connections
         # key: client_id, value: MCPClients instance
-        self.clients: Dict[str, MCPClients] = {}
+        self.clients: Dict[str, Union[MCPClients, MCPSandboxClients]] = {}
 
     async def add_sse_client(self, client_id: str, server_url: str) -> MCPClients:
         """Add a new SSE-based MCP client connection.
@@ -61,6 +63,29 @@ class MCPToolCallExtension:
             raise ValueError(f"Client ID '{client_id}' already exists")
 
         client = MCPClients(client_id=client_id)
+        await client.connect_sse(server_url=server_url)
+        self.clients[client_id] = client
+        return client
+
+    async def add_sse_sandbox_client(
+        self, client_id: str, server_url: str
+    ) -> MCPSandboxClients:
+        """Add a new SSE-based MCP client connection running in a sandbox.
+
+        Args:
+            client_id: Unique identifier for the client
+            server_url: URL of the MCP server
+
+        Returns:
+            MCPSandboxClients: The newly created sandboxed client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPSandboxClients(client_id=client_id)
         await client.connect_sse(server_url=server_url)
         self.clients[client_id] = client
         return client
@@ -89,14 +114,40 @@ class MCPToolCallExtension:
         self.clients[client_id] = client
         return client
 
-    def get_client(self, client_id: str) -> Optional[MCPClients]:
+    async def add_stdio_sandbox_client(
+        self, client_id: str, command: str, args: Optional[List[str]] = None
+    ) -> MCPSandboxClients:
+        """Add a new STDIO-based MCP client connection running in a sandbox.
+
+        Args:
+            client_id: Unique identifier for the client
+            command: Command to execute
+            args: List of command arguments
+
+        Returns:
+            MCPSandboxClients: The newly created sandboxed client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPSandboxClients(client_id=client_id)
+        await client.connect_stdio(command=command, args=args or [])
+        self.clients[client_id] = client
+        return client
+
+    def get_client(
+        self, client_id: str
+    ) -> Optional[Union[MCPClients, MCPSandboxClients]]:
         """Retrieve a specific MCP client.
 
         Args:
             client_id: Unique identifier for the client
 
         Returns:
-            Optional[MCPClients]: The client instance if found, None otherwise
+            Optional[Union[MCPClients, MCPSandboxClients]]: The client instance if found, None otherwise
         """
         return self.clients.get(client_id)
 
@@ -175,7 +226,7 @@ class ToolCallContextHelper:
                 for mcp_tool in client.tool_map.values():
                     self.available_tools.add_tool(mcp_tool)
         elif isinstance(tool, dict) and "client_id" in tool and "command" in tool:
-            await self.mcp.add_stdio_client(
+            await self.mcp.add_stdio_sandbox_client(
                 tool["client_id"], tool["command"], tool.get("args", [])
             )
             client = self.mcp.get_client(tool["client_id"])
