@@ -31,4 +31,4 @@ COPY . .
 
 ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/xvfb-run -a $@", ""]
 
-CMD ["bash"]
+CMD ["python3", "/app/OpenManus/main.py"]
