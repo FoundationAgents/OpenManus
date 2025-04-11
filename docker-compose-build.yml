@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  core:
+    container_name: openmanus-core
+    build:
+      context: .
+      dockerfile: Dockerfile.run_api
+    volumes:
+      - ./workspace:/workspace
+      - /run/user/0/podman/podman.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    command: uvicorn run_api:app --host 0.0.0.0 --port 5172
+    env_file:
+      - .env
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    networks:
+      - openmanus-network
+      - openmanus-container-network
+
+  web:
+    container_name: openmanus-web
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web/keys:/app/keys:ro
+      - ./workspace:/workspace
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MANUS_URL=http://core:5172
+    env_file:
+      - .env
+    depends_on:
+      - core
+    networks:
+      - openmanus-network
+
+networks:
+  openmanus-network:
+    name: openmanus-network
+  openmanus-container-network:
+    name: openmanus-container-network

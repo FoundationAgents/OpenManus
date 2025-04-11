@@ -115,7 +115,11 @@ class MCPToolCallExtension:
         return client
 
     async def add_stdio_sandbox_client(
-        self, client_id: str, command: str, args: Optional[List[str]] = None
+        self,
+        client_id: str,
+        command: str,
+        args: Optional[List[str]] = None,
+        env: Optional[Dict[str, str]] = None,
     ) -> MCPSandboxClients:
         """Add a new STDIO-based MCP client connection running in a sandbox.
 
@@ -134,7 +138,7 @@ class MCPToolCallExtension:
             raise ValueError(f"Client ID '{client_id}' already exists")
 
         client = MCPSandboxClients(client_id=client_id)
-        await client.connect_stdio(command=command, args=args or [])
+        await client.connect_stdio(command=command, args=args or [], env=env or {})
         self.clients[client_id] = client
         return client
 
@@ -227,7 +231,10 @@ class ToolCallContextHelper:
                     self.available_tools.add_tool(mcp_tool)
         elif isinstance(tool, dict) and "client_id" in tool and "command" in tool:
             await self.mcp.add_stdio_sandbox_client(
-                tool["client_id"], tool["command"], tool.get("args", [])
+                tool["client_id"],
+                tool["command"],
+                tool.get("args", []),
+                tool.get("env", {}),
             )
             client = self.mcp.get_client(tool["client_id"])
             if client:

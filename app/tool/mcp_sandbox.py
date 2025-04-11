@@ -93,13 +93,19 @@ class MCPSandboxClients(ToolCollection):
         # Add network configuration
         docker_args.extend(["--network", "openmanus-container-network"])
 
-        # Basic environment variables
+        # Add environment variables to docker command
         env_vars = {
             "PYTHONUNBUFFERED": "1",  # Ensure Python output is not buffered
             "TERM": "dumb",  # Use dumb terminal type
             "PS1": "$ ",  # Set a simple prompt
             "PROMPT_COMMAND": "",  # Disable prompt command
+            "UV_INDEX_URL": "https://mirrors.aliyun.com/pypi/simple/",
+            "NPM_REGISTRY": "https://registry.npmmirror.com",
         }
+        for key, value in env_vars.items():
+            docker_args.extend(["-e", f"{key}={value}"])
+        for key, value in parameters.env.items():
+            docker_args.extend(["-e", f"{key}={value}"])
 
         # Set different images and volumes based on command type
         # uvx
@@ -112,7 +118,7 @@ class MCPSandboxClients(ToolCollection):
                 ]
             )
             # Directly use pip to install and run packages
-            start_cmd = f"uvenv run {' '.join(parameters.args)}"
+            start_cmd = f"uvx {' '.join(parameters.args)}"
             docker_args.append(start_cmd)
         # npx
         elif command_type == "npx":
@@ -129,14 +135,18 @@ class MCPSandboxClients(ToolCollection):
         elif command_type == "docker":
             # If it's a docker command, use the original parameters directly
             return StdioServerParameters(
-                command=parameters.command, args=parameters.args, env=env_vars
+                command=parameters.command,
+                args=parameters.args,
             )
 
         return StdioServerParameters(
-            command=docker_command, args=docker_args, env=env_vars
+            command=docker_command,
+            args=docker_args,
         )
 
-    async def connect_stdio(self, command: str, args: List[str]) -> None:
+    async def connect_stdio(
+        self, command: str, args: List[str], env: Dict[str, str]
+    ) -> None:
         """Connect to an MCP server using stdio transport within a container."""
         if not command:
             raise ValueError("Server command is required.")
@@ -145,10 +155,9 @@ class MCPSandboxClients(ToolCollection):
 
         # Convert to unified docker command parameters
         server_params = self._convert_to_docker_command(
-            StdioServerParameters(command=command, args=args)
+            StdioServerParameters(command=command, args=args, env=env)
         )
         full_command = f"{server_params.command} {' '.join(server_params.args)}"
-        logger.info(f"Starting MCP server with docker command args : {full_command}")
 
         # Use stdio_client provided by mcp library
         stdio_transport = await self.exit_stack.enter_async_context(
