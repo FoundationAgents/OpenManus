@@ -8,6 +8,7 @@ from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
 from app.tool.tool_collection import ToolCollection
 from app.tool.web_search import WebSearch
+from app.tool.wait import Wait
 
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "ToolCollection",
     "CreateChatCompletion",
     "PlanningTool",
+    "Wait",
 ]
