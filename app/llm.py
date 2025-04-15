@@ -10,7 +10,7 @@ from openai import (
     OpenAIError,
     RateLimitError,
 )
-from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -18,6 +18,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
@@ -38,6 +39,10 @@ MULTIMODAL_MODELS = [
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
+    # Ollama multimodal models
+    "llama3.2-vision",
+    "gemma3:4b",
+    "llava:v1.6",
 ]
 
 
@@ -225,6 +230,8 @@ class LLM:
                     api_key=self.api_key,
                     api_version=self.api_version,
                 )
+            elif self.api_type == "aws":
+                self.client = BedrockClient()
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -732,8 +739,9 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
+            params["stream"] = False  # Always use non-streaming for tool requests
             response: ChatCompletion = await self.client.chat.completions.create(
-                **params, stream=False
+                **params
             )
 
             # Check if response is valid

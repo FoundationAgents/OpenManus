@@ -16,34 +16,21 @@ from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
 
-_BROWSER_DESCRIPTION = """
-Interact with a web browser to perform various actions such as navigation, element interaction, content extraction, and tab management. This tool provides a comprehensive set of browser automation capabilities:
+_BROWSER_DESCRIPTION = """\
+A powerful browser automation tool that allows interaction with web pages through various actions.
+* This tool provides commands for controlling a browser session, navigating web pages, and extracting information
+* It maintains state across calls, keeping the browser session alive until explicitly closed
+* Use this when you need to browse websites, fill forms, click buttons, extract content, or perform web searches
+* Each action requires specific parameters as defined in the tool's dependencies
 
-Navigation:
-- 'go_to_url': Go to a specific URL in the current tab
-- 'go_back': Go back
-- 'refresh': Refresh the current page
-- 'web_search': Search the query in the current tab, the query should be a search query like humans search in web, concrete and not vague or super long. More the single most important items.
+Key capabilities include:
+* Navigation: Go to specific URLs, go back, search the web, or refresh pages
+* Interaction: Click elements, input text, select from dropdowns, send keyboard commands
+* Scrolling: Scroll up/down by pixel amount or scroll to specific text
+* Content extraction: Extract and analyze content from web pages based on specific goals
+* Tab management: Switch between tabs, open new tabs, or close tabs
 
-Element Interaction:
-- 'click_element': Click an element by index
-- 'input_text': Input text into a form element
-- 'scroll_down'/'scroll_up': Scroll the page (with optional pixel amount)
-- 'scroll_to_text': If you dont find something which you want to interact with, scroll to it
-- 'send_keys': Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.
-- 'get_dropdown_options': Get all options from a dropdown
-- 'select_dropdown_option': Select dropdown option for interactive element index by the text of the option you want to select
-
-Content Extraction:
-- 'extract_content': Extract page content to retrieve specific information from the page, e.g. all company names, a specifc description, all information about, links with companies in structured format or simply links
-
-Tab Management:
-- 'switch_tab': Switch to a specific tab
-- 'open_tab': Open a new tab with a URL
-- 'close_tab': Close the current tab
-
-Utility:
-- 'wait': Wait for a specified number of seconds
+Note: When using element indices, refer to the numbered elements shown in the current browser state.
 """
 
 Context = TypeVar("Context")
@@ -266,32 +253,19 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="Query is required for 'web_search' action"
                         )
-                    search_results = await self.web_search_tool.execute(query)
+                    # Execute the web search and return results directly without browser navigation
+                    search_response = await self.web_search_tool.execute(
+                        query=query, fetch_content=True, num_results=1
+                    )
+                    # Navigate to the first search result
+                    first_search_result = search_response.results[0]
+                    url_to_navigate = first_search_result.url
 
-                    if search_results:
-                        # Navigate to the first search result
-                        first_result = search_results[0]
-                        if isinstance(first_result, dict) and "url" in first_result:
-                            url_to_navigate = first_result["url"]
-                        elif isinstance(first_result, str):
-                            url_to_navigate = first_result
-                        else:
-                            return ToolResult(
-                                error=f"Invalid search result format: {first_result}"
-                            )
+                    page = await context.get_current_page()
+                    await page.goto(url_to_navigate)
+                    await page.wait_for_load_state()
 
-                        page = await context.get_current_page()
-                        await page.goto(url_to_navigate)
-                        await page.wait_for_load_state()
-
-                        return ToolResult(
-                            output=f"Searched for '{query}' and navigated to first result: {url_to_navigate}\nAll results:"
-                            + "\n".join([str(r) for r in search_results])
-                        )
-                    else:
-                        return ToolResult(
-                            error=f"No search results found for '{query}'"
-                        )
+                    return search_response
 
                 # Element interaction actions
                 elif action == "click_element":
@@ -403,99 +377,71 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="Goal is required for 'extract_content' action"
                         )
+
                     page = await context.get_current_page()
-                    try:
-                        # Get page content and convert to markdown for better processing
-                        html_content = await page.content()
+                    import markdownify
 
-                        # Import markdownify here to avoid global import
-                        try:
-                            import markdownify
+                    content = markdownify.markdownify(await page.content())
 
-                            content = markdownify.markdownify(html_content)
-                        except ImportError:
-                            # Fallback if markdownify is not available
-                            content = html_content
-
-                        # Create prompt for LLM
-                        prompt_text = """
+                    prompt = f"""\
 Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
 Extraction goal: {goal}
 
 Page content:
-{page}
+{content[:max_content_length]}
 """
-                        # Format the prompt with the goal and content
-                        max_content_length = min(50000, len(content))
-                        formatted_prompt = prompt_text.format(
-                            goal=goal, page=content[:max_content_length]
-                        )
+                    messages = [{"role": "system", "content": prompt}]
 
-                        # Create a proper message list for the LLM
-                        from app.schema import Message
-
-                        messages = [Message.user_message(formatted_prompt)]
-
-                        # Define extraction function for the tool
-                        extraction_function = {
-                            "type": "function",
-                            "function": {
-                                "name": "extract_content",
-                                "description": "Extract specific information from a webpage based on a goal",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "extracted_content": {
-                                            "type": "object",
-                                            "description": "The content extracted from the page according to the goal",
-                                        }
-                                    },
-                                    "required": ["extracted_content"],
+                    # Define extraction function schema
+                    extraction_function = {
+                        "type": "function",
+                        "function": {
+                            "name": "extract_content",
+                            "description": "Extract specific information from a webpage based on a goal",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "extracted_content": {
+                                        "type": "object",
+                                        "description": "The content extracted from the page according to the goal",
+                                        "properties": {
+                                            "text": {
+                                                "type": "string",
+                                                "description": "Text content extracted from the page",
+                                            },
+                                            "metadata": {
+                                                "type": "object",
+                                                "description": "Additional metadata about the extracted content",
+                                                "properties": {
+                                                    "source": {
+                                                        "type": "string",
+                                                        "description": "Source of the extracted content",
+                                                    }
+                                                },
+                                            },
+                                        },
+                                    }
                                 },
+                                "required": ["extracted_content"],
                             },
-                        }
+                        },
+                    }
 
-                        # Use LLM to extract content with required function calling
-                        response = await self.llm.ask_tool(
-                            messages,
-                            tools=[extraction_function],
-                            tool_choice="required",
+                    # Use LLM to extract content with required function calling
+                    response = await self.llm.ask_tool(
+                        messages,
+                        tools=[extraction_function],
+                        tool_choice="required",
+                    )
+
+                    if response and response.tool_calls:
+                        args = json.loads(response.tool_calls[0].function.arguments)
+                        extracted_content = args.get("extracted_content", {})
+                        return ToolResult(
+                            output=f"Extracted from page:\n{extracted_content}\n"
                         )
 
-                        # Extract content from function call response
-                        if (
-                            response
-                            and response.tool_calls
-                            and len(response.tool_calls) > 0
-                        ):
-                            # Get the first tool call arguments
-                            tool_call = response.tool_calls[0]
-                            # Parse the JSON arguments
-                            try:
-                                args = json.loads(tool_call.function.arguments)
-                                extracted_content = args.get("extracted_content", {})
-                                # Format extracted content as JSON string
-                                content_json = json.dumps(
-                                    extracted_content, indent=2, ensure_ascii=False
-                                )
-                                msg = f"Extracted from page:\n{content_json}\n"
-                            except Exception as e:
-                                msg = f"Error parsing extraction result: {str(e)}\nRaw response: {tool_call.function.arguments}"
-                        else:
-                            msg = "No content was extracted from the page."
-
-                        return ToolResult(output=msg)
-                    except Exception as e:
-                        # Provide a more helpful error message
-                        error_msg = f"Failed to extract content: {str(e)}"
-                        try:
-                            # Try to return a portion of the page content as fallback
-                            return ToolResult(
-                                output=f"{error_msg}\nHere's a portion of the page content:\n{content[:2000]}..."
-                            )
-                        except:
-                            # If all else fails, just return the error
-                            return ToolResult(error=error_msg)
+                    return ToolResult(output="No content was extracted from the page.")
 
                 # Tab management actions
                 elif action == "switch_tab":

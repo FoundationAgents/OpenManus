@@ -1,0 +1,37 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+
+# Model files and large data
+*.h5
+*.ckpt
+*.pth
+*.zip
+*.tar.gz
+
+# Environment files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Results directory (except for example files)
+results/*
+!results/human_poem_example.txt
+!results/poetry_vectors/poems.json
+!results/poetry_vectors/index.faiss

@@ -1,0 +1,7 @@
+pytest==8.0.0
+pytest-asyncio==0.23.5
+httpx==0.26.0
+python-dotenv==1.0.0
+sentence-transformers==2.5.1
+faiss-cpu==1.7.4
+numpy==1.26.4

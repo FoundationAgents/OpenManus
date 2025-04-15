@@ -1,0 +1,44 @@
+[
+  {
+    "poem_id": 1,
+    "poet": "诗人6",
+    "model": "Qwen_siliconflow",
+    "score": 85,
+    "dimensions": {
+      "意象运用": 28,
+      "语言表达": 16,
+      "情感深度": 25,
+      "结构完整性": 16,
+      "总分": 85
+    },
+    "comment": "  "
+  },
+  {
+    "poem_id": 2,
+    "poet": "诗人6",
+    "model": "Qwen_siliconflow",
+    "score": 88,
+    "dimensions": {
+      "意象运用": 28,
+      "语言表达": 18,
+      "情感深度": 25,
+      "结构完整性": 17,
+      "总分": 88
+    },
+    "comment": "  "
+  },
+  {
+    "poem_id": 3,
+    "poet": "诗人6",
+    "model": "Qwen_siliconflow",
+    "score": 32,
+    "dimensions": {
+      "意象运用": 9,
+      "语言表达": 8,
+      "情感深度": 8,
+      "结构完整性": 7,
+      "总分": 32
+    },
+    "comment": "  "
+  }
+]

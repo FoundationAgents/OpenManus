@@ -20,9 +20,3 @@ Remember, you should always include a _SINGLE_ tool call/function call and then 
 If you'd like to issue two commands at once, PLEASE DO NOT DO THAT! Please instead first submit just the first tool call, and then after receiving a response you'll be able to issue the second tool call.
 Note that the environment does NOT support interactive session commands (e.g. python, vim), so please do not invoke them.
 """
-
-NEXT_STEP_TEMPLATE = """{{observation}}
-(Open file: {{open_file}})
-(Current directory: {{working_dir}})
-bash-$
-"""

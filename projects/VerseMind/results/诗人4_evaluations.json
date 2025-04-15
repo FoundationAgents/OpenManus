@@ -1,0 +1,72 @@
+[
+  {
+    "poem_id": 1,
+    "poet": "诗人4",
+    "model": "llama3_2-vision",
+    "score": 93,
+    "dimensions": {
+      "意象运用": 25,
+      "语言表达": 22,
+      "情感深度": 28,
+      "结构完整性": 18,
+      "总分": 93
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 2,
+    "poet": "诗人4",
+    "model": "llama3_2-vision",
+    "score": 80,
+    "dimensions": {
+      "意象运用": 28,
+      "语言表达": 25,
+      "情感深度": 29,
+      "结构完整性": 18,
+      "总分": 80
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 3,
+    "poet": "诗人4",
+    "model": "llama3_2-vision",
+    "score": 93,
+    "dimensions": {
+      "意象运用": 25,
+      "语言表达": 22,
+      "情感深度": 28,
+      "结构完整性": 18,
+      "总分": 93
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 5,
+    "poet": "诗人4",
+    "model": "llama3_2-vision",
+    "score": 90,
+    "dimensions": {
+      "意象运用": 24,
+      "语言表达": 18,
+      "情感深度": 28,
+      "结构完整性": 20,
+      "总分": 90
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 6,
+    "poet": "诗人4",
+    "model": "llama3_2-vision",
+    "score": 90,
+    "dimensions": {
+      "意象运用": 28,
+      "语言表达": 18,
+      "情感深度": 25,
+      "结构完整性": 19,
+      "总分": 90
+    },
+    "comment": "无"
+  }
+]
