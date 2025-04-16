@@ -1,74 +1,278 @@
 import asyncio
 import json
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 
-from pydantic import Field
+from pydantic import BaseModel, model_validator
 
+from app.agent.base import BaseAgent, BaseAgentEvents
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
-from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.sandbox.core.manager import SandboxManager
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool.base import BaseTool
+from app.tool.mcp import MCPClients
+from app.tool.mcp_sandbox import MCPSandboxClients
+
+# Avoid circular import if BrowserAgent needs BrowserContextHelper
+if TYPE_CHECKING:
+    from app.agent.base import BaseAgent  # Or wherever memory is defined
 
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
-class ToolCallAgent(ReActAgent):
-    """Base agent class for handling tool/function calls with enhanced abstraction"""
+TOOL_CALL_THINK_AGENT_EVENTS_PREFIX = "agent:lifecycle:step:think:tool"
+TOOL_CALL_ACT_AGENT_EVENTS_PREFIX = "agent:lifecycle:step:act:tool"
 
-    name: str = "toolcall"
-    description: str = "an agent that can execute tool calls."
 
-    system_prompt: str = SYSTEM_PROMPT
-    next_step_prompt: str = NEXT_STEP_PROMPT
+class ToolCallAgentEvents(BaseAgentEvents):
+    TOOL_SELECTED = f"{TOOL_CALL_THINK_AGENT_EVENTS_PREFIX}:selected"
 
+    TOOL_START = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:start"
+    TOOL_COMPLETE = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:complete"
+    TOOL_ERROR = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:error"
+    TOOL_EXECUTE_START = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:execute:start"
+    TOOL_EXECUTE_COMPLETE = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:execute:complete"
+
+
+class MCPToolCallExtension:
+    """A context manager for handling multiple MCP client connections.
+
+    This class is responsible for:
+    1. Maintaining multiple MCP client connections
+    2. Managing client lifecycles
+    3. Providing CRUD operations for clients
+    """
+
+    def __init__(self):
+        # Dictionary to store multiple client connections
+        # key: client_id, value: MCPClients instance
+        self.clients: Dict[str, Union[MCPClients, MCPSandboxClients]] = {}
+
+    async def add_sse_client(self, client_id: str, server_url: str) -> MCPClients:
+        """Add a new SSE-based MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+            server_url: URL of the MCP server
+
+        Returns:
+            MCPClients: The newly created client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPClients(client_id=client_id)
+        await client.connect_sse(server_url=server_url)
+        self.clients[client_id] = client
+        return client
+
+    async def add_sse_sandbox_client(
+        self, client_id: str, server_url: str
+    ) -> MCPSandboxClients:
+        """Add a new SSE-based MCP client connection running in a sandbox.
+
+        Args:
+            client_id: Unique identifier for the client
+            server_url: URL of the MCP server
+
+        Returns:
+            MCPSandboxClients: The newly created sandboxed client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPSandboxClients(client_id=client_id)
+        await client.connect_sse(server_url=server_url)
+        self.clients[client_id] = client
+        return client
+
+    async def add_stdio_client(
+        self, client_id: str, command: str, args: Optional[List[str]] = None
+    ) -> MCPClients:
+        """Add a new STDIO-based MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+            command: Command to execute
+            args: List of command arguments
+
+        Returns:
+            MCPClients: The newly created client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPClients(client_id=client_id)
+        await client.connect_stdio(command=command, args=args or [])
+        self.clients[client_id] = client
+        return client
+
+    async def add_stdio_sandbox_client(
+        self,
+        client_id: str,
+        command: str,
+        args: Optional[List[str]] = None,
+        env: Optional[Dict[str, str]] = None,
+    ) -> MCPSandboxClients:
+        """Add a new STDIO-based MCP client connection running in a sandbox.
+
+        Args:
+            client_id: Unique identifier for the client
+            command: Command to execute
+            args: List of command arguments
+
+        Returns:
+            MCPSandboxClients: The newly created sandboxed client instance
+
+        Raises:
+            ValueError: If client_id already exists
+        """
+        if client_id in self.clients:
+            raise ValueError(f"Client ID '{client_id}' already exists")
+
+        client = MCPSandboxClients(client_id=client_id)
+        await client.connect_stdio(command=command, args=args or [], env=env or {})
+        self.clients[client_id] = client
+        return client
+
+    def get_client(
+        self, client_id: str
+    ) -> Optional[Union[MCPClients, MCPSandboxClients]]:
+        """Retrieve a specific MCP client.
+
+        Args:
+            client_id: Unique identifier for the client
+
+        Returns:
+            Optional[Union[MCPClients, MCPSandboxClients]]: The client instance if found, None otherwise
+        """
+        return self.clients.get(client_id)
+
+    async def remove_client(self, client_id: str) -> bool:
+        """Remove and disconnect a specific MCP client connection.
+
+        Args:
+            client_id: Unique identifier for the client
+
+        Returns:
+            bool: True if client was found and removed, False otherwise
+        """
+        if client := self.clients.pop(client_id, None):
+            await client.disconnect()
+            return True
+        return False
+
+    async def disconnect_all(self) -> None:
+        """Disconnect all MCP client connections."""
+        for client_id in list(self.clients.keys()):
+            await self.remove_client(client_id)
+
+    def list_clients(self) -> List[str]:
+        """Get a list of all client IDs.
+
+        Returns:
+            List[str]: List of all connected client IDs
+        """
+        return list(self.clients.keys())
+
+    def get_client_count(self) -> int:
+        """Get the current number of connected clients.
+
+        Returns:
+            int: Number of clients
+        """
+        return len(self.clients)
+
+    async def __aenter__(self) -> "MCPToolCallExtension":
+        """Async context manager entry point."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit point, ensures all connections are properly closed."""
+        await self.disconnect_all()
+
+
+class ToolCallContextHelper:
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate()
     )
+
+    mcp: MCPToolCallExtension = None
+
     tool_choices: TOOL_CHOICE_TYPE = ToolChoice.AUTO  # type: ignore
-    special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
+    special_tool_names: List[str] = [Terminate().name]
 
-    tool_calls: List[ToolCall] = Field(default_factory=list)
-    _current_base64_image: Optional[str] = None
+    tool_calls: List[ToolCall] = []
 
-    max_steps: int = 30
-    max_observe: Optional[Union[int, bool]] = None
+    max_observe: int = 10000
 
-    async def think(self) -> bool:
+    def __init__(self, agent: "BaseAgent"):
+        self.agent = agent
+        self.mcp = MCPToolCallExtension()
+
+    async def add_tool(self, tool: BaseTool) -> None:
+        """Add a new tool to the available tools collection."""
+        self.available_tools.add_tool(tool)
+
+    async def add_mcp(self, tool: dict) -> None:
+        """Add a new MCP client to the available tools collection."""
+        if isinstance(tool, dict) and "client_id" in tool and "server_url" in tool:
+            await self.mcp.add_sse_client(tool["client_id"], tool["server_url"])
+            client = self.mcp.get_client(tool["client_id"])
+            if client:
+                for mcp_tool in client.tool_map.values():
+                    self.available_tools.add_tool(mcp_tool)
+        elif isinstance(tool, dict) and "client_id" in tool and "command" in tool:
+            await self.mcp.add_stdio_sandbox_client(
+                tool["client_id"],
+                tool["command"],
+                tool.get("args", []),
+                tool.get("env", {}),
+            )
+            client = self.mcp.get_client(tool["client_id"])
+            if client:
+                for mcp_tool in client.tool_map.values():
+                    self.available_tools.add_tool(mcp_tool)
+
+    async def ask_tool(self) -> bool:
         """Process current state and decide next actions using tools"""
-        if self.next_step_prompt:
-            user_msg = Message.user_message(self.next_step_prompt)
-            self.messages += [user_msg]
+        if self.agent.next_step_prompt:
+            user_msg = Message.user_message(self.agent.next_step_prompt)
+            self.agent.messages += [user_msg]
 
         try:
             # Get response with tool options
-            response = await self.llm.ask_tool(
-                messages=self.messages,
-                system_msgs=(
-                    [Message.system_message(self.system_prompt)]
-                    if self.system_prompt
-                    else None
-                ),
+            response = await self.agent.llm.ask_tool(
+                messages=self.agent.messages,
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
         except ValueError:
             raise
         except Exception as e:
-            # Check if this is a RetryError containing TokenLimitExceeded
             if hasattr(e, "__cause__") and isinstance(e.__cause__, TokenLimitExceeded):
                 token_limit_error = e.__cause__
                 logger.error(
                     f"🚨 Token limit error (from RetryError): {token_limit_error}"
                 )
-                self.memory.add_message(
+                self.agent.memory.add_message(
                     Message.assistant_message(
                         f"Maximum token limit reached, cannot continue execution: {str(token_limit_error)}"
                     )
                 )
-                self.state = AgentState.FINISHED
+                self.agent.state = AgentState.FINISHED
                 return False
             raise
 
@@ -78,15 +282,35 @@ class ToolCallAgent(ReActAgent):
         content = response.content if response and response.content else ""
 
         # Log response info
-        logger.info(f"✨ {self.name}'s thoughts: {content}")
+        logger.info(f"✨ {self.agent.name}'s thoughts: {content}")
         logger.info(
-            f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
+            f"🛠️ {self.agent.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
+        )
+        self.agent.emit(
+            ToolCallAgentEvents.TOOL_SELECTED,
+            {
+                "thoughts": content,
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": call.type,
+                        "index": call.index,
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": json.loads(call.function.arguments),
+                        },
+                    }
+                    for call in tool_calls
+                ],
+            },
         )
         if tool_calls:
-            logger.info(
-                f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
-            )
-            logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
+            tool_info = {
+                "tools": [call.function.name for call in tool_calls],
+                "arguments": tool_calls[0].function.arguments,
+            }
+            logger.info(f"🧰 Tools being prepared: {tool_info['tools']}")
+            logger.info(f"🔧 Tool arguments: {tool_info['arguments']}")
 
         try:
             if response is None:
@@ -96,10 +320,10 @@ class ToolCallAgent(ReActAgent):
             if self.tool_choices == ToolChoice.NONE:
                 if tool_calls:
                     logger.warning(
-                        f"🤔 Hmm, {self.name} tried to use tools when they weren't available!"
+                        f"🤔 Hmm, {self.agent.name} tried to use tools when they weren't available!"
                     )
                 if content:
-                    self.memory.add_message(Message.assistant_message(content))
+                    self.agent.memory.add_message(Message.assistant_message(content))
                     return True
                 return False
 
@@ -109,7 +333,7 @@ class ToolCallAgent(ReActAgent):
                 if self.tool_calls
                 else Message.assistant_message(content)
             )
-            self.memory.add_message(assistant_msg)
+            self.agent.memory.add_message(assistant_msg)
 
             if self.tool_choices == ToolChoice.REQUIRED and not self.tool_calls:
                 return True  # Will be handled in act()
@@ -120,29 +344,38 @@ class ToolCallAgent(ReActAgent):
 
             return bool(self.tool_calls)
         except Exception as e:
-            logger.error(f"🚨 Oops! The {self.name}'s thinking process hit a snag: {e}")
-            self.memory.add_message(
+            logger.error(
+                f"🚨 Oops! The {self.agent.name}'s thinking process hit a snag: {e}"
+            )
+            self.agent.memory.add_message(
                 Message.assistant_message(
                     f"Error encountered while processing: {str(e)}"
                 )
             )
             return False
 
-    async def act(self) -> str:
+    async def execute_tool(self) -> str:
         """Execute tool calls and handle their results"""
+        self.agent.emit(
+            ToolCallAgentEvents.TOOL_START,
+            {"tool_calls": [call.model_dump() for call in self.tool_calls]},
+        )
         if not self.tool_calls:
             if self.tool_choices == ToolChoice.REQUIRED:
                 raise ValueError(TOOL_CALL_REQUIRED)
 
             # Return last message content if no tool calls
-            return self.messages[-1].content or "No content or commands to execute"
+            return (
+                self.agent.messages[-1].content or "No content or commands to execute"
+            )
 
         results = []
+
         for command in self.tool_calls:
             # Reset base64_image for each tool call
             self._current_base64_image = None
 
-            result = await self.execute_tool(command)
+            result = await self.execute_tool_command(command)
 
             if self.max_observe:
                 result = result[: self.max_observe]
@@ -158,12 +391,12 @@ class ToolCallAgent(ReActAgent):
                 name=command.function.name,
                 base64_image=self._current_base64_image,
             )
-            self.memory.add_message(tool_msg)
+            self.agent.memory.add_message(tool_msg)
             results.append(result)
+        self.agent.emit(ToolCallAgentEvents.TOOL_COMPLETE, {"results": results})
+        return results
 
-        return "\n\n".join(results)
-
-    async def execute_tool(self, command: ToolCall) -> str:
+    async def execute_tool_command(self, command: ToolCall) -> str:
         """Execute a single tool call with robust error handling"""
         if not command or not command.function or not command.function.name:
             return "Error: Invalid command format"
@@ -173,15 +406,29 @@ class ToolCallAgent(ReActAgent):
             return f"Error: Unknown tool '{name}'"
 
         try:
+            command_id = command.id
             # Parse arguments
             args = json.loads(command.function.arguments or "{}")
 
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
+            self.agent.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_START,
+                {"id": command_id, "name": name, "args": args},
+            )
             result = await self.available_tools.execute(name=name, tool_input=args)
-
+            self.agent.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
+                {
+                    "id": command_id,
+                    "name": name,
+                    "args": args,
+                    "result": (result if isinstance(result, str) else str(result)),
+                    "error": result.error if hasattr(result, "error") else None,
+                },
+            )
             # Handle special tools
-            await self._handle_special_tool(name=name, result=result)
+            await self.handle_special_tool(name=name, result=result)
 
             # Check if result is a ToolResult with base64_image
             if hasattr(result, "base64_image") and result.base64_image:
@@ -209,13 +456,21 @@ class ToolCallAgent(ReActAgent):
             logger.error(
                 f"📝 Oops! The arguments for '{name}' don't make sense - invalid JSON, arguments:{command.function.arguments}"
             )
+            self.agent.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
+                {"id": command.id, "name": name, "args": args, "error": error_msg},
+            )
             return f"Error: {error_msg}"
         except Exception as e:
             error_msg = f"⚠️ Tool '{name}' encountered a problem: {str(e)}"
             logger.exception(error_msg)
+            self.agent.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
+                {"id": command.id, "name": name, "args": args, "error": error_msg},
+            )
             return f"Error: {error_msg}"
 
-    async def _handle_special_tool(self, name: str, result: Any, **kwargs):
+    async def handle_special_tool(self, name: str, result: Any, **kwargs):
         """Handle special tool execution and state changes"""
         if not self._is_special_tool(name):
             return
@@ -223,7 +478,7 @@ class ToolCallAgent(ReActAgent):
         if self._should_finish_execution(name=name, result=result, **kwargs):
             # Set agent state to finished
             logger.info(f"🏁 Special tool '{name}' has completed the task!")
-            self.state = AgentState.FINISHED
+            self.agent.state = AgentState.FINISHED
 
     @staticmethod
     def _should_finish_execution(**kwargs) -> bool:
@@ -234,9 +489,9 @@ class ToolCallAgent(ReActAgent):
         """Check if tool name is in special tools list"""
         return name.lower() in [n.lower() for n in self.special_tool_names]
 
-    async def cleanup(self):
+    async def cleanup_tools(self):
         """Clean up resources used by the agent's tools."""
-        logger.info(f"🧹 Cleaning up resources for agent '{self.name}'...")
+        logger.info(f"🧹 Cleaning up resources for agent '{self.agent.name}'...")
         for tool_name, tool_instance in self.available_tools.tool_map.items():
             if hasattr(tool_instance, "cleanup") and asyncio.iscoroutinefunction(
                 tool_instance.cleanup
@@ -248,7 +503,53 @@ class ToolCallAgent(ReActAgent):
                     logger.error(
                         f"🚨 Error cleaning up tool '{tool_name}': {e}", exc_info=True
                     )
-        logger.info(f"✨ Cleanup complete for agent '{self.name}'.")
+        logger.info(f"✨ Cleanup complete for agent '{self.agent.name}'.")
+
+
+class ToolCallAgent(ReActAgent):
+    """Base agent class for handling tool/function calls with enhanced abstraction"""
+
+    name: str = "toolcall"
+    description: str = "an agent that can execute tool calls."
+
+    tool_call_context_helper: Optional[ToolCallContextHelper] = None
+
+    @model_validator(mode="after")
+    def initialize_helper(self) -> "ToolCallAgent":
+        self.tool_call_context_helper = ToolCallContextHelper(self)
+        return self
+
+    async def think(self) -> bool:
+        """Process current state and decide next actions using tools"""
+        return await self.tool_call_context_helper.ask_tool()
+
+    async def act(self) -> str:
+        """Execute tool calls and handle their results"""
+        results = await self.tool_call_context_helper.execute_tool()
+        return "\n\n".join(results)
+
+    async def execute_tool(self, command: ToolCall) -> str:
+        """Execute a single tool call with robust error handling"""
+        return await self.tool_call_context_helper.execute_tool_command(command)
+
+    async def _handle_special_tool(self, name: str, result: Any, **kwargs):
+        """Handle special tool execution and state changes"""
+        return await self.tool_call_context_helper.handle_special_tool(
+            name=name, result=result, **kwargs
+        )
+
+    @staticmethod
+    def _should_finish_execution(**kwargs) -> bool:
+        """Determine if tool execution should finish the agent"""
+        return ToolCallContextHelper._should_finish_execution(**kwargs)
+
+    def _is_special_tool(self, name: str) -> bool:
+        """Check if tool name is in special tools list"""
+        return self.tool_call_context_helper._is_special_tool(name)
+
+    async def cleanup(self):
+        """Clean up resources used by the agent's tools."""
+        return await self.tool_call_context_helper.cleanup_tools()
 
     async def run(self, request: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""

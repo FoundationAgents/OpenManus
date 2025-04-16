@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator json {
+  // Read more: https://github.com/arthurfiorette/prisma-json-types-generator
+  provider = "prisma-json-types-generator"
+  allowAny = "true"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  password     String
+  isFirstLogin Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Organizations {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model Preferences {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  language       String?
+}
+
+model OrganizationUsers {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, userId])
+}
+
+model Tasks {
+  id             String           @id @default(cuid())
+  outId          String?          @unique
+  llmId          String
+  prompt         String           @db.Text
+  status         String           @default("pending")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organizationId String
+  tools          Json             @default("[]")
+  shareExpiresAt DateTime?
+  steps          TaskProcesses[]
+  progresses     TaskProgresses[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([createdAt])
+}
+
+model TaskProgresses {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  taskId         String
+  index          Int
+  round          Int      @default(1)
+  step           Int
+  type           String
+  content        Json
+
+  task Tasks @relation(fields: [taskId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, taskId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model TaskProcesses {
+  id             String   @id @default(cuid())
+  taskId         String
+  index          Int
+  step           Int
+  result         String   @db.Text
+  type           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+
+  task Tasks @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, taskId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model LlmConfigs {
+  id             String   @id @default(cuid())
+  type           String
+  model          String
+  baseUrl        String
+  apiKey         String
+  maxTokens      Int
+  maxInputTokens Int?
+  temperature    Float
+  apiType        String
+  apiVersion     String?
+  isActive       Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+
+  @@unique([type, organizationId])
+  @@index([organizationId])
+  @@index([isActive])
+}
+
+model InviteCodes {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  email     String    @unique
+  isUsed    Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isUsed])
+}
+
+model Tools {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  command     String
+  args        Json     @default("[]")
+  /// [JSONSchema] JsonSchema
+  envSchema   Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationTools OrganizationTools[]
+
+  @@index([name])
+  @@index([createdAt])
+}
+
+model OrganizationTools {
+  id             String   @id @default(cuid())
+  toolId         String
+  organizationId String
+  env            String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tool Tools @relation(fields: [toolId], references: [id])
+
+  @@unique([toolId, organizationId])
+  @@index([toolId])
+  @@index([organizationId])
+  @@index([createdAt])
+}

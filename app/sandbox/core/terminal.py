@@ -248,6 +248,53 @@ class DockerSession:
         return command
 
 
+class ProcessWrapper:
+    """Wraps process input/output to provide an interface similar to asyncio.subprocess"""
+
+    def __init__(self, stdin_queue, stdout_queue):
+        self.stdin_queue = stdin_queue
+        self.stdout_queue = stdout_queue
+        self._closed = False
+
+    @property
+    def stdin(self):
+        """Provides an interface for writing to the process"""
+        return self
+
+    @property
+    def stdout(self):
+        """Provides an interface for reading from the process"""
+        return self
+
+    async def write(self, data):
+        """Writes data to the process's standard input"""
+        if self._closed:
+            raise ValueError("Process connection is closed")
+        await self.stdin_queue.put(data)
+
+    async def read(self, n=-1):
+        """Reads data from the process's standard output"""
+        if self._closed:
+            return b""
+        try:
+            return await self.stdout_queue.get()
+        except asyncio.CancelledError:
+            self._closed = True
+            return b""
+
+    def close(self):
+        """Closes the process connection"""
+        self._closed = True
+
+    async def __aenter__(self):
+        """Async context manager entry point"""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit point"""
+        self.close()
+
+
 class AsyncDockerizedTerminal:
     def __init__(
         self,
@@ -330,6 +377,114 @@ class AsyncDockerizedTerminal:
             raise RuntimeError("Terminal not initialized")
 
         return await self.session.execute(cmd, timeout=timeout or self.default_timeout)
+
+    async def start_process(self, cmd: str) -> ProcessWrapper:
+        """Starts a long-running process and returns a wrapper for interaction.
+
+        Args:
+            cmd: Command to execute
+
+        Returns:
+            ProcessWrapper: Wrapper for interacting with the process
+
+        Raises:
+            RuntimeError: If terminal is not initialized
+        """
+        if not self.session:
+            raise RuntimeError("Terminal not initialized")
+
+        # Create input and output queues
+        stdin_queue = asyncio.Queue()
+        stdout_queue = asyncio.Queue()
+
+        # Create the wrapper
+        wrapper = ProcessWrapper(stdin_queue, stdout_queue)
+
+        # Start background task to handle process interaction
+        asyncio.create_task(self._process_handler(cmd, stdin_queue, stdout_queue))
+
+        return wrapper
+
+    async def _process_handler(
+        self, cmd: str, stdin_queue: asyncio.Queue, stdout_queue: asyncio.Queue
+    ):
+        """Handles interaction with the process
+
+        This is a background task that:
+        1. Starts the command
+        2. Forwards data from stdin_queue to the process
+        3. Puts process output into stdout_queue
+        """
+        if not self.session or not self.session.socket:
+            return
+
+        try:
+            # Send command but don't wait for it to finish
+            sanitized_cmd = self.session._sanitize_command(cmd)
+            self.session.socket.sendall(f"{sanitized_cmd}\n".encode())
+
+            # Start two tasks: one for reading process output, one for writing process input
+            read_task = asyncio.create_task(self._read_process_output(stdout_queue))
+            write_task = asyncio.create_task(self._write_process_input(stdin_queue))
+
+            # Wait for both tasks to complete
+            await asyncio.gather(read_task, write_task)
+
+        except Exception as e:
+            # When an error occurs, make sure to send the error message to the queue
+            error_msg = f"Process error: {str(e)}".encode()
+            await stdout_queue.put(error_msg)
+
+    async def _read_process_output(self, output_queue: asyncio.Queue):
+        """Reads output from the process and puts it into the queue"""
+        if not self.session or not self.session.socket:
+            return
+
+        try:
+            while True:
+                try:
+                    # Non-blocking read from socket
+                    chunk = self.session.socket.recv(4096)
+                    if not chunk:
+                        # Connection closed
+                        break
+
+                    await output_queue.put(chunk)
+                except socket.error as e:
+                    if e.errno == socket.EWOULDBLOCK:
+                        # No data to read, wait a bit and try again
+                        await asyncio.sleep(0.1)
+                        continue
+                    raise
+        except asyncio.CancelledError:
+            # Task was cancelled
+            pass
+        except Exception as e:
+            # Other errors
+            error_msg = f"Read error: {str(e)}".encode()
+            await output_queue.put(error_msg)
+
+    async def _write_process_input(self, input_queue: asyncio.Queue):
+        """Gets data from the queue and writes it to the process"""
+        if not self.session or not self.session.socket:
+            return
+
+        try:
+            while True:
+                # Wait for input data
+                data = await input_queue.get()
+
+                # Write to socket
+                self.session.socket.sendall(data)
+
+                # Mark task as done
+                input_queue.task_done()
+        except asyncio.CancelledError:
+            # Task was cancelled
+            pass
+        except Exception as e:
+            # Other errors, log but don't raise
+            print(f"Write error: {str(e)}")
 
     async def close(self) -> None:
         """Closes the terminal session."""

@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  openmanus-core:
+    container_name: openmanus-core
+    image: iheytang/openmanus-core:latest
+    volumes:
+      # 指定宿主机的 workspace 目录，请根据实际情况修改
+      # 如果是当前项目目录，就是 ./workspace:/app/workspace
+      # 默认使用当前项目目录下已有的 workspace 目录
+      - ./workspace:/app/workspace
+      # 指定宿主机的 docker socket
+      # 1. 使用 Linux 进行部署时，root 用户 sock 一般位于 /var/user/0/docker/docker.sock
+      # 2. 使用 WSL 进行部署时，sock 一般位于 /var/run/docker.sock
+      # 默认使用 WSL 进行部署
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONUNBUFFERED=1
+      # 指定 Docker 主机
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    command: uvicorn run_api:app --host 0.0.0.0 --port 5172
+    networks:
+      - openmanus-container-network
+    # 指定端口 即后端的访问端口
+    # 它只需要通过 docker network 连接到 openmanus-container-network 即可，所以默认关闭
+    # ports:
+    #   - "5172:5172"
+
+  openmanus-web:
+    container_name: openmanus-web
+    image: iheytang/openmanus-web:latest
+    volumes:
+      # 指定宿主机的 workspace 目录，App Layer 会自动挂载到 /workspace 来读取工作区目录
+      - ./workspace:/workspace
+      # 指定宿主机的 keys 目录，App Layer 会自动挂载到 /app/keys 来读取密钥
+      - ./web/keys:/app/keys:ro
+    environment:
+      - MANUS_URL=http://openmanus-core:5172
+      - PORT=3010
+      - WORKSPACE_ROOT_PATH=/workspace
+    env_file:
+      # 指定环境变量文件，参考 .env.example 文件
+      - .env
+    depends_on:
+      - openmanus-core
+    networks:
+      - openmanus-container-network
+    # 指定端口 即前端的访问端口
+    ports:
+      - "3010:3010"
+
+networks:
+  openmanus-container-network:

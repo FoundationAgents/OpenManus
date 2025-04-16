@@ -1,13 +1,13 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
-from app.config import SandboxSettings
+from app.config import SandboxSettings, config
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
-
 
 PathLike = Union[str, Path]
 
@@ -43,28 +43,46 @@ class LocalFileOperator(FileOperator):
     """File operations implementation for local filesystem."""
 
     encoding: str = "utf-8"
+    base_path: Path = config.workspace_root
+
+    def _resolve_path(self, path: PathLike) -> Path:
+        """Resolve path relative to base_path."""
+        # Convert Windows-style path to POSIX-style
+        path_str = str(path).replace("\\", "/")
+
+        if not path_str.startswith("/workspace"):
+            raise ToolError(f"Path {path_str} is not a valid path")
+
+        resolved = Path(self.base_path / path_str.replace("/workspace/", ""))
+        if not resolved.parent.exists():
+            os.makedirs(resolved.parent, exist_ok=True)
+        return resolved
 
     async def read_file(self, path: PathLike) -> str:
         """Read content from a local file."""
         try:
-            return Path(path).read_text(encoding=self.encoding)
+            resolved_path = self._resolve_path(path)
+            return resolved_path.read_text(encoding=self.encoding)
         except Exception as e:
             raise ToolError(f"Failed to read {path}: {str(e)}") from None
 
     async def write_file(self, path: PathLike, content: str) -> None:
         """Write content to a local file."""
         try:
-            Path(path).write_text(content, encoding=self.encoding)
+            resolved_path = self._resolve_path(path)
+            resolved_path.write_text(content, encoding=self.encoding)
         except Exception as e:
             raise ToolError(f"Failed to write to {path}: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory."""
-        return Path(path).is_dir()
+        resolved_path = self._resolve_path(path)
+        return resolved_path.is_dir()
 
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists."""
-        return Path(path).exists()
+        resolved_path = self._resolve_path(path)
+        return resolved_path.exists()
 
     async def run_command(
         self, cmd: str, timeout: Optional[float] = 120.0

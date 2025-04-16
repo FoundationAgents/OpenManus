@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# 依赖
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 测试和文档
+__tests__/
+*.test.*
+*.spec.*
+coverage/
+docs/
+*.md
+!README.md
+
+# 开发工具
+.eslintrc*
+.prettierrc*
+.editorconfig
+.stylelintrc*
+
+# 缓存
+.cache/
+.temp/
+.tmp/
+.npm/
+.yarn/
+
+# 其他
+*.log
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+keys

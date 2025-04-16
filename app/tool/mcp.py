@@ -15,6 +15,7 @@ class MCPClientTool(BaseTool):
     """Represents a tool proxy that can be called on the MCP server from the client side."""
 
     session: Optional[ClientSession] = None
+    client_id: str = ""
 
     async def execute(self, **kwargs) -> ToolResult:
         """Execute the tool by making a remote call to the MCP server."""
@@ -22,7 +23,11 @@ class MCPClientTool(BaseTool):
             return ToolResult(error="Not connected to MCP server")
 
         try:
-            result = await self.session.call_tool(self.name, kwargs)
+            # Remove client_id prefix from tool name before calling server
+            server_tool_name = (
+                self.name[len(self.client_id) + 1 :] if self.client_id else self.name
+            )
+            result = await self.session.call_tool(server_tool_name, kwargs)
             content_str = ", ".join(
                 item.text for item in result.content if isinstance(item, TextContent)
             )
@@ -39,10 +44,12 @@ class MCPClients(ToolCollection):
     session: Optional[ClientSession] = None
     exit_stack: AsyncExitStack = None
     description: str = "MCP client tools for server interaction"
+    client_id: str = ""
 
-    def __init__(self):
+    def __init__(self, client_id: str):
         super().__init__()  # Initialize with empty tools list
-        self.name = "mcp"  # Keep name for backward compatibility
+        self.name = f"mcp-{client_id}"  # Keep name for backward compatibility
+        self.client_id = client_id
         self.exit_stack = AsyncExitStack()
 
     async def connect_sse(self, server_url: str) -> None:
@@ -92,13 +99,16 @@ class MCPClients(ToolCollection):
 
         # Create proper tool objects for each server tool
         for tool in response.tools:
+            # Add client_id prefix to tool name
+            prefixed_name = f"{self.client_id}-{tool.name}"
             server_tool = MCPClientTool(
-                name=tool.name,
+                name=prefixed_name,
                 description=tool.description,
                 parameters=tool.inputSchema,
                 session=self.session,
+                client_id=self.client_id,
             )
-            self.tool_map[tool.name] = server_tool
+            self.tool_map[prefixed_name] = server_tool
 
         self.tools = tuple(self.tool_map.values())
         logger.info(
