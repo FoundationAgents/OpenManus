@@ -16,6 +16,9 @@ TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
 class ToolCallAgent(ReActAgent):
+    expected_output_files: List[str] = Field(
+        default_factory=list
+    )  # Added for tracking file writes
     """Base agent class for handling tool/function calls with enhanced abstraction"""
 
     name: str = "toolcall"
@@ -87,6 +90,34 @@ class ToolCallAgent(ReActAgent):
                 f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
             )
             logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
+
+            # --- Start: Track expected output files ---
+            for call in tool_calls:
+                if call.function.name == "write_file":
+                    try:
+                        args = json.loads(call.function.arguments or "{}")
+                        filename = args.get("filename")
+                        if filename and isinstance(filename, str):
+                            # Basic normalization/check - tool itself does more robust checks
+                            normalized_filename = filename.strip().replace("\\", "/")
+                            if (
+                                normalized_filename
+                                and ".." not in normalized_filename
+                                and not normalized_filename.startswith(("/", "\\"))
+                            ):
+                                self.expected_output_files.append(normalized_filename)
+                                logger.debug(
+                                    f"Tracking expected output file: {normalized_filename}"
+                                )
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            f"Could not parse arguments for write_file call: {call.function.arguments}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Error processing write_file call for tracking: {e}"
+                        )
+            # --- End: Track expected output files ---
 
         try:
             if response is None:

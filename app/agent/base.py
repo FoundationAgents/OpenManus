@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+from pathlib import Path  # Added for verification logic
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.config import PROJECT_ROOT  # Added for verification logic
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -150,6 +152,62 @@ class BaseAgent(BaseModel, ABC):
                 self.current_step = 0
                 self.state = AgentState.IDLE
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
+
+            # --- Start: Verify expected output files ---
+            if hasattr(self, "expected_output_files"):
+                expected_files = getattr(self, "expected_output_files", [])
+                if expected_files:
+                    logger.info(
+                        f"Verifying creation of {len(expected_files)} expected output file(s)..."
+                    )
+                    output_base_dir = PROJECT_ROOT / "output"
+                    missing_files = []
+                    for filename in expected_files:
+                        try:
+                            # Use Path object for consistency and cross-platform handling
+                            # Ensure filename is treated as relative path within output_base_dir
+                            normalized_filename = Path(
+                                filename
+                            ).as_posix()  # Ensure forward slashes
+                            if (
+                                normalized_filename.startswith("/")
+                                or ".." in normalized_filename
+                            ):
+                                logger.warning(
+                                    f"Skipping verification for invalid expected path format: {filename}"
+                                )
+                                continue
+
+                            file_path = output_base_dir.joinpath(
+                                normalized_filename
+                            ).resolve()
+
+                            # Double check it's within output dir (redundant but safe)
+                            if not str(file_path).startswith(
+                                str(output_base_dir.resolve())
+                            ):
+                                logger.warning(
+                                    f"Skipping verification for path outside output dir: {filename}"
+                                )
+                                continue
+
+                            if not file_path.exists():
+                                relative_path = file_path.relative_to(PROJECT_ROOT)
+                                logger.warning(
+                                    f"Expected output file not found: {relative_path}"
+                                )
+                                missing_files.append(str(relative_path))
+                        except Exception as e:
+                            logger.error(f"Error verifying file '{filename}': {e}")
+                            missing_files.append(f"{filename} (verification error)")
+
+                    if missing_files:
+                        warning_msg = f"Warning: The following {len(missing_files)} requested file(s) were not created or had verification errors: {', '.join(missing_files)}"
+                        results.append(warning_msg)
+                    else:
+                        logger.info("All expected output files verified successfully.")
+            # --- End: Verify expected output files ---
+
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
 
