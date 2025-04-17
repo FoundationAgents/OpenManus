@@ -197,3 +197,9 @@ cython_debug/
 
 # OSX
 .DS_Store
+
+# VerseMind project
+projects/VerseMind/results/
+projects/VerseMind/tools/poems_to_process/
+projects/VerseMind/tools/processed_poems/
+*.bak
