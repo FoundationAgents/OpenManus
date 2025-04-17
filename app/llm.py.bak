@@ -10,7 +10,7 @@ from openai import (
     OpenAIError,
     RateLimitError,
 )
-from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -42,7 +42,7 @@ MULTIMODAL_MODELS = [
     # Ollama multimodal models
     "llama3.2-vision",
     "gemma3:4b",
-    "llava:v1.6",
+    "llava:v1.6"
 ]
 
 
@@ -739,9 +739,8 @@ class LLM:
                     temperature if temperature is not None else self.temperature
                 )
 
-            params["stream"] = False  # Always use non-streaming for tool requests
             response: ChatCompletion = await self.client.chat.completions.create(
-                **params
+                **params, stream=False
             )
 
             # Check if response is valid

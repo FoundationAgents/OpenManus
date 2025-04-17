@@ -1,0 +1,44 @@
+[
+  {
+    "poem_id": 1,
+    "poet": "诗人1",
+    "model": "deepseek_ollama",
+    "score": 90,
+    "dimensions": {
+      "意象运用": 27,
+      "语言表达": 18,
+      "情感深度": 27,
+      "结构完整性": 18,
+      "总分": 90
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 2,
+    "poet": "诗人1",
+    "model": "deepseek_ollama",
+    "score": 80,
+    "dimensions": {
+      "意象运用": 8,
+      "语言表达": 7,
+      "情感深度": 8,
+      "结构完整性": 9,
+      "总分": 80
+    },
+    "comment": "无"
+  },
+  {
+    "poem_id": 3,
+    "poet": "诗人1",
+    "model": "deepseek_ollama",
+    "score": 75,
+    "dimensions": {
+      "意象运用": 25,
+      "语言表达": 18,
+      "情感深度": 20,
+      "结构完整性": 17,
+      "总分": 75
+    },
+    "comment": "无"
+  }
+]
