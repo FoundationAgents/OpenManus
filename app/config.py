@@ -1,3 +1,4 @@
+import json
 import threading
 import tomllib
 from pathlib import Path
@@ -38,7 +39,7 @@ class ProxySettings(BaseModel):
 class SearchSettings(BaseModel):
     engine: str = Field(default="Google", description="Search engine the llm to use")
     fallback_engines: List[str] = Field(
-        default_factory=lambda: ["DuckDuckGo", "Baidu"],
+        default_factory=lambda: ["DuckDuckGo", "Baidu", "Bing"],
         description="Fallback search engines to try if the primary engine fails",
     )
     retry_delay: int = Field(
@@ -48,6 +49,14 @@ class SearchSettings(BaseModel):
     max_retries: int = Field(
         default=3,
         description="Maximum number of times to retry all engines when all fail",
+    )
+    lang: str = Field(
+        default="en",
+        description="Language code for search results (e.g., en, zh, fr)",
+    )
+    country: str = Field(
+        default="us",
+        description="Country code for search results (e.g., us, cn, uk)",
     )
 
 
@@ -90,6 +99,53 @@ class SandboxSettings(BaseModel):
     )
 
 
+class MCPServerConfig(BaseModel):
+    """Configuration for a single MCP server"""
+
+    type: str = Field(..., description="Server connection type (sse or stdio)")
+    url: Optional[str] = Field(None, description="Server URL for SSE connections")
+    command: Optional[str] = Field(None, description="Command for stdio connections")
+    args: List[str] = Field(
+        default_factory=list, description="Arguments for stdio command"
+    )
+
+
+class MCPSettings(BaseModel):
+    """Configuration for MCP (Model Context Protocol)"""
+
+    server_reference: str = Field(
+        "app.mcp.server", description="Module reference for the MCP server"
+    )
+    servers: Dict[str, MCPServerConfig] = Field(
+        default_factory=dict, description="MCP server configurations"
+    )
+
+    @classmethod
+    def load_server_config(cls) -> Dict[str, MCPServerConfig]:
+        """Load MCP server configuration from JSON file"""
+        config_path = PROJECT_ROOT / "config" / "mcp.json"
+
+        try:
+            config_file = config_path if config_path.exists() else None
+            if not config_file:
+                return {}
+
+            with config_file.open() as f:
+                data = json.load(f)
+                servers = {}
+
+                for server_id, server_config in data.get("mcpServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                return servers
+        except Exception as e:
+            raise ValueError(f"Failed to load MCP server config: {e}")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -101,6 +157,7 @@ class AppConfig(BaseModel):
     search_config: Optional[SearchSettings] = Field(
         None, description="Search configuration"
     )
+    mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
 
     class Config:
         arbitrary_types_allowed = True
@@ -203,6 +260,15 @@ class Config:
         else:
             sandbox_settings = SandboxSettings()
 
+        mcp_config = raw_config.get("mcp", {})
+        mcp_settings = None
+        if mcp_config:
+            # Load server configurations from JSON
+            mcp_config["servers"] = MCPSettings.load_server_config()
+            mcp_settings = MCPSettings(**mcp_config)
+        else:
+            mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -214,6 +280,7 @@ class Config:
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
+            "mcp_config": mcp_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -233,6 +300,11 @@ class Config:
     @property
     def search_config(self) -> Optional[SearchSettings]:
         return self._config.search_config
+
+    @property
+    def mcp_config(self) -> MCPSettings:
+        """Get the MCP configuration"""
+        return self._config.mcp_config
 
     @property
     def workspace_root(self) -> Path:

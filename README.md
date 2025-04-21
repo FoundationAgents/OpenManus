@@ -8,6 +8,8 @@ English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](READM
 &ensp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
 [![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
+[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15186407.svg)](https://doi.org/10.5281/zenodo.15186407)
 
 # 👋 OpenManus
 
@@ -154,6 +156,11 @@ Join our networking group on Feishu and share your experience with other develop
 
 [![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
 
+## Sponsors
+Thanks to [PPIO](https://ppinfra.com/user/register?invited_by=OCPKCN&utm_source=github_openmanus&utm_medium=github_readme&utm_campaign=link) for computing source support.
+> PPIO: The most affordable and easily-integrated MaaS and GPU cloud solution.
+
+
 ## Acknowledgement
 
 Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
@@ -161,16 +168,18 @@ and [browser-use](https://github.com/browser-use/browser-use) for providing basi
 
 Additionally, we are grateful to [AAAJ](https://github.com/metauto-ai/agent-as-a-judge), [MetaGPT](https://github.com/geekan/MetaGPT), [OpenHands](https://github.com/All-Hands-AI/OpenHands) and [SWE-agent](https://github.com/SWE-agent/SWE-agent).
 
+We also thank stepfun(阶跃星辰) for supporting our Hugging Face demo space.
+
 OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
 
 ## Cite
 ```bibtex
 @misc{openmanus2025,
-  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong},
+  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Sheng Fan and Xiao Tang},
   title = {OpenManus: An open-source framework for building general AI agents},
   year = {2025},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/mannaandpoem/OpenManus}},
+  publisher = {Zenodo},
+  doi = {10.5281/zenodo.15186407},
+  url = {https://doi.org/10.5281/zenodo.15186407},
 }
 ```

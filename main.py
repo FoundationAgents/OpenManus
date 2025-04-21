@@ -5,7 +5,8 @@ from app.logger import logger
 
 
 async def main():
-    agent = Manus()
+    # Create and initialize Manus agent
+    agent = await Manus.create()
     try:
         prompt = input("Enter your prompt: ")
         if not prompt.strip():
@@ -17,6 +18,9 @@ async def main():
         logger.info("Request processing completed.")
     except KeyboardInterrupt:
         logger.warning("Operation interrupted.")
+    finally:
+        # Ensure agent resources are cleaned up before exiting
+        await agent.cleanup()
 
 
 if __name__ == "__main__":
