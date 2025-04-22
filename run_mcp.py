@@ -13,7 +13,7 @@ class MCPRunner:
 
     def __init__(self):
         self.root_path = config.root_path
-        self.server_reference = "app.mcp.server"
+        self.server_reference = config.mcp_config.server_reference
         self.agent = MCPAgent()
 
     async def initialize(
