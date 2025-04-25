@@ -9,6 +9,7 @@ English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](READM
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
 [![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
 [![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15186407.svg)](https://doi.org/10.5281/zenodo.15186407)
 
 # 👋 OpenManus
 
@@ -174,11 +175,11 @@ OpenManus is built by contributors from MetaGPT. Huge thanks to this agent commu
 ## Cite
 ```bibtex
 @misc{openmanus2025,
-  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong},
+  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Sheng Fan and Xiao Tang},
   title = {OpenManus: An open-source framework for building general AI agents},
   year = {2025},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/mannaandpoem/OpenManus}},
+  publisher = {Zenodo},
+  doi = {10.5281/zenodo.15186407},
+  url = {https://doi.org/10.5281/zenodo.15186407},
 }
 ```

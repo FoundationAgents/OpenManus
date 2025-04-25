@@ -1,3 +1,4 @@
+import json
 import threading
 import tomllib
 from pathlib import Path
@@ -98,12 +99,51 @@ class SandboxSettings(BaseModel):
     )
 
 
+class MCPServerConfig(BaseModel):
+    """Configuration for a single MCP server"""
+
+    type: str = Field(..., description="Server connection type (sse or stdio)")
+    url: Optional[str] = Field(None, description="Server URL for SSE connections")
+    command: Optional[str] = Field(None, description="Command for stdio connections")
+    args: List[str] = Field(
+        default_factory=list, description="Arguments for stdio command"
+    )
+
+
 class MCPSettings(BaseModel):
     """Configuration for MCP (Model Context Protocol)"""
 
     server_reference: str = Field(
         "app.mcp.server", description="Module reference for the MCP server"
     )
+    servers: Dict[str, MCPServerConfig] = Field(
+        default_factory=dict, description="MCP server configurations"
+    )
+
+    @classmethod
+    def load_server_config(cls) -> Dict[str, MCPServerConfig]:
+        """Load MCP server configuration from JSON file"""
+        config_path = PROJECT_ROOT / "config" / "mcp.json"
+
+        try:
+            config_file = config_path if config_path.exists() else None
+            if not config_file:
+                return {}
+
+            with config_file.open() as f:
+                data = json.load(f)
+                servers = {}
+
+                for server_id, server_config in data.get("mcpServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                return servers
+        except Exception as e:
+            raise ValueError(f"Failed to load MCP server config: {e}")
 
 
 class AppConfig(BaseModel):
@@ -223,9 +263,11 @@ class Config:
         mcp_config = raw_config.get("mcp", {})
         mcp_settings = None
         if mcp_config:
+            # Load server configurations from JSON
+            mcp_config["servers"] = MCPSettings.load_server_config()
             mcp_settings = MCPSettings(**mcp_config)
         else:
-            mcp_settings = MCPSettings()
+            mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
         config_dict = {
             "llm": {
