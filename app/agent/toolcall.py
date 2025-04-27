@@ -188,14 +188,6 @@ class ToolCallAgent(ReActAgent):
                 # Store the base64_image for later use in tool_message
                 self._current_base64_image = result.base64_image
 
-                # Format result for display
-                observation = (
-                    f"Observed output of cmd `{name}` executed:\n{str(result)}"
-                    if result
-                    else f"Cmd `{name}` completed with no output"
-                )
-                return observation
-
             # Format result for display (standard case)
             observation = (
                 f"Observed output of cmd `{name}` executed:\n{str(result)}"
