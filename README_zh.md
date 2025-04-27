@@ -115,6 +115,10 @@ temperature = 0.0
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # 替换为真实 API 密钥
+
+# 智能体配置
+[agent]
+max_steps = 20  # 智能体可以执行的最大步骤数(默认值： 20)
 ```
 
 ## 快速启动
