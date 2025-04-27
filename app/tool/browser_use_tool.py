@@ -16,35 +16,21 @@ from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
 
-_BROWSER_DESCRIPTION = """
-Interact with a web browser for navigation, element interaction, content extraction, and tab management using these tools:
+_BROWSER_DESCRIPTION = """\
+A powerful browser automation tool that allows interaction with web pages through various actions.
+* This tool provides commands for controlling a browser session, navigating web pages, and extracting information
+* It maintains state across calls, keeping the browser session alive until explicitly closed
+* Use this when you need to browse websites, fill forms, click buttons, extract content, or perform web searches
+* Each action requires specific parameters as defined in the tool's dependencies
 
-Navigation:
+Key capabilities include:
+* Navigation: Go to specific URLs, go back, search the web, or refresh pages
+* Interaction: Click elements, input text, select from dropdowns, send keyboard commands
+* Scrolling: Scroll up/down by pixel amount or scroll to specific text
+* Content extraction: Extract and analyze content from web pages based on specific goals
+* Tab management: Switch between tabs, open new tabs, or close tabs
 
-- 'go_to_url': Visit a specific URL
-- 'go_back': Navigate back
-- 'refresh': Reload the page
-- 'web_search': Search a concise query in the current tab
-Element Interaction:
-
-- 'click_element': Click an element by index
-- 'input_text': Enter text into a form
-- 'scroll_down'/'scroll_up': Scroll page (optional pixels)
-- 'scroll_to_text': Scroll to specific text
-- 'send_keys': Send special keys (e.g., Enter, Control+O)
-- 'get_dropdown_options': List dropdown options
-- 'select_dropdown_option': Select a dropdown option by text
-Content Extraction:
-
-- 'extract_content': Retrieve specific page info (e.g., company names, links)
-Tab Management:
-
-- 'switch_tab': Switch to a tab
-- 'open_tab': Open a new tab with URL
-- 'close_tab': Close current tab
-Utility:
-
-- 'wait': Pause for specified seconds
+Note: When using element indices, refer to the numbered elements shown in the current browser state.
 """
 
 Context = TypeVar("Context")

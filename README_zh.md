@@ -157,6 +157,11 @@ python run_flow.py
 
 [![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
 
+
+## 赞助商
+感谢[PPIO](https://ppinfra.com/user/register?invited_by=OCPKCN&utm_source=github_openmanus&utm_medium=github_readme&utm_campaign=link) 提供的算力支持。
+> PPIO派欧云：一键调用高性价比的开源模型API和GPU容器
+
 ## 致谢
 
 特别感谢 [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
