@@ -14,6 +14,7 @@ from app.tool.search import (
     BingSearchEngine,
     DuckDuckGoSearchEngine,
     GoogleSearchEngine,
+    SearxngSearchEngine,
     WebSearchEngine,
 )
 from app.tool.search.base import SearchItem
@@ -195,6 +196,7 @@ class WebSearch(BaseTool):
         "baidu": BaiduSearchEngine(),
         "duckduckgo": DuckDuckGoSearchEngine(),
         "bing": BingSearchEngine(),
+        "searxng": SearxngSearchEngine(),
     }
     content_fetcher: WebContentFetcher = WebContentFetcher()
 
