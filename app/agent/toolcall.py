@@ -176,6 +176,9 @@ class ToolCallAgent(ReActAgent):
             # Parse arguments
             args = json.loads(command.function.arguments or "{}")
 
+            # If args is still a string, parse it again to handle double-encoded JSON
+            args = json.loads(args) if isinstance(args, str) else args
+
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
             result = await self.available_tools.execute(name=name, tool_input=args)
