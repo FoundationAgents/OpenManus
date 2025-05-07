@@ -170,6 +170,34 @@ class TokenCounter:
 
         return total_tokens
 
+def get_api_ready_description(tool: dict, max_length: int) -> str:
+    """
+    Returns a valid function description for the API.
+    
+    If the tool has a 'short_description' field and it is within the limit, it is used.
+    Otherwise, it falls back to the full 'description' and truncates if necessary.
+    """
+    function_info = tool.get("function", {})
+    # Prefer the short description if provided
+    desc = function_info.get("short_description") or function_info.get("description", "")
+    if len(desc) > max_length:
+        logger.warning(
+            f"Tool '{function_info.get('name', 'unknown')}' description length ({len(desc)}) exceeds {max_length} characters."
+            " Consider providing a concise 'short_description'."
+        )
+        desc = desc[: max_length - 50] + "... (see full documentation)"
+    return desc
+
+def prepare_tool_for_api(tool: dict, max_length: int) -> dict:
+    """
+    Prepares a tool for API usage by ensuring its function description meets the limit.
+    """
+    if "function" in tool:
+        tool["function"]["description"] = get_api_ready_description(tool, max_length)
+    return tool
+
+
+
 
 class LLM:
     _instances: Dict[str, "LLM"] = {}
@@ -196,6 +224,7 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            self.function_description_limit = getattr(llm_config, "function_description_limit", 1024)
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -685,7 +714,15 @@ class LLM:
                 system_msgs = self.format_messages(system_msgs, supports_images)
                 messages = system_msgs + self.format_messages(messages, supports_images)
             else:
-                messages = self.format_messages(messages, supports_images)
+              messages = self.format_messages(messages)
+                
+            if tools:
+              tools = [prepare_tool_for_api(tool, self.function_description_limit) for tool in tools]
+                
+              #now prepare tools using dynamic description limit
+            
+
+              messages = self.format_messages(messages, supports_images)
 
             # Calculate input token count
             input_tokens = self.count_message_tokens(messages)
