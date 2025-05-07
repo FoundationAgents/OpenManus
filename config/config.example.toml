@@ -15,13 +15,13 @@ temperature = 0.0                          # Controls randomness
 # api_key = "bear"                                       # Required but not used for Bedrock
 
 # [llm] #AZURE OPENAI:
-# api_type= 'azure'
+# api_type = 'azure'
 # model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
 # base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT_ID}"
 # api_key = "AZURE API KEY"
 # max_tokens = 8096
 # temperature = 0.0
-# api_version="AZURE API VERSION" #"2024-08-01-preview"
+# api_version = "AZURE API VERSION" #"2024-08-01-preview"
 
 # [llm] #OLLAMA:
 # api_type = 'ollama'
