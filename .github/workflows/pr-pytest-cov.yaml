@@ -1,0 +1,52 @@
+name: PR PyTest Coverage
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  pr-pytest-cov:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' &&
+       (contains(github.event.comment.body, '!pr-cov') || contains(github.event.comment.body, '!pr-*')) &&
+       (github.event.comment.author_association == 'CONTRIBUTOR' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') &&
+       github.event.issue.pull_request)
+    steps:
+      - name: Get PR head SHA
+        id: get-pr-sha
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url || github.event.pull_request.url }}"
+          # https://api.github.com/repos/OpenManus/pulls/1
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $PR_URL)
+          SHA=$(echo $RESPONSE | jq -r '.head.sha')
+          TARGET_BRANCH=$(echo $RESPONSE | jq -r '.base.ref')
+          PR_NUMBER=$(echo $RESPONSE | jq -r '.number')
+          echo "pr_sha=$SHA" >> $GITHUB_OUTPUT
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "Retrieved PR head SHA from API: $SHA, target branch: $TARGET_BRANCH, PR number: $PR_NUMBER"
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.get-pr-sha.outputs.pr_sha }}
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai requests
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
+          issue-number: ${{ steps.get-pr-sha.outputs.pr_number }}

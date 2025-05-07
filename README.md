@@ -145,6 +145,16 @@ Or contact @mannaandpoem via 📧email: mannaandpoem@gmail.com
 
 **Note**: Before submitting a pull request, please use the pre-commit tool to check your changes. Run `pre-commit run --all-files` to execute the checks.
 
+### Unit Tests
+
+We use `pytest` for unit tests. Run `pytest` to run all tests.
+
+To run tests with coverage measuring, run `pytest --cov=app --cov-report=html` instead.
+
+*Tips*
+- run `pytest -m "not docker" --cov=app --cov-report=html` if your environment does not have Docker installed, e.g. some Windows workstations.
+- for VS Code developers, try adding `--cov-report=lcov` at the end of the command and installing Code Coverage extension to view coverage report in source code directly.
+
 ## Community Group
 Join our networking group on Feishu and share your experience with other developers!
 

@@ -16,5 +16,6 @@
     },
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "markiscodecoverage.searchCriteria": "coverage.lcov",
 }

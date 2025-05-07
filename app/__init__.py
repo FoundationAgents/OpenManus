@@ -2,7 +2,7 @@
 import sys
 
 
-if sys.version_info < (3, 11) or sys.version_info > (3, 13):
+if sys.version_info < (3, 11) or sys.version_info > (3, 13):  # pragma: no cover
     print(
         "Warning: Unsupported Python version {ver}, please use 3.11-3.13".format(
             ver=".".join(map(str, sys.version_info))

@@ -26,6 +26,7 @@ def temp_dir() -> Path:
         yield Path(tmp_dir)
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_creation(local_client: LocalSandboxClient):
     """Tests sandbox creation with specific configuration."""
@@ -41,6 +42,7 @@ async def test_sandbox_creation(local_client: LocalSandboxClient):
     assert "Python 3.10" in result
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_local_command_execution(local_client: LocalSandboxClient):
     """Tests command execution in local sandbox."""
@@ -53,6 +55,7 @@ async def test_local_command_execution(local_client: LocalSandboxClient):
         await local_client.run_command("sleep 10", timeout=1)
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_local_file_operations(local_client: LocalSandboxClient, temp_dir: Path):
     """Tests file operations in local sandbox."""
@@ -77,6 +80,7 @@ async def test_local_file_operations(local_client: LocalSandboxClient, temp_dir:
     assert dst_file.read_text().strip() == test_content
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_local_volume_binding(local_client: LocalSandboxClient, temp_dir: Path):
     """Tests volume binding in local sandbox."""
@@ -92,6 +96,7 @@ async def test_local_volume_binding(local_client: LocalSandboxClient, temp_dir: 
     assert "Volume test" in content
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_local_error_handling(local_client: LocalSandboxClient):
     """Tests error handling in local sandbox."""

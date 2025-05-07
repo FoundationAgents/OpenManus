@@ -170,7 +170,6 @@ class Memory(BaseModel):
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
         self.messages.extend(messages)
-        # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages :]
 
@@ -180,6 +179,8 @@ class Memory(BaseModel):
 
     def get_recent_messages(self, n: int) -> List[Message]:
         """Get n most recent messages"""
+        if n <= 0:
+            raise ValueError("n should be a positive integer")
         return self.messages[-n:]
 
     def to_dict_list(self) -> List[dict]:

@@ -27,6 +27,7 @@ async def sandbox(sandbox_config):
         await sandbox.cleanup()
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_working_directory(sandbox):
     """Tests sandbox working directory configuration."""
@@ -34,6 +35,7 @@ async def test_sandbox_working_directory(sandbox):
     assert result.strip() == "/workspace"
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_file_operations(sandbox):
     """Tests sandbox file read/write operations."""
@@ -46,6 +48,7 @@ async def test_sandbox_file_operations(sandbox):
     assert content.strip() == test_content
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_python_execution(sandbox):
     """Tests Python code execution in sandbox."""
@@ -66,6 +69,7 @@ with open('/workspace/test.txt') as f:
     assert "Hello from file!" in result
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_file_persistence(sandbox):
     """Tests file persistence in sandbox."""
@@ -86,6 +90,7 @@ async def test_sandbox_file_persistence(sandbox):
         assert content.strip() == expected_content
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_python_environment(sandbox):
     """Tests Python environment configuration."""
@@ -105,6 +110,7 @@ print("Python is working!")
     assert "Python is working!" in result
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_network_access(sandbox):
     """Tests sandbox network access."""
@@ -117,6 +123,7 @@ async def test_sandbox_network_access(sandbox):
     assert "HTTP/2 200" in result
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_cleanup(sandbox_config):
     """Tests sandbox cleanup process."""
@@ -137,6 +144,7 @@ async def test_sandbox_cleanup(sandbox_config):
     assert not any(c.id == container_id for c in containers)
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_error_handling():
     """Tests error handling with invalid configuration."""

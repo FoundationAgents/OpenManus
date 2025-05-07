@@ -14,7 +14,7 @@ jobs:
     if: |
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' &&
-       contains(github.event.comment.body, '!pr-diff') &&
+       (contains(github.event.comment.body, '!pr-diff') || contains(github.event.comment.body, '!pr-*')) &&
        (github.event.comment.author_association == 'CONTRIBUTOR' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') &&
        github.event.issue.pull_request)
     steps:

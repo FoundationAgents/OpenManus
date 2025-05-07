@@ -41,6 +41,7 @@ async def terminal(docker_container):
     await terminal.close()
 
 
+@pytest.mark.docker
 class TestAsyncDockerizedTerminal:
     """Test cases for AsyncDockerizedTerminal."""
 

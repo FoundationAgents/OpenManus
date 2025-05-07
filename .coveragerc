@@ -1,0 +1,21 @@
+[report]
+omit =
+    tests/*
+
+fail_under = 0
+
+exclude_also =
+    @abstractmethod
+
+    \.\.\.
+
+    class .*\(ABC\):
+
+    pragma: no cover
+    raise NotImplementedError
+
+    if __name__ == ['"]__main__['"]:
+
+
+[run]
+branch = True

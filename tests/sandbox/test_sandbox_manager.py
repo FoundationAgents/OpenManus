@@ -36,6 +36,7 @@ def temp_file():
             os.unlink(path)
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_create_sandbox(manager):
     """Tests sandbox creation."""
@@ -50,6 +51,7 @@ async def test_create_sandbox(manager):
     assert result.strip() == "test"
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_max_sandboxes_limit(manager):
     """Tests maximum sandbox limit enforcement."""
@@ -82,6 +84,7 @@ async def test_max_sandboxes_limit(manager):
                 print(f"Failed to cleanup sandbox {sandbox_id}: {e}")
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_get_nonexistent_sandbox(manager):
     """Tests retrieving a non-existent sandbox."""
@@ -89,6 +92,7 @@ async def test_get_nonexistent_sandbox(manager):
         await manager.get_sandbox("nonexistent-id")
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_sandbox_cleanup(manager):
     """Tests sandbox cleanup functionality."""
@@ -100,6 +104,7 @@ async def test_sandbox_cleanup(manager):
     assert sandbox_id not in manager._last_used
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_idle_sandbox_cleanup(manager):
     """Tests automatic cleanup of idle sandboxes."""
@@ -117,6 +122,7 @@ async def test_idle_sandbox_cleanup(manager):
     assert sandbox_id not in manager._sandboxes
 
 
+@pytest.mark.docker
 @pytest.mark.asyncio
 async def test_manager_cleanup(manager):
     """Tests manager cleanup functionality."""
