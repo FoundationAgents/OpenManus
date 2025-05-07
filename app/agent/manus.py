@@ -19,7 +19,9 @@ class Manus(ToolCallAgent):
     """A versatile general-purpose agent with support for both local and MCP tools."""
 
     name: str = "Manus"
-    description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
+    description: str = (
+        "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
+    )
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -59,7 +61,12 @@ class Manus(ToolCallAgent):
     @classmethod
     async def create(cls, **kwargs) -> "Manus":
         """Factory method to create and properly initialize a Manus instance."""
-        instance = cls(**kwargs)
+        from app.config import config
+
+        strict = config.llm["default"].strict_chat_structure
+
+        instance = cls(strict_chat_structure=strict, **kwargs)
+
         await instance.initialize_mcp_servers()
         instance._initialized = True
         return instance
