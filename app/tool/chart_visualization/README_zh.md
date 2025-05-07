@@ -108,7 +108,7 @@ VMind本身也需要通过调用大模型得到智能图表生成结果，目前
 
 给予数据和具体的图表生成需求，测试结果，执行命令：
 ```bash
-python -m app.tool.chart_visualization.test.simple_chart
+python -m app.tool.chart_visualization.test.chart_demo
 ```
 结果应位于`worksapce\visualization`下，涉及到9种不同的图表结果
 
@@ -116,6 +116,6 @@ python -m app.tool.chart_visualization.test.simple_chart
 
 给予简单原始数据可分析需求，需要对数据进行简单加工处理，执行命令：
 ```bash
-python -m app.tool.chart_visualization.test.simple_report
+python -m app.tool.chart_visualization.test.report_demo
 ```
 结果同样位于`worksapce\visualization`下
