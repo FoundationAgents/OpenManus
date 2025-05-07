@@ -154,7 +154,7 @@ Feishu 네트워킹 그룹에 참여하여 다른 개발자들과 경험을 공�
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=FoundationAgents/OpenManus&type=Date)](https://www.star-history.com/#FoundationAgents/OpenManus&Date)
 
 ## 감사의 글
 

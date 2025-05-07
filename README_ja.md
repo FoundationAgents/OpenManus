@@ -154,7 +154,7 @@ Feishuのネットワーキンググループに参加して、他の開発者�
 
 ## スター履歴
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mannaandpoem/OpenManus&type=Date)](https://star-history.com/#mannaandpoem/OpenManus&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=FoundationAgents/OpenManus&type=Date)](https://www.star-history.com/#FoundationAgents/OpenManus&Date)
 
 ## 謝辞
 
