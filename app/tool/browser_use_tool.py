@@ -177,10 +177,15 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             # if there is context config in the config, use it.
             if (
                 config.browser_config
-                and hasattr(config.browser_config, "new_context_config")
-                and config.browser_config.new_context_config
+                and hasattr(config.browser_config, "window_size")
+                and config.browser_config.window_size
             ):
-                context_config = config.browser_config.new_context_config
+                size = config.browser_config.window_size
+                if isinstance(size, dict) and "width" in size and "height" in size:
+                    context_config.browser_window_size = {
+                        "width": size["width"],
+                        "height": size["height"],
+                    }
 
             self.context = await self.browser.new_context(context_config)
             self.dom_service = DomService(await self.context.get_current_page())
