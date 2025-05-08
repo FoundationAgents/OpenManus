@@ -1,0 +1,27 @@
+# It's recommended to create a .env file in the same directory as docker-compose.yml to set environment variables like:
+# OPENMANUS_PATH=/path/to/your/openmanus/data
+# OPENMANUS_CONFIG=/path/to/your/openmanus/config
+# TZ=Your/Timezone
+
+services:
+  openmanus:
+    build: .
+    image: openmanus:latest
+    container_name: openmanus
+    restart: unless-stopped
+    volumes:
+      - ${OPENMANUS_PATH:-~/.openmanus}:/app/OpenManus/data
+      - ${OPENMANUS_CONFIG:-~/.openmanus_config}:/app/OpenManus/config
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=${TZ:-UTC}
+    ports:
+      - "8000:8000"  # Default port, adjust as needed
+    init: true
+    network_mode: bridge
+    user: "openmanususer:openmanususer"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import os, sys; sys.exit(0 if os.path.isfile('/app/OpenManus/main.py') else 1)"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
