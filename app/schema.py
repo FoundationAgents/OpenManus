@@ -96,6 +96,36 @@ class Message(BaseModel):
             message["base64_image"] = self.base64_image
         return message
 
+    def to_string(self) -> str:
+        """
+        Convert the Message instance into a human-readable string format.
+
+        Returns:
+            str: A formatted string representing the message.
+        """
+        # Format the header with role and name
+        role_str = self.role.upper() if self.role else "UNKNOWN"
+        name_str = f" ({self.name})" if self.name else ""
+        header = f"[{role_str}{name_str}]"
+
+        # Start with the message content
+        content = self.content or ""
+
+        # Append tool call details if available
+        if self.tool_calls:
+            tool_calls_str = "\n".join(
+                f"  ↳ ToolCall: {tc.function.name}({tc.function.arguments}) [id={tc.id}]"
+                for tc in self.tool_calls
+            )
+            content += "\n" + tool_calls_str
+
+        # Append information about attached image if any
+        if self.base64_image:
+            content += "\n  ↳ [Image Attached: base64 content hidden]"
+
+        return f"{header}\n{content.strip()}"
+
+
     @classmethod
     def user_message(
         cls, content: str, base64_image: Optional[str] = None
@@ -179,6 +209,17 @@ class Memory(BaseModel):
         """Get n most recent messages"""
         return self.messages[-n:]
 
+
     def to_dict_list(self) -> List[dict]:
         """Convert messages to list of dicts"""
         return [msg.to_dict() for msg in self.messages]
+
+
+    def to_string(self) -> str:
+        """
+        Convert the memory's list of messages to a readable string format.
+
+        Returns:
+            str: A formatted string representing the entire conversation history.
+        """
+        return "\n\n".join(msg.to_string() for msg in self.messages)
