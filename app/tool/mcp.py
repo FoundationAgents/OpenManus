@@ -1,14 +1,14 @@
 from contextlib import AsyncExitStack
 from typing import Dict, List, Optional
 
-from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import TextContent
+from mcp.types import ListToolsResult, TextContent
 
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.tool_collection import ToolCollection
+from mcp import ClientSession, StdioServerParameters
 
 
 class MCPClientTool(BaseTool):
@@ -124,6 +124,14 @@ class MCPClients(ToolCollection):
         logger.info(
             f"Connected to server {server_id} with tools: {[tool.name for tool in response.tools]}"
         )
+
+    async def list_tools(self) -> ListToolsResult:
+        """List all available tools."""
+        tools_result = ListToolsResult(tools=[])
+        for session in self.sessions.values():
+            response = await session.list_tools()
+            tools_result.tools += response.tools
+        return tools_result
 
     async def disconnect(self, server_id: str = "") -> None:
         """Disconnect from a specific MCP server or all servers if no server_id provided."""
