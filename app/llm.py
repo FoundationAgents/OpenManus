@@ -1,4 +1,5 @@
 import math
+import sys
 from typing import Dict, List, Optional, Union
 
 import tiktoken
@@ -22,6 +23,7 @@ from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
+from app.mira import MiraClient
 from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
@@ -137,6 +139,8 @@ class TokenCounter:
     def count_tool_calls(self, tool_calls: List[dict]) -> int:
         """Calculate tokens for tool calls"""
         token_count = 0
+        if tool_calls is None:
+            return token_count
         for tool_call in tool_calls:
             if "function" in tool_call:
                 function = tool_call["function"]
@@ -159,7 +163,7 @@ class TokenCounter:
                 tokens += self.count_content(message["content"])
 
             # Add tool calls tokens
-            if "tool_calls" in message:
+            if "tool_calls" in message and message["tool_calls"] is not None:
                 tokens += self.count_tool_calls(message["tool_calls"])
 
             # Add name and tool_call_id tokens
@@ -221,6 +225,11 @@ class LLM:
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
+            elif self.api_type == "mira":
+                self.client = MiraClient(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                )
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -366,62 +375,93 @@ class LLM:
         temperature: Optional[float] = None,
     ) -> str:
         """
-        Send a prompt to the LLM and get the response.
+        Send a prompt to the LLM and get a response.
 
         Args:
-            messages: List of conversation messages
-            system_msgs: Optional system messages to prepend
-            stream (bool): Whether to stream the response
-            temperature (float): Sampling temperature for the response
+            messages: List of message dictionaries or Message objects
+            system_msgs: Optional list of system messages
+            stream: Whether to stream the response
+            temperature: Optional temperature override
 
         Returns:
-            str: The generated response
-
-        Raises:
-            TokenLimitExceeded: If token limits are exceeded
-            ValueError: If messages are invalid or response is empty
-            OpenAIError: If API call fails after retries
-            Exception: For unexpected errors
+            The response text from the LLM
         """
-        try:
-            # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+        # Convert messages to the format expected by the API
+        formatted_messages = []
 
-            # Format system and user messages with image support check
-            if system_msgs:
-                system_msgs = self.format_messages(system_msgs, supports_images)
-                messages = system_msgs + self.format_messages(messages, supports_images)
+        # Add system messages if provided
+        if system_msgs:
+            for msg in system_msgs:
+                if isinstance(msg, dict):
+                    formatted_messages.append(msg)
+                else:
+                    formatted_messages.append(msg.model_dump())
+
+        # Add user messages
+        for msg in messages:
+            if isinstance(msg, dict):
+                formatted_messages.append(msg)
             else:
-                messages = self.format_messages(messages, supports_images)
+                formatted_messages.append(msg.model_dump())
 
-            # Calculate input token count
-            input_tokens = self.count_message_tokens(messages)
+        # Count tokens in the input
+        input_tokens = self.count_message_tokens(formatted_messages)
 
-            # Check if token limits are exceeded
-            if not self.check_token_limit(input_tokens):
-                error_message = self.get_limit_error_message(input_tokens)
-                # Raise a special exception that won't be retried
-                raise TokenLimitExceeded(error_message)
+        # Check if we're exceeding token limits
+        if not self.check_token_limit(input_tokens):
+            raise TokenLimitExceeded(
+                f"Input tokens ({input_tokens}) would exceed the maximum allowed input tokens ({self.max_input_tokens})"
+            )
 
-            params = {
-                "model": self.model,
-                "messages": messages,
-            }
+        # Prepare parameters for the API call
+        params = {
+            "model": self.model,
+            "messages": formatted_messages,
+        }
 
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
-            else:
-                params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+        # Add optional parameters
+        if temperature is not None:
+            params["temperature"] = temperature
+        else:
+            params["temperature"] = self.temperature
+
+        if self.max_tokens:
+            params["max_tokens"] = self.max_tokens
+
+        # Set stream parameter
+        params["stream"] = stream
+
+        # For Mira Network, we don't want to use the retry mechanism
+        if self.api_type == "mira":
+            try:
+                # Non-streaming request for Mira Network
+                response = await self.client.chat.completions.create(
+                    **params, stream=False
                 )
 
+                if not response or "choices" not in response or not response["choices"]:
+                    raise ValueError("Empty or invalid response from Mira Network")
+
+                # Update token counts if available
+                if "usage" in response:
+                    self.update_token_count(
+                        response["usage"].get("prompt_tokens", 0),
+                        response["usage"].get("completion_tokens", 0)
+                    )
+
+                return response["choices"][0]["message"]["content"]
+            except Exception as e:
+                print(f"Error in Mira Network API call: {str(e)}")
+                raise
+        else:
+            # For other providers, use the retry mechanism
             if not stream:
                 # Non-streaming request
                 response = await self.client.chat.completions.create(
                     **params, stream=False
                 )
 
+                # Handle OpenAI format
                 if not response.choices or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
@@ -435,6 +475,7 @@ class LLM:
             # Streaming request, For streaming, update estimated token count before making the request
             self.update_token_count(input_tokens)
 
+            # Handle OpenAI streaming
             response = await self.client.chat.completions.create(**params, stream=True)
 
             collected_messages = []
@@ -458,25 +499,6 @@ class LLM:
             self.total_completion_tokens += completion_tokens
 
             return full_response
-
-        except TokenLimitExceeded:
-            # Re-raise token limit errors without logging
-            raise
-        except ValueError:
-            logger.exception(f"Validation error")
-            raise
-        except OpenAIError as oe:
-            logger.exception(f"OpenAI API error")
-            if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
-            elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
-            elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
-            raise
-        except Exception:
-            logger.exception(f"Unexpected error in ask")
-            raise
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -652,115 +674,146 @@ class LLM:
         **kwargs,
     ) -> ChatCompletionMessage | None:
         """
-        Ask LLM using functions/tools and return the response.
+        Send a prompt to the LLM with tool calling capabilities.
 
         Args:
-            messages: List of conversation messages
-            system_msgs: Optional system messages to prepend
-            timeout: Request timeout in seconds
-            tools: List of tools to use
-            tool_choice: Tool choice strategy
-            temperature: Sampling temperature for the response
-            **kwargs: Additional completion arguments
+            messages: List of message dictionaries or Message objects
+            system_msgs: Optional list of system messages
+            timeout: Timeout in seconds
+            tools: Optional list of tool definitions
+            tool_choice: How to handle tool selection
+            temperature: Optional temperature override
 
         Returns:
-            ChatCompletionMessage: The model's response
-
-        Raises:
-            TokenLimitExceeded: If token limits are exceeded
-            ValueError: If tools, tool_choice, or messages are invalid
-            OpenAIError: If API call fails after retries
-            Exception: For unexpected errors
+            The response message from the LLM or None if there was an error
         """
-        try:
-            # Validate tool_choice
-            if tool_choice not in TOOL_CHOICE_VALUES:
-                raise ValueError(f"Invalid tool_choice: {tool_choice}")
+        # Convert messages to the format expected by the API
+        formatted_messages = []
 
-            # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+        # Add system messages if provided
+        if system_msgs:
+            for msg in system_msgs:
+                if isinstance(msg, dict):
+                    formatted_messages.append(msg)
+                else:
+                    formatted_messages.append(msg.model_dump())
 
-            # Format messages
-            if system_msgs:
-                system_msgs = self.format_messages(system_msgs, supports_images)
-                messages = system_msgs + self.format_messages(messages, supports_images)
+        # Add user messages
+        for msg in messages:
+            if isinstance(msg, dict):
+                formatted_messages.append(msg)
             else:
-                messages = self.format_messages(messages, supports_images)
+                formatted_messages.append(msg.model_dump())
 
-            # Calculate input token count
-            input_tokens = self.count_message_tokens(messages)
+        # Count tokens in the input
+        input_tokens = self.count_message_tokens(formatted_messages)
 
-            # If there are tools, calculate token count for tool descriptions
-            tools_tokens = 0
-            if tools:
-                for tool in tools:
-                    tools_tokens += self.count_tokens(str(tool))
+        # Check if we're exceeding token limits
+        if not self.check_token_limit(input_tokens):
+            raise TokenLimitExceeded(
+                f"Input tokens ({input_tokens}) would exceed the maximum allowed input tokens ({self.max_input_tokens})"
+            )
 
-            input_tokens += tools_tokens
+        # Prepare parameters for the API call
+        params = {
+            "model": self.model,
+            "messages": formatted_messages,
+        }
 
-            # Check if token limits are exceeded
-            if not self.check_token_limit(input_tokens):
-                error_message = self.get_limit_error_message(input_tokens)
-                # Raise a special exception that won't be retried
-                raise TokenLimitExceeded(error_message)
+        # Add optional parameters
+        if temperature is not None:
+            params["temperature"] = temperature
+        else:
+            params["temperature"] = self.temperature
 
-            # Validate tools if provided
-            if tools:
-                for tool in tools:
-                    if not isinstance(tool, dict) or "type" not in tool:
-                        raise ValueError("Each tool must be a dict with 'type' field")
+        if self.max_tokens:
+            params["max_tokens"] = self.max_tokens
 
-            # Set up the completion request
-            params = {
-                "model": self.model,
-                "messages": messages,
-                "tools": tools,
-                "tool_choice": tool_choice,
-                "timeout": timeout,
-                **kwargs,
-            }
+        # Add tool-related parameters if provided
+        if tools:
+            params["tools"] = tools
+            if tool_choice != ToolChoice.AUTO:
+                params["tool_choice"] = tool_choice
 
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
-            else:
-                params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+        # Set stream parameter to False for tool requests
+        params["stream"] = False
+
+        # For Mira Network, we need special handling
+        if self.api_type == "mira":
+            try:
+                # Non-streaming request for Mira Network
+                response = await self.client.chat_completions_create(**params)
+
+                # Check if response is valid
+                if not response or "choices" not in response or not response["choices"]:
+                    logger.error(f"Invalid Mira response: {response}")
+                    result = ChatCompletionMessage(
+                        role="assistant",
+                        content="I encountered an error processing your request. Please try again.",
+                    )
+                    # Print error response and exit
+                    print("\nResponse:", result.content)
+                    sys.exit(0)
+                    return result
+
+                # Update token counts if available
+                if "usage" in response:
+                    self.update_token_count(
+                        response["usage"].get("prompt_tokens", 0),
+                        response["usage"].get("completion_tokens", 0)
+                    )
+
+                # Create a ChatCompletionMessage from the Mira response
+                message = response["choices"][0]["message"]
+
+                # For Mira, we need to handle the case where tool_calls might not be in the expected format
+                tool_calls = None
+                if "tool_calls" in message:
+                    tool_calls = message["tool_calls"]
+
+                result = ChatCompletionMessage(
+                    role=message.get("role", "assistant"),
+                    content=message.get("content", ""),
+                    tool_calls=tool_calls,
+                )
+                # Print successful response and exit
+                print("\nResponse:", result.content)
+                sys.exit(0)
+                return result
+            except Exception as e:
+                logger.error(f"Error in Mira API call: {str(e)}")
+                # Return a simple message instead of None to prevent retries
+                result = ChatCompletionMessage(
+                    role="assistant",
+                    content=f"I encountered an error while processing your request: {str(e)}",
+                )
+                # Print error response and exit
+                print("\nResponse:", result.content)
+                sys.exit(0)
+                return result
+        else:
+            # For other providers, use the standard approach
+            try:
+                if isinstance(self.client, AsyncOpenAI):
+                    response = await self.client.chat.completions.create(**params)
+                elif isinstance(self.client, AsyncAzureOpenAI):
+                    response = await self.client.chat.completions.create(**params)
+                elif isinstance(self.client, BedrockClient):
+                    response = await self.client.chat.completions.create(**params)
+                else:
+                    raise ValueError(f"Unsupported client type: {type(self.client)}")
+
+                # Handle OpenAI format
+                if not response.choices or not response.choices[0].message:
+                    raise ValueError("Empty or invalid response from LLM")
+
+                # Update token counts
+                self.update_token_count(
+                    response.usage.prompt_tokens, response.usage.completion_tokens
                 )
 
-            params["stream"] = False  # Always use non-streaming for tool requests
-            response: ChatCompletion = await self.client.chat.completions.create(
-                **params
-            )
-
-            # Check if response is valid
-            if not response.choices or not response.choices[0].message:
-                print(response)
-                # raise ValueError("Invalid or empty response from LLM")
+                return response.choices[0].message
+            except Exception as e:
+                logger.error(f"OpenAI API error: {str(e)}")
+                logger.error(f"API error: {str(e)}")
                 return None
-
-            # Update token counts
-            self.update_token_count(
-                response.usage.prompt_tokens, response.usage.completion_tokens
-            )
-
-            return response.choices[0].message
-
-        except TokenLimitExceeded:
-            # Re-raise token limit errors without logging
-            raise
-        except ValueError as ve:
-            logger.error(f"Validation error in ask_tool: {ve}")
-            raise
-        except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
-            if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
-            elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
-            elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in ask_tool: {e}")
-            raise
