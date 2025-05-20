@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
 import boto3
+from botocore.config import Config
 
 
 # Global variables to track the current tool use ID across function calls
@@ -39,7 +40,18 @@ class BedrockClient:
     def __init__(self):
         # Initialize Bedrock client, you need to configure AWS env first
         try:
-            self.client = boto3.client("bedrock-runtime")
+            # set up AWS boto3 retries
+            # <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html>
+            config = Config(
+                retries = {
+                    'max_attempts': 5,
+                    'mode': 'adaptive'
+                }
+            )
+            self.client = boto3.client(
+                "bedrock-runtime",
+                config=config,
+            )
             self.chat = Chat(self.client)
         except Exception as e:
             print(f"Error initializing Bedrock client: {e}")
