@@ -108,6 +108,9 @@ class MCPServerConfig(BaseModel):
     args: List[str] = Field(
         default_factory=list, description="Arguments for stdio command"
     )
+    env: Dict[str, str] = Field(
+        default_factory=dict, description="Environment variables for stdio server needed"
+    )
 
 
 class MCPSettings(BaseModel):
@@ -140,6 +143,7 @@ class MCPSettings(BaseModel):
                         url=server_config.get("url"),
                         command=server_config.get("command"),
                         args=server_config.get("args", []),
+                        env=server_config.get("env", {}),
                     )
                 return servers
         except Exception as e:
