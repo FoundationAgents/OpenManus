@@ -38,6 +38,7 @@ class ToolCallAgent(ReActAgent):
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
 
+        logger.info(f"Providing {len(self.messages)} messages to LLM as context.")
         # Get response with tool options
         response = await self.llm.ask_tool(
             messages=self.messages,
