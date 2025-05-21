@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
@@ -75,12 +76,20 @@ class Manus(ToolCallAgent):
                             f"Connected to MCP server {server_id} at {server_config.url}"
                         )
                 elif server_config.type == "stdio":
+                    # Get the necessary environment variables for this server.
+                    env: Dict[str, str] = server_config.env or {}
+                    os_env: Dict[str, str] = {}
+                    if env:
+                        os_env = {k: v for k in env if (v := os.environ.get(k)) is not None}
+                        env = {**env, **os_env}
+
                     if server_config.command:
                         await self.connect_mcp_server(
                             server_config.command,
                             server_id,
                             use_stdio=True,
                             stdio_args=server_config.args,
+                            env=env,
                         )
                         logger.info(
                             f"Connected to MCP server {server_id} using command {server_config.command}"
@@ -94,11 +103,12 @@ class Manus(ToolCallAgent):
         server_id: str = "",
         use_stdio: bool = False,
         stdio_args: List[str] = None,
+        env: Dict[str, str] = {},
     ) -> None:
         """Connect to an MCP server and add its tools."""
         if use_stdio:
             await self.mcp_clients.connect_stdio(
-                server_url, stdio_args or [], server_id
+                server_url, stdio_args or [], server_id, env
             )
             self.connected_servers[server_id or server_url] = server_url
         else:
