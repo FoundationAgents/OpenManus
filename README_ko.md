@@ -137,6 +137,18 @@ python run_mcp.py
 python run_flow.py
 ```
 
+### 사용자 정의 다중 에이전트 추가
+
+현재 일반 OpenManus 에이전트 외에도 데이터 분석 및 데이터 시각화 작업에 적합한 DataAnalysis 에이전트를 통합했습니다. 이 에이전트를 `config.toml`의 `run_flow`에 추가할 수 있습니다.
+
+```toml
+# run-flow에 대한 선택적 구성
+[runflow]
+use_data_analysis_agent = true     # 기본적으로 비활성화되어 있으며, 활성화하려면 true로 변경
+```
+
+또한, 에이전트가 제대로 작동하도록 관련 종속성을 설치해야 합니다: [상세 설치 가이드](app/tool/chart_visualization/README.md##Installation)
+
 ## 기여 방법
 
 모든 친절한 제안과 유용한 기여를 환영합니다! 이슈를 생성하거나 풀 리퀘스트를 제출해 주세요.

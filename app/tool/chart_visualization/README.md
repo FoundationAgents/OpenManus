@@ -4,19 +4,46 @@
 
 The chart visualization tool generates data processing code through Python and ultimately invokes [@visactor/vmind](https://github.com/VisActor/VMind) to obtain chart specifications. Chart rendering is implemented using [@visactor/vchart](https://github.com/VisActor/VChart).
 
-## Installation
+## Installation (Mac / Linux)
 
-1. Install Node.js >= 18
+1. Install node >= 18
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-# After installation, restart the terminal and install the latest Node.js LTS version:
-nvm install --lts
+# Activate nvm, for example in Bash
+source ~/.bashrc
+# Then install the latest stable release of Node
+nvm install node
+# Activate usage, for example if the latest stable release is 22, then use 22
+nvm use 22
 ```
 
 2. Install dependencies
 
 ```bash
+# Navigate to the appropriate location in the current repository
+cd app/tool/chart_visualization
+npm install
+```
+
+## Installation (Windows)
+1. Install nvm-windows
+
+    Download the latest version `nvm-setup.exe` from the [official GitHub page](https://github.com/coreybutler/nvm-windows?tab=readme-ov-file#readme) and install it.
+
+2. Use nvm to install node
+
+```powershell
+# Then install the latest stable release of Node
+nvm install node
+# Activate usage, for example if the latest stable release is 22, then use 22
+nvm use 22
+```
+
+3. Install dependencies
+
+```bash
+# Navigate to the appropriate location in the current repository
 cd app/tool/chart_visualization
 npm install
 ```

@@ -98,3 +98,8 @@ temperature = 0.0                          # Controls randomness for vision mode
 # MCP (Model Context Protocol) configuration
 [mcp]
 server_reference = "app.mcp.server" # default server module reference
+
+# Optional Runflow configuration
+# Your can add additional agents into run-flow workflow to solve different-type tasks.
+[runflow]
+use_data_analysis_agent = false     # The Data Analysi Agent to solve various data analysis tasks

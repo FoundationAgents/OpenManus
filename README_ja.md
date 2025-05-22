@@ -137,6 +137,19 @@ python run_mcp.py
 python run_flow.py
 ```
 
+## カスタムマルチエージェントの追加
+
+現在、一般的なOpenManusエージェントに加えて、データ分析とデータ可視化タスクに適したDataAnalysisエージェントが組み込まれています。このエージェントを`config.toml`の`run_flow`に追加することができます。
+
+```toml
+# run-flowのオプション設定
+[runflow]
+use_data_analysis_agent = true     # デフォルトでは無効、trueに変更すると有効化されます
+```
+
+これに加えて、エージェントが正常に動作するために必要な依存関係をインストールする必要があります：[具体的なインストールガイド](app/tool/chart_visualization/README_ja.md##インストール)
+
+
 ## 貢献方法
 
 我々は建設的な意見や有益な貢献を歓迎します！issueを作成するか、プルリクエストを提出してください。

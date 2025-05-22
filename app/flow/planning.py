@@ -137,12 +137,30 @@ class PlanningFlow(BaseFlow):
         """Create an initial plan based on the request using the flow's LLM and PlanningTool."""
         logger.info(f"Creating initial plan with ID: {self.active_plan_id}")
 
-        # Create a system message for plan creation
-        system_message = Message.system_message(
+        system_message_content = (
             "You are a planning assistant. Create a concise, actionable plan with clear steps. "
             "Focus on key milestones rather than detailed sub-steps. "
             "Optimize for clarity and efficiency."
         )
+        agents_description = []
+        for key in self.executor_keys:
+            if key in self.agents:
+                agents_description.append(
+                    {
+                        "name": key.upper(),
+                        "description": self.agents[key].description,
+                    }
+                )
+        if len(agents_description) > 1:
+            # Add description of agents to select
+            system_message_content += (
+                f"\nNow we have {agents_description} agents. "
+                f"The infomation of them are below: {json.dumps(agents_description)}\n"
+                "When creating steps in the planning tool, please specify the agent names using the format '[agent_name]'."
+            )
+
+        # Create a system message for plan creation
+        system_message = Message.system_message(system_message_content)
 
         # Create a user message with the request
         user_message = Message.user_message(
@@ -270,7 +288,7 @@ class PlanningFlow(BaseFlow):
         YOUR CURRENT TASK:
         You are now working on step {self.current_step_index}: "{step_text}"
 
-        Please execute this step using the appropriate tools. When you're done, provide a summary of what you accomplished.
+        Please only execute this current step using the appropriate tools. When you're done, provide a summary of what you accomplished.
         """
 
         # Use agent.run() to execute the step

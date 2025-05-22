@@ -10,8 +10,8 @@
   "dependencies": {
     "@visactor/vchart": "^1.13.7",
     "@visactor/vmind": "2.0.5",
-    "canvas": "^2.11.2",
-    "get-stdin": "^9.0.0"
+    "get-stdin": "^9.0.0",
+    "puppeteer": "^24.9.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

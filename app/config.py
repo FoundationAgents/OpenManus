@@ -60,6 +60,12 @@ class SearchSettings(BaseModel):
     )
 
 
+class RunflowSettings(BaseModel):
+    use_data_analysis_agent: bool = Field(
+        default=False, description="Enable data analysis agent in run flow"
+    )
+
+
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -158,6 +164,9 @@ class AppConfig(BaseModel):
         None, description="Search configuration"
     )
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
+    run_flow_config: Optional[RunflowSettings] = Field(
+        None, description="Run flow configuration"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -269,6 +278,11 @@ class Config:
         else:
             mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
+        run_flow_config = raw_config.get("runflow")
+        if run_flow_config:
+            run_flow_settings = RunflowSettings(**run_flow_config)
+        else:
+            run_flow_settings = RunflowSettings()
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -281,6 +295,7 @@ class Config:
             "browser_config": browser_settings,
             "search_config": search_settings,
             "mcp_config": mcp_settings,
+            "run_flow_config": run_flow_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -305,6 +320,11 @@ class Config:
     def mcp_config(self) -> MCPSettings:
         """Get the MCP configuration"""
         return self._config.mcp_config
+
+    @property
+    def run_flow_config(self) -> RunflowSettings:
+        """Get the Run Flow configuration"""
+        return self._config.run_flow_config
 
     @property
     def workspace_root(self) -> Path:

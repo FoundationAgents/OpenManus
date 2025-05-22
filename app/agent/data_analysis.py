@@ -17,8 +17,8 @@ class DataAnalysis(ToolCallAgent):
     including Data Analysis, Chart Visualization, Data Report.
     """
 
-    name: str = "DataAnalysis"
-    description: str = "An analytical agent that utilizes multiple tools to solve diverse data analysis tasks"
+    name: str = "Data_Analysis"
+    description: str = "An analytical agent that utilizes python and data visualization tools to solve diverse data analysis tasks"
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT

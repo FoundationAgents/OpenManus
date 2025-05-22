@@ -1,8 +1,7 @@
-import Canvas from "canvas";
 import path from "path";
 import fs from "fs";
+import puppeteer from "puppeteer";
 import VMind, { ChartType, DataTable } from "@visactor/vmind";
-import VChart from "@visactor/vchart";
 import { isString } from "@visactor/vutils";
 
 enum AlgorithmType {
@@ -26,17 +25,20 @@ const getBase64 = async (spec: any, width?: number, height?: number) => {
   spec.animation = false;
   width && (spec.width = width);
   height && (spec.height = height);
-  const cs = new VChart(spec, {
-    mode: "node",
-    modeParams: Canvas,
-    animation: false,
-    dpr: 2,
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(getHtmlVChart(spec, width, height));
+
+  const dataUrl = await page.evaluate(() => {
+    const canvas: any = document
+      .getElementById("chart-container")
+      ?.querySelector("canvas");
+    return canvas?.toDataURL("image/png");
   });
 
-  await cs.renderAsync();
-
-  const buffer = await cs.getImageBuffer();
-  return buffer;
+  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+  await browser.close();
+  return Buffer.from(base64Data, "base64");
 };
 
 const serializeSpec = (spec: any) => {
@@ -53,11 +55,11 @@ const serializeSpec = (spec: any) => {
   });
 };
 
-async function getHtmlVChart(spec: any, width?: number, height?: number) {
+function getHtmlVChart(spec: any, width?: number, height?: number) {
   return `<!DOCTYPE html>
 <html>
 <head>
-    <title>VChart 示例</title>
+    <title>VChart Demo</title>
     <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
 </head>
 <body>
@@ -161,7 +163,7 @@ async function saveChartRes(options: {
     const base64 = await getBase64(spec, width, height);
     fs.writeFileSync(savedPath, base64);
   } else {
-    const html = await getHtmlVChart(spec, width, height);
+    const html = getHtmlVChart(spec, width, height);
     fs.writeFileSync(savedPath, html, "utf-8");
   }
   return savedPath;

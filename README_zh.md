@@ -138,6 +138,17 @@ python run_mcp.py
 python run_flow.py
 ```
 
+## 添加自定义多智能体
+
+目前除了通用的 OpenManus Agent, 我们还内置了DataAnalysis Agent，适用于数据分析和数据可视化任务，你可以在`config.toml`中将这个智能体加入到`run_flow`中
+```toml
+# run-flow可选配置
+[runflow]
+use_data_analysis_agent = true     # 默认关闭，将其改为true则为激活
+```
+除此之外，你还需要安装相关的依赖来确保智能体正常运行：[具体安装指南](app/tool/chart_visualization/README_zh.md##安装)
+
+
 ## 贡献指南
 
 我们欢迎任何友好的建议和有价值的贡献！可以直接创建 issue 或提交 pull request。
