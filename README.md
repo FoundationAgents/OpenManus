@@ -114,6 +114,10 @@ temperature = 0.0
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # Replace with your actual API key
+
+# Optional agent configuration
+[agent]
+max_steps = 20  # Maximum number of steps before the agent terminates (default: 20)
 ```
 
 ## Quick Start

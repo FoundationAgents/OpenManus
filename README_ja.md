@@ -114,6 +114,10 @@ temperature = 0.0
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # 実際のAPIキーに置き換えてください
+
+# エージェント設定
+[agent]
+max_steps = 20  # エージェントが実行できる最大ステップ数(デフォルトです： 20)
 ```
 
 ## クイックスタート

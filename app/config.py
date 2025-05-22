@@ -60,6 +60,12 @@ class SearchSettings(BaseModel):
     )
 
 
+class AgentSettings(BaseModel):
+    max_steps: int = Field(
+        default=20, description="Maximum steps before the agent terminates"
+    )
+
+
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -158,6 +164,9 @@ class AppConfig(BaseModel):
         None, description="Search configuration"
     )
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
+    agent_config: Optional[AgentSettings] = Field(
+        None, description="Agent configuration"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -269,6 +278,11 @@ class Config:
         else:
             mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
+        agent_config = raw_config.get("agent", {})
+        agent_settings = None
+        if agent_config:
+            agent_settings = AgentSettings(**agent_config)
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -281,6 +295,7 @@ class Config:
             "browser_config": browser_settings,
             "search_config": search_settings,
             "mcp_config": mcp_settings,
+            "agent_config": agent_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -315,6 +330,10 @@ class Config:
     def root_path(self) -> Path:
         """Get the root path of the application"""
         return PROJECT_ROOT
+
+    @property
+    def agent_config(self) -> Optional[AgentSettings]:
+        return self._config.agent_config
 
 
 config = Config()

@@ -114,6 +114,10 @@ temperature = 0.0
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # 실제 API 키로 변경하세요
+
+# 최대 진행 단계 수에 대한 선택적 설정
+[agent]
+max_steps = 20  # 최대 진행 단계 수  (기본값: 20)
 ```
 
 ## 빠른 시작

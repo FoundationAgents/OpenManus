@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.config import config
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -53,6 +54,12 @@ class BaseAgent(BaseModel, ABC):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+        return self
+
+    @model_validator(mode="after")
+    def set_max_steps_from_config(self):
+        if config.agent_config and config.agent_config.max_steps:
+            self.max_steps = config.agent_config.max_steps
         return self
 
     @asynccontextmanager
