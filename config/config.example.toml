@@ -98,3 +98,8 @@ temperature = 0.0                          # Controls randomness for vision mode
 # MCP (Model Context Protocol) configuration
 [mcp]
 server_reference = "app.mcp.server" # default server module reference
+
+# Search configuration
+[search]
+engine = "Searxng"
+searxng_url = "https://your.searxng.instance"
