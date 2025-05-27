@@ -13,6 +13,9 @@ temperature = 0.0                          # Controls randomness
 # max_tokens = 8192
 # temperature = 1.0
 # api_key = "bear"                                       # Required but not used for Bedrock
+# aws_access_key_id = ""                                 # Required
+# aws_secret_access_key = ""                             # Required
+# aws_region_name = "us-west-2"                          # Required
 
 # [llm] #AZURE OPENAI:
 # api_type= 'azure'
