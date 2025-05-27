@@ -200,3 +200,6 @@ cython_debug/
 
 # node
 node_modules
+
+# Custom package directory
+dist_package/
