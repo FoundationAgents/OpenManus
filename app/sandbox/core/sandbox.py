@@ -91,7 +91,7 @@ class DockerSandbox:
             self.terminal = AsyncDockerizedTerminal(
                 container["Id"],
                 self.config.work_dir,
-                env_vars={"PYTHONUNBUFFERED": "1"}
+                env_vars={"PYTHONUNBUFFERED": "1"},
                 # Ensure Python output is not buffered
             )
             await self.terminal.init()
