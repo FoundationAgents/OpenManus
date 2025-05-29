@@ -89,6 +89,9 @@ class BrowserSettings(BaseModel):
     max_content_length: int = Field(
         2000, description="Maximum length for content retrieval operations"
     )
+    window_size: Optional[Dict[str, int]] = Field(
+        None, description="Browser window size, with width and height"
+    )
 
 
 class SandboxSettings(BaseModel):
