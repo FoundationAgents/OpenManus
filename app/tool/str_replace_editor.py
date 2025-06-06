@@ -1,5 +1,5 @@
 """File and directory manipulation tool with sandbox support."""
-
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, DefaultDict, List, Literal, Optional, get_args
@@ -198,7 +198,7 @@ class StrReplaceEditor(BaseTool):
         path: PathLike,
         view_range: Optional[List[int]] = None,
         operator: FileOperator = None,
-    ) -> CLIResult:
+    ) -> ToolResult:
         """Display file or directory content."""
         # Determine if path is a directory
         is_dir = await operator.is_directory(path)
@@ -216,20 +216,11 @@ class StrReplaceEditor(BaseTool):
             return await self._view_file(path, operator, view_range)
 
     @staticmethod
-    async def _view_directory(path: PathLike, operator: FileOperator) -> CLIResult:
+    async def _view_directory(path: PathLike, operator: FileOperator) -> ToolResult:
         """Display directory contents."""
-        find_cmd = f"find {path} -maxdepth 2 -not -path '*/\\.*'"
-
-        # Execute command using the operator
-        returncode, stdout, stderr = await operator.run_command(find_cmd)
-
-        if not stderr:
-            stdout = (
-                f"Here's the files and directories up to 2 levels deep in {path}, "
-                f"excluding hidden items:\n{stdout}\n"
-            )
-
-        return CLIResult(output=stdout, error=stderr)
+        if not os.path.exists(path):
+            return ToolResult(output=f"Directory {path} does not exist.")
+        return ToolResult(output=','.join(os.listdir(path)))
 
     async def _view_file(
         self,
