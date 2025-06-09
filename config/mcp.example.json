@@ -1,8 +1,19 @@
 {
-    "mcpServers": {
-      "server1": {
-        "type": "sse",
-        "url": "http://localhost:8000/sse"
+  "mcpServers": {
+    "server1": {
+      "type": "sse",
+      "url": "http://localhost:8000/sse"
+    },
+    "server2": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "-m",
+        "<path>"
+      ],
+      "env": {
+        "key": "xxx"
       }
     }
+  }
 }
