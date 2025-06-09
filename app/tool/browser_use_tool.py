@@ -15,7 +15,6 @@ from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
-
 _BROWSER_DESCRIPTION = """\
 A powerful browser automation tool that allows interaction with web pages through various actions.
 * This tool provides commands for controlling a browser session, navigating web pages, and extracting information
@@ -390,7 +389,10 @@ Extraction goal: {goal}
 Page content:
 {content[:max_content_length]}
 """
-                    messages = [{"role": "system", "content": prompt}]
+                    messages = [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": "Extract the relevant content from this page based on the goal."}
+                    ]
 
                     # Define extraction function schema
                     extraction_function = {
