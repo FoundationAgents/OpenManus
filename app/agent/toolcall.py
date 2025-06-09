@@ -41,7 +41,7 @@ class ToolCallAgent(ReActAgent):
         if self.next_step_prompt:
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
-
+            self.next_step_prompt = ""
         try:
             # Get response with tool options
             response = await self.llm.ask_tool(
@@ -161,7 +161,39 @@ class ToolCallAgent(ReActAgent):
             self.memory.add_message(tool_msg)
             results.append(result)
 
+        # Check if we should finish after executing tools
+        # If the agent has successfully answered the user's question, finish
+        if self._mission_completed():
+            logger.info("🏁 Mission completed! Finishing execution.")
+            self.state = AgentState.FINISHED
+
         return "\n\n".join(results)
+
+    def _mission_completed(self) -> bool:
+        """Check if the mission is completed based on the conversation context"""
+        # Look for successful task completion indicators in recent messages
+        recent_messages = (
+            self.messages[-3:] if len(self.messages) >= 3 else self.messages
+        )
+
+        for msg in recent_messages:
+            if msg.role == "tool" and msg.content:
+                # Check if we have meaningful results from tools
+                if any(
+                    keyword in msg.content.lower()
+                    for keyword in [
+                        "extracted from page",
+                        "temperature",
+                        "weather",
+                        "current",
+                        "successfully",
+                        "found",
+                        "completed",
+                    ]
+                ):
+                    return True
+
+        return False
 
     async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call with robust error handling"""
