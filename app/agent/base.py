@@ -131,6 +131,7 @@ class BaseAgent(BaseModel, ABC):
         if request:
             self.update_memory("user", request)
 
+        finished_flow_flag = False
         results: List[str] = []
         async with self.state_context(AgentState.RUNNING):
             while (
@@ -146,10 +147,16 @@ class BaseAgent(BaseModel, ABC):
 
                 results.append(f"Step {self.current_step}: {step_result}")
 
-            if self.current_step >= self.max_steps:
-                self.current_step = 0
-                self.state = AgentState.IDLE
-                results.append(f"Terminated: Reached max steps ({self.max_steps})")
+                if self.state == AgentState.FINISHED:
+                    finished_flow_flag = True
+                    break
+        
+        if finished_flow_flag:
+            self.state = AgentState.FINISHED
+        elif self.current_step >= self.max_steps:
+            self.current_step = 0
+            self.state = AgentState.IDLE
+            results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
 
