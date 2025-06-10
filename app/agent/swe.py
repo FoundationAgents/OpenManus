@@ -3,7 +3,7 @@ from typing import List
 from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
-from app.prompt.swe import NEXT_STEP_TEMPLATE, SYSTEM_PROMPT
+from app.prompt.swe import SYSTEM_PROMPT
 from app.tool import Bash, StrReplaceEditor, Terminate, ToolCollection
 
 
@@ -14,24 +14,11 @@ class SWEAgent(ToolCallAgent):
     description: str = "an autonomous AI programmer that interacts directly with the computer to solve tasks."
 
     system_prompt: str = SYSTEM_PROMPT
-    next_step_prompt: str = NEXT_STEP_TEMPLATE
+    next_step_prompt: str = ""
 
     available_tools: ToolCollection = ToolCollection(
         Bash(), StrReplaceEditor(), Terminate()
     )
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
 
-    max_steps: int = 30
-
-    bash: Bash = Field(default_factory=Bash)
-    working_dir: str = "."
-
-    async def think(self) -> bool:
-        """Process current state and decide next action"""
-        # Update working directory
-        self.working_dir = await self.bash.execute("pwd")
-        self.next_step_prompt = self.next_step_prompt.format(
-            current_dir=self.working_dir
-        )
-
-        return await super().think()
+    max_steps: int = 20

@@ -1,0 +1,58 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 4
+    groups:
+      # Group critical packages that might need careful review
+      core-dependencies:
+        patterns:
+          - "pydantic*"
+          - "openai"
+          - "fastapi"
+          - "tiktoken"
+      browsergym-related:
+        patterns:
+          - "browsergym*"
+          - "browser-use"
+          - "playwright"
+      search-tools:
+        patterns:
+          - "googlesearch-python"
+          - "baidusearch"
+          - "duckduckgo_search"
+      pre-commit:
+        patterns:
+          - "pre-commit"
+      security-all:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+      version-all:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pydantic*"
+          - "openai"
+          - "fastapi"
+          - "tiktoken"
+          - "browsergym*"
+          - "browser-use"
+          - "playwright"
+          - "googlesearch-python"
+          - "baidusearch"
+          - "duckduckgo_search"
+          - "pre-commit"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 4
+    groups:
+      actions:
+        patterns:
+          - "*"

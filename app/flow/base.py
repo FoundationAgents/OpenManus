@@ -1,14 +1,9 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
 from app.agent.base import BaseAgent
-
-
-class FlowType(str, Enum):
-    PLANNING = "planning"
 
 
 class BaseFlow(BaseModel, ABC):

@@ -1,0 +1,17 @@
+# Global LLM configuration
+[llm] #PPIO:
+api_type = 'ppio'
+model = "deepseek/deepseek-v3-0324"                                # The LLM model to use
+base_url = "https://api.ppinfra.com/v3/openai"                     # API endpoint URL
+api_key = "your ppio api key"                                      # Your API key
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+[llm.vision] #PPIO VISION:
+api_type = 'ppio'
+model = "qwen/qwen2.5-vl-72b-instruct"                             # The vision model to use
+base_url = "https://api.ppinfra.com/v3/openai"                     # API endpoint URL for vision model
+api_key = "your ppio api key"                                      # Your API key for vision model
+max_tokens = 96000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness for vision model

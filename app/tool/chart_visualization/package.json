@@ -1,0 +1,22 @@
+{
+  "name": "chart_visualization",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@visactor/vchart": "^1.13.7",
+    "@visactor/vmind": "2.0.5",
+    "get-stdin": "^9.0.0",
+    "puppeteer": "^24.9.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

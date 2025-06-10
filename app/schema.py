@@ -4,6 +4,31 @@ from typing import Any, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 
+class Role(str, Enum):
+    """Message role options"""
+
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+
+ROLE_VALUES = tuple(role.value for role in Role)
+ROLE_TYPE = Literal[ROLE_VALUES]  # type: ignore
+
+
+class ToolChoice(str, Enum):
+    """Tool choice options"""
+
+    NONE = "none"
+    AUTO = "auto"
+    REQUIRED = "required"
+
+
+TOOL_CHOICE_VALUES = tuple(choice.value for choice in ToolChoice)
+TOOL_CHOICE_TYPE = Literal[TOOL_CHOICE_VALUES]  # type: ignore
+
+
 class AgentState(str, Enum):
     """Agent execution states"""
 
@@ -29,11 +54,12 @@ class ToolCall(BaseModel):
 class Message(BaseModel):
     """Represents a chat message in the conversation"""
 
-    role: Literal["system", "user", "assistant", "tool"] = Field(...)
+    role: ROLE_TYPE = Field(...)  # type: ignore
     content: Optional[str] = Field(default=None)
     tool_calls: Optional[List[ToolCall]] = Field(default=None)
     name: Optional[str] = Field(default=None)
     tool_call_id: Optional[str] = Field(default=None)
+    base64_image: Optional[str] = Field(default=None)
 
     def __add__(self, other) -> List["Message"]:
         """支持 Message + list 或 Message + Message 的操作"""
@@ -66,44 +92,67 @@ class Message(BaseModel):
             message["name"] = self.name
         if self.tool_call_id is not None:
             message["tool_call_id"] = self.tool_call_id
+        if self.base64_image is not None:
+            message["base64_image"] = self.base64_image
         return message
 
     @classmethod
-    def user_message(cls, content: str) -> "Message":
+    def user_message(
+        cls, content: str, base64_image: Optional[str] = None
+    ) -> "Message":
         """Create a user message"""
-        return cls(role="user", content=content)
+        return cls(role=Role.USER, content=content, base64_image=base64_image)
 
     @classmethod
     def system_message(cls, content: str) -> "Message":
         """Create a system message"""
-        return cls(role="system", content=content)
+        return cls(role=Role.SYSTEM, content=content)
 
     @classmethod
-    def assistant_message(cls, content: Optional[str] = None) -> "Message":
+    def assistant_message(
+        cls, content: Optional[str] = None, base64_image: Optional[str] = None
+    ) -> "Message":
         """Create an assistant message"""
-        return cls(role="assistant", content=content)
+        return cls(role=Role.ASSISTANT, content=content, base64_image=base64_image)
 
     @classmethod
-    def tool_message(cls, content: str, name, tool_call_id: str) -> "Message":
+    def tool_message(
+        cls, content: str, name, tool_call_id: str, base64_image: Optional[str] = None
+    ) -> "Message":
         """Create a tool message"""
-        return cls(role="tool", content=content, name=name, tool_call_id=tool_call_id)
+        return cls(
+            role=Role.TOOL,
+            content=content,
+            name=name,
+            tool_call_id=tool_call_id,
+            base64_image=base64_image,
+        )
 
     @classmethod
     def from_tool_calls(
-        cls, tool_calls: List[Any], content: Union[str, List[str]] = "", **kwargs
+        cls,
+        tool_calls: List[Any],
+        content: Union[str, List[str]] = "",
+        base64_image: Optional[str] = None,
+        **kwargs,
     ):
         """Create ToolCallsMessage from raw tool calls.
 
         Args:
             tool_calls: Raw tool calls from LLM
             content: Optional message content
+            base64_image: Optional base64 encoded image
         """
         formatted_calls = [
             {"id": call.id, "function": call.function.model_dump(), "type": "function"}
             for call in tool_calls
         ]
         return cls(
-            role="assistant", content=content, tool_calls=formatted_calls, **kwargs
+            role=Role.ASSISTANT,
+            content=content,
+            tool_calls=formatted_calls,
+            base64_image=base64_image,
+            **kwargs,
         )
 
 
@@ -121,6 +170,9 @@ class Memory(BaseModel):
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
         self.messages.extend(messages)
+        # Optional: Implement message limit
+        if len(self.messages) > self.max_messages:
+            self.messages = self.messages[-self.max_messages :]
 
     def clear(self) -> None:
         """Clear all messages"""
