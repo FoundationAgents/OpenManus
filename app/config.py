@@ -154,6 +154,7 @@ class MCPSettings(BaseModel):
 
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
+    proxy: Dict[str, str]
     sandbox: Optional[SandboxSettings] = Field(
         None, description="Sandbox configuration"
     )
@@ -214,6 +215,7 @@ class Config:
         llm_overrides = {
             k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
         }
+        proxy = raw_config.get("proxy", {})
 
         default_settings = {
             "model": base_llm.get("model"),
@@ -291,6 +293,7 @@ class Config:
                     for name, override_config in llm_overrides.items()
                 },
             },
+            "proxy": proxy
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
@@ -303,6 +306,10 @@ class Config:
     @property
     def llm(self) -> Dict[str, LLMSettings]:
         return self._config.llm
+    
+    @property
+    def proxy(self) -> Dict[str, str]:
+        return self._config.proxy
 
     @property
     def sandbox(self) -> SandboxSettings:
