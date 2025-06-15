@@ -34,19 +34,19 @@ from .regex_patterns import re_subprocess
 
 
 # New constant for internal self-analysis
-INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """Você é Manus. Você está em um ponto de verificação com o usuário.
-Analise o histórico recente da conversa (últimas {X} mensagens), o estado atual do seu checklist de tarefas (fornecido abaixo), e quaisquer erros ou dificuldades que você encontrou.
-Com base nisso, gere um "Relatório de Autoanálise e Planejamento" conciso em português para apresentar ao usuário.
-O relatório deve incluir:
-1. Um breve diagnóstico da sua situação atual, incluindo a **causa raiz de quaisquer dificuldades ou erros recentes** (ex: "Estou tentando X, mas a ferramenta Y falhou com o erro Z. Acredito que a causa raiz foi [uma má escolha de parâmetros para a ferramenta / a ferramenta não ser adequada para esta subtarefa / um problema no meu plano original / etc.]").
-2. Pelo menos uma ou duas **estratégias alternativas CONCRETAS** que você pode tentar para superar essas dificuldades, incluindo **correções específicas** para erros, se aplicável (Ex: "Pensei em tentar A [descrever A, e.g., 'usar a ferramenta Y com parâmetro W corrigido'] ou B [descrever B, e.g., 'usar a ferramenta Q em vez da Y para esta etapa'] como alternativas.").
-3. Uma sugestão de **como você pode evitar erros semelhantes no futuro** (Ex: "Para evitar este erro no futuro, vou [verificar X antes de usar a ferramenta Y / sempre usar a ferramenta Q para este tipo de tarefa / etc.]").
-4. Opcional: Se você tiver um plano preferido ou mais elaborado para uma das alternativas, mencione-o brevemente.
+INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """You are Manus. You are at a checkpoint with the user.
+Analyze the recent conversation history (last {X} messages), the current state of your task checklist (provided below), and any errors or difficulties you encountered.
+Based on this, generate a concise "Self-Analysis and Planning Report" in English to present to the user.
+The report should include:
+1. A brief diagnosis of your current situation, including the **root cause of any recent difficulties or errors** (e.g., "I am trying X, but tool Y failed with error Z. I believe the root cause was [a poor choice of parameters for the tool / the tool not being suitable for this subtask / an issue in my original plan / etc.]").
+2. At least one or two **CONCRETE alternative strategies** you can try to overcome these difficulties, including **specific corrections** for errors, if applicable (e.g., "I thought about trying A [describe A, e.g., 'using tool Y with corrected parameter W'] or B [describe B, e.g., 'using tool Q instead of Y for this step'] as alternatives.").
+3. A suggestion on **how you can avoid similar errors in the future** (e.g., "To avoid this error in the future, I will [check X before using tool Y / always use tool Q for this type of task / etc.]").
+4. Optional: If you have a preferred or more elaborate plan for one of the alternatives, mention it briefly.
 
-Formate a resposta APENAS com o relatório. Não adicione frases introdutórias como "Claro, aqui está o relatório".
-Se não houver dificuldades significativas ou alternativas claras, indique isso de forma concisa (ex: "Diagnóstico: Progresso está estável na tarefa atual. Alternativas: Nenhuma alternativa principal considerada no momento.").
+Format the response ONLY with the report. Do not add introductory phrases like "Sure, here is the report".
+If there are no significant difficulties or clear alternatives, state this concisely (e.g., "Diagnosis: Progress is stable on the current task. Alternatives: No major alternatives considered at the moment.").
 
-Conteúdo do Checklist Principal (`checklist_principal_tarefa.md`):
+Main Checklist Content (`checklist_principal_tarefa.md`):
 {checklist_content}
 """
 
@@ -252,23 +252,23 @@ class Manus(ToolCallAgent):
                     variation.lower() in normalized_single_task_desc for variation in decomposition_task_description_variations
                 )
 
-                if is_generic_decomposition_task and single_task_status == 'concluído':
+                if is_generic_decomposition_task and single_task_status == 'completed': # Changed 'concluído' to 'completed'
                     logger.warning("Manus._is_checklist_complete: Checklist only contains the initial decomposition-like task "
-                                   "marked as 'Concluído'. This is likely premature. "
+                                   "marked as 'Completed'. This is likely premature. " # Changed 'Concluído' to 'Completed'
                                    "Considering checklist NOT complete to enforce population of actual sub-tasks.")
                     # Optional: Add a system message to guide the LLM for the next step.
                     # This requires self.memory to be accessible and a Message class.
                     # from app.schema import Message, Role # Ensure import if used
                     # self.memory.add_message(Message.system_message(
-                    #    "Lembrete: A tarefa de decomposição só é verdadeiramente concluída após as subtarefas resultantes "
-                    #    "serem adicionadas ao checklist e o trabalho nelas ter começado. Por favor, adicione as subtarefas agora."
+                    #    "Reminder: The decomposition task is only truly completed after the resulting subtasks "
+                    #    "are added to the checklist and work on them has begun. Please add the subtasks now."
                     # ))
                     return False
             # NEW LOGIC END
 
             # Proceed with the original logic if the above condition isn't met
-            # The manager.are_all_tasks_complete() method itself checks if all loaded tasks are 'Concluído'.
-            # It will correctly return False if there are tasks but not all are 'Concluído'.
+            # The manager.are_all_tasks_complete() method itself checks if all loaded tasks are 'Completed'. # Changed 'Concluído' to 'Completed'
+            # It will correctly return False if there are tasks but not all are 'Completed'. # Changed 'Concluído' to 'Completed'
             all_complete_according_to_manager = manager.are_all_tasks_complete()
 
             if not all_complete_according_to_manager:
@@ -369,7 +369,7 @@ class Manus(ToolCallAgent):
                 copy_to_sandbox_succeeded = True
             except Exception as e_copy:
                 logger.error(f"Failed to copy script to sandbox: {e_copy}")
-                final_result = {"success": False, "message": f"Falha ao copiar script para o sandbox: {e_copy}", "status_code": "SANDBOX_COPY_FAILED"}
+            final_result = {"success": False, "message": f"Failed to copy script to sandbox: {e_copy}", "status_code": "SANDBOX_COPY_FAILED"}
                 continue
 
             execution_result = {}
@@ -393,7 +393,7 @@ class Manus(ToolCallAgent):
             
             if exit_code == 0:
                 logger.info(f"Script executed successfully in attempt {attempt + 1}.")
-                final_result = {"success": True, "message": "Script executado com sucesso.", "stdout": stdout, "stderr": stderr, "exit_code": exit_code}
+            final_result = {"success": True, "message": "Script executed successfully.", "stdout": stdout, "stderr": stderr, "exit_code": exit_code}
                 # Simplified success cleanup for now
                 break
             else: # Script execution failed (exit_code != 0)
@@ -526,111 +526,111 @@ class Manus(ToolCallAgent):
 
     def _build_targeted_analysis_prompt(self, script_content: str, stdout: str, stderr: str, original_task: str) -> str:
         """Builds the prompt for the LLM to analyze and suggest a tool-based correction."""
-        ANALYSIS_PROMPT_TEMPLATE = """Você é um "Python Code Analyzer and Corrector".
-Sua tarefa é analisar um script Python que falhou, juntamente com sua saída padrão (stdout) e erro padrão (stderr).
-Você DEVE retornar um objeto JSON especificando uma única ferramenta para aplicar a correção e os parâmetros para essa ferramenta.
+ANALYSIS_PROMPT_TEMPLATE = """You are a "Python Code Analyzer and Corrector".
+Your task is to analyze a Python script that failed, along with its standard output (stdout) and standard error (stderr).
+You MUST return a JSON object specifying a single tool to apply the correction and the parameters for that tool.
 
-**Ferramentas Disponíveis para Correção:**
+**Available Tools for Correction:**
 1.  **`replace_code_block`**:
-    *   Descrição: Substitui um bloco de código entre `start_line` e `end_line` (inclusive, 1-indexado) com `new_content`.
-    *   Parâmetros: `path` (string, caminho do arquivo - **NÃO INCLUA ESTE PARÂMETRO, será adicionado automaticamente**), `start_line` (integer), `end_line` (integer), `new_content` (string).
-    *   Uso: Ideal para substituir funções inteiras, blocos lógicos, ou seções maiores de código.
+    *   Description: Replaces a block of code between `start_line` and `end_line` (inclusive, 1-indexed) with `new_content`.
+    *   Parameters: `path` (string, file path - **DO NOT INCLUDE THIS PARAMETER, it will be added automatically**), `start_line` (integer), `end_line` (integer), `new_content` (string).
+    *   Usage: Ideal for replacing entire functions, logical blocks, or larger sections of code.
 2.  **`apply_diff_patch`**:
-    *   Descrição: Aplica um patch no formato unified diff ao arquivo.
-    *   Parâmetros: `path` (string, caminho do arquivo - **NÃO INCLUA ESTE PARÂMETRO**), `patch_content` (string, conteúdo do diff).
-    *   Uso: Bom para múltiplas pequenas alterações, alterações não contíguas, ou quando a lógica do diff é mais fácil de expressar. O diff deve ser gerado em relação ao script original fornecido.
+    *   Description: Applies a patch in unified diff format to the file.
+    *   Parameters: `path` (string, file path - **DO NOT INCLUDE THIS PARAMETER**), `patch_content` (string, content of the diff).
+    *   Usage: Good for multiple small changes, non-contiguous changes, or when diff logic is easier to express. The diff should be generated relative to the original script provided.
 3.  **`ast_refactor`**:
-    *   Descrição: Realiza refatorações baseadas em AST. Operação inicial: `replace_function_body`.
-    *   Parâmetros para `replace_function_body`: `path` (string - **NÃO INCLUA ESTE PARÂMETRO**), `operation` (string, fixo: "replace_function_body"), `target_node_name` (string, nome da função), `new_code_snippet` (string, novo corpo da função, sem o `def ...`).
-    *   Uso: Mais seguro para refatorações estruturais, como substituir o corpo de uma função sem afetar sua assinatura ou o restante do arquivo.
+    *   Description: Performs AST-based refactoring. Initial operation: `replace_function_body`.
+    *   Parameters for `replace_function_body`: `path` (string - **DO NOT INCLUDE THIS PARAMETER**), `operation` (string, fixed: "replace_function_body"), `target_node_name` (string, function name), `new_code_snippet` (string, new function body, without the `def ...`).
+    *   Usage: Safer for structural refactoring, such as replacing a function's body without affecting its signature or the rest of the file.
 4.  **`format_python_code`**:
-    *   Descrição: Formata o código Python usando Ruff/Black. Pode corrigir erros de sintaxe/indentação simples.
-    *   Parâmetros: `code` (string, o código completo a ser formatado - **IMPORTANTE: para esta ferramenta, em vez de "path", forneça o conteúdo do script no parâmetro "code" dentro de "tool_params"**).
-    *   Uso: Tente esta ferramenta PRIMEIRO para erros de SyntaxError ou IndentationError. Se o LLM for solicitado após uma falha do formatador, não sugira `format_python_code` novamente.
+    *   Description: Formats Python code using Ruff/Black. Can fix simple syntax/indentation errors.
+    *   Parameters: `code` (string, the full code to be formatted - **IMPORTANT: for this tool, instead of "path", provide the script content in the "code" parameter within "tool_params"**).
+    *   Usage: Try this tool FIRST for SyntaxError or IndentationError errors. If the LLM is prompted after a formatter failure, do not suggest `format_python_code` again.
 
-**Formato JSON Obrigatório para a Resposta:**
-A resposta DEVE ser uma string JSON que possa ser parseada, contendo um objeto com as seguintes chaves:
-- "tool_to_use": string, o nome da ferramenta escolhida (e.g., "replace_code_block", "apply_diff_patch", "ast_refactor", "format_python_code").
-- "tool_params": object, um dicionário contendo os parâmetros específicos para a ferramenta escolhida (NÃO inclua "path" aqui, exceto para "format_python_code" onde "code" é usado em vez de "path").
-- "comment": string, uma breve explicação do erro e da correção que você está aplicando.
+**Mandatory JSON Format for the Response:**
+The response MUST be a parsable JSON string, containing an object with the following keys:
+- "tool_to_use": string, the name of the chosen tool (e.g., "replace_code_block", "apply_diff_patch", "ast_refactor", "format_python_code").
+- "tool_params": object, a dictionary containing the specific parameters for the chosen tool (DO NOT include "path" here, except for "format_python_code" where "code" is used instead of "path").
+- "comment": string, a brief explanation of the error and the correction you are applying.
 
-**Exemplos de Resposta JSON:**
+**JSON Response Examples:**
 
-Para `replace_code_block`:
+For `replace_code_block`:
 ```json
 {
   "tool_to_use": "replace_code_block",
   "tool_params": {
     "start_line": 10,
     "end_line": 15,
-    "new_content": "def minha_funcao_corrigida():\\n    return 'corrigido'"
+    "new_content": "def my_corrected_function():\\n    return 'corrected'"
   },
-  "comment": "A função 'minha_funcao' original tinha um erro de lógica. Substituindo-a completamente."
+  "comment": "The original 'my_function' had a logic error. Replacing it completely."
 }
 ```
 
-Para `apply_diff_patch`:
+For `apply_diff_patch`:
 ```json
 {
   "tool_to_use": "apply_diff_patch",
   "tool_params": {
-    "patch_content": "--- a/script_original.py\\n+++ b/script_corrigido.py\\n@@ -1,3 +1,3 @@\\n- linha_com_erro\\n+ linha_corrigida\\n  outra_linha\\n"
+    "patch_content": "--- a/original_script.py\\n+++ b/corrected_script.py\\n@@ -1,3 +1,3 @@\\n- error_line\\n+ corrected_line\\n  another_line\\n"
   },
-  "comment": "Corrigido um typo na linha 1 e ajustada uma variável na linha 5 (exemplo de diff)."
+  "comment": "Corrected a typo on line 1 and adjusted a variable on line 5 (example of diff)."
 }
 ```
 
-Para `ast_refactor` (operação `replace_function_body`):
+For `ast_refactor` (operation `replace_function_body`):
 ```json
 {
   "tool_to_use": "ast_refactor",
   "tool_params": {
     "operation": "replace_function_body",
-    "target_node_name": "minha_funcao_com_erro",
-    "new_code_snippet": "  # Novo corpo da função\\n  resultado = calcula_algo()\\n  return resultado"
+    "target_node_name": "my_function_with_error",
+    "new_code_snippet": "  # New function body\\n  result = calculate_something()\\n  return result"
   },
-  "comment": "O corpo da função 'minha_funcao_com_erro' foi reescrito para corrigir um bug de cálculo."
+  "comment": "The body of the function 'my_function_with_error' was rewritten to fix a calculation bug."
 }
 ```
 
-Para `format_python_code` (se for um erro de sintaxe e o formatador automático ainda não foi tentado):
+For `format_python_code` (if it's a syntax error and the auto-formatter hasn't been tried yet):
 ```json
 {
   "tool_to_use": "format_python_code",
   "tool_params": {
-    "code": "# Conteúdo completo do script aqui...\nprint('hello') # Exemplo"
+    "code": "# Full script content here...\nprint('hello') # Example"
   },
-  "comment": "Tentando corrigir possível erro de sintaxe/indentação simples com o formatador."
+  "comment": "Attempting to fix possible simple syntax/indentation error with the formatter."
 }
 ```
 
-**Importante:**
-- Escolha APENAS UMA ferramenta.
-- Forneça as correções no formato JSON EXATO especificado acima.
-- Se o script estiver fundamentalmente errado e precisar de uma reescrita completa que não se encaixe bem em uma única chamada de ferramenta, ou se nenhuma correção for óbvia, você PODE retornar um JSON com `tool_to_use": null` e um comentário explicando. Ex: `{"tool_to_use": null, "tool_params": {}, "comment": "O script está muito quebrado, sugiro reescrevê-lo com base na tarefa original."}`.
-- Analise o `stderr` cuidadosamente para identificar a causa raiz do erro.
-- O objetivo é fazer a correção mais apropriada usando a ferramenta mais adequada.
-- **NÃO inclua o parâmetro "path" em "tool_params" para `replace_code_block`, `apply_diff_patch`, `ast_refactor`. Ele será adicionado automaticamente. Para `format_python_code`, use o parâmetro "code" em `tool_params` para passar o conteúdo do script.**
+**Important:**
+- Choose ONLY ONE tool.
+- Provide corrections in the EXACT JSON format specified above.
+- If the script is fundamentally flawed and needs a complete rewrite that doesn't fit well into a single tool call, or if no correction is obvious, you MAY return a JSON with `"tool_to_use": null` and a comment explaining. E.g., `{"tool_to_use": null, "tool_params": {}, "comment": "The script is too broken, I suggest rewriting it based on the original task."}`.
+- Analyze `stderr` carefully to identify the root cause of the error.
+- The goal is to make the most appropriate correction using the most suitable tool.
+- **DO NOT include the "path" parameter in "tool_params" for `replace_code_block`, `apply_diff_patch`, `ast_refactor`. It will be added automatically. For `format_python_code`, use the "code" parameter in `tool_params` to pass the script content.**
 
-**Script Original com Erro:**
+**Original Script with Error:**
 ```python
 {script_content}
 ```
 
-**Saída Padrão (stdout) da Execução Falha:**
+**Standard Output (stdout) from Failed Execution:**
 ```
 {stdout}
 ```
 
-**Erro Padrão (stderr) da Execução Falha:**
+**Standard Error (stderr) from Failed Execution:**
 ```
 {stderr}
 ```
 
-**Tarefa Original que o Script Tentava Realizar:**
+**Original Task the Script Was Trying to Perform:**
 {original_task}
 
-Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no formato JSON especificado.
+Now, provide your analysis and the tool and parameter suggestion in the specified JSON format.
 """
         return ANALYSIS_PROMPT_TEMPLATE.format(
             script_content=script_content,
@@ -660,38 +660,38 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self._background_task_no_change_count = 0
             task_description = user_prompt_content[len(SELF_CODING_TRIGGER):].strip()
             if not task_description:
-                self.memory.add_message(Message.assistant_message("Por favor, forneça uma descrição da tarefa para o ciclo de auto-codificação."))
+                self.memory.add_message(Message.assistant_message("Please provide a task description for the self-coding cycle."))
                 self.tool_calls = []
                 return True
-            logger.info(f"Acionando ciclo de auto-codificação para a tarefa: {task_description}")
-            self.memory.add_message(Message.assistant_message(f"Iniciando ciclo de auto-codificação para: {task_description}. Vou relatar o resultado."))
+            logger.info(f"Triggering self-coding cycle for task: {task_description}")
+            self.memory.add_message(Message.assistant_message(f"Starting self-coding cycle for: {task_description}. I will report the result."))
             cycle_result = await self._execute_self_coding_cycle(task_description)
             if cycle_result.get("status_code") == "SANDBOX_CREATION_FAILED":
                 self.memory.add_message(Message.assistant_message(
-                    f"Falha ao executar o ciclo de auto-codificação para '{task_description}'.\n"
-                    f"Motivo: Não foi possível criar o ambiente seguro (sandbox) para execução do código.\n"
-                    f"Detalhes: {cycle_result.get('details', 'Erro desconhecido na criação do sandbox.')}\n"
-                    f"Por favor, verifique se o Docker está em execução e se a imagem '{config.sandbox.image_name}' está disponível ou pode ser baixada."
+                    f"Failed to execute self-coding cycle for '{task_description}'.\n"
+                    f"Reason: Could not create the secure environment (sandbox) for code execution.\n"
+                    f"Details: {cycle_result.get('details', 'Unknown error during sandbox creation.')}\n"
+                    f"Please check if Docker is running and if the image '{config.sandbox.image_name}' is available or can be downloaded."
                 ))
             elif cycle_result.get("status_code") == "SANDBOX_COPY_FAILED":
                 self.memory.add_message(Message.assistant_message(
-                    f"Falha ao executar o ciclo de auto-codificação para '{task_description}'.\n"
-                    f"Motivo: Não foi possível copiar o script para o ambiente seguro (sandbox).\n"
-                    f"Detalhes: {cycle_result.get('message', 'Erro desconhecido na cópia para o sandbox.')}"
+                    f"Failed to execute self-coding cycle for '{task_description}'.\n"
+                    f"Reason: Could not copy the script to the secure environment (sandbox).\n"
+                    f"Details: {cycle_result.get('message', 'Unknown error during copy to sandbox.')}"
                 ))
             elif cycle_result.get("success"):
-                success_message = f"Ciclo de auto-codificação concluído com sucesso para '{task_description}'.\n\n"
-                success_message += f"Saída (stdout) do script:\n{cycle_result.get('stdout', 'Sem saída stdout.')}\n"
+                success_message = f"Self-coding cycle completed successfully for '{task_description}'.\n\n"
+                success_message += f"Script output (stdout):\n{cycle_result.get('stdout', 'No stdout output.')}\n"
                 if cycle_result.get("workspace_listing"):
-                    success_message += f"\nConteúdo atual do diretório de trabalho principal ({config.workspace_root}):\n{cycle_result.get('workspace_listing')}\n"
-                success_message += f"\nQuaisquer arquivos mencionados como 'salvos' ou 'gerados' pelo script (e copiados de /tmp do sandbox, se aplicável) devem estar visíveis acima ou diretamente no diretório {config.workspace_root}."
+                    success_message += f"\nCurrent content of the main working directory ({config.workspace_root}):\n{cycle_result.get('workspace_listing')}\n"
+                success_message += f"\nAny files mentioned as 'saved' or 'generated' by the script (and copied from sandbox /tmp, if applicable) should be visible above or directly in the {config.workspace_root} directory."
                 self.memory.add_message(Message.assistant_message(success_message))
             else:
-                error_details = cycle_result.get('stderr', cycle_result.get('last_execution_result', {}).get('stderr', 'Sem saída stderr.'))
+                error_details = cycle_result.get('stderr', cycle_result.get('last_execution_result', {}).get('stderr', 'No stderr output.'))
                 self.memory.add_message(Message.assistant_message(
-                    f"Ciclo de auto-codificação falhou para '{task_description}'.\n"
-                    f"Motivo: {cycle_result.get('message', 'Erro desconhecido.')}\n"
-                    f"Última saída de erro (stderr):\n{error_details}"
+                    f"Self-coding cycle failed for '{task_description}'.\n"
+                    f"Reason: {cycle_result.get('message', 'Unknown error.')}\n"
+                    f"Last error output (stderr):\n{error_details}"
                 ))
             self.tool_calls = []
             return True
@@ -813,17 +813,17 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         first_part = os.path.basename(command_parts[0]) if command_parts else "command"
                         self._background_task_expected_artifact = f"{first_part}_artifact.out"
                     self._background_task_artifact_path = str(config.workspace_root / self._background_task_expected_artifact)
-                    logger.info(f"Artefato esperado definido como: {self._background_task_artifact_path} (Log file: {log_file})")
+                logger.info(f"Expected artifact set to: {self._background_task_artifact_path} (Log file: {log_file})") # Translated
                     self.memory.add_message(Message.assistant_message(
-                        f"Comando '{actual_command}' iniciado em background. "
-                        f"Logs serão enviados para '{os.path.basename(log_file)}' (localizado em {config.workspace_root}). "
-                        f"Procurando pelo artefato esperado '{self._background_task_expected_artifact}' em '{config.workspace_root}'. "
-                        "Vou monitorar o progresso."
+                    f"Command '{actual_command}' started in background. "
+                    f"Logs will be sent to '{os.path.basename(log_file)}' (located in {config.workspace_root}). "
+                    f"Looking for the expected artifact '{self._background_task_expected_artifact}' in '{config.workspace_root}'. "
+                    "I will monitor the progress."
                     ))
             except json.JSONDecodeError:
-                logger.error("Erro ao decodificar argumentos JSON para Bash ao tentar iniciar monitoramento.")
+                logger.error("Error decoding JSON arguments for Bash when trying to start monitoring.") # Translated
             except Exception as e_parse:
-                logger.error(f"Erro ao processar comando bash para monitoramento: {e_parse}")
+                logger.error(f"Error processing bash command for monitoring: {e_parse}") # Translated
 
         if self.tool_calls:
             new_tool_calls = []
@@ -851,13 +851,13 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self._trigger_failure_check_in = True
                 self.tool_calls = new_tool_calls
                 self.memory.add_message(Message.system_message(
-                    "Nota interna: Uma tentativa de finalizar a tarefa devido a uma falha foi interceptada. "
-                    "O usuário será consultado antes da finalização."
+                    "Internal note: An attempt to terminate the task due to a failure was intercepted. " # Translated
+                    "The user will be consulted before termination."
                 ))
                 if not self.tool_calls:
-                     logger.info("Nenhuma outra ferramenta planejada além do terminate(failure) interceptado. Indo para o feedback de falha.")
+                     logger.info("No other tools planned besides the intercepted terminate(failure). Proceeding to failure feedback.") # Translated
                 else:
-                     logger.warning("Outras ferramentas foram planejadas junto com terminate(failure). Isso é inesperado. O feedback de falha ocorrerá após estas ferramentas.")
+                     logger.warning("Other tools were planned along with terminate(failure). This is unexpected. Failure feedback will occur after these tools.") # Translated
 
         if self._pending_script_after_dependency and self.tool_calls:
             last_tool_response = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.TOOL and msg.tool_call_id == self.tool_calls[0].id), None)
@@ -876,42 +876,42 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
 
             if last_tool_response and isinstance(last_tool_response.content, str) and \
                any(err_keyword in last_tool_response.content.lower() for err_keyword in ["error", "traceback", "failed", "exception"]):
-                logger.warning(f"Script de dependência parece ter falhado. Resposta: {last_tool_response.content}")
+                logger.warning(f"Dependency script seems to have failed. Response: {last_tool_response.content}") # Translated
                 self.memory.add_message(Message.assistant_message(
-                    f"O script que tentei executar como dependência ('{self.tool_calls[0].function.name}') parece ter falhado em gerar o arquivo necessário para '{os.path.basename(self._pending_script_after_dependency)}'. Detalhes do erro: {last_tool_response.content}. Não tentarei executar o script pendente."
+                    f"The script I tried to run as a dependency ('{self.tool_calls[0].function.name}') seems to have failed to generate the necessary file for '{os.path.basename(self._pending_script_after_dependency)}'. Error details: {last_tool_response.content}. I will not attempt to run the pending script." # Translated
                 ))
             elif not expected_generated_file_name:
-                logger.warning("Não foi possível determinar o nome do arquivo esperado da dependência. Assumindo falha na geração.")
+                logger.warning("Could not determine the expected file name from the dependency. Assuming generation failure.") # Translated
                 self.memory.add_message(Message.assistant_message(
-                    f"Não consegui determinar qual arquivo o script de dependência deveria gerar para '{os.path.basename(self._pending_script_after_dependency)}'. Não tentarei executar o script pendente."
+                    f"I could not determine which file the dependency script was supposed to generate for '{os.path.basename(self._pending_script_after_dependency)}'. I will not attempt to run the pending script." # Translated
                 ))
             else:
                 try:
                     expected_file_path = str(config.workspace_root / expected_generated_file_name)
                     editor = self.available_tools.get_tool(StrReplaceEditor().name)
                     await editor.execute(command="view", path=expected_file_path)
-                    logger.info(f"Arquivo esperado '{expected_generated_file_name}' gerado com sucesso pela dependência.")
+                    logger.info(f"Expected file '{expected_generated_file_name}' successfully generated by dependency.") # Translated
                     dependency_succeeded_and_file_generated = True
                 except ToolError:
-                    logger.warning(f"Script de dependência executado, mas o arquivo esperado '{expected_generated_file_name}' NÃO foi encontrado.")
+                    logger.warning(f"Dependency script executed, but expected file '{expected_generated_file_name}' was NOT found.") # Translated
                     self.memory.add_message(Message.assistant_message(
-                        f"O script de dependência foi executado, mas o arquivo esperado '{expected_generated_file_name}' para '{os.path.basename(self._pending_script_after_dependency)}' não foi encontrado. Não tentarei executar o script pendente."
+                        f"The dependency script was executed, but the expected file '{expected_generated_file_name}' for '{os.path.basename(self._pending_script_after_dependency)}' was not found. I will not attempt to run the pending script." # Translated
                     ))
                 except Exception as e_check:
-                    logger.error(f"Erro ao verificar arquivo gerado pela dependência '{expected_generated_file_name}': {e_check}")
+                    logger.error(f"Error checking file generated by dependency '{expected_generated_file_name}': {e_check}") # Translated
                     self.memory.add_message(Message.assistant_message(
-                        f"Ocorreu um erro ao verificar se o arquivo esperado '{expected_generated_file_name}' foi gerado. Não tentarei executar o script pendente."
+                        f"An error occurred while checking if the expected file '{expected_generated_file_name}' was generated. I will not attempt to run the pending script." # Translated
                     ))
 
             if dependency_succeeded_and_file_generated:
-                logger.info(f"Script de dependência concluído e arquivo gerado. Tentando executar o script pendente: {self._pending_script_after_dependency}")
+                logger.info(f"Dependency script completed and file generated. Attempting to run pending script: {self._pending_script_after_dependency}") # Translated
                 self.memory.add_message(Message.assistant_message(
-                    f"A execução do script de dependência e a geração do arquivo '{expected_generated_file_name}' parecem ter sido bem-sucedidas. Agora vou tentar executar o script original: {os.path.basename(self._pending_script_after_dependency)}."
+                    f"The execution of the dependency script and generation of file '{expected_generated_file_name}' seem to have been successful. Now I will try to run the original script: {os.path.basename(self._pending_script_after_dependency)}." # Translated
                 ))
                 if self._original_tool_call_for_pending_script:
                     self.tool_calls = [self._original_tool_call_for_pending_script]
                 else:
-                    logger.error("Não foi possível encontrar a tool_call original para o script pendente.")
+                    logger.error("Could not find the original tool_call for the pending script.") # Translated
                     self.tool_calls = []
                 self._pending_script_after_dependency = None
                 self._original_tool_call_for_pending_script = None
@@ -964,14 +964,14 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 for gen_script_name, analysis_info in workspace_analysis.items():
                     if required_file in analysis_info.get("outputs", []):
                         if os.path.basename(gen_script_name) == os.path.basename(script_to_run_if_dependency_succeeds):
-                            logger.info(f"Script '{gen_script_name}' parece gerar seu próprio input '{required_file}'. Não considerar como dependência.")
+                            logger.info(f"Script '{gen_script_name}' seems to generate its own input '{required_file}'. Not considering as dependency.") # Translated
                             continue
                         found_generating_script = gen_script_name
                         break
                 if found_generating_script:
                     self.memory.add_message(Message.assistant_message(
-                        f"O arquivo '{required_file}' necessário para '{os.path.basename(script_to_run_if_dependency_succeeds)}' não foi encontrado. "
-                        f"Verifiquei que '{os.path.basename(found_generating_script)}' pode gerá-lo. Tentarei executar '{os.path.basename(found_generating_script)}' primeiro."
+                        f"The file '{required_file}' needed for '{os.path.basename(script_to_run_if_dependency_succeeds)}' was not found. " # Translated
+                        f"I found that '{os.path.basename(found_generating_script)}' can generate it. I will try to run '{os.path.basename(found_generating_script)}' first."
                     ))
                     self._pending_script_after_dependency = script_to_run_if_dependency_succeeds
                     self._original_tool_call_for_pending_script = tool_call_to_check
@@ -980,37 +980,37 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         id=str(uuid.uuid4()),
                         function=FunctionCall(name=SandboxPythonExecutor().name, arguments=json.dumps(new_tool_call_args))
                     )]
-                    logger.info(f"Execução de '{os.path.basename(script_to_run_if_dependency_succeeds)}' adiada. Executando dependência '{os.path.basename(found_generating_script)}' primeiro.")
+                    logger.info(f"Execution of '{os.path.basename(script_to_run_if_dependency_succeeds)}' postponed. Running dependency '{os.path.basename(found_generating_script)}' first.") # Translated
                 else:
                     self.memory.add_message(Message.assistant_message(
-                        f"O arquivo '{required_file}' necessário para '{os.path.basename(script_to_run_if_dependency_succeeds)}' não foi encontrado, e não identifiquei um script no workspace que o gere. "
-                        "Vou precisar que você forneça este arquivo ou um script para gerá-lo."
+                        f"The file '{required_file}' needed for '{os.path.basename(script_to_run_if_dependency_succeeds)}' was not found, and I did not identify a script in the workspace that generates it. " # Translated
+                        "I will need you to provide this file or a script to generate it."
                     ))
                     self.tool_calls = []
-                    logger.info(f"Nenhum script gerador encontrado para '{required_file}'. O LLM deverá usar AskHuman.")
+                    logger.info(f"No generating script found for '{required_file}'. LLM should use AskHuman.") # Translated
         return result
 
     async def _analyze_python_script(self, script_path: str, script_content: Optional[str] = None) -> Dict[str, Any]:
-        logger.info(f"Analisando script Python: {script_path}")
+        logger.info(f"Analyzing Python script: {script_path}") # Translated
         analysis = {"inputs": [], "outputs": [], "libraries": []}
 
         if not script_content:
             try:
                 editor_tool = self.available_tools.get_tool(StrReplaceEditor().name)
                 if not editor_tool:
-                    logger.error("StrReplaceEditor tool não encontrado para _analyze_python_script.")
+                    logger.error("StrReplaceEditor tool not found for _analyze_python_script.") # Translated
                     return analysis
                 script_content_result = await editor_tool.execute(command="view", path=script_path, view_range=[1, 200])
                 if isinstance(script_content_result, str):
                     script_content = script_content_result
                 else:
-                    logger.error(f"Falha ao ler o conteúdo de {script_path} para análise: {script_content_result}")
+                    logger.error(f"Failed to read content of {script_path} for analysis: {script_content_result}") # Translated
                     return analysis
             except ToolError as e:
-                logger.error(f"ToolError ao ler {script_path} para análise: {e}")
+                logger.error(f"ToolError reading {script_path} for analysis: {e}") # Translated
                 return analysis
             except Exception as e:
-                logger.error(f"Erro inesperado ao ler {script_path} para análise: {e}")
+                logger.error(f"Unexpected error reading {script_path} for analysis: {e}") # Translated
                 return analysis
 
         if not script_content:
@@ -1060,13 +1060,13 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
     async def _analyze_workspace(self) -> Dict[str, Dict[str, Any]]:
         logger.info("Analisando scripts Python no workspace...")
         if self._workspace_script_analysis_cache:
-             logger.info("Retornando análise de workspace do cache.")
+             logger.info("Returning workspace analysis from cache.") # Translated
              return self._workspace_script_analysis_cache
 
         workspace_scripts_analysis: Dict[str, Dict[str, Any]] = {}
         editor_tool = self.available_tools.get_tool(StrReplaceEditor().name)
         if not editor_tool:
-            logger.error("StrReplaceEditor tool não encontrado para _analyze_workspace.")
+            logger.error("StrReplaceEditor tool not found for _analyze_workspace.") # Translated
             return workspace_scripts_analysis
 
         try:
@@ -1075,17 +1075,17 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
 
             if isinstance(dir_listing_result, str):
                 python_files = [line.strip() for line in dir_listing_result.splitlines() if line.strip().endswith(".py")]
-                logger.info(f"Scripts Python encontrados no workspace ({workspace_path_str}): {python_files}")
+                logger.info(f"Python scripts found in workspace ({workspace_path_str}): {python_files}") # Translated
                 for script_name in python_files:
                     full_script_path = str(config.workspace_root / script_name)
                     workspace_scripts_analysis[script_name] = await self._analyze_python_script(full_script_path)
             else:
-                logger.error(f"Falha ao listar arquivos do workspace para análise: {dir_listing_result}")
+                logger.error(f"Failed to list workspace files for analysis: {dir_listing_result}") # Translated
 
         except ToolError as e:
-            logger.error(f"ToolError ao listar arquivos do workspace para análise: {e}")
+            logger.error(f"ToolError listing workspace files for analysis: {e}") # Translated
         except Exception as e:
-            logger.error(f"Erro inesperado ao analisar workspace: {e}")
+            logger.error(f"Unexpected error analyzing workspace: {e}") # Translated
 
         self._workspace_script_analysis_cache = workspace_scripts_analysis
         return workspace_scripts_analysis
@@ -1104,7 +1104,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 logger.info(f"Successfully read PID {pid} from {self._current_sandbox_pid_file}")
             except FileNotFoundError:
                 logger.warning(f"PID file {self._current_sandbox_pid_file} not found. Script might have already finished.")
-                self.memory.add_message(Message.assistant_message("Não foi possível encontrar o arquivo de PID para cancelamento; o script pode já ter terminado."))
+                self.memory.add_message(Message.assistant_message("Could not find the PID file for cancellation; the script may have already finished.")) # Translated
                 # Attempt to clean up the non-existent PID file record by calling the existing cleanup helper
                 # This will also clear the related attributes if the current tool call ID matches.
                 # However, at this stage, the tool call hasn't "finished" yet, so direct cleanup is better.
@@ -1118,7 +1118,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 return
             except (ValueError, TypeError) as e:
                 logger.error(f"Invalid content in PID file {self._current_sandbox_pid_file}: {pid_str if 'pid_str' in locals() else 'unknown content'}. Error: {e}")
-                self.memory.add_message(Message.assistant_message(f"Conteúdo inválido no arquivo de PID ({self._current_sandbox_pid_file}). Não é possível cancelar."))
+                self.memory.add_message(Message.assistant_message(f"Invalid content in PID file ({self._current_sandbox_pid_file}). Cannot cancel.")) # Translated
                 if hasattr(self, '_cleanup_sandbox_file') and callable(getattr(self, '_cleanup_sandbox_file')):
                      await self._cleanup_sandbox_file(self._current_sandbox_pid_file)
                 self._current_sandbox_pid_file = None
@@ -1127,7 +1127,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 return
             except Exception as e: # Catch other SANDBOX_CLIENT errors like permission issues or sandbox down
                 logger.error(f"Error reading PID file {self._current_sandbox_pid_file}: {e}")
-                self.memory.add_message(Message.assistant_message(f"Erro ao ler o arquivo de PID para cancelamento: {e}"))
+                self.memory.add_message(Message.assistant_message(f"Error reading PID file for cancellation: {e}")) # Translated
                 # Do not clear _current_sandbox_pid_file here, as the file might still exist, just unreadable temporarily.
                 # The original tool call might still complete and trigger proper cleanup via execute_tool's finally block.
                 return
@@ -1137,7 +1137,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 kill_command = f"kill -SIGTERM {self._current_sandbox_pid}"
                 logger.info(f"Attempting to execute kill command in sandbox: {kill_command}")
                 # Add message before sending kill, so user sees it even if agent/sandbox has issues during the command
-                self.memory.add_message(Message.assistant_message(f"Enviando sinal de cancelamento (SIGTERM) para o processo {self._current_sandbox_pid} no sandbox..."))
+                self.memory.add_message(Message.assistant_message(f"Sending cancellation signal (SIGTERM) to process {self._current_sandbox_pid} in the sandbox...")) # Translated
                 result = await SANDBOX_CLIENT.run_command(kill_command, timeout=10) # Using SIGTERM
 
                 if result.get("exit_code") == 0:
@@ -1146,11 +1146,11 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 else:
                     # This can happen if the process already exited between PID read and kill command.
                     logger.warning(f"Kill command for PID {self._current_sandbox_pid} failed or PID not found. Exit code: {result.get('exit_code')}. Stderr: '{result.get('stderr','').strip()}'")
-                    # self.memory.add_message(Message.assistant_message(f"Falha ao enviar sinal de cancelamento para o script (PID: {self._current_sandbox_pid}), ou o script já havia terminado. Detalhes: {result.get('stderr','').strip()}"))
+                    # self.memory.add_message(Message.assistant_message(f"Failed to send cancellation signal to script (PID: {self._current_sandbox_pid}), or script had already finished. Details: {result.get('stderr','').strip()}")) # Translated
                     # No need for another message if the previous one indicated an attempt. The log is sufficient.
             except Exception as e:
                 logger.error(f"Exception while trying to kill PID {self._current_sandbox_pid}: {e}")
-                self.memory.add_message(Message.assistant_message(f"Erro ao tentar cancelar o script (PID: {self._current_sandbox_pid}): {e}"))
+                self.memory.add_message(Message.assistant_message(f"Error trying to cancel script (PID: {self._current_sandbox_pid}): {e}")) # Translated
         # As per plan, do not clear PID info here; it's handled by ToolCallAgent.execute_tool's finally block.
 
     async def _cleanup_sandbox_file(self, file_path_in_sandbox: str):
@@ -1171,23 +1171,23 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
     async def periodic_user_check_in(self, is_final_check: bool = False, is_failure_scenario: bool = False) -> bool:
         user_interaction_tool_name = AskHuman().name
         if user_interaction_tool_name not in self.available_tools.tool_map:
-            logger.warning(f"Ferramenta de interação com o usuário '{user_interaction_tool_name}' não disponível. Continuando execução.")
-            self.memory.add_message(Message.system_message(f"Interação periódica com usuário pulada: ferramenta '{user_interaction_tool_name}' não encontrada."))
+            logger.warning(f"User interaction tool '{user_interaction_tool_name}' not available. Continuing execution.") # Translated
+            self.memory.add_message(Message.system_message(f"Periodic user interaction skipped: tool '{user_interaction_tool_name}' not found.")) # Translated
             return True
 
-        checklist_content_str = "Checklist não encontrado ou vazio."
+        checklist_content_str = "Checklist not found or empty." # Translated
         checklist_path = str(config.workspace_root / "checklist_principal_tarefa.md")
         local_file_op = LocalFileOperator()
         try:
             checklist_content_str = await local_file_op.read_file(checklist_path)
             if not checklist_content_str.strip():
-                checklist_content_str = "Checklist encontrado, mas está vazio."
-            logger.info(f"Conteúdo do checklist lido localmente para autoanálise: {checklist_content_str[:200]}...")
+                checklist_content_str = "Checklist found, but it is empty." # Translated
+            logger.info(f"Checklist content read locally for self-analysis: {checklist_content_str[:200]}...") # Translated
         except ToolError as e_tool_error:
-            logger.info(f"Checklist '{checklist_path}' não encontrado (ou erro ao ler localmente) para autoanálise: {str(e_tool_error)}. Usando mensagem padrão.")
+            logger.info(f"Checklist '{checklist_path}' not found (or error reading locally) for self-analysis: {str(e_tool_error)}. Using default message.") # Translated
         except Exception as e_checklist:
-            logger.error(f"Erro inesperado ao ler checklist localmente para autoanálise: {str(e_checklist)}")
-            checklist_content_str = f"Erro inesperado ao ler checklist: {str(e_checklist)}"
+            logger.error(f"Unexpected error reading checklist locally for self-analysis: {str(e_checklist)}") # Translated
+            checklist_content_str = f"Unexpected error reading checklist: {str(e_checklist)}" # Translated
 
         prompt_messages_list = [Message(role=Role.SYSTEM, content=self.system_prompt)]
         num_messages_for_context = 7
@@ -1235,50 +1235,50 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         )
         prompt_messages_list.append(Message(role=Role.USER, content=internal_prompt_text))
 
-        relatorio_autoanalise = "Não foi possível gerar o relatório de autoanálise devido a um erro interno."
+        self_analysis_report = "Could not generate self-analysis report due to an internal error." # Translated
         try:
-            logger.info("Iniciando chamada LLM interna para autoanálise...")
+            logger.info("Initiating internal LLM call for self-analysis...") # Translated
             if hasattr(self, 'llm') and self.llm:
-                 relatorio_autoanalise = await self.llm.ask(messages=prompt_messages_list, stream=False) 
-                 logger.info(f"Relatório de autoanálise recebido do LLM: {relatorio_autoanalise[:300]}...")
+                 self_analysis_report = await self.llm.ask(messages=prompt_messages_list, stream=False) # Translated variable name
+                 logger.info(f"Self-analysis report received from LLM: {self_analysis_report[:300]}...") # Translated variable name
             else:
-                logger.error("Instância LLM (self.llm) não disponível para autoanálise.")
+                logger.error("LLM instance (self.llm) not available for self-analysis.") # Translated
         except Exception as e_llm_call:
-            logger.error(f"Erro durante chamada LLM interna para autoanálise: {e_llm_call}")
-            relatorio_autoanalise = f"Não foi possível gerar o relatório de autoanálise devido a um erro: {e_llm_call}"
+            logger.error(f"Error during internal LLM call for self-analysis: {e_llm_call}") # Translated
+            self_analysis_report = f"Could not generate self-analysis report due to an error: {e_llm_call}" # Translated variable name
         
-        pergunta = ""
+        question_to_user = "" # Translated variable name
         if is_failure_scenario:
             last_llm_thought = ""
             if self.memory.messages and self.memory.messages[-1].role == Role.ASSISTANT:
                 last_llm_thought = self.memory.messages[-1].content
-            error_details_for_prompt = f"Detalhes do erro (conforme meu último pensamento): {last_llm_thought}" if last_llm_thought else "Não consegui obter detalhes específicos do erro do meu processamento interno."
-            pergunta = (
-                f"Encontrei um problema que me impede de continuar a tarefa como planejado.\n"
-                f"Relatório de Autoanálise (sobre a falha):\n{relatorio_autoanalise}\n\n"
+            error_details_for_prompt = f"Error details (according to my last thought): {last_llm_thought}" if last_llm_thought else "I could not get specific error details from my internal processing." # Translated
+            question_to_user = ( # Translated variable name
+                f"I encountered a problem that prevents me from continuing the task as planned.\n"
+                f"Self-Analysis Report (on the failure):\n{self_analysis_report}\n\n" # Translated variable name
                 f"{error_details_for_prompt}\n\n"
-                f"Você gostaria que eu finalizasse a tarefa agora devido a esta dificuldade?\n\n"
-                f"Por favor, responda com:\n"
-                f"- 'sim, finalizar' (para encerrar a tarefa com falha)\n"
-                f"- 'não, tentar outra abordagem: [suas instruções]' (se você tiver uma sugestão ou quiser que eu tente algo diferente)"
+                f"Would you like me to terminate the task now due to this difficulty?\n\n"
+                f"Please respond with:\n"
+                f"- 'yes, terminate' (to end the task with failure)\n"
+                f"- 'no, try another approach: [your instructions]' (if you have a suggestion or want me to try something different)"
             )
         elif is_final_check:
-            pergunta = (
-                f"Todos os itens do checklist foram concluídos. Aqui está meu relatório de autoanálise final:\n{relatorio_autoanalise}\n\n"
-                f"Você está satisfeito com o resultado e deseja que eu finalize a tarefa?\n\n"
-                f"Por favor, responda com:\n"
-                f"- 'sim' (para finalizar a tarefa com sucesso)\n"
-                f"- 'revisar: [suas instruções para revisão]' (se algo precisa ser ajustado antes de finalizar)"
+            question_to_user = ( # Translated variable name
+                f"All checklist items have been completed. Here is my final self-analysis report:\n{self_analysis_report}\n\n" # Translated variable name
+                f"Are you satisfied with the result and do you want me to finalize the task?\n\n"
+                f"Please respond with:\n"
+                f"- 'yes' (to finalize the task successfully)\n"
+                f"- 'review: [your instructions for review]' (if something needs to be adjusted before finalizing)"
             )
         else:
-            pergunta = (
-                f"Aqui está meu relatório de autoanálise e planejamento:\n{relatorio_autoanalise}\n\n"
-                f"Considerando isso, completei um ciclo de {self.max_steps} etapas (total de etapas realizadas: {self.current_step}).\n"
-                f"Você quer que eu continue por mais {self.max_steps} etapas (possivelmente seguindo o plano sugerido, se houver)? Ou você prefere parar ou me dar novas instruções?\n\n"
-                f"Por favor, responda com:\n"
-                f"- 'continuar' (para prosseguir por mais {self.max_steps} etapas)\n"
-                f"- 'parar' (para encerrar a tarefa atual)\n"
-                f"- 'mudar: [suas novas instruções]' (para fornecer uma nova direção)"
+            question_to_user = ( # Translated variable name
+                f"Here is my self-analysis and planning report:\n{self_analysis_report}\n\n" # Translated variable name
+                f"Considering this, I have completed a cycle of {self.max_steps} steps (total steps taken: {self.current_step}).\n"
+                f"Do you want me to continue for another {self.max_steps} steps (possibly following the suggested plan, if any)? Or do you prefer to stop or give me new instructions?\n\n"
+                f"Please respond with:\n"
+                f"- 'continue' (to proceed for another {self.max_steps} steps)\n"
+                f"- 'stop' (to end the current task)\n"
+                f"- 'change: [your new instructions]' (to provide a new direction)"
             )
         
         # Check for cancellable script before asking for user input in the general case
@@ -1288,96 +1288,96 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 # Assuming _initiate_sandbox_script_cancellation will be an async method
                 # It should also ideally add a message to memory about its outcome.
                 # For now, we add a generic message here.
-                self.memory.add_message(Message.assistant_message("Tentativa de cancelamento do script em execução no sandbox devido à solicitação de pausa..."))
+                self.memory.add_message(Message.assistant_message("Attempting to cancel the script running in the sandbox due to pause request...")) # Translated
                 if hasattr(self, '_initiate_sandbox_script_cancellation') and callable(getattr(self, '_initiate_sandbox_script_cancellation')):
                     await self._initiate_sandbox_script_cancellation()
                 else:
                     logger.warning("_initiate_sandbox_script_cancellation method not found, cannot cancel script.")
-                    self.memory.add_message(Message.assistant_message("AVISO: Funcionalidade de cancelamento de script não implementada neste agente."))
+                    self.memory.add_message(Message.assistant_message("WARNING: Script cancellation functionality not implemented in this agent.")) # Translated
 
-        logger.info(f"Manus: Asking user for feedback with prompt: {pergunta[:500]}...")
-        self.memory.add_message(Message.assistant_message(content=pergunta))
+        logger.info(f"Manus: Asking user for feedback with prompt: {question_to_user[:500]}...") # Translated variable name
+        self.memory.add_message(Message.assistant_message(content=question_to_user)) # Translated variable name
 
         user_response_text = ""
         user_response_content_for_memory = ""
         try:
             tool_instance = self.available_tools.get_tool(user_interaction_tool_name)
             if tool_instance:
-                user_response_content_from_tool = await tool_instance.execute(inquire=pergunta)
+                user_response_content_from_tool = await tool_instance.execute(inquire=question_to_user) # Translated variable name
                 if isinstance(user_response_content_from_tool, str):
                     user_response_content_for_memory = user_response_content_from_tool
                     user_response_text = user_response_content_from_tool.strip().lower()
                     self.memory.add_message(Message.user_message(content=user_response_content_for_memory))
                 else:
-                    logger.warning(f"Resposta inesperada da ferramenta {user_interaction_tool_name}: {user_response_content_from_tool}")
+                    logger.warning(f"Unexpected response from tool {user_interaction_tool_name}: {user_response_content_from_tool}") # Translated
                     user_response_content_for_memory = str(user_response_content_from_tool)
                     user_response_text = ""
                     self.memory.add_message(Message.user_message(content=user_response_content_for_memory))
             else:
-                logger.error(f"Falha ao obter instância da ferramenta {user_interaction_tool_name} novamente.")
+                logger.error(f"Failed to get instance of tool {user_interaction_tool_name} again.") # Translated
                 return True
         except Exception as e:
-            logger.error(f"Erro ao usar a ferramenta '{user_interaction_tool_name}': {e}")
-            self.memory.add_message(Message.system_message(f"Erro durante interação periódica com usuário: {e}. Continuando execução."))
+            logger.error(f"Error using tool '{user_interaction_tool_name}': {e}") # Translated
+            self.memory.add_message(Message.system_message(f"Error during periodic user interaction: {e}. Continuing execution.")) # Translated
             return True
 
         if is_failure_scenario:
-            if user_response_text == "sim, finalizar":
-                self.memory.add_message(Message.assistant_message("Entendido. Vou finalizar a tarefa agora devido à falha."))
-                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "failure", "message": "Usuário consentiu finalizar devido a falha irrecuperável."}'))]
+            if user_response_text == "yes, terminate": # Translated
+                self.memory.add_message(Message.assistant_message("Understood. I will terminate the task now due to failure.")) # Translated
+                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "failure", "message": "User consented to terminate due to unrecoverable failure."}'))] # Translated
                 self.state = AgentState.TERMINATED
                 self._just_resumed_from_feedback = False
                 return False
-            elif user_response_text.startswith("não, tentar outra abordagem:"):
-                nova_instrucao = user_response_content_for_memory.replace("não, tentar outra abordagem:", "").strip()
-                logger.info(f"Manus: User provided new instructions after failure: {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou tentar a seguinte abordagem: {nova_instrucao}"))
+            elif user_response_text.startswith("no, try another approach:"): # Translated
+                new_instruction = user_response_content_for_memory.replace("no, try another approach:", "").strip() # Translated
+                logger.info(f"Manus: User provided new instructions after failure: {new_instruction}") # Translated
+                self.memory.add_message(Message.assistant_message(f"Understood. I will try the following approach: {new_instruction}")) # Translated
                 self._just_resumed_from_feedback = True
                 return True
             else:
                 logger.info(f"Manus: User provided unrecognized input ('{user_response_text}') during failure check. Re-prompting.")
-                self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim, finalizar' ou 'não, tentar outra abordagem: [instruções]'."))
+                self.memory.add_message(Message.assistant_message(f"I didn't understand your response ('{user_response_content_for_memory}'). Please use 'yes, terminate' or 'no, try another approach: [instructions]'.")) # Translated
                 self._just_resumed_from_feedback = True
                 return True
         elif is_final_check:
-            if user_response_text == "sim":
-                self.memory.add_message(Message.assistant_message("Ótimo! Vou finalizar a tarefa agora com sucesso."))
-                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "success", "message": "Tarefa concluída com sucesso com aprovação do usuário."}'))]
+            if user_response_text == "yes": # Translated
+                self.memory.add_message(Message.assistant_message("Great! I will finalize the task now with success.")) # Translated
+                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "success", "message": "Task completed successfully with user approval."}'))] # Translated
                 self.state = AgentState.TERMINATED
                 self._just_resumed_from_feedback = False
                 return False
-            elif user_response_text.startswith("revisar:"):
-                nova_instrucao = user_response_content_for_memory.replace("revisar:", "").strip()
-                logger.info(f"Manus: User provided new instructions for final review: {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou revisar com base nas suas instruções: {nova_instrucao}"))
+            elif user_response_text.startswith("review:"): # Translated
+                new_instruction = user_response_content_for_memory.replace("review:", "").strip() # Translated
+                logger.info(f"Manus: User provided new instructions for final review: {new_instruction}") # Translated
+                self.memory.add_message(Message.assistant_message(f"Understood. I will review based on your instructions: {new_instruction}")) # Translated
                 self._just_resumed_from_feedback = True
                 return True
             else:
                 logger.info(f"Manus: User provided unrecognized input ('{user_response_text}') during final check. Re-prompting.")
-                self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim' para finalizar ou 'revisar: [instruções]'."))
+                self.memory.add_message(Message.assistant_message(f"I didn't understand your response ('{user_response_content_for_memory}'). Please use 'yes' to finalize or 'review: [instructions]'.")) # Translated
                 self._just_resumed_from_feedback = True
                 return True
         else:
-            if user_response_text == "parar":
+            if user_response_text == "stop": # Translated
                 self.state = AgentState.USER_HALTED
                 self._just_resumed_from_feedback = False
                 return False
-            elif user_response_text.startswith("mudar:"):
-                nova_instrucao = user_response_content_for_memory.replace("mudar:", "").strip()
-                logger.info(f"Manus: User provided new instructions: {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou seguir suas novas instruções: {nova_instrucao}"))
+            elif user_response_text.startswith("change:"): # Translated
+                new_instruction = user_response_content_for_memory.replace("change:", "").strip() # Translated
+                logger.info(f"Manus: User provided new instructions: {new_instruction}") # Translated
+                self.memory.add_message(Message.assistant_message(f"Understood. I will follow your new instructions: {new_instruction}")) # Translated
                 self._just_resumed_from_feedback = True
                 return True
             else: # Default to continue for any other input or empty input.
-                if user_response_text == "continuar":
+                if user_response_text == "continue": # Translated
                     logger.info("Manus: User chose to CONTINUE execution.")
-                    self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
+                    self.memory.add_message(Message.assistant_message("Understood. Continuing with the task.")) # Translated
                 elif not user_response_text and user_response_content_for_memory is not None : # Catches empty string if user_response_content_for_memory was populated
                      logger.info("Manus: User provided empty response, interpreted as 'CONTINUE'.")
-                     self.memory.add_message(Message.assistant_message("Resposta vazia recebida. Continuando com a tarefa."))
+                     self.memory.add_message(Message.assistant_message("Empty response received. Continuing with the task.")) # Translated
                 else: # Catches any other non-empty, non-specific response
                      logger.info(f"Manus: User responded '{user_response_text}', interpreted as 'CONTINUE'.")
-                     self.memory.add_message(Message.assistant_message(f"Resposta '{user_response_content_for_memory}' recebida. Continuando com a tarefa."))
+                     self.memory.add_message(Message.assistant_message(f"Response '{user_response_content_for_memory}' received. Continuing with the task.")) # Translated
 
                 self._just_resumed_from_feedback = True # Set this so we don't immediately ask for feedback again
                 return True
