@@ -4,12 +4,18 @@ from typing import Any, List, Optional, Union
 
 from pydantic import Field
 
+from app.config import config
 from app.agent.react import ReActAgent
+from app.config import config # Added
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
+from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function
+
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool.file_operators import LocalFileOperator # Added
+from app.tool.code_formatter import FormatPythonCode # Added
+from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool # Modified
 
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
@@ -25,7 +31,7 @@ class ToolCallAgent(ReActAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     available_tools: ToolCollection = ToolCollection(
-        CreateChatCompletion(), Terminate()
+        CreateChatCompletion(), Terminate(), FormatPythonCode(), ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool()
     )
     tool_choices: TOOL_CHOICE_TYPE = ToolChoice.AUTO  # type: ignore
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
@@ -38,6 +44,57 @@ class ToolCallAgent(ReActAgent):
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
+        if self.current_step == 1: # current_step is 1 for the first proper thinking step
+            checklist_filename = "checklist_principal_tarefa.md"
+            # config.workspace_root is a Path object, ensure checklist_path is a string if tools expect strings
+            checklist_path_str = str(config.workspace_root / checklist_filename)
+            
+            local_op = LocalFileOperator()
+            checklist_exists = False # Default to not existing
+            try:
+                # Use a blocking call to os.path.exists for simplicity here, or make LocalFileOperator().exists() non-async
+                # For now, let's assume we can await it. If not, this needs adjustment.
+                # Based on file_operators.py, exists is async.
+                checklist_exists = await local_op.exists(checklist_path_str)
+            except Exception as e:
+                logger.error(f"Error checking for checklist existence: {e}. Proceeding with LLM thought.")
+                # If error checking existence, better to let LLM try to create it or decide,
+                # rather than falsely assuming it exists or blocking the flow.
+                # For this specific logic, we want to *force* creation if unsure or error.
+                # So, if an error occurs, we'll treat it as "doesn't exist" to trigger creation.
+                checklist_exists = False 
+
+            if not checklist_exists:
+                logger.info(f"Checklist file '{checklist_path_str}' not found or error during check at step 1. Enforcing creation.")
+                
+                initial_checklist_content = "- [Pendente] Decompor a solicitação do usuário e popular o checklist com as subtarefas."
+                
+                # Manually construct the JSON string for arguments
+                # Manually construct the JSON string for arguments
+                # Ensure checklist_path_str and initial_checklist_content are properly escaped for JSON
+                escaped_checklist_path_str = json.dumps(checklist_path_str)
+                escaped_initial_checklist_content = json.dumps(initial_checklist_content)
+
+                arguments_json_string = f'{{"command": "create", "path": {escaped_checklist_path_str}, "file_text": {escaped_initial_checklist_content}}}'
+                
+                forced_tool_call = ToolCall(
+                    id="forced_checklist_creation_001", # Static ID for this specific forced call
+                    function=Function( 
+                        name="str_replace_editor",
+                        arguments=arguments_json_string # Use the manually constructed string
+                    )
+                    # type="function" # type is implicitly function for ToolCall
+                )
+                
+                self.tool_calls = [forced_tool_call]
+                
+                assistant_thought_content = "A primeira ação é criar o checklist da tarefa para organizar o trabalho."
+                self.memory.add_message(
+                    Message.from_tool_calls(content=assistant_thought_content, tool_calls=self.tool_calls)
+                )
+                
+                return True # Indicates that an action (the forced tool call) is ready
+
         if self.next_step_prompt:
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
@@ -47,7 +104,7 @@ class ToolCallAgent(ReActAgent):
             response = await self.llm.ask_tool(
                 messages=self.messages,
                 system_msgs=(
-                    [Message.system_message(self.system_prompt)]
+                    [Message.system_message(self.system_prompt.format(directory=str(config.workspace_root)))]
                     if self.system_prompt
                     else None
                 ),
@@ -72,21 +129,51 @@ class ToolCallAgent(ReActAgent):
                 return False
             raise
 
-        self.tool_calls = tool_calls = (
-            response.tool_calls if response and response.tool_calls else []
-        )
+        # Imports no topo do arquivo já devem existir:
+        # from app.schema import ToolCall, Function
+
+        # ... dentro do método think() ...
+
+        raw_openai_tool_calls = response.tool_calls if response and response.tool_calls else []
+        converted_tool_calls = []
+        if raw_openai_tool_calls:
+            for openai_tc in raw_openai_tool_calls:
+                if openai_tc.function: # Verificar se function não é None
+                    app_function = Function( # Usando o Function de app.schema
+                        name=openai_tc.function.name,
+                        arguments=openai_tc.function.arguments
+                    )
+                    app_tc = ToolCall( # Usando o ToolCall de app.schema
+                        id=openai_tc.id,
+                        type=openai_tc.type if openai_tc.type else "function", # Default type to "function"
+                        function=app_function
+                    )
+                    converted_tool_calls.append(app_tc)
+                else:
+                    # Logar um aviso se uma tool call do OpenAI não tiver a parte da função
+                    logger.warning(f"OpenAI tool_call (ID: {openai_tc.id}) missing function component, skipping conversion.")
+
+        self.tool_calls = converted_tool_calls
+        # A variável local 'tool_calls' também pode ser atualizada se for usada posteriormente no método,
+        # mas self.tool_calls é o principal. Para consistência:
+        tool_calls = self.tool_calls
+
         content = response.content if response and response.content else ""
 
-        # Log response info
+        # Log response info (manter esta parte)
         logger.info(f"✨ {self.name}'s thoughts: {content}")
+        # Note: self.name aqui é o nome do ToolCallAgent ("toolcall"), não do Manus.
+        # Isso pode ser confuso no log, mas é o comportamento existente.
         logger.info(
-            f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
+            f"🛠️ {self.name} selected {len(self.tool_calls) if self.tool_calls else 0} tools to use"
         )
-        if tool_calls:
+        if self.tool_calls: # Usar self.tool_calls que agora é do tipo correto
             logger.info(
-                f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"
+                f"🧰 Tools being prepared: {[call.function.name for call in self.tool_calls]}"
             )
-            logger.info(f"🔧 Tool arguments: {tool_calls[0].function.arguments}")
+            # Adicionar uma verificação para self.tool_calls não estar vazio antes de acessar [0]
+            if self.tool_calls:
+                 logger.info(f"🔧 Tool arguments: {self.tool_calls[0].function.arguments}")
 
         try:
             if response is None:
@@ -165,10 +252,48 @@ class ToolCallAgent(ReActAgent):
 
     async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call with robust error handling"""
-        if not command or not command.function or not command.function.name:
-            return "Error: Invalid command format"
+        # Import SandboxPythonExecutor here to check its name
+        # This is a bit of a workaround for circular dependency or module loading issues
+        # if SandboxPythonExecutor were imported at the top level of manus.py for type hinting
+        # and toolcall.py also needs it for name comparison.
+        # A better solution might be to use a string literal for the name or a shared constant.
+        from app.tool.sandbox_python_executor import SandboxPythonExecutor
 
-        name = command.function.name
+        # Import Function and ToolCall if not already available at the top of the file for isinstance checks
+        # from app.schema import Function, ToolCall # Ensure this is appropriately placed if needed
+
+        if not command:
+            logger.error("execute_tool: Command object is None.")
+            return "Error: Invalid command object (None)."
+        if not isinstance(command, ToolCall):
+            logger.error(f"execute_tool: Command object is not a ToolCall instance, got {type(command)}.")
+            return f"Error: Invalid command object type ({type(command)})."
+
+        current_function = command.function
+        if not current_function:
+            logger.error(f"execute_tool: command.function is None for command ID {command.id}.")
+            return "Error: Command function is None."
+        # Ensure app.schema.Function is imported if you are using it for isinstance check.
+        # Assuming Function is already imported from app.schema at the top of the file.
+        if not isinstance(current_function, Function):
+            logger.error(f"execute_tool: command.function is not a Function instance for command ID {command.id}, got {type(current_function)}.")
+            return f"Error: Invalid command function type ({type(current_function)})."
+
+        name_to_be_used = None # Initialize to ensure it's clear if not set
+        try:
+            name_to_be_used = current_function.name
+            if not name_to_be_used:
+                logger.error(f"execute_tool: command.function.name is None or empty for command ID {command.id}.")
+                return "Error: Command function name is missing or empty."
+        except AttributeError as e_name_access:
+            logger.error(f"execute_tool: AttributeError while accessing command.function.name for command ID {command.id}. Function object was: {str(current_function)}. Error: {e_name_access}", exc_info=True)
+            return "Error: Failed to access function name due to AttributeError."
+        except Exception as e_general_name_access: # Catch any other unexpected error during name access
+            logger.error(f"execute_tool: Unexpected error while accessing command.function.name for command ID {command.id}. Function object was: {str(current_function)}. Error: {e_general_name_access}", exc_info=True)
+            return "Error: Unexpected error accessing function name."
+
+        # Use 'name_to_be_used' from this point onwards instead of just 'name' for clarity
+        name = name_to_be_used
         if name not in self.available_tools.tool_map:
             return f"Error: Unknown tool '{name}'"
 
@@ -176,36 +301,88 @@ class ToolCallAgent(ReActAgent):
             # Parse arguments
             args = json.loads(command.function.arguments or "{}")
 
+            # Handle path argument aliasing for str_replace_editor
+            if name == "str_replace_editor":
+                if 'path' not in args and 'path_absoluto' in args:
+                    args['path'] = args.pop('path_absoluto')
+                    logger.info(f"Aliased 'path_absoluto' to 'path' for str_replace_editor call.")
+                elif 'path' not in args and 'caminho_completo_do_arquivo' in args:
+                    args['path'] = args.pop('caminho_completo_do_arquivo')
+                    logger.info(f"Aliased 'caminho_completo_do_arquivo' to 'path' for str_replace_editor call.")
+                elif 'path' not in args and 'script_internal_file_path' in args: # New condition
+                    args['path'] = args.pop('script_internal_file_path')
+                    logger.info(f"Aliased 'script_internal_file_path' to 'path' for str_replace_editor call.")
+
             # Execute the tool
-            logger.info(f"🔧 Activating tool: '{name}'...")
-            result = await self.available_tools.execute(name=name, tool_input=args)
+            logger.info(f"[TOOL_START] Activating tool '{name}' with args: {args}")
+            tool_output = await self.available_tools.execute(name=name, tool_input=args)
+            logger.info(f"[TOOL_END] Tool '{name}' executed successfully.")
+
+            # Store PID file path if this was the sandbox executor
+            if name == SandboxPythonExecutor().name:
+                if isinstance(tool_output, dict) and "pid_file_path" in tool_output:
+                    self._current_sandbox_pid_file = tool_output["pid_file_path"]
+                    self._current_script_tool_call_id = command.id
+                    self._current_sandbox_pid = None # Reset PID, will be read if needed
+                    logger.info(f"Stored PID file path '{self._current_sandbox_pid_file}' for tool call ID '{command.id}'.")
+                else:
+                    logger.warning(f"Tool {name} did not return 'pid_file_path' in its output dict.")
+
 
             # Handle special tools
-            await self._handle_special_tool(name=name, result=result)
+            await self._handle_special_tool(name=name, result=tool_output)
 
             # Check if result is a ToolResult with base64_image
-            if hasattr(result, "base64_image") and result.base64_image:
+            # tool_output is now ToolResult
+            if tool_output and tool_output.base64_image:
                 # Store the base64_image for later use in tool_message
-                self._current_base64_image = result.base64_image
+                self._current_base64_image = tool_output.base64_image
 
             # Format result for display (standard case)
-            observation = (
-                f"Observed output of cmd `{name}` executed:\n{str(result)}"
-                if result
-                else f"Cmd `{name}` completed with no output"
-            )
+            # Use str(tool_output) which for ToolResult is tool_output.output if no error, or includes error info.
+            # Or, be more explicit:
+            current_output_str = ""
+            if tool_output: # tool_output is a ToolResult instance
+                if tool_output.error:
+                    current_output_str = f"Error: {tool_output.error}"
+                elif tool_output.output is not None: # Check if output is not None
+                    current_output_str = str(tool_output.output) # Ensure it's stringified
+                # If both error and output are None, current_output_str remains ""
 
+            observation = (
+                f"Observed output of cmd `{name}` executed:\n{current_output_str}"
+                if current_output_str # Check if there's any actual content to report
+                else f"Cmd `{name}` completed with no observable output or error." # More precise message
+            )
             return observation
         except json.JSONDecodeError:
+            logger.error(f"[TOOL_FAIL] Tool '{name}' failed: Invalid JSON arguments.")
             error_msg = f"Error parsing arguments for {name}: Invalid JSON format"
             logger.error(
                 f"📝 Oops! The arguments for '{name}' don't make sense - invalid JSON, arguments:{command.function.arguments}"
             )
             return f"Error: {error_msg}"
         except Exception as e:
+            logger.error(f"[TOOL_FAIL] Tool '{name}' failed with exception: {str(e)}")
             error_msg = f"⚠️ Tool '{name}' encountered a problem: {str(e)}"
             logger.exception(error_msg)
             return f"Error: {error_msg}"
+        finally:
+            # Cleanup PID file and attributes if this was the tracked script
+            if hasattr(self, '_current_script_tool_call_id') and self._current_script_tool_call_id == command.id:
+                if hasattr(self, '_cleanup_sandbox_file') and callable(getattr(self, '_cleanup_sandbox_file')):
+                    await self._cleanup_sandbox_file(self._current_sandbox_pid_file)
+                else:
+                    # This case should ideally not happen if Manus is the one running.
+                    # This indicates an agent that inherits ToolCallAgent but isn't Manus
+                    # and hasn't implemented its own _cleanup_sandbox_file or similar.
+                    logger.warning(f"Agent {self.name} does not have a _cleanup_sandbox_file method. PID file {self._current_sandbox_pid_file} may not be cleaned if it exists.")
+
+
+                logger.info(f"Clearing PID tracking for tool call ID '{command.id}'.")
+                self._current_sandbox_pid = None
+                self._current_sandbox_pid_file = None
+                self._current_script_tool_call_id = None
 
     async def _handle_special_tool(self, name: str, result: Any, **kwargs):
         """Handle special tool execution and state changes"""
@@ -238,8 +415,10 @@ class ToolCallAgent(ReActAgent):
                     await tool_instance.cleanup()
                 except Exception as e:
                     logger.error(
-                        f"🚨 Error cleaning up tool '{tool_name}': {e}", exc_info=True
+                        f"🚨 Error cleaning up tool '{tool_name}': {str(e)}"
                     )
+                    # import traceback # Comment out for now, can be added if necessary
+                    # logger.error(f"Traceback for {tool_name} cleanup error: {traceback.format_exc()}")
         logger.info(f"✨ Cleanup complete for agent '{self.name}'.")
 
     async def run(self, request: Optional[str] = None) -> str:

@@ -148,8 +148,11 @@ class WebContentFetcher:
             text = " ".join(text.split())
             return text[:10000] if text else None
 
-        except Exception as e:
-            logger.warning(f"Error fetching content from {url}: {e}")
+        except requests.exceptions.RequestException as e_req:
+            logger.warning(f"RequestException fetching content from {url}: {e_req}")
+            return None
+        except Exception as e_gen: # Captura outras exceções como parsing do BeautifulSoup
+            logger.warning(f"Generic error fetching/processing content from {url}: {e_gen}")
             return None
 
 
@@ -292,38 +295,48 @@ class WebSearch(BaseTool):
     ) -> List[SearchResult]:
         """Try all search engines in the configured order."""
         engine_order = self._get_engine_order()
-        failed_engines = []
+        all_attempted_engines_failed = True # Flag para rastrear se alguma busca teve sucesso
 
         for engine_name in engine_order:
             engine = self._search_engine[engine_name]
             logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
-            search_items = await self._perform_search_with_engine(
-                engine, query, num_results, search_params
-            )
+            try:
+                search_items = await self._perform_search_with_engine(
+                    engine, query, num_results, search_params
+                )
 
-            if not search_items:
+                if not search_items: # Se _perform_search_with_engine retornou lista vazia (por erro interno ou sem resultados)
+                    logger.warning(f"Search with {engine_name.capitalize()} returned no items or failed.")
+                    # Não adiciona a failed_engines aqui, _perform_search_with_engine já logou o erro específico
+                    continue # Tenta o próximo motor
+
+                # Se chegou aqui, a busca com este motor teve sucesso em retornar items
+                all_attempted_engines_failed = False
+                logger.info(
+                    f"Search successful with {engine_name.capitalize()}."
+                )
+
+                # Transform search items into structured results
+                return [
+                    SearchResult(
+                        position=i + 1,
+                        url=item.url,
+                        title=item.title
+                        or f"Result {i+1}",  # Ensure we always have a title
+                        description=item.description or "",
+                        source=engine_name,
+                    )
+                    for i, item in enumerate(search_items)
+                ]
+            except Exception as e_engine_loop:
+                # Exceção inesperada no loop _try_all_engines, fora de _perform_search_with_engine
+                logger.error(f"Unexpected error using engine {engine_name.capitalize()} in _try_all_engines: {e_engine_loop}")
+                # Continua para o próximo motor
                 continue
 
-            if failed_engines:
-                logger.info(
-                    f"Search successful with {engine_name.capitalize()} after trying: {', '.join(failed_engines)}"
-                )
 
-            # Transform search items into structured results
-            return [
-                SearchResult(
-                    position=i + 1,
-                    url=item.url,
-                    title=item.title
-                    or f"Result {i+1}",  # Ensure we always have a title
-                    description=item.description or "",
-                    source=engine_name,
-                )
-                for i, item in enumerate(search_items)
-            ]
-
-        if failed_engines:
-            logger.error(f"All search engines failed: {', '.join(failed_engines)}")
+        if all_attempted_engines_failed:
+            logger.error(f"All search engines attempted and failed for query: '{query}'")
         return []
 
     async def _fetch_content_for_results(
@@ -395,17 +408,31 @@ class WebSearch(BaseTool):
         search_params: Dict[str, Any],
     ) -> List[SearchItem]:
         """Execute search with the given engine and parameters."""
-        return await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: list(
-                engine.perform_search(
-                    query,
-                    num_results=num_results,
-                    lang=search_params.get("lang"),
-                    country=search_params.get("country"),
-                )
-            ),
-        )
+        try:
+            # The actual search operation
+            search_results_iterator = engine.perform_search(
+                query,
+                num_results=num_results,
+                lang=search_params.get("lang"),
+                country=search_params.get("country"),
+            )
+            # Convert iterator to list within the executor to ensure all network/blocking calls happen there
+            return await asyncio.get_event_loop().run_in_executor(
+                None,
+                list, # Convert iterator to list
+                search_results_iterator
+            )
+        except requests.exceptions.Timeout as e_timeout:
+            logger.warning(f"Timeout during search with {engine.__class__.__name__} for query '{query}': {e_timeout}")
+            return [] # Retorna lista vazia em caso de timeout
+        except requests.exceptions.RequestException as e_req:
+            logger.warning(f"RequestException during search with {engine.__class__.__name__} for query '{query}': {e_req}")
+            return [] # Retorna lista vazia em caso de erro de requisição
+        except Exception as e_general:
+            logger.error(
+                f"Generic error during search with {engine.__class__.__name__} for query '{query}': {e_general}"
+            )
+            return [] # Retorna lista vazia para outros erros
 
 
 if __name__ == "__main__":

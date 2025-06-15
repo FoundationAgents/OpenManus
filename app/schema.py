@@ -36,6 +36,9 @@ class AgentState(str, Enum):
     RUNNING = "RUNNING"
     FINISHED = "FINISHED"
     ERROR = "ERROR"
+    USER_HALTED = "user_halted" # Added for periodic user interaction
+    AWAITING_USER_FEEDBACK = "awaiting_user_feedback" # New state for explicit feedback points
+    USER_PAUSED = "user_paused" # New state for user-initiated pause
 
 
 class Function(BaseModel):
@@ -161,18 +164,76 @@ class Memory(BaseModel):
     max_messages: int = Field(default=100)
 
     def add_message(self, message: Message) -> None:
-        """Add a message to memory"""
+        """
+        Add a message to memory. If the memory exceeds max_messages,
+        it truncates older messages, ensuring that no 'tool' message becomes
+        the first message if its corresponding 'assistant' message (that called it)
+        is truncated.
+        """
         self.messages.append(message)
-        # Optional: Implement message limit
+
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+            # Step 1: Calculate the initial cut-off point.
+            # Messages before this index would be truncated by a simple trim.
+            cut_off_index = len(self.messages) - self.max_messages
+            
+            # Step 2: Select the messages that would be kept by simple truncation.
+            # This is our working list that we might shrink from the left.
+            potential_kept_messages = self.messages[cut_off_index:]
+
+            # Step 3-6: Iteratively check and remove orphan tool messages from the beginning
+            # of potential_kept_messages.
+            while potential_kept_messages:
+                first_kept_message = potential_kept_messages[0]
+
+                # Step 3: Check if the first message in our potential list is a tool message.
+                if first_kept_message.role == Role.TOOL and first_kept_message.tool_call_id:
+                    # Step 4: It's a tool message. Identify its tool_call_id.
+                    tool_call_id_to_find = first_kept_message.tool_call_id
+                    
+                    # Assume it's an orphan until proven otherwise.
+                    is_orphan = True
+                    
+                    # Step 5: Check if the assistant message that generated this tool call
+                    # is present *within the currently visible potential_kept_messages*.
+                    for msg_in_kept_list in potential_kept_messages:
+                        if msg_in_kept_list.role == Role.ASSISTANT and msg_in_kept_list.tool_calls:
+                            for tool_call in msg_in_kept_list.tool_calls:
+                                if tool_call.id == tool_call_id_to_find:
+                                    # Found the originating assistant message within the kept messages.
+                                    # Therefore, the first_kept_message (tool message) is NOT an orphan.
+                                    is_orphan = False
+                                    break  # Exit inner loop (tool_calls)
+                        if not is_orphan:
+                            break  # Exit outer loop (potential_kept_messages iteration)
+                    
+                    if is_orphan:
+                        # Step 6: The originating assistant message was not found in potential_kept_messages
+                        # (meaning it was in the truncated part: self.messages[:cut_off_index]).
+                        # So, this first_kept_message (tool message) is an orphan. Remove it.
+                        potential_kept_messages.pop(0)
+                        # Continue the 'while potential_kept_messages' loop to check the new first message.
+                    else:
+                        # The first_kept_message (tool message) is not an orphan.
+                        # We can stop checking and keep the current potential_kept_messages.
+                        break 
+                else:
+                    # The first message is not a tool message (or has no tool_call_id),
+                    # so the orphan check logic doesn't apply to it. Stop checking.
+                    break
+            
+            # Step 7: Finally, assign the potentially modified list of messages back.
+            self.messages = potential_kept_messages
 
     def add_messages(self, messages: List[Message]) -> None:
-        """Add multiple messages to memory"""
-        self.messages.extend(messages)
-        # Optional: Implement message limit
-        if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+        """
+        Add multiple messages to memory.
+        This method calls add_message for each message to ensure the
+        orphan prevention logic is applied consistently upon each addition
+        that might trigger truncation.
+        """
+        for message in messages:
+            self.add_message(message)
 
     def clear(self) -> None:
         """Clear all messages"""
