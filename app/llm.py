@@ -1,5 +1,9 @@
 import math
+import httpx # Added
+import requests
+import socket
 from typing import Dict, List, Optional, Union
+from urllib3.exceptions import MaxRetryError, NameResolutionError
 
 import tiktoken
 from openai import (
@@ -210,19 +214,36 @@ class LLM:
             try:
                 self.tokenizer = tiktoken.encoding_for_model(self.model)
             except KeyError:
-                # If the model is not in tiktoken's presets, use cl100k_base as default
-                self.tokenizer = tiktoken.get_encoding("cl100k_base")
+                logger.info(f"Model {self.model} not found in tiktoken, falling back to cl100k_base tokenizer.")
+                try:
+                    self.tokenizer = tiktoken.get_encoding("cl100k_base")
+                except (requests.exceptions.ConnectionError, MaxRetryError, NameResolutionError, socket.gaierror) as e:
+                    error_message = (
+                        "Failed to download tiktoken tokenizer data for 'cl100k_base' due to a network issue "
+                        "(e.g., DNS resolution failure or no internet access). "
+                        "Please check your network connection and DNS settings. Original error: %s" % str(e)
+                    )
+                    logger.critical(error_message)
+                    raise RuntimeError("Could not initialize LLM tokenizer due to network issues. Please check logs for details.") from e
+
+            # Define custom HTTP client timeouts
+            http_client_timeouts = httpx.Timeout(connect=20.0, read=60.0, write=60.0, pool=5.0)
 
             if self.api_type == "azure":
                 self.client = AsyncAzureOpenAI(
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
+                    http_client=httpx.AsyncClient(timeout=http_client_timeouts)
                 )
             elif self.api_type == "aws":
-                self.client = BedrockClient()
-            else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+                self.client = BedrockClient() # Assuming BedrockClient handles its own timeouts or doesn't use httpx this way
+            else: # Default to openai
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    http_client=httpx.AsyncClient(timeout=http_client_timeouts)
+                )
 
             self.token_counter = TokenCounter(self.tokenizer)
 
@@ -384,6 +405,23 @@ class LLM:
             Exception: For unexpected errors
         """
         try:
+            # Log system messages if provided
+            if system_msgs:
+                for i, system_msg_item in enumerate(system_msgs):
+                    content_to_log = ""
+                    if isinstance(system_msg_item, Message) and system_msg_item.content:
+                        content_to_log = system_msg_item.content
+                    elif isinstance(system_msg_item, dict) and system_msg_item.get("content"):
+                        content_to_log = system_msg_item["content"]
+                    
+                    if content_to_log:
+                        logger.info(f"LLM ask: System message {i+1} (first 500 chars): {content_to_log[:500]}")
+                        logger.info(f"LLM ask: System message {i+1} (last 500 chars): {content_to_log[-500:]}")
+                    else:
+                        logger.info(f"LLM ask: System message {i+1} is empty or has no content.")
+            else:
+                logger.info("LLM ask: No system messages provided.")
+
             # Check if the model supports images
             supports_images = self.model in MULTIMODAL_MODELS
 
@@ -513,6 +551,23 @@ class LLM:
             Exception: For unexpected errors
         """
         try:
+            # Log system messages if provided
+            if system_msgs:
+                for i, system_msg_item in enumerate(system_msgs):
+                    content_to_log = ""
+                    if isinstance(system_msg_item, Message) and system_msg_item.content:
+                        content_to_log = system_msg_item.content
+                    elif isinstance(system_msg_item, dict) and system_msg_item.get("content"):
+                        content_to_log = system_msg_item["content"]
+                    
+                    if content_to_log:
+                        logger.info(f"LLM ask_with_images: System message {i+1} (first 500 chars): {content_to_log[:500]}")
+                        logger.info(f"LLM ask_with_images: System message {i+1} (last 500 chars): {content_to_log[-500:]}")
+                    else:
+                        logger.info(f"LLM ask_with_images: System message {i+1} is empty or has no content.")
+            else:
+                logger.info("LLM ask_with_images: No system messages provided.")
+
             # For ask_with_images, we always set supports_images to True because
             # this method should only be called with models that support images
             if self.model not in MULTIMODAL_MODELS:
@@ -673,6 +728,23 @@ class LLM:
             Exception: For unexpected errors
         """
         try:
+            # Log system messages if provided
+            if system_msgs:
+                for i, system_msg_item in enumerate(system_msgs):
+                    content_to_log = ""
+                    if isinstance(system_msg_item, Message) and system_msg_item.content:
+                        content_to_log = system_msg_item.content
+                    elif isinstance(system_msg_item, dict) and system_msg_item.get("content"):
+                        content_to_log = system_msg_item["content"]
+                    
+                    if content_to_log:
+                        logger.info(f"LLM ask_tool: System message {i+1} (first 500 chars): {content_to_log[:500]}")
+                        logger.info(f"LLM ask_tool: System message {i+1} (last 500 chars): {content_to_log[-500:]}")
+                    else:
+                        logger.info(f"LLM ask_tool: System message {i+1} is empty or has no content.")
+            else:
+                logger.info("LLM ask_tool: No system messages provided.")
+
             # Validate tool_choice
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")

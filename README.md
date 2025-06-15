@@ -137,16 +137,75 @@ For unstable multi-agent version, you also can run:
 python run_flow.py
 ```
 
-### Custom Adding Multiple Agents
+## Running the Web GUI
 
-Currently, besides the general OpenManus Agent, we have also integrated the DataAnalysis Agent, which is suitable for data analysis and data visualization tasks. You can add this agent to `run_flow` in `config.toml`.
+The web GUI provides a user-friendly interface for interacting with the OpenMAN agent, viewing logs, plans, and more. It consists of a Python backend (FastAPI) and a React frontend.
 
-```toml
-# Optional configuration for run-flow
-[runflow]
-use_data_analysis_agent = true     # Disabled by default, change to true to activate
-```
-In addition, you need to install the relevant dependencies to ensure the agent runs properly: [Detailed Installation Guide](app/tool/chart_visualization/README.md##Installation)
+### Key Features
+
+*   **Real-time Log Streaming:** View agent logs (including thoughts, tool calls, and subprocess outputs) as they happen.
+*   **Interactive Chat:** Send prompts and provide feedback to the agent.
+*   **Plan Visualization:** See the agent's current plan and step-by-step progress (for planning-capable agents).
+*   **Tool Inspection:** View available tools and their descriptions/parameters.
+*   **Execution History:** Browse and review logs from past agent sessions.
+*   **Configuration Display:** See current (non-sensitive) agent configurations.
+*   **Log Filtering:** Filter displayed logs by level (DEBUG, INFO, WARN, ERROR, STDOUT, STDERR).
+
+### Project Structure for GUI
+
+The GUI code is organized as follows:
+
+*   `gui/backend/`: Contains the Python FastAPI backend server.
+    *   `main.py`: FastAPI application, API endpoints.
+    *   `agent_manager.py`: Logic for managing agent instances and interaction.
+    *   `database.py`: SQLite database setup (SQLAlchemy ORM) for log storage.
+    *   `log_streamer.py`: Connects `loguru` logs to the SSE stream and database.
+    *   `requirements.txt`: Python dependencies for the GUI backend.
+*   `gui/frontend/`: Contains the React + Tailwind CSS frontend application.
+    *   `src/`: Main source code for React components.
+        *   `App.jsx`: Root application component, layout, and state management.
+        *   `components/`: Contains reusable UI components (LogView, PlanDisplay, ToolsView, etc.).
+    *   `index.html`: Main HTML entry point for the frontend.
+    *   `vite.config.js`, `tailwind.config.js`, `postcss.config.js`: Build and styling configurations.
+    *   `package.json`: Frontend dependencies and scripts.
+
+### Prerequisites
+
+1.  **Install Python Dependencies:**
+    Install dependencies for both the core application and the GUI backend. From the project root:
+    ```bash
+    pip install -r requirements.txt
+    pip install -r gui/backend/requirements.txt
+    ```
+
+2.  **Install Frontend Dependencies:**
+    Navigate to the frontend directory and install npm packages:
+    ```bash
+    cd gui/frontend
+    npm install
+    cd ../.. 
+    ```
+
+### Running the Application
+
+You need to run two separate processes in two different terminals:
+
+1.  **Start the GUI Backend Server:**
+    From the project root:
+    ```bash
+    python run_gui_backend.py
+    ```
+    This will start the FastAPI server on `http://localhost:8008` by default. It serves the API and streams logs.
+
+2.  **Start the GUI Frontend Development Server:**
+    From the project root:
+    ```bash
+    cd gui/frontend
+    npm run dev
+    ```
+    This will start the Vite development server, typically on `http://localhost:5173` (the exact port will be shown in the terminal). Open this URL in your browser to use the GUI.
+
+The frontend will automatically connect to the backend API.
 
 ## How to contribute
 
