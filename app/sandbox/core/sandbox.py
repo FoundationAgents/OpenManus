@@ -4,10 +4,10 @@ import os
 import tarfile
 import tempfile
 import uuid
-from typing import Dict, Optional
+from typing import Dict, Optional, Any # Added Any here
 
 import docker
-from docker.errors import NotFound
+from docker.errors import NotFound, ImageNotFound, APIError # Add ImageNotFound, APIError
 from docker.models.containers import Container
 
 from app.config import SandboxSettings
@@ -53,10 +53,23 @@ class DockerSandbox:
             Current sandbox instance.
 
         Raises:
-            docker.errors.APIError: If Docker API call fails.
-            RuntimeError: If container creation or startup fails.
+            RuntimeError: If container creation, image pull, or startup fails.
         """
         try:
+            # Attempt to get the image to see if it exists locally
+            try:
+                await asyncio.to_thread(self.client.images.get, self.config.image)
+                print(f"Image {self.config.image} found locally.") # Or use logger
+            except ImageNotFound:
+                print(f"Image {self.config.image} not found locally. Pulling...") # Or use logger
+                try:
+                    await asyncio.to_thread(self.client.images.pull, self.config.image)
+                    print(f"Successfully pulled image {self.config.image}.") # Or use logger
+                except APIError as pull_error:
+                    # This is an error during the pull operation itself
+                    await self.cleanup() # Ensure cleanup before raising
+                    raise RuntimeError(f"Failed to pull image {self.config.image} from registry: {pull_error}") from pull_error
+
             # Prepare container config
             host_config = self.client.api.create_host_config(
                 mem_limit=self.config.memory_limit,
@@ -94,12 +107,19 @@ class DockerSandbox:
                 env_vars={"PYTHONUNBUFFERED": "1"}
                 # Ensure Python output is not buffered
             )
-            await self.terminal.init()
+            # RM: await self.terminal.init() # AsyncDockerizedTerminal does not have an init method.
+            # Initialization is handled by _ensure_workdir in run_command or init_interactive_session.
 
             return self
 
-        except Exception as e:
-            await self.cleanup()  # Ensure resources are cleaned up
+        except APIError as api_err: # Catch API errors from create_container, start, etc.
+            await self.cleanup()
+            raise RuntimeError(f"Docker API error during sandbox setup (after image handling): {api_err}") from api_err
+        except Exception as e: # Catch other general errors
+            await self.cleanup()
+            # Ensure not to re-wrap the RuntimeError from a failed pull
+            if isinstance(e, RuntimeError) and "Failed to pull image" in str(e):
+                raise # Re-raise the specific pull error
             raise RuntimeError(f"Failed to create sandbox: {e}") from e
 
     def _prepare_volume_bindings(self) -> Dict[str, Dict[str, str]]:
@@ -137,7 +157,7 @@ class DockerSandbox:
         os.makedirs(host_path, exist_ok=True)
         return host_path
 
-    async def run_command(self, cmd: str, timeout: Optional[int] = None) -> str:
+    async def run_command(self, cmd: str, timeout: Optional[int] = None) -> Dict[str, Any]:
         """Runs a command in the sandbox.
 
         Args:
@@ -145,23 +165,38 @@ class DockerSandbox:
             timeout: Timeout in seconds.
 
         Returns:
-            Command output as string.
+            A dictionary containing "exit_code", "stdout", and "stderr".
 
         Raises:
             RuntimeError: If sandbox not initialized or command execution fails.
-            TimeoutError: If command execution times out.
+            SandboxTimeoutError: If command execution times out.
         """
         if not self.terminal:
-            raise RuntimeError("Sandbox not initialized")
+            raise RuntimeError("Sandbox not initialized. Terminal is not available.")
+        if not self.container: # Should not happen if terminal is available, but good check
+            raise RuntimeError("Sandbox not initialized. Container is not available.")
 
         try:
-            return await self.terminal.run_command(
+            # The terminal.run_command now returns a Dict[str, Any]
+            # with {"exit_code": ..., "stdout": ..., "stderr": ...}
+            result = await self.terminal.run_command(
                 cmd, timeout=timeout or self.config.timeout
             )
-        except TimeoutError:
+            return result
+        except SandboxTimeoutError: # Propagate SandboxTimeoutError directly
+            raise
+        except TimeoutError: # Should be caught by terminal.run_command and raised as SandboxTimeoutError
+            # This is a fallback, ideally SandboxTimeoutError is raised from terminal
             raise SandboxTimeoutError(
-                f"Command execution timed out after {timeout or self.config.timeout} seconds"
+                f"Command '{cmd}' timed out after {timeout or self.config.timeout} seconds (caught in DockerSandbox)."
             )
+        except Exception as e:
+            # Catch other potential errors from terminal.run_command or other issues
+            # and wrap them in a RuntimeError for consistency, or handle specific ones.
+            # This ensures that the caller (e.g., LocalSandboxClient) gets a clear error.
+            # The terminal.run_command itself should raise RuntimeError for API errors or exec failures.
+            raise RuntimeError(f"Failed to run command '{cmd}' in sandbox: {e}")
+
 
     async def read_file(self, path: str) -> str:
         """Reads a file from the container.
