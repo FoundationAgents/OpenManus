@@ -33,6 +33,7 @@ from app.agent.checklist_manager import ChecklistManager # Added for _is_checkli
 from .regex_patterns import re_subprocess
 
 
+
 # Nova constante para autoanálise interna
 INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """Você é Manus. Você está em um ponto de verificação com o usuário.
 Analise o histórico recente da conversa (últimas {X} mensagens), o estado atual do seu checklist de tarefas (fornecido abaixo), e quaisquer erros ou dificuldades que você encontrou.
