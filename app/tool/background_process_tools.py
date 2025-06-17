@@ -39,7 +39,7 @@ class ExecuteBackgroundProcessTool(BaseTool):
         "required": ["command", "log_file_stdout", "log_file_stderr"],
     }
 
-    async def execute(self, command: str, working_directory: Optional[str] = None, log_file_stdout: str, log_file_stderr: str, task_description: Optional[str] = None) -> Dict[str, Any]:
+    async def execute(self, command: str, log_file_stdout: str, log_file_stderr: str, working_directory: Optional[str] = None, task_description: Optional[str] = None) -> Dict[str, Any]:
         """
         Executes the given command in the background.
 
