@@ -80,6 +80,7 @@ class Manus(ToolCallAgent):
     _current_sandbox_pid: Optional[int] = PrivateAttr(default=None)
     _current_sandbox_pid_file: Optional[str] = PrivateAttr(default=None)
     _current_script_tool_call_id: Optional[str] = PrivateAttr(default=None)
+    _fallback_attempted_for_tool_call_id: Optional[str] = PrivateAttr(default=None)
 
 
     def __getstate__(self):
@@ -646,6 +647,127 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         if not self._initialized:
             await self.initialize_mcp_servers()
             self._initialized = True
+
+        # --- Início da Lógica de Fallback para SandboxPythonExecutor ---
+        last_message = self.memory.messages[-1] if self.memory.messages else None
+        if (
+            last_message
+            and last_message.role == Role.TOOL
+            and hasattr(last_message, "name") # O atributo 'name' pode não existir em todas as mensagens de TOOL
+            and last_message.name == SandboxPythonExecutor().name
+            and last_message.tool_call_id != self._fallback_attempted_for_tool_call_id
+        ):
+            try:
+                tool_result_content = json.loads(last_message.content)
+                if tool_result_content.get("exit_code") == -2:
+                    logger.warning(
+                        f"SandboxPythonExecutor failed with exit_code -2 (sandbox creation error) for tool_call_id {last_message.tool_call_id}. "
+                        "Attempting fallback to PythonExecute."
+                    )
+
+                    original_assistant_message_with_tool_call = None
+                    for msg in reversed(self.memory.messages):
+                        if msg.role == Role.ASSISTANT and msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                if tc.id == last_message.tool_call_id:
+                                    original_assistant_message_with_tool_call = msg
+                                    break
+                            if original_assistant_message_with_tool_call:
+                                break
+
+                    if original_assistant_message_with_tool_call:
+                        original_tool_call = next(
+                            (tc for tc in original_assistant_message_with_tool_call.tool_calls if tc.id == last_message.tool_call_id),
+                            None
+                        )
+                        if original_tool_call:
+                            original_args = json.loads(original_tool_call.function.arguments)
+                            fallback_args = {}
+
+                            # Priorizar 'code' se existir nos argumentos originais da chamada ao SandboxPythonExecutor.
+                            # Se não, usar 'file_path'. Se o LLM chamou SandboxPythonExecutor diretamente, pode ter 'code'.
+                            if "code" in original_args and original_args["code"]:
+                                fallback_args["code"] = original_args["code"]
+                            elif "file_path" in original_args and original_args["file_path"]:
+                                # PythonExecute espera 'code', então precisamos ler o conteúdo do arquivo.
+                                # No entanto, PythonExecute também aceita 'file_path' diretamente em algumas versões/configurações.
+                                # Para simplificar e alinhar com a intenção original de executar um script,
+                                # vamos assumir que PythonExecute pode lidar com file_path se for o caso,
+                                # ou idealmente, o LLM teria fornecido 'code' se era para ser código direto.
+                                # A ferramenta PythonExecute em si pode precisar de lógica para carregar o código do file_path.
+                                # Por agora, vamos passar o file_path se 'code' não estiver disponível.
+                                # Esta parte pode precisar de ajuste dependendo da implementação exata de PythonExecute.
+                                # Se PythonExecute SÓ aceita 'code', precisaremos ler o arquivo aqui.
+                                # Para esta implementação, vamos assumir que PythonExecute pode receber file_path
+                                # ou que a chamada original para python_execute (antes do override) tinha 'code'.
+
+                                # Tentativa de encontrar a chamada original para python_execute que foi convertida
+                                was_overridden = False
+                                for prev_msg_idx in range(len(self.memory.messages) - 2, -1, -1):
+                                    prev_msg = self.memory.messages[prev_msg_idx]
+                                    if prev_msg.role == Role.ASSISTANT and prev_msg.tool_calls:
+                                        for prev_tc in prev_msg.tool_calls:
+                                            if prev_tc.id == original_tool_call.id and prev_tc.function.name == PythonExecute().name:
+                                                logger.info(f"Found original PythonExecute call that was overridden to SandboxPythonExecutor (ID: {original_tool_call.id}). Reverting.")
+                                                original_python_execute_args = json.loads(prev_tc.function.arguments)
+                                                fallback_args = original_python_execute_args # Usar os args originais do python_execute
+                                                was_overridden = True
+                                                break
+                                        if was_overridden:
+                                            break
+
+                                if not was_overridden: # Se não foi um override, mas uma chamada direta ao SandboxPythonExecutor
+                                    if "file_path" in original_args:
+                                         # Se PythonExecute só aceita 'code', precisamos ler o arquivo aqui.
+                                         # Para manter simples, vamos apenas logar um aviso e não fazer fallback se não tivermos 'code'.
+                                        logger.warning(f"SandboxPythonExecutor was called directly with file_path '{original_args['file_path']}'. "
+                                                       "Fallback to PythonExecute requires 'code'. Cannot automatically read file content here. "
+                                                       "Skipping fallback for this specific case unless original call was python_execute with 'code'.")
+                                        fallback_args = None # Sinaliza que não podemos fazer fallback
+                                    else: # Não tem 'code' nem 'file_path' nos args do SandboxPythonExecutor
+                                        logger.error(f"Cannot perform fallback for SandboxPythonExecutor call {original_tool_call.id}: neither 'code' nor 'file_path' found in original arguments.")
+                                        fallback_args = None
+
+
+                            elif "code" in original_args and original_args["code"]: # Caso onde 'code' está nos args do SandboxPYExecutor
+                                fallback_args["code"] = original_args["code"]
+                            else: # Não tem 'code' nem 'file_path'
+                                logger.error(f"Cannot perform fallback for SandboxPythonExecutor call {original_tool_call.id}: neither 'code' nor 'file_path' found in original arguments.")
+                                fallback_args = None
+
+                            if fallback_args:
+                                fallback_timeout = original_args.get("timeout", 60) # Usar timeout original ou default
+                                fallback_args["timeout"] = fallback_timeout
+
+                                new_fallback_tool_call = ToolCall(
+                                    id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
+                                    function=FunctionCall(
+                                        name=PythonExecute().name,
+                                        arguments=json.dumps(fallback_args)
+                                    )
+                                )
+                                self.tool_calls = [new_fallback_tool_call]
+                                self._fallback_attempted_for_tool_call_id = last_message.tool_call_id
+
+                                fallback_message = (
+                                    f"A execução segura no sandbox falhou (erro de criação do sandbox). "
+                                    f"Tentando executar o script diretamente com '{PythonExecute().name}'. "
+                                    "AVISO: Executar scripts fora do sandbox pode apresentar riscos de segurança se o script for malicioso."
+                                )
+                                self.memory.add_message(Message.assistant_message(fallback_message))
+                                logger.info(f"Planned fallback ToolCall: {new_fallback_tool_call}")
+                                return True # Executar a tool_call de fallback
+                            else:
+                                logger.warning(f"Could not construct fallback arguments for tool_call_id {last_message.tool_call_id}. Fallback aborted.")
+                        else:
+                            logger.error(f"Could not find original ToolCall with id {last_message.tool_call_id} in assistant message {original_assistant_message_with_tool_call.id} for fallback.")
+                    else:
+                        logger.error(f"Could not find original assistant message for tool_call_id {last_message.tool_call_id} for fallback.")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse tool result content for fallback logic: {last_message.content}. Error: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error during sandbox fallback logic: {e}", exc_info=True)
+        # --- Fim da Lógica de Fallback ---
         
         user_prompt_message = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.USER), None)
         user_prompt_content = user_prompt_message.content if user_prompt_message else ""
@@ -1002,7 +1124,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 if not editor_tool:
                     logger.error("StrReplaceEditor tool não encontrado para _analyze_python_script.")
                     return analysis
-                script_content_result = await editor_tool.execute(command="view", path=script_path, view_range=[1, 200])
+                script_content_result = await editor_tool.execute(command="view", path=script_path)
                 if isinstance(script_content_result, str):
                     script_content = script_content_result
                 else:
