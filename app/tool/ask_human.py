@@ -1,45 +1,45 @@
-# Removed imports for asyncio, sys, Path, and gui.backend.agent_manager
-# Removed _gui_interaction_available flag and related logic
+# Importações removidas para asyncio, sys, Path e gui.backend.agent_manager
+# Flag _gui_interaction_available e lógica relacionada removidas
 
-from app.tool.base import BaseTool # Ensure BaseTool is imported
+from app.tool.base import BaseTool # Garantir que BaseTool seja importado
 
 class AskHuman(BaseTool):
     name: str = "AskHuman"
     description: str = (
-        "Asks the human user for input. Useful when the agent needs clarification, "
-        "guidance, or when it's stuck and needs human intervention. "
-        "The 'inquire' parameter should be a clear question or prompt for the user."
+        "Solicita entrada do usuário humano. Útil quando o agente precisa de esclarecimento, "
+        "orientação, ou quando está preso e precisa de intervenção humana. "
+        "O parâmetro 'inquire' deve ser uma pergunta clara ou prompt para o usuário."
     )
-    parameters: dict = { # Changed from str to dict based on BaseTool
+    parameters: dict = { # Alterado de str para dict com base em BaseTool
         "type": "object",
         "properties": {
             "inquire": {
                 "type": "string",
-                "description": "The question or prompt to ask the human user.",
+                "description": "A pergunta ou prompt a ser feito ao usuário humano.",
             },
         },
         "required": ["inquire"],
     }
 
-    # Making it async for consistency with other tools, even if it uses sync input() for non-GUI mode.
+    # Tornando assíncrono para consistência com outras ferramentas, mesmo que use input() síncrono para modo não-GUI.
     async def execute(self, inquire: str, **kwargs) -> str:
-        from app.logger import logger # Ensure logger is available
+        from app.logger import logger # Garantir que logger esteja disponível
 
-        # This is the fallback console interaction if GUI is not used or wrapper not in place.
-        print(f"--- HUMAN INPUT REQUIRED ---")
+        # Esta é a interação de console de fallback se a GUI não for usada ou o wrapper não estiver no lugar.
+        print(f"--- ENTRADA HUMANA NECESSÁRIA ---")
         print(inquire)
         
-        user_response = "" # Default to empty string
+        user_response = "" # Padrão para string vazia
         try:
-            user_response = input("Your response: ")
-            logger.info(f"AskHuman: User responded with: '{user_response[:200]}'") # Log first 200 chars
+            user_response = input("Sua resposta: ")
+            logger.info(f"AskHuman: Usuário respondeu com: '{user_response[:200]}'") # Registrar os primeiros 200 caracteres
         except EOFError:
-            logger.warning("AskHuman: EOFError caught when attempting to read user input. Assuming non-interactive environment. Returning empty string.")
-            user_response = "" # Default response for non-interactive environment
+            logger.warning("AskHuman: EOFError capturado ao tentar ler a entrada do usuário. Assumindo ambiente não interativo. Retornando string vazia.")
+            user_response = "" # Resposta padrão para ambiente não interativo
         except Exception as e:
-            logger.error(f"AskHuman: An unexpected error occurred while getting user input: {e}")
-            # Returning an error message or empty string, as per example
-            user_response = f"Error in AskHuman: {str(e)}" # Or simply "" if preferred
+            logger.error(f"AskHuman: Ocorreu um erro inesperado ao obter a entrada do usuário: {e}")
+            # Retornando uma mensagem de erro ou string vazia, conforme exemplo
+            user_response = f"Erro em AskHuman: {str(e)}" # Ou simplesmente "" se preferir
 
-        print(f"--- END HUMAN INPUT ---")
-        return user_response.strip() # Added strip() for consistency
+        print(f"--- FIM DA ENTRADA HUMANA ---")
+        return user_response.strip() # Adicionado strip() para consistência

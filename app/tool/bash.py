@@ -22,8 +22,8 @@ class _BashSession:
     _process: asyncio.subprocess.Process
 
     command: str = "/bin/bash"
-    _output_delay: float = 0.2  # seconds
-    _timeout: float = 86400.0  # seconds (24 hours)
+    _output_delay: float = 0.2  # segundos
+    _timeout: float = 86400.0  # segundos (24 horas)
     _sentinel: str = "<<exit>>"
 
     def __init__(self):
@@ -47,126 +47,126 @@ class _BashSession:
         self._started = True
 
     def stop(self): # Renomear para indicar que é síncrono e apenas tenta terminar
-        """Attempts to terminate the bash shell process."""
+        """Tenta encerrar o processo do shell bash."""
         if not self._started or not hasattr(self, '_process') or self._process.returncode is not None: # Adicionado hasattr
             return
         try:
             self._process.terminate()
-            logger.info("Bash process terminated.") 
+            logger.info("Processo Bash encerrado.")
         except ProcessLookupError: 
-            logger.info("Bash process already terminated.")
+            logger.info("Processo Bash já encerrado.")
         except Exception as e: 
-            logger.error(f"Error terminating bash process: {e}")
+            logger.error(f"Erro ao encerrar processo bash: {e}")
 
     async def close_async(self): # Novo método assíncrono para limpeza completa
-        """Closes stdin, terminates the process, and waits for it to exit."""
-        logger.info("_BashSession.close_async: Starting...")
+        """Fecha stdin, encerra o processo e espera que ele saia."""
+        logger.info("_BashSession.close_async: Iniciando...")
         if not self._started or not hasattr(self, '_process') or self._process.returncode is not None:
-            logger.info("_BashSession.close_async: Session already closed or not started.")
+            logger.info("_BashSession.close_async: Sessão já fechada ou não iniciada.")
             return
 
-        logger.info("_BashSession.close_async: Closing bash session asynchronously...")
+        logger.info("_BashSession.close_async: Fechando sessão bash assincronamente...")
         try:
             if self._process.stdin and hasattr(self._process.stdin, 'is_closing') and not self._process.stdin.is_closing():
                 try:
-                    logger.info("_BashSession.close_async: Attempting to write EOF to stdin.")
+                    logger.info("_BashSession.close_async: Tentando escrever EOF para stdin.")
                     self._process.stdin.write_eof()
                     await self._process.stdin.drain() 
-                    logger.info("_BashSession.close_async: Bash stdin EOF sent and drained.")
+                    logger.info("_BashSession.close_async: EOF do stdin do Bash enviado e drenado.")
                 except (ConnectionResetError, BrokenPipeError, AttributeError) as e: 
-                    logger.warning(f"_BashSession.close_async: Error sending EOF to bash stdin (may be already closed): {e}")
+                    logger.warning(f"_BashSession.close_async: Erro ao enviar EOF para stdin do bash (pode já estar fechado): {e}")
                 except Exception as e:
-                    logger.error(f"_BashSession.close_async: Unexpected error closing bash stdin: {e}")
+                    logger.error(f"_BashSession.close_async: Erro inesperado ao fechar stdin do bash: {e}")
                 finally:
                     if self._process.stdin and hasattr(self._process.stdin, 'close') and hasattr(self._process.stdin, 'is_closing') and not self._process.stdin.is_closing(): # Checagens extras
                         self._process.stdin.close()
 
             if self._process.returncode is None: 
-                logger.info("_BashSession.close_async: Attempting to terminate process.")
+                logger.info("_BashSession.close_async: Tentando encerrar processo.")
                 self._process.terminate()
-                logger.info("_BashSession.close_async: Sent SIGTERM to bash process.")
+                logger.info("_BashSession.close_async: SIGTERM enviado para o processo bash.")
                 try:
-                    logger.info("_BashSession.close_async: Waiting for process to exit after terminate...")
+                    logger.info("_BashSession.close_async: Aguardando processo sair após encerrar...")
                     await asyncio.wait_for(self._process.wait(), timeout=5.0) 
-                    logger.info(f"_BashSession.close_async: Bash process exited with code {self._process.returncode}.")
+                    logger.info(f"_BashSession.close_async: Processo Bash saiu com código {self._process.returncode}.")
                 except asyncio.TimeoutError:
-                    logger.warning("_BashSession.close_async: Bash process did not terminate gracefully after 5s, sending SIGKILL.")
+                    logger.warning("_BashSession.close_async: Processo Bash não encerrou graciosamente após 5s, enviando SIGKILL.")
                     if self._process.returncode is None: 
-                        logger.info("_BashSession.close_async: Process did not terminate, attempting to kill.")
+                        logger.info("_BashSession.close_async: Processo não encerrou, tentando matar.")
                         self._process.kill()
                         await self._process.wait() 
-                        logger.info(f"_BashSession.close_async: Bash process killed. Exit code {self._process.returncode}.")
+                        logger.info(f"_BashSession.close_async: Processo Bash morto. Código de saída {self._process.returncode}.")
                 except ProcessLookupError:
-                    logger.info("_BashSession.close_async: Bash process already exited before wait.")
+                    logger.info("_BashSession.close_async: Processo Bash já havia saído antes de aguardar.")
                 except Exception as e: 
-                    logger.error(f"_BashSession.close_async: Error during bash process wait: {e}")
+                    logger.error(f"_BashSession.close_async: Erro durante a espera do processo bash: {e}")
         except ProcessLookupError: 
-            logger.info("_BashSession.close_async: Bash process does not exist (already cleaned up).")
+            logger.info("_BashSession.close_async: Processo Bash não existe (já limpo).")
         except Exception as e:
-            logger.error(f"_BashSession.close_async: Error during bash session close_async: {e}")
+            logger.error(f"_BashSession.close_async: Erro durante close_async da sessão bash: {e}")
         finally:
-            logger.info("_BashSession.close_async: Setting self._started to False.")
+            logger.info("_BashSession.close_async: Definindo self._started para False.")
             self._started = False 
             if hasattr(self, '_process'): # Garantir que _process existe
-                logger.info(f"Bash session close_async completed. Final process return code: {self._process.returncode}")
+                logger.info(f"close_async da sessão Bash concluído. Código de retorno final do processo: {self._process.returncode}")
             else:
-                logger.info("Bash session close_async completed (process attribute was missing).")
+                logger.info("close_async da sessão Bash concluído (atributo de processo ausente).")
 
     async def run(self, command: str):
-        """Execute a command in the bash shell."""
+        """Executa um comando no shell bash."""
         if not self._started:
-            raise ToolError("Session has not started.")
+            raise ToolError("A sessão não foi iniciada.")
         if self._process.returncode is not None:
             return CLIResult(
-                system="tool must be restarted",
-                error=f"bash has exited with returncode {self._process.returncode}",
+                system="a ferramenta precisa ser reiniciada",
+                error=f"bash saiu com código de retorno {self._process.returncode}",
             )
         if self._timed_out:
             raise ToolError(
-                f"timed out: bash has not returned in {self._timeout} seconds and must be restarted",
+                f"tempo esgotado: bash não retornou em {self._timeout} segundos e precisa ser reiniciado",
             )
 
-        # we know these are not None because we created the process with PIPEs
+        # sabemos que estes não são None porque criamos o processo com PIPEs
         assert self._process.stdin
         assert self._process.stdout
         assert self._process.stderr
 
-        # send command to the process
+        # envia comando para o processo
         self._process.stdin.write(
             command.encode() + f"; echo '{self._sentinel}'\n".encode()
         )
         await self._process.stdin.drain()
 
-        # read output from the process, until the sentinel is found
+        # lê a saída do processo, até que o sentinela seja encontrado
         async def _read_output_with_sentinel():
             while True:
                 await asyncio.sleep(self._output_delay)
-                # if we read directly from stdout/stderr, it will wait forever for
-                # EOF. use the StreamReader buffer directly instead.
-                output_val = ( # Renamed to output_val to avoid conflict with outer scope 'output'
+                # se lermos diretamente de stdout/stderr, ele esperará para sempre por
+                # EOF. use o buffer StreamReader diretamente.
+                output_val = ( # Renomeado para output_val para evitar conflito com 'output' do escopo externo
                     self._process.stdout._buffer.decode()
                 )  # pyright: ignore[reportAttributeAccessIssue]
                 if self._sentinel in output_val:
-                    # strip the sentinel and break
+                    # remove o sentinela e quebra
                     output_val = output_val[: output_val.index(self._sentinel)]
-                    return output_val # Return the output when sentinel is found
-                # Check if process has exited unexpectedly to prevent infinite loop.
+                    return output_val # Retorna a saída quando o sentinela é encontrado
+                # Verifica se o processo saiu inesperadamente para evitar loop infinito.
                 if self._process.returncode is not None:
-                    logger.warning("_BashSession._read_output_with_sentinel: Process exited prematurely.")
-                    # Try to get any remaining output, may not contain sentinel
+                    logger.warning("_BashSession._read_output_with_sentinel: Processo saiu prematuramente.")
+                    # Tenta obter qualquer saída restante, pode não conter o sentinela
                     return self._process.stdout._buffer.decode() # pyright: ignore[reportAttributeAccessIssue]
         
-        output = "" # Initialize output to ensure it's defined
+        output = "" # Inicializa output para garantir que esteja definido
         try:
             output = await asyncio.wait_for(_read_output_with_sentinel(), timeout=self._timeout)
         except asyncio.TimeoutError:
             self._timed_out = True
-            # logger.error(f"Command timed out after {self._timeout}s in _BashSession.run") # Logger available
+            # logger.error(f"Comando atingiu o tempo limite após {self._timeout}s em _BashSession.run") # Logger disponível
             raise ToolError(
-                f"timed out: bash has not returned in {self._timeout} seconds and must be restarted",
+                f"tempo esgotado: bash não retornou em {self._timeout} segundos e precisa ser reiniciado",
             ) from None
 
-        if output and output.endswith("\n"): # Check if output is not None
+        if output and output.endswith("\n"): # Verifica se output não é None
             output = output[:-1]
 
         error = (
@@ -175,7 +175,7 @@ class _BashSession:
         if error.endswith("\n"):
             error = error[:-1]
 
-        # clear the buffers so that the next output can be read correctly
+        # limpa os buffers para que a próxima saída possa ser lida corretamente
         self._process.stdout._buffer.clear()  # pyright: ignore[reportAttributeAccessIssue]
         self._process.stderr._buffer.clear()  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -183,7 +183,7 @@ class _BashSession:
 
 
 class Bash(BaseTool):
-    """A tool for executing bash commands"""
+    """Uma ferramenta para executar comandos bash"""
 
     name: str = "bash"
     description: str = _BASH_DESCRIPTION
@@ -192,11 +192,11 @@ class Bash(BaseTool):
         "properties": {
             "command": {
                 "type": "string",
-                "description": "The bash command to execute. Can be empty to view additional logs when previous exit code is `-1`. Can be `ctrl+c` to interrupt the currently running process.",
+                "description": "O comando bash a ser executado. Pode estar vazio para visualizar logs adicionais quando o código de saída anterior for `-1`. Pode ser `ctrl+c` para interromper o processo em execução no momento.",
             },
             "working_directory": { # Novo parâmetro
                 "type": "string",
-                "description": "Optional. The working directory from which to run the command. Defaults to the agent's current working directory if not specified. This directory is set when the session (re)starts.",
+                "description": "Opcional. O diretório de trabalho a partir do qual executar o comando. Assume o diretório de trabalho atual do agente se não especificado. Este diretório é definido quando a sessão (re)inicia.",
                 "nullable": True 
             }
         },
@@ -212,14 +212,14 @@ class Bash(BaseTool):
             if self._session:
                 await self._session.close_async() # MUDAR AQUI
             self._session = _BashSession()
-            # Use config.workspace_root as default for working_directory
+            # Usar config.workspace_root como padrão para working_directory
             effective_working_directory = working_directory if working_directory is not None else str(config.workspace_root)
             await self._session.start(working_directory=effective_working_directory)
-            return CLIResult(system="tool has been restarted.")
+            return CLIResult(system="a ferramenta foi reiniciada.")
 
         if self._session is None:
             self._session = _BashSession()
-            # Use config.workspace_root as default for working_directory
+            # Usar config.workspace_root como padrão para working_directory
             effective_working_directory = working_directory if working_directory is not None else str(config.workspace_root)
             await self._session.start(working_directory=effective_working_directory)
 
@@ -228,20 +228,20 @@ class Bash(BaseTool):
             # Se for necessário mudar por comando, o próprio comando 'cd' deve ser usado.
             return await self._session.run(command)
 
-        raise ToolError("no command provided.")
+        raise ToolError("nenhum comando fornecido.")
 
     async def cleanup(self):
-        """Cleans up the bash session if it exists."""
-        logger.info("Bash.cleanup: Starting...")
+        """Limpa a sessão bash se ela existir."""
+        logger.info("Bash.cleanup: Iniciando...")
         if self._session:
-            logger.info("Bash.cleanup: About to call self._session.close_async()")
+            logger.info("Bash.cleanup: Prester a chamar self._session.close_async()")
             await self._session.close_async()
-            logger.info("Bash.cleanup: self._session.close_async() completed.")
+            logger.info("Bash.cleanup: self._session.close_async() concluído.")
             self._session = None
-            logger.info("Bash.cleanup: self._session set to None.")
+            logger.info("Bash.cleanup: self._session definido como None.")
         else:
-            logger.info("Bash.cleanup: No active Bash tool session to cleanup.")
-        logger.info("Bash.cleanup: Finished.")
+            logger.info("Bash.cleanup: Nenhuma sessão ativa da ferramenta Bash para limpar.")
+        logger.info("Bash.cleanup: Finalizado.")
 
 
 if __name__ == "__main__":

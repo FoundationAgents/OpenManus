@@ -33,7 +33,7 @@ from app.agent.checklist_manager import ChecklistManager # Added for _is_checkli
 from .regex_patterns import re_subprocess
 
 
-# New constant for internal self-analysis
+# Nova constante para autoanálise interna
 INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """Você é Manus. Você está em um ponto de verificação com o usuário.
 Analise o histórico recente da conversa (últimas {X} mensagens), o estado atual do seu checklist de tarefas (fornecido abaixo), e quaisquer erros ou dificuldades que você encontrou.
 Com base nisso, gere um "Relatório de Autoanálise e Planejamento" conciso em português para apresentar ao usuário.
@@ -52,10 +52,10 @@ Conteúdo do Checklist Principal (`checklist_principal_tarefa.md`):
 
 
 class Manus(ToolCallAgent):
-    """A versatile general-purpose agent with support for both local and MCP tools."""
+    """Um agente versátil de propósito geral com suporte para ferramentas locais e MCP."""
 
     name: str = "Manus"
-    description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
+    description: str = "Um agente versátil que pode resolver várias tarefas usando múltiplas ferramentas, incluindo ferramentas baseadas em MCP"
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -83,12 +83,12 @@ class Manus(ToolCallAgent):
 
 
     def __getstate__(self):
-        logger.info(f"Manus.__getstate__ called for instance: {self!r}")
+        logger.info(f"Manus.__getstate__ chamado para instância: {self!r}")
         state = self.__dict__.copy()
         state.pop('_mcp_clients', None)
         state.pop('available_tools', None)
         state.pop('llm', None)
-        logger.info(f"Manus.__getstate__ final keys: {list(state.keys())}")
+        logger.info(f"Manus.__getstate__ chaves finais: {list(state.keys())}")
         return state
 
     def __setstate__(self, state):
@@ -109,7 +109,7 @@ class Manus(ToolCallAgent):
 
         from app.tool.read_file_content import ReadFileContentTool
         from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
-        from app.tool.file_system_tools import ListFilesTool # Added ListFilesTool
+        from app.tool.file_system_tools import ListFilesTool # Adicionado ListFilesTool
 
         llm_config_name = "manus"
         if 'name' in state and state['name']:
@@ -125,7 +125,7 @@ class Manus(ToolCallAgent):
 
             ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
             ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
-            CheckFileExistenceTool(), ListFilesTool() # Added ListFilesTool
+            CheckFileExistenceTool(), ListFilesTool() # Adicionado ListFilesTool
         )
         self._initialized = False
         self.connected_servers = {}
@@ -142,13 +142,13 @@ class Manus(ToolCallAgent):
 
         from app.tool.read_file_content import ReadFileContentTool
         from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
-        from app.tool.file_system_tools import ListFilesTool # Added ListFilesTool
+        from app.tool.file_system_tools import ListFilesTool # Adicionado ListFilesTool
         self.available_tools = ToolCollection(
             PythonExecute(), BrowserUseTool(), StrReplaceEditor(), AskHuman(), Terminate(),
             Bash(), SandboxPythonExecutor(), FormatPythonCode(), ReplaceCodeBlock(),
             ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
             ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
-            CheckFileExistenceTool(), ListFilesTool() # Added ListFilesTool
+            CheckFileExistenceTool(), ListFilesTool() # Adicionado ListFilesTool
         )
 
     connected_servers: Dict[str, str] = Field(default_factory=dict)
@@ -162,7 +162,7 @@ class Manus(ToolCallAgent):
     @classmethod
     async def create(cls, **kwargs) -> "Manus":
         instance = cls(**kwargs)
-        logger.info(f"Manus agent created. System prompt (first 500 chars): {instance.system_prompt[:500]}")
+        logger.info(f"Agente Manus criado. Prompt do sistema (primeiros 500 caracteres): {instance.system_prompt[:500]}")
         await instance.initialize_mcp_servers()
         instance._initialized = True
         return instance
@@ -173,15 +173,15 @@ class Manus(ToolCallAgent):
                 if server_config.type == "sse":
                     if server_config.url:
                         await self.connect_mcp_server(server_config.url, server_id)
-                        logger.info(f"Connected to MCP server {server_id} at {server_config.url}")
+                        logger.info(f"Conectado ao servidor MCP {server_id} em {server_config.url}")
                 elif server_config.type == "stdio":
                     if server_config.command:
                         await self.connect_mcp_server(
                             server_config.command, server_id, use_stdio=True, stdio_args=server_config.args,
                         )
-                        logger.info(f"Connected to MCP server {server_id} using command {server_config.command}")
+                        logger.info(f"Conectado ao servidor MCP {server_id} usando o comando {server_config.command}")
             except Exception as e:
-                logger.error(f"Failed to connect to MCP server {server_id}: {e}")
+                logger.error(f"Falha ao conectar ao servidor MCP {server_id}: {e}")
 
     async def connect_mcp_server(
         self, server_url: str, server_id: str = "", use_stdio: bool = False, stdio_args: List[str] = None,
@@ -204,7 +204,7 @@ class Manus(ToolCallAgent):
         self.available_tools.add_tools(*self._mcp_clients.tools)
 
     async def cleanup(self):
-        logger.info("Manus.cleanup: Starting Manus agent specific cleanup...")
+        logger.info("Manus.cleanup: Iniciando limpeza específica do agente Manus...")
         if self.browser_context_helper:
             await self.browser_context_helper.cleanup_browser()
         if self._initialized:
@@ -214,40 +214,40 @@ class Manus(ToolCallAgent):
             for tool_name, tool_instance in self.available_tools.tool_map.items():
                 if hasattr(tool_instance, "cleanup") and callable(getattr(tool_instance, "cleanup")):
                     try: await tool_instance.cleanup()
-                    except Exception as e: logger.error(f"Error during cleanup of tool {tool_name}: {e}")
+                    except Exception as e: logger.error(f"Erro durante a limpeza da ferramenta {tool_name}: {e}")
         try:
             await SANDBOX_CLIENT.cleanup()
-        except Exception as e: logger.error(f"Error during SANDBOX_CLIENT.cleanup in Manus.cleanup: {e}")
-        logger.info("Manus agent cleanup finished.")
+        except Exception as e: logger.error(f"Erro durante SANDBOX_CLIENT.cleanup em Manus.cleanup: {e}")
+        logger.info("Limpeza do agente Manus concluída.")
 
     async def _internal_tool_feedback_check(self, tool_call: Optional[ToolCall] = None) -> bool: return False
     async def _is_checklist_complete(self) -> bool:
         try:
             manager = ChecklistManager()
             await manager._load_checklist()
-            tasks = manager.get_tasks() # Get tasks once
+            tasks = manager.get_tasks() # Obter tarefas uma vez
 
             if not tasks:
-                logger.info("Manus._is_checklist_complete: Checklist is not complete because no tasks were found (file might be empty or missing).")
+                logger.info("Manus._is_checklist_complete: Checklist não está completo porque nenhuma tarefa foi encontrada (o arquivo pode estar vazio ou ausente).")
                 return False
 
-            # NEW LOGIC START
-            # Check if the *only* task is a generic decomposition task and it's marked completed.
-            # This is a heuristic.
+            # INÍCIO DA NOVA LÓGICA
+            # Verifica se a *única* tarefa é uma tarefa de decomposição genérica e está marcada como concluída.
+            # Esta é uma heurística.
             decomposition_task_description_variations = [
                 "decompor a solicitação do usuário e popular o checklist com as subtarefas",
                 "decompor a tarefa do usuário em subtarefas claras",
                 "decompor o pedido do usuário e preencher o checklist",
                 "popular o checklist com as subtarefas da solicitação do usuário",
                 "criar checklist inicial a partir da solicitação do usuário"
-                # Add other common variations if observed during testing/operation
+                # Adicionar outras variações comuns se observadas durante o teste/operação
             ]
 
             if len(tasks) == 1:
                 single_task = tasks[0]
-                # Normalize for safer comparison: lowercased and stripped description
+                # Normalizar para comparação mais segura: descrição em minúsculas e sem espaços em branco
                 normalized_single_task_desc = single_task.get('description', '').strip().lower()
-                # Normalize status: lowercased and stripped
+                # Normalizar status: em minúsculas e sem espaços em branco
                 single_task_status = single_task.get('status', '').strip().lower()
 
                 is_generic_decomposition_task = any(
@@ -255,38 +255,38 @@ class Manus(ToolCallAgent):
                 )
 
                 if is_generic_decomposition_task and single_task_status == 'concluído':
-                    logger.warning("Manus._is_checklist_complete: Checklist only contains the initial decomposition-like task "
-                                   "marked as 'Concluído'. This is likely premature. "
-                                   "Considering checklist NOT complete to enforce population of actual sub-tasks.")
-                    # Optional: Add a system message to guide the LLM for the next step.
-                    # This requires self.memory to be accessible and a Message class.
-                    # from app.schema import Message, Role # Ensure import if used
+                    logger.warning("Manus._is_checklist_complete: Checklist contém apenas a tarefa inicial semelhante à decomposição "
+                                   "marcada como 'Concluído'. Isso provavelmente é prematuro. "
+                                   "Considerando o checklist NÃO completo para forçar o preenchimento das subtarefas reais.")
+                    # Opcional: Adicionar uma mensagem de sistema para guiar o LLM para o próximo passo.
+                    # Isso requer que self.memory seja acessível e uma classe Message.
+                    # from app.schema import Message, Role # Garantir importação se usado
                     # self.memory.add_message(Message.system_message(
                     #    "Lembrete: A tarefa de decomposição só é verdadeiramente concluída após as subtarefas resultantes "
                     #    "serem adicionadas ao checklist e o trabalho nelas ter começado. Por favor, adicione as subtarefas agora."
                     # ))
                     return False
-            # NEW LOGIC END
+            # FIM DA NOVA LÓGICA
 
-            # Proceed with the original logic if the above condition isn't met
-            # The manager.are_all_tasks_complete() method itself checks if all loaded tasks are 'Concluído'.
-            # It will correctly return False if there are tasks but not all are 'Concluído'.
+            # Prosseguir com a lógica original se a condição acima não for atendida
+            # O método manager.are_all_tasks_complete() verifica se todas as tarefas carregadas são 'Concluído'.
+            # Ele retornará False corretamente se houver tarefas, mas nem todas forem 'Concluído'.
             all_complete_according_to_manager = manager.are_all_tasks_complete()
 
             if not all_complete_according_to_manager:
-                 # Log already done by are_all_tasks_complete if it returns false due to incomplete tasks
-                 logger.info(f"Manus._is_checklist_complete: Checklist is not complete based on ChecklistManager.are_all_tasks_complete() returning False.")
+                 # Log já feito por are_all_tasks_complete se retornar falso devido a tarefas incompletas
+                 logger.info(f"Manus._is_checklist_complete: Checklist não está completo com base em ChecklistManager.are_all_tasks_complete() retornando False.")
                  return False
 
-            # If manager.are_all_tasks_complete() returned True, it means all tasks it found are complete.
-            # And if we passed the new heuristic check (i.e., it's not a single, prematurely completed decomposition task),
-            # then the checklist is genuinely complete.
-            logger.info(f"Manus._is_checklist_complete: Checklist completion status: True (all tasks complete and not a premature decomposition).")
+            # Se manager.are_all_tasks_complete() retornou True, significa que todas as tarefas encontradas estão completas.
+            # E se passamos na nova verificação heurística (ou seja, não é uma única tarefa de decomposição concluída prematuramente),
+            # então o checklist está genuinamente completo.
+            logger.info(f"Manus._is_checklist_complete: Status de conclusão do checklist: True (todas as tarefas concluídas e não uma decomposição prematura).")
             return True
 
         except Exception as e:
-            # Log the error and return False, as completion cannot be confirmed.
-            logger.error(f"Error checking checklist completion in Manus._is_checklist_complete: {e}")
+            # Registrar o erro e retornar False, pois a conclusão não pode ser confirmada.
+            logger.error(f"Erro ao verificar a conclusão do checklist em Manus._is_checklist_complete: {e}")
             return False
 
     async def should_request_feedback(self) -> bool:
@@ -318,41 +318,41 @@ class Manus(ToolCallAgent):
         return text.strip()
 
     async def _execute_self_coding_cycle(self, task_prompt_for_llm: str, max_attempts: int = 3) -> Dict[str, Any]:
-        logger.info(f"Starting self-coding cycle for task: {task_prompt_for_llm}")
+        logger.info(f"Iniciando ciclo de auto-codificação para tarefa: {task_prompt_for_llm}")
         script_content: Optional[str] = None
         host_script_path: str = ""
-        final_result: Dict[str, Any] = {"success": False, "message": "Self-coding cycle not completed."}
+        final_result: Dict[str, Any] = {"success": False, "message": "Ciclo de auto-codificação não concluído."}
 
         local_op = LocalFileOperator()
 
         for attempt in range(max_attempts):
-            logger.info(f"Self-coding attempt {attempt + 1}/{max_attempts}")
+            logger.info(f"Tentativa de auto-codificação {attempt + 1}/{max_attempts}")
 
             code_fixed_by_formatter = False
             targeted_edits_applied_this_attempt = False
-            # analysis_failed_or_no_edits_suggested = False # This flag seems unused with new logic
+            # analysis_failed_or_no_edits_suggested = False # Esta flag parece não utilizada com a nova lógica
 
             if attempt == 0:
-                logger.info(f"Attempt {attempt + 1}: Generating initial script for task: {task_prompt_for_llm}")
-                # Placeholder for LLM call to generate initial script
-                generated_script_content = f"# Initial Script - Attempt {attempt + 1}\n# Task: {task_prompt_for_llm}\nprint(\"Attempting task: {task_prompt_for_llm}\")\n# Example: Intentionally introduce a syntax error for testing\n# print(\"Syntax error here\"\nwith open(\"output.txt\", \"w\") as f:\n    f.write(\"Output from script attempt {attempt + 1}\")\nprint(\"Script finished attempt {attempt + 1}.\")"
+                logger.info(f"Tentativa {attempt + 1}: Gerando script inicial para tarefa: {task_prompt_for_llm}")
+                # Placeholder para chamada LLM para gerar script inicial
+                generated_script_content = f"# Script Inicial - Tentativa {attempt + 1}\n# Tarefa: {task_prompt_for_llm}\nprint(\"Tentando tarefa: {task_prompt_for_llm}\")\n# Exemplo: Introduzir intencionalmente um erro de sintaxe para teste\n# print(\"Erro de sintaxe aqui\"\nwith open(\"output.txt\", \"w\") as f:\n    f.write(\"Saída da tentativa de script {attempt + 1}\")\nprint(\"Script concluiu tentativa {attempt + 1}.\")"
                 script_content = self._sanitize_text_for_file(generated_script_content)
                 if not script_content:
-                    logger.error("LLM (simulated) failed to generate initial script content.")
-                    final_result = {"success": False, "message": "LLM (simulated) failed to generate initial script."}
+                    logger.error("LLM (simulado) falhou ao gerar conteúdo do script inicial.")
+                    final_result = {"success": False, "message": "LLM (simulado) falhou ao gerar script inicial."}
                     continue
                 script_filename = f"temp_manus_script_{uuid.uuid4().hex[:8]}.py"
                 host_script_path = str(config.workspace_root / script_filename)
                 try:
                     await local_op.write_file(host_script_path, script_content)
-                    logger.info(f"Initial script written to host: {host_script_path}")
+                    logger.info(f"Script inicial escrito no host: {host_script_path}")
                 except Exception as e:
-                    logger.error(f"Failed to write initial script to host: {e}")
-                    final_result = {"success": False, "message": f"Failed to write initial script to host: {e}"}
+                    logger.error(f"Falha ao escrever script inicial no host: {e}")
+                    final_result = {"success": False, "message": f"Falha ao escrever script inicial no host: {e}"}
                     continue
             elif not host_script_path or not os.path.exists(host_script_path):
-                logger.error(f"host_script_path ('{host_script_path}') not defined or file does not exist on attempt {attempt + 1}. Critical error.")
-                final_result = {"success": False, "message": "Internal error: Script path lost or file missing between attempts."}
+                logger.error(f"host_script_path ('{host_script_path}') não definido ou arquivo não existe na tentativa {attempt + 1}. Erro crítico.")
+                final_result = {"success": False, "message": "Erro interno: Caminho do script perdido ou arquivo ausente entre tentativas."}
                 break
 
             sandbox_script_name_in_container = os.path.basename(host_script_path)
@@ -360,17 +360,17 @@ class Manus(ToolCallAgent):
 
             str_editor_tool = self.available_tools.get_tool(StrReplaceEditor().name)
             if not str_editor_tool:
-                logger.critical("StrReplaceEditor tool is not available for sandbox copy.")
-                final_result = {"success": False, "message": "Critical error: StrReplaceEditor tool missing."}
+                logger.critical("Ferramenta StrReplaceEditor não está disponível para cópia para o sandbox.")
+                final_result = {"success": False, "message": "Erro crítico: Ferramenta StrReplaceEditor ausente."}
                 break
 
             copy_to_sandbox_succeeded = False
             try:
                 await str_editor_tool.execute(command="copy_to_sandbox", path=host_script_path, container_filename=sandbox_script_name_in_container)
-                logger.info(f"Script copy to sandbox successful: {host_script_path} -> {sandbox_target_path_for_executor}")
+                logger.info(f"Cópia do script para o sandbox bem-sucedida: {host_script_path} -> {sandbox_target_path_for_executor}")
                 copy_to_sandbox_succeeded = True
             except Exception as e_copy:
-                logger.error(f"Failed to copy script to sandbox: {e_copy}")
+                logger.error(f"Falha ao copiar script para o sandbox: {e_copy}")
                 final_result = {"success": False, "message": f"Falha ao copiar script para o sandbox: {e_copy}", "status_code": "SANDBOX_COPY_FAILED"}
                 continue
 
@@ -378,15 +378,15 @@ class Manus(ToolCallAgent):
             if copy_to_sandbox_succeeded:
                 executor_tool = self.available_tools.get_tool(SandboxPythonExecutor().name)
                 if not executor_tool:
-                    logger.critical("SandboxPythonExecutor tool not found.")
-                    final_result = {"success": False, "message": "SandboxPythonExecutor tool not found."}
+                    logger.critical("Ferramenta SandboxPythonExecutor não encontrada.")
+                    final_result = {"success": False, "message": "Ferramenta SandboxPythonExecutor não encontrada."}
                     break
                 
                 execution_result = await executor_tool.execute(file_path=sandbox_target_path_for_executor, timeout=30)
-                logger.info(f"Sandbox execution: stdout='{execution_result.get('stdout')}', stderr='{execution_result.get('stderr')}', exit_code={execution_result.get('exit_code')}")
+                logger.info(f"Execução no sandbox: stdout='{execution_result.get('stdout')}', stderr='{execution_result.get('stderr')}', exit_code={execution_result.get('exit_code')}")
                 final_result["last_execution_result"] = execution_result
             else:
-                logger.error("Skipping execution as copy to sandbox failed.")
+                logger.error("Pulando execução pois a cópia para o sandbox falhou.")
                 continue
 
             exit_code = execution_result.get("exit_code", -1)
@@ -394,52 +394,52 @@ class Manus(ToolCallAgent):
             stdout = execution_result.get("stdout", "")
             
             if exit_code == 0:
-                logger.info(f"Script executed successfully in attempt {attempt + 1}.")
+                logger.info(f"Script executado com sucesso na tentativa {attempt + 1}.")
                 final_result = {"success": True, "message": "Script executado com sucesso.", "stdout": stdout, "stderr": stderr, "exit_code": exit_code}
-                # Simplified success cleanup for now
+                # Limpeza simplificada de sucesso por enquanto
                 break
-            else: # Script execution failed (exit_code != 0)
-                logger.warning(f"Script execution failed in attempt {attempt + 1}. Exit code: {exit_code}, Stderr: {stderr}")
-                final_result = {"success": False, "message": f"Execution failed in attempt {attempt+1}.", "stdout":stdout, "stderr":stderr, "exit_code":exit_code}
+            else: # Execução do script falhou (exit_code != 0)
+                logger.warning(f"Execução do script falhou na tentativa {attempt + 1}. Código de saída: {exit_code}, Stderr: {stderr}")
+                final_result = {"success": False, "message": f"Execução falhou na tentativa {attempt+1}.", "stdout":stdout, "stderr":stderr, "exit_code":exit_code}
 
                 if attempt >= max_attempts - 1:
-                    logger.info("Last attempt failed. No more fixes will be tried.")
+                    logger.info("Última tentativa falhou. Nenhuma correção adicional será tentada.")
                     break
 
-                # --- Debugging Funnel ---
+                # --- Funil de Depuração ---
                 current_script_code_for_analysis = await local_op.read_file(host_script_path)
 
                 if "SyntaxError:" in stderr or "IndentationError:" in stderr:
-                    logger.info(f"[CORRECTION_ATTEMPT {attempt + 1}/{max_attempts}] Attempting to fix Syntax/Indentation error using formatter for script {host_script_path}.")
+                    logger.info(f"[TENTATIVA_CORRECAO {attempt + 1}/{max_attempts}] Tentando corrigir erro de Sintaxe/Indentação usando formatador para script {host_script_path}.")
                     formatter_tool = self.available_tools.get_tool("format_python_code")
                     if formatter_tool:
                         format_result = await formatter_tool.execute(code=current_script_code_for_analysis)
                         if isinstance(format_result, str):
                             try:
                                 ast.parse(format_result)
-                                logger.info("Formatted code parsed successfully. Writing back.")
+                                logger.info("Código formatado parseado com sucesso. Escrevendo de volta.")
                                 await local_op.write_file(host_script_path, format_result)
                                 code_fixed_by_formatter = True
                             except SyntaxError as e_ast:
-                                logger.warning(f"Formatted code still has syntax errors: {e_ast}.")
+                                logger.warning(f"Código formatado ainda tem erros de sintaxe: {e_ast}.")
                         else:
-                            logger.warning(f"Code formatter failed: {format_result.get('error')}.")
+                            logger.warning(f"Formatador de código falhou: {format_result.get('error')}.")
                     else:
-                        logger.warning("format_python_code tool not found.")
+                        logger.warning("Ferramenta format_python_code não encontrada.")
 
                 if code_fixed_by_formatter:
-                    logger.info("Code fixed by formatter. Retrying.")
+                    logger.info("Código corrigido pelo formatador. Tentando novamente.")
                     continue
 
-                # LLM for Complex Fixes
+                # LLM para Correções Complexas
                 log_msg_llm_query = ""
-                if "SyntaxError:" in stderr or "IndentationError:" in stderr: # Still a syntax error after formatter attempt
-                    logger.info(f"[CORRECTION_ATTEMPT {attempt + 1}/{max_attempts}] Formatter did not fix syntax error for script {host_script_path}, or error was not format-related. Querying LLM.")
-                else: # Runtime error
-                    logger.info(f"[CORRECTION_ATTEMPT {attempt + 1}/{max_attempts}] Script {host_script_path} failed with runtime error. Querying LLM.")
-                # The logger.info(log_msg_llm_query) was removed as the specific messages above cover it.
+                if "SyntaxError:" in stderr or "IndentationError:" in stderr: # Ainda um erro de sintaxe após tentativa do formatador
+                    logger.info(f"[TENTATIVA_CORRECAO {attempt + 1}/{max_attempts}] Formatador não corrigiu erro de sintaxe para script {host_script_path}, ou erro não era relacionado à formatação. Consultando LLM.")
+                else: # Erro de tempo de execução
+                    logger.info(f"[TENTATIVA_CORRECAO {attempt + 1}/{max_attempts}] Script {host_script_path} falhou com erro de tempo de execução. Consultando LLM.")
+                # O logger.info(log_msg_llm_query) foi removido pois as mensagens específicas acima o cobrem.
 
-                current_script_code_for_analysis = await local_op.read_file(host_script_path) # Re-read in case formatter made changes
+                current_script_code_for_analysis = await local_op.read_file(host_script_path) # Relê caso o formatador tenha feito alterações
                 analysis_prompt_text = self._build_targeted_analysis_prompt(
                     script_content=current_script_code_for_analysis, stdout=stdout, stderr=stderr, original_task=task_prompt_for_llm
                 )
@@ -453,52 +453,52 @@ class Manus(ToolCallAgent):
                         tool_params_from_llm = parsed_llm_suggestion.get("tool_params")
 
                         if tool_to_use_name and isinstance(tool_params_from_llm, dict):
-                            logger.info(f"[CORRECTION_ATTEMPT {attempt + 1}/{max_attempts}] LLM suggested tool '{tool_to_use_name}' for script {host_script_path}. Attempting execution with params: {tool_params_from_llm}")
+                            logger.info(f"[TENTATIVA_CORRECAO {attempt + 1}/{max_attempts}] LLM sugeriu ferramenta '{tool_to_use_name}' para script {host_script_path}. Tentando execução com params: {tool_params_from_llm}")
                             chosen_tool = self.available_tools.get_tool(tool_to_use_name)
                             if chosen_tool:
                                 if tool_to_use_name == "format_python_code":
-                                    tool_params_from_llm["code"] = current_script_code_for_analysis # Ensure 'code' is passed
+                                    tool_params_from_llm["code"] = current_script_code_for_analysis # Garante que 'code' é passado
                                     tool_params_from_llm.pop("path", None)
                                 else:
                                     tool_params_from_llm["path"] = host_script_path
 
                                 tool_exec_result = await chosen_tool.execute(**tool_params_from_llm)
                                 if isinstance(tool_exec_result, dict) and tool_exec_result.get("error"):
-                                    logger.error(f"LLM-suggested tool '{tool_to_use_name}' failed: {tool_exec_result.get('error')}")
-                                else: # Assumed success
-                                    logger.info(f"LLM-suggested tool '{tool_to_use_name}' executed successfully.")
+                                    logger.error(f"Ferramenta sugerida pelo LLM '{tool_to_use_name}' falhou: {tool_exec_result.get('error')}")
+                                else: # Sucesso assumido
+                                    logger.info(f"Ferramenta sugerida pelo LLM '{tool_to_use_name}' executada com sucesso.")
                                     targeted_edits_applied_this_attempt = True
                             else:
-                                logger.warning(f"LLM suggested tool '{tool_to_use_name}' not found.")
-                        elif tool_to_use_name is None: # LLM explicitly said no tool
-                             logger.info(f"LLM explicitly suggested no tool. Comment: {parsed_llm_suggestion.get('comment')}")
-                        else: # Invalid JSON structure from LLM
-                            logger.warning(f"LLM suggestion JSON invalid. Suggestion: {parsed_llm_suggestion}")
+                                logger.warning(f"Ferramenta sugerida pelo LLM '{tool_to_use_name}' não encontrada.")
+                        elif tool_to_use_name is None: # LLM explicitamente disse nenhuma ferramenta
+                             logger.info(f"LLM explicitamente não sugeriu nenhuma ferramenta. Comentário: {parsed_llm_suggestion.get('comment')}")
+                        else: # Estrutura JSON inválida do LLM
+                            logger.warning(f"Sugestão JSON do LLM inválida. Sugestão: {parsed_llm_suggestion}")
                     except json.JSONDecodeError as json_e:
-                        logger.error(f"Failed to parse JSON from LLM tool suggestion: {json_e}. Raw: {llm_analysis_response_str}")
+                        logger.error(f"Falha ao parsear JSON da sugestão de ferramenta do LLM: {json_e}. Raw: {llm_analysis_response_str}")
                     except Exception as tool_apply_e:
-                        logger.error(f"Error applying LLM suggested tool: {tool_apply_e}")
+                        logger.error(f"Erro ao aplicar ferramenta sugerida pelo LLM: {tool_apply_e}")
                 else:
-                    logger.warning("Could not extract JSON from LLM tool suggestion response.")
+                    logger.warning("Não foi possível extrair JSON da resposta de sugestão de ferramenta do LLM.")
 
                 if targeted_edits_applied_this_attempt:
-                    logger.info("LLM-suggested edits applied. Retrying script execution.")
+                    logger.info("Edições sugeridas pelo LLM aplicadas. Tentando novamente execução do script.")
                     continue
                 else:
-                    logger.info("LLM-based correction failed or no valid edits applied this attempt.")
+                    logger.info("Correção baseada em LLM falhou ou nenhuma edição válida aplicada nesta tentativa.")
             
-            # Cleanup sandbox script for this failed attempt (if copied)
+            # Limpa script do sandbox para esta tentativa falha (se copiado)
             if copy_to_sandbox_succeeded and SANDBOX_CLIENT.sandbox and SANDBOX_CLIENT.sandbox.container:
                 try: await SANDBOX_CLIENT.run_command(f"rm -f {sandbox_target_path_for_executor}")
-                except Exception as e_rm_sandbox: logger.error(f"Error removing sandbox script post-attempt: {e_rm_sandbox}")
+                except Exception as e_rm_sandbox: logger.error(f"Erro ao remover script do sandbox pós-tentativa: {e_rm_sandbox}")
 
-        # Final cleanup of host script if it still exists (e.g., all attempts failed)
+        # Limpeza final do script do host se ainda existir (ex: todas as tentativas falharam)
         if host_script_path and os.path.exists(host_script_path):
             try: await local_op.delete_file(host_script_path)
-            except Exception as e_final_clean: logger.error(f"Error in final deletion of host script {host_script_path}: {e_final_clean}")
+            except Exception as e_final_clean: logger.error(f"Erro na exclusão final do script do host {host_script_path}: {e_final_clean}")
         
         if not final_result["success"]:
-             logger.error(f"Self-coding cycle ultimately failed after {max_attempts} attempts. Final result: {final_result}")
+             logger.error(f"Ciclo de auto-codificação falhou totalmente após {max_attempts} tentativas. Resultado final: {final_result}")
         
         self._monitoring_background_task = False
         self._background_task_log_file = None
@@ -510,24 +510,24 @@ class Manus(ToolCallAgent):
         return final_result
 
     def _extract_json_from_response(self, llm_response: str) -> Optional[str]:
-        """Extracts a JSON string from the LLM's response, handling markdown code blocks."""
-        logger.debug(f"Attempting to extract JSON from LLM response: '{llm_response[:500]}...'")
+        """Extrai uma string JSON da resposta do LLM, lidando com blocos de código markdown."""
+        logger.debug(f"Tentando extrair JSON da resposta do LLM: '{llm_response[:500]}...'")
         match = re.search(r"```json\s*([\s\S]+?)\s*```", llm_response)
         if match:
             json_str = match.group(1).strip()
-            logger.debug(f"Extracted JSON string using regex: '{json_str[:500]}...'")
+            logger.debug(f"String JSON extraída usando regex: '{json_str[:500]}...'")
             return json_str
         
         response_stripped = llm_response.strip()
         if response_stripped.startswith("{") and response_stripped.endswith("}"):
-            logger.debug("Response looks like a direct JSON object. Using as is.")
+            logger.debug("Resposta parece um objeto JSON direto. Usando como está.")
             return response_stripped
         
-        logger.warning("No JSON code block found, and response is not a direct JSON object.")
+        logger.warning("Nenhum bloco de código JSON encontrado, e resposta não é um objeto JSON direto.")
         return None
 
     def _build_targeted_analysis_prompt(self, script_content: str, stdout: str, stderr: str, original_task: str) -> str:
-        """Builds the prompt for the LLM to analyze and suggest a tool-based correction."""
+        """Constrói o prompt para o LLM analisar e sugerir uma correção baseada em ferramenta."""
         ANALYSIS_PROMPT_TEMPLATE = """Você é um "Python Code Analyzer and Corrector".
 Sua tarefa é analisar um script Python que falhou, juntamente com sua saída padrão (stdout) e erro padrão (stderr).
 Você DEVE retornar um objeto JSON especificando uma única ferramenta para aplicar a correção e os parâmetros para essa ferramenta.
@@ -702,7 +702,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         recent_messages_for_browser = self.memory.messages[-3:] if self.memory.messages else []
         browser_in_use = any(
             tc.function.name == BrowserUseTool().name
-            for msg in recent_messages_for_browser # Corrected variable name
+            for msg in recent_messages_for_browser # Nome da variável corrigido
             if msg.tool_calls
             for tc in msg.tool_calls
         )
@@ -712,12 +712,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                     await self.browser_context_helper.format_next_step_prompt()
                 )
             else:
-                logger.warning("BrowserContextHelper not initialized, cannot format next_step_prompt for browser.")
+                logger.warning("BrowserContextHelper não inicializado, não é possível formatar next_step_prompt para o navegador.")
 
         result = await super().think()
         self.next_step_prompt = original_prompt
 
-        # Override PythonExecute calls that execute external scripts to use SandboxPythonExecutor
+        # Sobrescrever chamadas PythonExecute que executam scripts externos para usar SandboxPythonExecutor
         if self.tool_calls:
             new_tool_calls = []
             for tool_call in self.tool_calls:
@@ -730,16 +730,16 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
 
                         if isinstance(code_to_execute, str) and code_to_execute:
                             script_path_match = None
-                            # Regex for subprocess.run(['python3', 'script.py', ...])
-                            # Allows for variations like "python", "python3", "python3.x"
-                            # Captures the script path ('([^']+\.py)')
-                            # Using the externalized regex pattern
-                            # re_subprocess is now directly imported
-                            # Regex for os.system('python3 script.py ...')
-                            # Note: This regex for os.system might need similar externalization if it becomes complex or causes issues.
+                            # Regex para subprocess.run(['python3', 'script.py', ...])
+                            # Permite variações como "python", "python3", "python3.x"
+                            # Captura o caminho do script ('([^']+\.py)')
+                            # Usando o padrão regex externalizado
+                            # re_subprocess agora é importado diretamente
+                            # Regex para os.system('python3 script.py ...')
+                            # Nota: Este regex para os.system pode precisar de externalização semelhante se se tornar complexo ou causar problemas.
                             re_os_system = r"os\.system\s*\(\s*['\"](?:python|python3)(?:\.[\d]+)?\s+([^'\" ]+\.py)['\"].*?\)"
 
-                            match_subprocess = re.search(re_subprocess, code_to_execute) # re_subprocess is now the compiled pattern
+                            match_subprocess = re.search(re_subprocess, code_to_execute) # re_subprocess é agora o padrão compilado
                             if match_subprocess:
                                 script_path_match = match_subprocess.group(1)
                             else:
@@ -754,38 +754,38 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                                 else:
                                     resolved_script_path = str(config.workspace_root / script_path_match)
 
-                                # Security check: Ensure the resolved path is within the workspace
+                                # Verificação de segurança: Garante que o caminho resolvido está dentro do workspace
                                 if os.path.abspath(resolved_script_path).startswith(str(config.workspace_root)):
-                                    logger.info(f"Overriding PythonExecute call for script '{script_path_match}' to SandboxPythonExecutor with path '{resolved_script_path}'.")
+                                    logger.info(f"Sobrescrevendo chamada PythonExecute para script '{script_path_match}' para SandboxPythonExecutor com caminho '{resolved_script_path}'.")
                                     new_arguments = {"file_path": resolved_script_path}
                                     if original_timeout is not None:
                                         new_arguments["timeout"] = original_timeout
 
-                                    # Create a new ToolCall object for the override
+                                    # Cria um novo objeto ToolCall para a sobrescrita
                                     overridden_tool_call = ToolCall(
-                                        id=tool_call.id, # Keep the same ID
+                                        id=tool_call.id, # Mantém o mesmo ID
                                         function=Function(
                                             name=SandboxPythonExecutor.name,
                                             arguments=json.dumps(new_arguments)
                                         )
                                     )
                                     new_tool_calls.append(overridden_tool_call)
-                                    continue # Move to the next tool_call
+                                    continue # Passa para a próxima tool_call
                                 else:
-                                    logger.warning(f"PythonExecute call for script '{script_path_match}' resolved to '{resolved_script_path}', which is outside the workspace. Not overriding.")
+                                    logger.warning(f"Chamada PythonExecute para script '{script_path_match}' resolvida para '{resolved_script_path}', que está fora do workspace. Não sobrescrevendo.")
                             else:
-                                logger.info(f"PythonExecute call with code did not match script execution patterns. Code: {code_to_execute[:100]}...")
+                                logger.info(f"Chamada PythonExecute com código não correspondeu a padrões de execução de script. Código: {code_to_execute[:100]}...")
                         else:
-                            logger.warning("PythonExecute call had no valid 'code' argument.")
+                            logger.warning("Chamada PythonExecute não tinha argumento 'code' válido.")
                     except json.JSONDecodeError:
-                        logger.warning(f"Failed to parse arguments for PythonExecute: {tool_call.function.arguments}. Using original tool call.")
+                        logger.warning(f"Falha ao parsear argumentos para PythonExecute: {tool_call.function.arguments}. Usando chamada de ferramenta original.")
                     except Exception as e:
-                        logger.error(f"Error during PythonExecute override logic: {e}. Using original tool call.")
+                        logger.error(f"Erro durante lógica de sobrescrita de PythonExecute: {e}. Usando chamada de ferramenta original.")
 
-                new_tool_calls.append(tool_call) # Add original or non-PythonExecute tool_call
+                new_tool_calls.append(tool_call) # Adiciona tool_call original ou não-PythonExecute
             self.tool_calls = new_tool_calls
 
-        if self.tool_calls and self.tool_calls[0].function.name == Bash().name: # Check the first tool call
+        if self.tool_calls and self.tool_calls[0].function.name == Bash().name: # Verifica a primeira chamada de ferramenta
             try:
                 args = json.loads(self.tool_calls[0].function.arguments)
                 command_str = args.get("command", "")
@@ -815,7 +815,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         first_part = os.path.basename(command_parts[0]) if command_parts else "command"
                         self._background_task_expected_artifact = f"{first_part}_artifact.out"
                     self._background_task_artifact_path = str(config.workspace_root / self._background_task_expected_artifact)
-                    logger.info(f"Artefato esperado definido como: {self._background_task_artifact_path} (Log file: {log_file})")
+                    logger.info(f"Artefato esperado definido como: {self._background_task_artifact_path} (Arquivo de log: {log_file})")
                     self.memory.add_message(Message.assistant_message(
                         f"Comando '{actual_command}' iniciado em background. "
                         f"Logs serão enviados para '{os.path.basename(log_file)}' (localizado em {config.workspace_root}). "
@@ -1000,7 +1000,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             try:
                 editor_tool = self.available_tools.get_tool(StrReplaceEditor().name)
                 if not editor_tool:
-                    logger.error("StrReplaceEditor tool não encontrado para _analyze_python_script.")
+                    logger.error("Ferramenta StrReplaceEditor não encontrada para _analyze_python_script.")
                     return analysis
                 script_content_result = await editor_tool.execute(command="view", path=script_path, view_range=[1, 200])
                 if isinstance(script_content_result, str):
@@ -1056,7 +1056,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         analysis["outputs"] = sorted(list(set(analysis["outputs"])))
         analysis["libraries"] = sorted(list(set(analysis["libraries"])))
 
-        logger.info(f"Análise de {script_path}: Inputs: {analysis['inputs']}, Outputs: {analysis['outputs']}, Libraries: {analysis['libraries']}")
+        logger.info(f"Análise de {script_path}: Inputs: {analysis['inputs']}, Outputs: {analysis['outputs']}, Bibliotecas: {analysis['libraries']}")
         return analysis
 
     async def _analyze_workspace(self) -> Dict[str, Dict[str, Any]]:
@@ -1068,7 +1068,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         workspace_scripts_analysis: Dict[str, Dict[str, Any]] = {}
         editor_tool = self.available_tools.get_tool(StrReplaceEditor().name)
         if not editor_tool:
-            logger.error("StrReplaceEditor tool não encontrado para _analyze_workspace.")
+            logger.error("Ferramenta StrReplaceEditor não encontrada para _analyze_workspace.")
             return workspace_scripts_analysis
 
         try:
@@ -1093,9 +1093,9 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         return workspace_scripts_analysis
 
     async def _initiate_sandbox_script_cancellation(self):
-        """Attempts to read a PID from the tracked PID file and send a SIGTERM signal to it in the sandbox."""
+        """Tenta ler um PID do arquivo de PID rastreado e enviar um sinal SIGTERM para ele no sandbox."""
         if not self._current_sandbox_pid_file:
-            logger.warning("_initiate_sandbox_script_cancellation called without _current_sandbox_pid_file set.")
+            logger.warning("_initiate_sandbox_script_cancellation chamado sem _current_sandbox_pid_file definido.")
             return
 
         if self._current_sandbox_pid is None:
@@ -1103,23 +1103,23 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 pid_str = await SANDBOX_CLIENT.read_file(self._current_sandbox_pid_file)
                 pid = int(pid_str.strip())
                 self._current_sandbox_pid = pid
-                logger.info(f"Successfully read PID {pid} from {self._current_sandbox_pid_file}")
+                logger.info(f"PID {pid} lido com sucesso de {self._current_sandbox_pid_file}")
             except FileNotFoundError:
-                logger.warning(f"PID file {self._current_sandbox_pid_file} not found. Script might have already finished.")
+                logger.warning(f"Arquivo PID {self._current_sandbox_pid_file} não encontrado. O script pode já ter terminado.")
                 self.memory.add_message(Message.assistant_message("Não foi possível encontrar o arquivo de PID para cancelamento; o script pode já ter terminado."))
-                # Attempt to clean up the non-existent PID file record by calling the existing cleanup helper
-                # This will also clear the related attributes if the current tool call ID matches.
-                # However, at this stage, the tool call hasn't "finished" yet, so direct cleanup is better.
+                # Tenta limpar o registro do arquivo PID inexistente chamando o helper de limpeza existente
+                # Isso também limpará os atributos relacionados se o ID da chamada de ferramenta atual corresponder.
+                # No entanto, neste estágio, a chamada de ferramenta ainda não "terminou", então a limpeza direta é melhor.
                 if hasattr(self, '_cleanup_sandbox_file') and callable(getattr(self, '_cleanup_sandbox_file')):
-                    # Call the main cleanup for this file path which should also clear attributes
-                     await self._cleanup_sandbox_file(self._current_sandbox_pid_file) # This will log its own success/failure
-                # Explicitly clear attributes here because the script is considered gone or its state unknown.
+                    # Chama a limpeza principal para este caminho de arquivo que também deve limpar atributos
+                     await self._cleanup_sandbox_file(self._current_sandbox_pid_file) # Isso registrará seu próprio sucesso/falha
+                # Limpa explicitamente os atributos aqui porque o script é considerado desaparecido ou seu estado desconhecido.
                 self._current_sandbox_pid_file = None
                 self._current_script_tool_call_id = None
                 self._current_sandbox_pid = None
                 return
             except (ValueError, TypeError) as e:
-                logger.error(f"Invalid content in PID file {self._current_sandbox_pid_file}: {pid_str if 'pid_str' in locals() else 'unknown content'}. Error: {e}")
+                logger.error(f"Conteúdo inválido no arquivo PID {self._current_sandbox_pid_file}: {pid_str if 'pid_str' in locals() else 'conteúdo desconhecido'}. Erro: {e}")
                 self.memory.add_message(Message.assistant_message(f"Conteúdo inválido no arquivo de PID ({self._current_sandbox_pid_file}). Não é possível cancelar."))
                 if hasattr(self, '_cleanup_sandbox_file') and callable(getattr(self, '_cleanup_sandbox_file')):
                      await self._cleanup_sandbox_file(self._current_sandbox_pid_file)
@@ -1127,48 +1127,48 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self._current_script_tool_call_id = None
                 self._current_sandbox_pid = None
                 return
-            except Exception as e: # Catch other SANDBOX_CLIENT errors like permission issues or sandbox down
-                logger.error(f"Error reading PID file {self._current_sandbox_pid_file}: {e}")
+            except Exception as e: # Captura outros erros do SANDBOX_CLIENT como problemas de permissão ou sandbox inativo
+                logger.error(f"Erro ao ler arquivo PID {self._current_sandbox_pid_file}: {e}")
                 self.memory.add_message(Message.assistant_message(f"Erro ao ler o arquivo de PID para cancelamento: {e}"))
-                # Do not clear _current_sandbox_pid_file here, as the file might still exist, just unreadable temporarily.
-                # The original tool call might still complete and trigger proper cleanup via execute_tool's finally block.
+                # Não limpe _current_sandbox_pid_file aqui, pois o arquivo ainda pode existir, apenas ilegível temporariamente.
+                # A chamada de ferramenta original ainda pode ser concluída e acionar a limpeza adequada através do bloco finally de execute_tool.
                 return
 
         if self._current_sandbox_pid is not None:
             try:
                 kill_command = f"kill -SIGTERM {self._current_sandbox_pid}"
-                logger.info(f"Attempting to execute kill command in sandbox: {kill_command}")
-                # Add message before sending kill, so user sees it even if agent/sandbox has issues during the command
+                logger.info(f"Tentando executar comando kill no sandbox: {kill_command}")
+                # Adiciona mensagem antes de enviar kill, para que o usuário veja mesmo se o agente/sandbox tiver problemas durante o comando
                 self.memory.add_message(Message.assistant_message(f"Enviando sinal de cancelamento (SIGTERM) para o processo {self._current_sandbox_pid} no sandbox..."))
-                result = await SANDBOX_CLIENT.run_command(kill_command, timeout=10) # Using SIGTERM
+                result = await SANDBOX_CLIENT.run_command(kill_command, timeout=10) # Usando SIGTERM
 
                 if result.get("exit_code") == 0:
-                    logger.info(f"Successfully sent SIGTERM to PID {self._current_sandbox_pid}. Kill command stdout: '{result.get('stdout','').strip()}', stderr: '{result.get('stderr','').strip()}'")
-                    # User message for successful signal send was already added.
+                    logger.info(f"SIGTERM enviado com sucesso para PID {self._current_sandbox_pid}. Saída stdout do comando kill: '{result.get('stdout','').strip()}', stderr: '{result.get('stderr','').strip()}'")
+                    # Mensagem do usuário para envio de sinal bem-sucedido já foi adicionada.
                 else:
-                    # This can happen if the process already exited between PID read and kill command.
-                    logger.warning(f"Kill command for PID {self._current_sandbox_pid} failed or PID not found. Exit code: {result.get('exit_code')}. Stderr: '{result.get('stderr','').strip()}'")
+                    # Isso pode acontecer se o processo já terminou entre a leitura do PID e o comando kill.
+                    logger.warning(f"Comando kill para PID {self._current_sandbox_pid} falhou ou PID não encontrado. Código de saída: {result.get('exit_code')}. Stderr: '{result.get('stderr','').strip()}'")
                     # self.memory.add_message(Message.assistant_message(f"Falha ao enviar sinal de cancelamento para o script (PID: {self._current_sandbox_pid}), ou o script já havia terminado. Detalhes: {result.get('stderr','').strip()}"))
-                    # No need for another message if the previous one indicated an attempt. The log is sufficient.
+                    # Não há necessidade de outra mensagem se a anterior indicou uma tentativa. O log é suficiente.
             except Exception as e:
-                logger.error(f"Exception while trying to kill PID {self._current_sandbox_pid}: {e}")
+                logger.error(f"Exceção ao tentar matar PID {self._current_sandbox_pid}: {e}")
                 self.memory.add_message(Message.assistant_message(f"Erro ao tentar cancelar o script (PID: {self._current_sandbox_pid}): {e}"))
-        # As per plan, do not clear PID info here; it's handled by ToolCallAgent.execute_tool's finally block.
+        # Conforme o plano, não limpe as informações do PID aqui; isso é tratado pelo bloco finally de ToolCallAgent.execute_tool.
 
     async def _cleanup_sandbox_file(self, file_path_in_sandbox: str):
-        """Helper to remove a file from the sandbox."""
+        """Auxiliar para remover um arquivo do sandbox."""
         if not file_path_in_sandbox:
             return
         try:
-            logger.info(f"Attempting to clean up sandbox file: {file_path_in_sandbox}")
-            # Ensure SANDBOX_CLIENT is available and run_command is awaitable
+            logger.info(f"Tentando limpar arquivo do sandbox: {file_path_in_sandbox}")
+            # Garante que SANDBOX_CLIENT está disponível e run_command é awaitable
             cleanup_result = await SANDBOX_CLIENT.run_command(f"rm -f {file_path_in_sandbox}", timeout=10)
             if cleanup_result.get("exit_code") != 0:
-                logger.warning(f"Failed to clean up sandbox file '{file_path_in_sandbox}'. Error: {cleanup_result.get('stderr')}")
+                logger.warning(f"Falha ao limpar arquivo do sandbox '{file_path_in_sandbox}'. Erro: {cleanup_result.get('stderr')}")
             else:
-                logger.info(f"Successfully cleaned up sandbox file: {file_path_in_sandbox}")
+                logger.info(f"Arquivo do sandbox limpo com sucesso: {file_path_in_sandbox}")
         except Exception as e:
-            logger.error(f"Exception during sandbox file cleanup for '{file_path_in_sandbox}': {e}")
+            logger.error(f"Exceção durante a limpeza do arquivo do sandbox para '{file_path_in_sandbox}': {e}")
 
     async def periodic_user_check_in(self, is_final_check: bool = False, is_failure_scenario: bool = False) -> bool:
         user_interaction_tool_name = AskHuman().name
@@ -1283,21 +1283,21 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 f"- 'mudar: [suas novas instruções]' (para fornecer uma nova direção)"
             )
         
-        # Check for cancellable script before asking for user input in the general case
+        # Verifica script cancelável antes de pedir entrada do usuário no caso geral
         if not is_failure_scenario and not is_final_check:
             if hasattr(self, '_current_sandbox_pid_file') and self._current_sandbox_pid_file:
-                logger.info(f"Pause requested by user. Currently running script with PID file: {self._current_sandbox_pid_file}. Attempting cancellation.")
-                # Assuming _initiate_sandbox_script_cancellation will be an async method
-                # It should also ideally add a message to memory about its outcome.
-                # For now, we add a generic message here.
+                logger.info(f"Pausa solicitada pelo usuário. Script atualmente em execução com arquivo PID: {self._current_sandbox_pid_file}. Tentando cancelamento.")
+                # Assumindo que _initiate_sandbox_script_cancellation será um método assíncrono
+                # Idealmente, também deveria adicionar uma mensagem à memória sobre seu resultado.
+                # Por enquanto, adicionamos uma mensagem genérica aqui.
                 self.memory.add_message(Message.assistant_message("Tentativa de cancelamento do script em execução no sandbox devido à solicitação de pausa..."))
                 if hasattr(self, '_initiate_sandbox_script_cancellation') and callable(getattr(self, '_initiate_sandbox_script_cancellation')):
                     await self._initiate_sandbox_script_cancellation()
                 else:
-                    logger.warning("_initiate_sandbox_script_cancellation method not found, cannot cancel script.")
+                    logger.warning("Método _initiate_sandbox_script_cancellation não encontrado, não é possível cancelar script.")
                     self.memory.add_message(Message.assistant_message("AVISO: Funcionalidade de cancelamento de script não implementada neste agente."))
 
-        logger.info(f"Manus: Asking user for feedback with prompt: {pergunta[:500]}...")
+        logger.info(f"Manus: Solicitando feedback do usuário com prompt: {pergunta[:500]}...")
         self.memory.add_message(Message.assistant_message(content=pergunta))
 
         user_response_text = ""
@@ -1332,12 +1332,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 return False
             elif user_response_text.startswith("não, tentar outra abordagem:"):
                 nova_instrucao = user_response_content_for_memory.replace("não, tentar outra abordagem:", "").strip()
-                logger.info(f"Manus: User provided new instructions after failure: {nova_instrucao}")
+                logger.info(f"Manus: Usuário forneceu novas instruções após falha: {nova_instrucao}")
                 self.memory.add_message(Message.assistant_message(f"Entendido. Vou tentar a seguinte abordagem: {nova_instrucao}"))
                 self._just_resumed_from_feedback = True
                 return True
             else:
-                logger.info(f"Manus: User provided unrecognized input ('{user_response_text}') during failure check. Re-prompting.")
+                logger.info(f"Manus: Usuário forneceu entrada não reconhecida ('{user_response_text}') durante verificação de falha. Solicitando novamente.")
                 self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim, finalizar' ou 'não, tentar outra abordagem: [instruções]'."))
                 self._just_resumed_from_feedback = True
                 return True
@@ -1350,12 +1350,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 return False
             elif user_response_text.startswith("revisar:"):
                 nova_instrucao = user_response_content_for_memory.replace("revisar:", "").strip()
-                logger.info(f"Manus: User provided new instructions for final review: {nova_instrucao}")
+                logger.info(f"Manus: Usuário forneceu novas instruções para revisão final: {nova_instrucao}")
                 self.memory.add_message(Message.assistant_message(f"Entendido. Vou revisar com base nas suas instruções: {nova_instrucao}"))
                 self._just_resumed_from_feedback = True
                 return True
             else:
-                logger.info(f"Manus: User provided unrecognized input ('{user_response_text}') during final check. Re-prompting.")
+                logger.info(f"Manus: Usuário forneceu entrada não reconhecida ('{user_response_text}') durante verificação final. Solicitando novamente.")
                 self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim' para finalizar ou 'revisar: [instruções]'."))
                 self._just_resumed_from_feedback = True
                 return True
@@ -1366,20 +1366,20 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 return False
             elif user_response_text.startswith("mudar:"):
                 nova_instrucao = user_response_content_for_memory.replace("mudar:", "").strip()
-                logger.info(f"Manus: User provided new instructions: {nova_instrucao}")
+                logger.info(f"Manus: Usuário forneceu novas instruções: {nova_instrucao}")
                 self.memory.add_message(Message.assistant_message(f"Entendido. Vou seguir suas novas instruções: {nova_instrucao}"))
                 self._just_resumed_from_feedback = True
                 return True
-            else: # Default to continue for any other input or empty input.
+            else: # Padrão para continuar para qualquer outra entrada ou entrada vazia.
                 if user_response_text == "continuar":
-                    logger.info("Manus: User chose to CONTINUE execution.")
+                    logger.info("Manus: Usuário escolheu CONTINUAR execução.")
                     self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
-                elif not user_response_text and user_response_content_for_memory is not None : # Catches empty string if user_response_content_for_memory was populated
-                     logger.info("Manus: User provided empty response, interpreted as 'CONTINUE'.")
+                elif not user_response_text and user_response_content_for_memory is not None : # Captura string vazia se user_response_content_for_memory foi preenchido
+                     logger.info("Manus: Usuário forneceu resposta vazia, interpretada como 'CONTINUAR'.")
                      self.memory.add_message(Message.assistant_message("Resposta vazia recebida. Continuando com a tarefa."))
-                else: # Catches any other non-empty, non-specific response
-                     logger.info(f"Manus: User responded '{user_response_text}', interpreted as 'CONTINUE'.")
+                else: # Captura qualquer outra resposta não vazia e não específica
+                     logger.info(f"Manus: Usuário respondeu '{user_response_text}', interpretado como 'CONTINUAR'.")
                      self.memory.add_message(Message.assistant_message(f"Resposta '{user_response_content_for_memory}' recebida. Continuando com a tarefa."))
 
-                self._just_resumed_from_feedback = True # Set this so we don't immediately ask for feedback again
+                self._just_resumed_from_feedback = True # Define isso para não pedirmos feedback novamente imediatamente
                 return True
