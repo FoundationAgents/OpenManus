@@ -106,38 +106,38 @@ class ExecuteBackgroundProcessTool(BaseTool):
             )
             logger.info(f"Background process started. PID: {process.pid}, Command: {command}, stdout_log: {processed_log_stdout}, stderr_log: {processed_log_stderr}")
 
-                # Persistência do estado da tarefa
-                running_tasks_file = config.workspace_root / "running_tasks.json"
-                tasks = []
-                if os.path.exists(running_tasks_file):
-                    try:
-                        with open(running_tasks_file, 'r') as f:
-                            tasks = json.load(f)
-                    except (json.JSONDecodeError, FileNotFoundError) as e_read:
-                        logger.error(f"Error reading running_tasks.json: {e_read}. Starting with an empty list.")
-                        tasks = []
-
-                # Remove existing task with the same PID if any
-                tasks = [task for task in tasks if task.get('pid') != process.pid]
-
-                new_task_info = {
-                    "pid": process.pid,
-                    "command": command,
-                    "working_directory": processed_working_directory,
-                    "log_stdout": processed_log_stdout,
-                    "log_stderr": processed_log_stderr,
-                    "status": "started",
-                    "task_description": task_description if task_description else "N/A"
-                }
-                tasks.append(new_task_info)
-
+            # Persistência do estado da tarefa
+            running_tasks_file = config.workspace_root / "running_tasks.json"
+            tasks = []
+            if os.path.exists(running_tasks_file):
                 try:
-                    with open(running_tasks_file, 'w') as f:
-                        json.dump(tasks, f, indent=4)
-                    logger.info(f"Task PID {process.pid} persisted to {running_tasks_file}")
-                except Exception as e_write:
-                    logger.error(f"Error writing to running_tasks.json: {e_write}")
-                    # Optionally, could add this error to the return dict if critical
+                    with open(running_tasks_file, 'r') as f:
+                        tasks = json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError) as e_read:
+                    logger.error(f"Error reading running_tasks.json: {e_read}. Starting with an empty list.")
+                    tasks = []
+
+            # Remove existing task with the same PID if any
+            tasks = [task for task in tasks if task.get('pid') != process.pid]
+
+            new_task_info = {
+                "pid": process.pid,
+                "command": command,
+                "working_directory": processed_working_directory,
+                "log_stdout": processed_log_stdout,
+                "log_stderr": processed_log_stderr,
+                "status": "started",
+                "task_description": task_description if task_description else "N/A"
+            }
+            tasks.append(new_task_info)
+
+            try:
+                with open(running_tasks_file, 'w') as f:
+                    json.dump(tasks, f, indent=4)
+                logger.info(f"Task PID {process.pid} persisted to {running_tasks_file}")
+            except Exception as e_write:
+                logger.error(f"Error writing to running_tasks.json: {e_write}")
+                # Optionally, could add this error to the return dict if critical
 
             return {"pid": process.pid, "log_stdout": processed_log_stdout, "log_stderr": processed_log_stderr, "status": "started"}
         except Exception as e:
