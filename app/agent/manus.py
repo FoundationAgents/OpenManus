@@ -34,7 +34,7 @@ from .regex_patterns import re_subprocess
 
 
 # New constant for internal self-analysis
-INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """Você é Manus. Você está em um ponto de verificação com o usuário.
+INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """Você é Open Manus. Você está em um ponto de verificação com o usuário.
 Analise o histórico recente da conversa (últimas {X} mensagens), o estado atual do seu checklist de tarefas (fornecido abaixo), e quaisquer erros ou dificuldades que você encontrou.
 Com base nisso, gere um "Relatório de Autoanálise e Planejamento" conciso em português para apresentar ao usuário.
 O relatório deve incluir:
