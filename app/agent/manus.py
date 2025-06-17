@@ -31,6 +31,7 @@ from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, Up
 from app.tool.file_system_tools import CheckFileExistenceTool, ListFilesTool # Added ListFilesTool
 from app.agent.checklist_manager import ChecklistManager # Added for _is_checklist_complete
 from .regex_patterns import re_subprocess
+from app.tool.background_process_tools import ExecuteBackgroundProcessTool, CheckProcessStatusTool, GetProcessOutputTool
 
 
 # Nova constante para autoanálise interna
@@ -81,6 +82,9 @@ class Manus(ToolCallAgent):
     _current_sandbox_pid_file: Optional[str] = PrivateAttr(default=None)
     _current_script_tool_call_id: Optional[str] = PrivateAttr(default=None)
     _fallback_attempted_for_tool_call_id: Optional[str] = PrivateAttr(default=None)
+    _pending_fallback_tool_call: Optional[ToolCall] = PrivateAttr(default=None)
+    _last_ask_human_for_fallback_id: Optional[str] = PrivateAttr(default=None)
+    autonomous_mode: bool = PrivateAttr(default=False) # Flag to indicate if the agent should operate without asking for continuation feedback periodically.
 
 
     def __getstate__(self):
@@ -111,6 +115,8 @@ class Manus(ToolCallAgent):
         from app.tool.read_file_content import ReadFileContentTool
         from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
         from app.tool.file_system_tools import ListFilesTool # Adicionado ListFilesTool
+        # Imports for background process tools already added at the top of the file for __init__
+        # No need to re-import here if they are module-level imports
 
         llm_config_name = "manus"
         if 'name' in state and state['name']:
@@ -126,7 +132,8 @@ class Manus(ToolCallAgent):
 
             ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
             ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
-            CheckFileExistenceTool(), ListFilesTool() # Adicionado ListFilesTool
+            CheckFileExistenceTool(), ListFilesTool(),
+            ExecuteBackgroundProcessTool(), CheckProcessStatusTool(), GetProcessOutputTool()
         )
         self._initialized = False
         self.connected_servers = {}
@@ -149,7 +156,8 @@ class Manus(ToolCallAgent):
             Bash(), SandboxPythonExecutor(), FormatPythonCode(), ReplaceCodeBlock(),
             ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
             ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
-            CheckFileExistenceTool(), ListFilesTool() # Adicionado ListFilesTool
+            CheckFileExistenceTool(), ListFilesTool(),
+            ExecuteBackgroundProcessTool(), CheckProcessStatusTool(), GetProcessOutputTool()
         )
 
     connected_servers: Dict[str, str] = Field(default_factory=dict)
@@ -164,6 +172,74 @@ class Manus(ToolCallAgent):
     async def create(cls, **kwargs) -> "Manus":
         instance = cls(**kwargs)
         logger.info(f"Agente Manus criado. Prompt do sistema (primeiros 500 caracteres): {instance.system_prompt[:500]}")
+
+        running_tasks_file = config.workspace_root / "running_tasks.json"
+        if os.path.exists(running_tasks_file):
+            logger.info(f"Found existing running_tasks.json at {running_tasks_file}. Attempting to load and check tasks.")
+            updated_tasks_after_check = []
+            tasks_loaded = False
+            persisted_tasks = [] # Definir persisted_tasks com um valor padrão
+            try:
+                with open(running_tasks_file, 'r') as f:
+                    persisted_tasks = json.load(f)
+                tasks_loaded = True
+
+                if not persisted_tasks:
+                    logger.info("running_tasks.json was empty.")
+
+                status_checker_tool = instance.available_tools.get_tool(CheckProcessStatusTool().name)
+
+                if status_checker_tool:
+                    for task_info in persisted_tasks:
+                        pid = task_info.get('pid')
+                        if pid:
+                            logger.info(f"Checking status for persisted task PID: {pid}, Command: {task_info.get('command')}")
+                            status_result = await status_checker_tool.execute(pid=pid)
+                            current_status = status_result.get('status', 'unknown')
+                            task_info['status'] = current_status
+
+                            if current_status not in ['not_found', 'finished', 'error']:
+                                updated_tasks_after_check.append(task_info)
+
+                            load_message = (
+                                f"Tarefa em background recuperada da sessão anterior: "
+                                f"PID: {pid}, Descrição: {task_info.get('task_description', task_info.get('command', 'N/A'))}, "
+                                f"Status atual: {current_status}."
+                            )
+                            if current_status == 'finished':
+                                load_message += f" Código de saída: {status_result.get('return_code')}."
+
+                            instance.memory.add_message(Message.system_message(load_message))
+                            logger.info(load_message)
+                        else:
+                            # Keep tasks without PID if they somehow exist, though they shouldn't normally.
+                            # Or decide to filter them out if they are considered invalid.
+                            # For now, keeping them.
+                            updated_tasks_after_check.append(task_info)
+                else:
+                    logger.error("CheckProcessStatusTool não encontrado na instância do agente durante o carregamento de tarefas.")
+                    instance.memory.add_message(Message.system_message(
+                        "AVISO: Não foi possível verificar o status de tarefas em background da sessão anterior (ferramenta de status não encontrada)."
+                    ))
+                    # If checker is not found, keep all tasks as they were, as we can't verify them.
+                    updated_tasks_after_check.extend(persisted_tasks)
+
+            except json.JSONDecodeError as e_json:
+                logger.error(f"Error decoding running_tasks.json: {e_json}")
+                instance.memory.add_message(Message.system_message(f"AVISO: Erro ao ler o arquivo de tarefas em background ({running_tasks_file}): {e_json}"))
+            except Exception as e_load:
+                logger.error(f"Unexpected error loading or checking persisted tasks: {e_load}", exc_info=True)
+                instance.memory.add_message(Message.system_message(f"AVISO: Erro inesperado ao carregar tarefas em background: {e_load}"))
+
+            if tasks_loaded:
+                final_tasks_for_persistence = updated_tasks_after_check
+                try:
+                    with open(running_tasks_file, 'w') as f:
+                        json.dump(final_tasks_for_persistence, f, indent=4)
+                    logger.info(f"Persisted tasks file {running_tasks_file} updated after status check. Kept {len(final_tasks_for_persistence)} tasks.")
+                except Exception as e_write_back:
+                    logger.error(f"Error writing back to running_tasks.json after status check: {e_write_back}")
+
         await instance.initialize_mcp_servers()
         instance._initialized = True
         return instance
@@ -291,6 +367,8 @@ class Manus(ToolCallAgent):
             return False
 
     async def should_request_feedback(self) -> bool:
+        # Determines if the agent should pause and request feedback from the user.
+        # This happens on failure, task completion, or after a set number of steps (unless in autonomous_mode).
         if self._trigger_failure_check_in:
             self._trigger_failure_check_in = False
             await self.periodic_user_check_in(is_failure_scenario=True)
@@ -304,7 +382,7 @@ class Manus(ToolCallAgent):
                 return False
             await self.periodic_user_check_in(is_final_check=True, is_failure_scenario=False)
             return True
-        if self.current_step > 0 and self.max_steps > 0 and self.current_step % self.max_steps == 0:
+        if not self.autonomous_mode and self.current_step > 0 and self.max_steps > 0 and self.current_step % self.max_steps == 0: # Skip periodic check-in if in autonomous mode
             continue_execution = await self.periodic_user_check_in(is_failure_scenario=False)
             return continue_execution
         return False
@@ -648,125 +726,201 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             await self.initialize_mcp_servers()
             self._initialized = True
 
-        # --- Início da Lógica de Fallback para SandboxPythonExecutor ---
+        # Check for autonomous mode trigger in initial user prompt
+        if self.current_step == 0 and not self.autonomous_mode: # Só verifica no primeiro passo prático
+            first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None)
+            if first_user_message:
+                prompt_content = first_user_message.content.strip().lower()
+                if prompt_content.startswith("execute em modo autônomo:") or prompt_content.startswith("modo autônomo:"):
+                    self.autonomous_mode = True
+                    logger.info("Modo autônomo ativado por prompt do usuário.")
+                    # Opcional: Remover a frase gatilho do prompt para não confundir o LLM depois
+                    # clean_prompt = prompt_content.replace("execute em modo autônomo:", "").replace("modo autônomo:", "").strip()
+                    # first_user_message.content = clean_prompt
+                    # (Cuidado ao modificar self.memory.messages diretamente, pode ser melhor adicionar uma msg do sistema)
+                    self.memory.add_message(Message.assistant_message("Modo autônomo ativado. Não pedirei permissão para continuar a cada ciclo de etapas."))
+
+        # Sandbox Execution Fallback Logic: Detects sandbox creation failure and asks user for direct execution.
         last_message = self.memory.messages[-1] if self.memory.messages else None
+        # Etapa A: Detectar falha do SandboxPythonExecutor e perguntar ao usuário
         if (
             last_message
             and last_message.role == Role.TOOL
-            and hasattr(last_message, "name") # O atributo 'name' pode não existir em todas as mensagens de TOOL
-            and last_message.name == SandboxPythonExecutor().name
-            and last_message.tool_call_id != self._fallback_attempted_for_tool_call_id
+            and hasattr(last_message, 'name') and last_message.name == SandboxPythonExecutor().name
+            and hasattr(last_message, 'tool_call_id') # Garantir que tool_call_id existe
         ):
-            try:
-                tool_result_content = json.loads(last_message.content)
-                if tool_result_content.get("exit_code") == -2:
-                    logger.warning(
-                        f"SandboxPythonExecutor failed with exit_code -2 (sandbox creation error) for tool_call_id {last_message.tool_call_id}. "
-                        "Attempting fallback to PythonExecute."
-                    )
+            tool_call_id_from_message = last_message.tool_call_id
+            if tool_call_id_from_message != self._fallback_attempted_for_tool_call_id:
+                try:
+                    # O conteúdo da mensagem da ferramenta DEVE ser um dicionário Python aqui,
+                    # pois é o resultado direto da execução da ferramenta, não uma string JSON do LLM.
+                    tool_result_content = json.loads(last_message.content) # Se content é string JSON
+                    # Se last_message.content já é um dict, json.loads não é necessário.
+                    # O log original indicava "Failed to parse tool result content for fallback logic",
+                    # então é provável que `last_message.content` seja uma string JSON.
 
-                    original_assistant_message_with_tool_call = None
-                    for msg in reversed(self.memory.messages):
-                        if msg.role == Role.ASSISTANT and msg.tool_calls:
-                            for tc in msg.tool_calls:
-                                if tc.id == last_message.tool_call_id:
-                                    original_assistant_message_with_tool_call = msg
-                                    break
-                            if original_assistant_message_with_tool_call:
-                                break
-
-                    if original_assistant_message_with_tool_call:
-                        original_tool_call = next(
-                            (tc for tc in original_assistant_message_with_tool_call.tool_calls if tc.id == last_message.tool_call_id),
-                            None
+                    if isinstance(tool_result_content, dict) and tool_result_content.get("exit_code") == -2:
+                        logger.warning(
+                            f"SandboxPythonExecutor falhou com exit_code -2 (erro de criação do sandbox) para tool_call_id {tool_call_id_from_message}. "
+                            "Iniciando lógica de fallback."
                         )
-                        if original_tool_call:
-                            original_args = json.loads(original_tool_call.function.arguments)
-                            fallback_args = {}
 
-                            # Priorizar 'code' se existir nos argumentos originais da chamada ao SandboxPythonExecutor.
-                            # Se não, usar 'file_path'. Se o LLM chamou SandboxPythonExecutor diretamente, pode ter 'code'.
-                            if "code" in original_args and original_args["code"]:
-                                fallback_args["code"] = original_args["code"]
-                            elif "file_path" in original_args and original_args["file_path"]:
-                                # PythonExecute espera 'code', então precisamos ler o conteúdo do arquivo.
-                                # No entanto, PythonExecute também aceita 'file_path' diretamente em algumas versões/configurações.
-                                # Para simplificar e alinhar com a intenção original de executar um script,
-                                # vamos assumir que PythonExecute pode lidar com file_path se for o caso,
-                                # ou idealmente, o LLM teria fornecido 'code' se era para ser código direto.
-                                # A ferramenta PythonExecute em si pode precisar de lógica para carregar o código do file_path.
-                                # Por agora, vamos passar o file_path se 'code' não estiver disponível.
-                                # Esta parte pode precisar de ajuste dependendo da implementação exata de PythonExecute.
-                                # Se PythonExecute SÓ aceita 'code', precisaremos ler o arquivo aqui.
-                                # Para esta implementação, vamos assumir que PythonExecute pode receber file_path
-                                # ou que a chamada original para python_execute (antes do override) tinha 'code'.
+                        # Encontrar a ToolCall original que invocou o SandboxPythonExecutor
+                        original_tool_call_for_sandbox = None
+                        for msg_idx in range(len(self.memory.messages) - 2, -1, -1):
+                            prev_msg = self.memory.messages[msg_idx]
+                            if prev_msg.role == Role.ASSISTANT and prev_msg.tool_calls:
+                                for tc in prev_msg.tool_calls:
+                                    if tc.id == tool_call_id_from_message:
+                                        original_tool_call_for_sandbox = tc
+                                        break
+                                if original_tool_call_for_sandbox:
+                                    break
 
-                                # Tentativa de encontrar a chamada original para python_execute que foi convertida
-                                was_overridden = False
-                                for prev_msg_idx in range(len(self.memory.messages) - 2, -1, -1):
-                                    prev_msg = self.memory.messages[prev_msg_idx]
-                                    if prev_msg.role == Role.ASSISTANT and prev_msg.tool_calls:
-                                        for prev_tc in prev_msg.tool_calls:
-                                            if prev_tc.id == original_tool_call.id and prev_tc.function.name == PythonExecute().name:
-                                                logger.info(f"Found original PythonExecute call that was overridden to SandboxPythonExecutor (ID: {original_tool_call.id}). Reverting.")
-                                                original_python_execute_args = json.loads(prev_tc.function.arguments)
-                                                fallback_args = original_python_execute_args # Usar os args originais do python_execute
-                                                was_overridden = True
-                                                break
-                                        if was_overridden:
-                                            break
+                        if original_tool_call_for_sandbox:
+                            self._pending_fallback_tool_call = original_tool_call_for_sandbox
 
-                                if not was_overridden: # Se não foi um override, mas uma chamada direta ao SandboxPythonExecutor
-                                    if "file_path" in original_args:
-                                         # Se PythonExecute só aceita 'code', precisamos ler o arquivo aqui.
-                                         # Para manter simples, vamos apenas logar um aviso e não fazer fallback se não tivermos 'code'.
-                                        logger.warning(f"SandboxPythonExecutor was called directly with file_path '{original_args['file_path']}'. "
-                                                       "Fallback to PythonExecute requires 'code'. Cannot automatically read file content here. "
-                                                       "Skipping fallback for this specific case unless original call was python_execute with 'code'.")
-                                        fallback_args = None # Sinaliza que não podemos fazer fallback
-                                    else: # Não tem 'code' nem 'file_path' nos args do SandboxPythonExecutor
-                                        logger.error(f"Cannot perform fallback for SandboxPythonExecutor call {original_tool_call.id}: neither 'code' nor 'file_path' found in original arguments.")
-                                        fallback_args = None
+                            ask_human_question = (
+                                "A execução segura no sandbox falhou devido a um problema de ambiente "
+                                "(Docker não disponível ou imagem incorreta). Deseja tentar executar o script "
+                                "diretamente na máquina do agente? ATENÇÃO: Isso pode ser um risco de segurança "
+                                "se o script for desconhecido ou malicioso. Responda 'sim' para executar "
+                                "diretamente ou 'não' para cancelar."
+                            )
+                            self.memory.add_message(Message.assistant_message(
+                                "Alerta: Problema ao executar script em ambiente seguro (sandbox)."
+                            )) # Mensagem curta antes de AskHuman
 
-
-                            elif "code" in original_args and original_args["code"]: # Caso onde 'code' está nos args do SandboxPYExecutor
-                                fallback_args["code"] = original_args["code"]
-                            else: # Não tem 'code' nem 'file_path'
-                                logger.error(f"Cannot perform fallback for SandboxPythonExecutor call {original_tool_call.id}: neither 'code' nor 'file_path' found in original arguments.")
-                                fallback_args = None
-
-                            if fallback_args:
-                                fallback_timeout = original_args.get("timeout", 60) # Usar timeout original ou default
-                                fallback_args["timeout"] = fallback_timeout
-
-                                new_fallback_tool_call = ToolCall(
-                                    id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
+                            ask_human_tool_call_id = str(uuid.uuid4())
+                            self._last_ask_human_for_fallback_id = ask_human_tool_call_id
+                            self.tool_calls = [
+                                ToolCall(
+                                    id=ask_human_tool_call_id,
                                     function=FunctionCall(
-                                        name=PythonExecute().name,
-                                        arguments=json.dumps(fallback_args)
+                                        name=AskHuman().name,
+                                        arguments=json.dumps({"inquire": ask_human_question})
                                     )
                                 )
-                                self.tool_calls = [new_fallback_tool_call]
-                                self._fallback_attempted_for_tool_call_id = last_message.tool_call_id
-
-                                fallback_message = (
-                                    f"A execução segura no sandbox falhou (erro de criação do sandbox). "
-                                    f"Tentando executar o script diretamente com '{PythonExecute().name}'. "
-                                    "AVISO: Executar scripts fora do sandbox pode apresentar riscos de segurança se o script for malicioso."
-                                )
-                                self.memory.add_message(Message.assistant_message(fallback_message))
-                                logger.info(f"Planned fallback ToolCall: {new_fallback_tool_call}")
-                                return True # Executar a tool_call de fallback
-                            else:
-                                logger.warning(f"Could not construct fallback arguments for tool_call_id {last_message.tool_call_id}. Fallback aborted.")
+                            ]
+                            logger.info(f"Solicitando permissão do usuário para fallback da tool_call {tool_call_id_from_message} para PythonExecute.")
+                            return True # Retorna para executar AskHuman
                         else:
-                            logger.error(f"Could not find original ToolCall with id {last_message.tool_call_id} in assistant message {original_assistant_message_with_tool_call.id} for fallback.")
-                    else:
-                        logger.error(f"Could not find original assistant message for tool_call_id {last_message.tool_call_id} for fallback.")
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse tool result content for fallback logic: {last_message.content}. Error: {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error during sandbox fallback logic: {e}", exc_info=True)
+                            logger.error(f"Não foi possível encontrar a ToolCall original do assistente para o tool_call_id {tool_call_id_from_message} que falhou no sandbox.")
+
+                except json.JSONDecodeError as e:
+                    logger.error(f"Falha ao parsear o conteúdo do resultado da ferramenta para lógica de fallback (Sandbox): {last_message.content}. Erro: {e}")
+                except Exception as e_fallback_init:
+                    logger.error(f"Erro inesperado durante a inicialização do fallback do sandbox: {e_fallback_init}", exc_info=True)
+
+        # Etapa B: Processar resposta do usuário para fallback
+        if (
+            last_message
+            and last_message.role == Role.USER
+            and self._pending_fallback_tool_call # Havia uma pergunta pendente
+            # Verifica se a mensagem do usuário é uma resposta à pergunta de fallback
+            # Isso pode ser melhorado se AskHuman ToolCall/ToolMessage tiverem IDs que possam ser rastreados.
+            # Por enquanto, confiamos que a última mensagem do usuário após _pending_fallback_tool_call ser setado é a resposta.
+            # Adicionamos _last_ask_human_for_fallback_id para uma verificação mais robusta se a mensagem anterior foi o AskHuman
+        ):
+            # Verificar se a mensagem ANTERIOR foi o AskHuman que fizemos
+            if len(self.memory.messages) >= 2:
+                potential_ask_human_tool_msg = self.memory.messages[-2]
+                if not (potential_ask_human_tool_msg.role == Role.TOOL and \
+                        hasattr(potential_ask_human_tool_msg, 'name') and potential_ask_human_tool_msg.name == AskHuman().name and \
+                        hasattr(potential_ask_human_tool_msg, 'tool_call_id') and potential_ask_human_tool_msg.tool_call_id == self._last_ask_human_for_fallback_id):
+                    # A última mensagem do usuário não é uma resposta direta à nossa pergunta de fallback específica.
+                    # Resetar _pending_fallback_tool_call para evitar processamento incorreto se o usuário apenas digitou algo.
+                    # self._pending_fallback_tool_call = None # Comentado por enquanto, pode ser muito agressivo.
+                    # logger.info("A última mensagem do usuário não parece ser uma resposta direta à pergunta de fallback. Ignorando para fins de fallback.")
+                    pass # Não faz nada aqui, deixa o fluxo normal do `think` continuar.
+
+            user_response_text = last_message.content.strip().lower()
+            original_failed_tool_call = self._pending_fallback_tool_call
+
+            if user_response_text == "sim":
+                logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
+                try:
+                    original_args = json.loads(original_failed_tool_call.function.arguments)
+                    fallback_args = {}
+
+                    if "code" in original_args and original_args["code"]:
+                        fallback_args["code"] = original_args["code"]
+                    elif "file_path" in original_args and original_args["file_path"]:
+                        # Não podemos fazer fallback direto para PythonExecute com file_path
+                        self.memory.add_message(Message.assistant_message(
+                            f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
+                            "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
+                            "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
+                            "ou considere outra ferramenta para ler o arquivo primeiro."
+                        ))
+                        self.tool_calls = [] # Limpa quaisquer chamadas de ferramentas planejadas
+                        self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tentado/tratado
+                        self._pending_fallback_tool_call = None
+                        self._last_ask_human_for_fallback_id = None
+                        return True # Volta para o LLM pensar
+                    else: # Nem 'code' nem 'file_path'
+                         logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
+                         self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
+                         self.tool_calls = []
+                         self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
+                         self._pending_fallback_tool_call = None
+                         self._last_ask_human_for_fallback_id = None
+                         return True
+
+                    # Se chegamos aqui, é porque fallback_args["code"] foi definido
+                    fallback_timeout = original_args.get("timeout", 120) # Usar timeout do sandbox ou o novo default de PythonExecute
+                    fallback_args["timeout"] = fallback_timeout
+
+                    new_fallback_tool_call = ToolCall(
+                        id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
+                        function=FunctionCall(
+                            name=PythonExecute().name,
+                            arguments=json.dumps(fallback_args)
+                        )
+                    )
+                    self.tool_calls = [new_fallback_tool_call]
+                    self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
+
+                    self.memory.add_message(Message.assistant_message(
+                        f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
+                        "Lembre-se dos riscos de segurança."
+                    ))
+                    logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
+
+                except json.JSONDecodeError as e:
+                    logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
+                    self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
+                    self.tool_calls = []
+                except Exception as e_fallback_exec:
+                    logger.error(f"Erro inesperado durante a execução do fallback para PythonExecute: {e_fallback_exec}", exc_info=True)
+                    self.memory.add_message(Message.assistant_message(f"Erro inesperado ao tentar fallback: {e_fallback_exec}"))
+                    self.tool_calls = []
+
+                self._pending_fallback_tool_call = None
+                self._last_ask_human_for_fallback_id = None
+                return True # Executar a tool_call de fallback (PythonExecute)
+
+            elif user_response_text == "não":
+                logger.info(f"Usuário negou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
+                self.memory.add_message(Message.assistant_message(
+                    "Entendido. A execução do script foi cancelada conforme sua solicitação."
+                ))
+                self.tool_calls = []
+                self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tratado
+                self._pending_fallback_tool_call = None
+                self._last_ask_human_for_fallback_id = None
+                return True # Deixar o LLM decidir o que fazer após o cancelamento
+            else:
+                logger.info(f"Resposta não reconhecida do usuário ('{user_response_text}') para a pergunta de fallback. Solicitando novamente ou tratando como 'não'.")
+                self.memory.add_message(Message.assistant_message(
+                    f"Resposta '{last_message.content}' não reconhecida. Assumindo 'não' para a execução direta. A execução do script foi cancelada."
+                ))
+                self.tool_calls = []
+                self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
+                self._pending_fallback_tool_call = None
+                self._last_ask_human_for_fallback_id = None
+                return True
+
         # --- Fim da Lógica de Fallback ---
         
         user_prompt_message = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.USER), None)

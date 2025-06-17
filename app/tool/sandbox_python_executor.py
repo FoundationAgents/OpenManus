@@ -97,7 +97,7 @@ class SandboxPythonExecutor(BaseTool):
             except Exception as e:
                 return {
                     "stdout": "",
-                    "stderr": f"Sandbox creation failed: {str(e)}",
+                    "stderr": "ToolError: {'success': false, 'error_type': 'environment', 'message': 'Falha ao conectar com o sandbox. Verifique se o Docker está instalado e em execução ou se a imagem configurada está disponível.'}",
                     "exit_code": -2,
                 }
         
