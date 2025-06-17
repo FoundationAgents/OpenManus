@@ -5,68 +5,68 @@ from pydantic import Field
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.swe import SYSTEM_PROMPT
 from app.tool import Bash, StrReplaceEditor, Terminate, ToolCollection
-from app.tool.ask_human import AskHuman # Added import
-from app.logger import logger # Added import
-from app.schema import AgentState # Added import
+from app.tool.ask_human import AskHuman # Importação adicionada
+from app.logger import logger # Importação adicionada
+from app.schema import AgentState # Importação adicionada
 
 
 class SWEAgent(ToolCallAgent):
-    """An agent that implements the SWEAgent paradigm for executing code and natural conversations."""
+    """Um agente que implementa o paradigma SWEAgent para executar código e conversas naturais."""
 
     name: str = "swe"
-    description: str = "an autonomous AI programmer that interacts directly with the computer to solve tasks."
+    description: str = "um programador de IA autônomo que interage diretamente com o computador para resolver tarefas."
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = ""
 
     available_tools: ToolCollection = ToolCollection(
-        Bash(), StrReplaceEditor(), Terminate(), AskHuman() # Added AskHuman
+        Bash(), StrReplaceEditor(), Terminate(), AskHuman() # AskHuman adicionado
     )
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
 
-    max_steps: int = 50 # Increased max_steps
+    max_steps: int = 50 # max_steps aumentado
 
     async def should_request_feedback(self) -> bool:
-        """Determines if the agent should pause and request user feedback.
+        """Determina se o agente deve pausar e solicitar feedback do usuário.
 
-        This method implements the logic for deciding when to ask for feedback
-        based on criteria like being stuck, facing ambiguity, or missing critical information.
+        Este método implementa a lógica para decidir quando pedir feedback
+        com base em critérios como estar preso, enfrentar ambiguidade ou falta de informações críticas.
         """
-        # 1. Check if the agent is stuck (using existing mechanism)
+        # 1. Verificar se o agente está preso (usando mecanismo existente)
         if self.is_stuck():
-            logger.info("Feedback condition: Agent is stuck (duplicate responses).")
-            # Ensure there's a question to ask, perhaps by setting a default or using the stuck prompt.
-            # For now, we assume the LLM will use ask_human based on the system prompt if it's stuck.
-            # We might need a more direct way to set the question for ask_human here.
-            self.update_memory("system", "You seem to be stuck. Consider asking the user for guidance using the 'ask_human' tool if you are unsure how to proceed.")
+            logger.info("Condição de feedback: Agente está preso (respostas duplicadas).")
+            # Garantir que há uma pergunta a ser feita, talvez definindo um padrão ou usando o prompt de preso.
+            # Por enquanto, assumimos que o LLM usará ask_human com base no prompt do sistema se estiver preso.
+            # Podemos precisar de uma maneira mais direta de definir a pergunta para ask_human aqui.
+            self.update_memory("system", "Você parece estar preso. Considere pedir orientação ao usuário usando a ferramenta 'ask_human' se não tiver certeza de como proceder.")
             return True
 
-        # 2. Check for keywords indicating ambiguity or missing information in recent memory
-        # Look at the last few messages for tell-tale signs.
-        # This is a simple heuristic and can be expanded.
+        # 2. Verificar palavras-chave que indicam ambiguidade ou falta de informações na memória recente
+        # Olhar as últimas mensagens em busca de sinais reveladores.
+        # Esta é uma heurística simples e pode ser expandida.
         recent_messages_to_check = 3
-        keywords = ["not provided", "unclear", "missing api key", "what is the value", "unknown parameter", "clarify"]
+        keywords = ["não fornecido", "incerto", "chave de api ausente", "qual é o valor", "parâmetro desconhecido", "esclarecer", "não está claro"]
         
         for message in self.memory.messages[-recent_messages_to_check:]:
-            if message.content: # Ensure content is not None
+            if message.content: # Garantir que o conteúdo não é None
                 for keyword in keywords:
                     if keyword in message.content.lower():
-                        logger.info(f"Feedback condition: Keyword '{keyword}' found in recent messages.")
-                        # Prompt the LLM to ask a question.
-                        self.update_memory("system", f"It seems there's some uncertainty (related to '{keyword}'). Please use the 'ask_human' tool to ask the user for clarification or missing information.")
+                        logger.info(f"Condição de feedback: Palavra-chave '{keyword}' encontrada nas mensagens recentes.")
+                        # Solicitar ao LLM para fazer uma pergunta.
+                        self.update_memory("system", f"Parece haver alguma incerteza (relacionada a '{keyword}'). Por favor, use a ferramenta 'ask_human' para pedir esclarecimentos ou informações ausentes ao usuário.")
                         return True
         
-        # 3. Placeholder for checking for repeated failed attempts
-        # TODO: Implement logic to detect repeated failed tool executions or lack of progress towards a goal.
-        # This might involve analyzing tool execution results or other progress metrics.
-        # For example, if the last N tool calls resulted in errors or no change in state.
+        # 3. Placeholder para verificar tentativas falhas repetidas
+        # TODO: Implementar lógica para detectar execuções de ferramentas falhas repetidas ou falta de progresso em direção a um objetivo.
+        # Isso pode envolver a análise dos resultados da execução da ferramenta ou outras métricas de progresso.
+        # Por exemplo, se as últimas N chamadas de ferramenta resultaram em erros ou nenhuma mudança no estado.
 
-        # 4. Check for excessive steps without finishing (as a fallback)
-        # This is a softer version of the old interaction_interval, but more of a "are we taking too long?" check.
-        # Only trigger if a significant number of steps have passed without resolution.
+        # 4. Verificar passos excessivos sem finalizar (como um fallback)
+        # Esta é uma versão mais branda do antigo interaction_interval, mas mais uma verificação de "estamos demorando muito?".
+        # Acionar apenas se um número significativo de passos tiver passado sem resolução.
         if self.current_step > (self.max_steps * 0.75) and self.state != AgentState.FINISHED:
-             logger.info(f"Feedback condition: Agent has taken {self.current_step} steps without finishing.")
-             self.update_memory("system", "You've taken a significant number of steps. If you're not confident in the current path, consider using 'ask_human' to check in with the user or ask for guidance.")
+             logger.info(f"Condição de feedback: Agente executou {self.current_step} passos sem finalizar.")
+             self.update_memory("system", "Você executou um número significativo de passos. Se não estiver confiante no caminho atual, considere usar 'ask_human' para verificar com o usuário ou pedir orientação.")
              return True
 
         return False

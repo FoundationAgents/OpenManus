@@ -14,7 +14,7 @@ from app.tool import PlanningTool
 
 
 class PlanStepStatus(str, Enum):
-    """Enum class defining possible statuses of a plan step"""
+    """Classe Enum que define os status possíveis de um passo do plano"""
 
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
@@ -23,17 +23,17 @@ class PlanStepStatus(str, Enum):
 
     @classmethod
     def get_all_statuses(cls) -> list[str]:
-        """Return a list of all possible step status values"""
+        """Retorna uma lista de todos os valores de status de passo possíveis"""
         return [status.value for status in cls]
 
     @classmethod
     def get_active_statuses(cls) -> list[str]:
-        """Return a list of values representing active statuses (not started or in progress)"""
+        """Retorna uma lista de valores que representam status ativos (não iniciado ou em progresso)"""
         return [cls.NOT_STARTED.value, cls.IN_PROGRESS.value]
 
     @classmethod
     def get_status_marks(cls) -> Dict[str, str]:
-        """Return a mapping of statuses to their marker symbols"""
+        """Retorna um mapeamento de status para seus símbolos marcadores"""
         return {
             cls.COMPLETED.value: "[✓]",
             cls.IN_PROGRESS.value: "[→]",
@@ -43,7 +43,7 @@ class PlanStepStatus(str, Enum):
 
 
 class PlanningFlow(BaseFlow):
-    """A flow that manages planning and execution of tasks using agents."""
+    """Um fluxo que gerencia o planejamento e a execução de tarefas usando agentes."""
 
     llm: LLM = Field(default_factory=lambda: LLM())
     planning_tool: PlanningTool = Field(default_factory=PlanningTool)
@@ -54,102 +54,102 @@ class PlanningFlow(BaseFlow):
     def __init__(
         self, agents: Union[BaseAgent, List[BaseAgent], Dict[str, BaseAgent]], **data
     ):
-        # Set executor keys before super().__init__
+        # Define as chaves do executor antes de super().__init__
         if "executors" in data:
             data["executor_keys"] = data.pop("executors")
 
-        # Set plan ID if provided
+        # Define o ID do plano se fornecido
         if "plan_id" in data:
             data["active_plan_id"] = data.pop("plan_id")
 
-        # Initialize the planning tool if not provided
+        # Inicializa a ferramenta de planejamento se não fornecida
         if "planning_tool" not in data:
             planning_tool = PlanningTool()
             data["planning_tool"] = planning_tool
 
-        # Call parent's init with the processed data
+        # Chama o init do pai com os dados processados
         super().__init__(agents, **data)
 
-        # Set executor_keys to all agent keys if not specified
+        # Define executor_keys para todas as chaves de agente se não especificado
         if not self.executor_keys:
             self.executor_keys = list(self.agents.keys())
 
     def get_executor(self, step_type: Optional[str] = None) -> BaseAgent:
         """
-        Get an appropriate executor agent for the current step.
-        Can be extended to select agents based on step type/requirements.
+        Obtém um agente executor apropriado para o passo atual.
+        Pode ser estendido para selecionar agentes com base no tipo/requisitos do passo.
         """
-        # If step type is provided and matches an agent key, use that agent
+        # Se o tipo de passo for fornecido e corresponder a uma chave de agente, use esse agente
         if step_type and step_type in self.agents:
             return self.agents[step_type]
 
-        # Otherwise use the first available executor or fall back to primary agent
+        # Caso contrário, use o primeiro executor disponível ou recorra ao agente primário
         for key in self.executor_keys:
             if key in self.agents:
                 return self.agents[key]
 
-        # Fallback to primary agent
+        # Recorrer ao agente primário
         return self.primary_agent
 
     async def execute(self, input_text: str) -> str:
-        """Execute the planning flow with agents."""
+        """Executa o fluxo de planejamento com agentes."""
         try:
             if not self.primary_agent:
-                raise ValueError("No primary agent available")
+                raise ValueError("Nenhum agente primário disponível")
 
-            # Create initial plan if input provided
+            # Cria plano inicial se a entrada for fornecida
             if input_text:
                 await self._create_initial_plan(input_text)
 
-                # Verify plan was created successfully
+                # Verifica se o plano foi criado com sucesso
                 if self.active_plan_id not in self.planning_tool.plans:
                     logger.error(
-                        f"Plan creation failed. Plan ID {self.active_plan_id} not found in planning tool."
+                        f"Criação do plano falhou. ID do plano {self.active_plan_id} não encontrado na ferramenta de planejamento."
                     )
-                    return f"Failed to create plan for: {input_text}"
+                    return f"Falha ao criar plano para: {input_text}"
 
             result = ""
             while True:
-                # Get current step to execute
+                # Obtém o passo atual para executar
                 self.current_step_index, step_info = await self._get_current_step_info()
 
-                # Exit if no more steps or plan completed
+                # Sai se não houver mais passos ou se o plano estiver concluído
                 if self.current_step_index is None:
                     result += await self._finalize_plan()
                     break
 
-                # Execute current step with appropriate agent
+                # Executa o passo atual com o agente apropriado
                 step_type = step_info.get("type") if step_info else None
                 executor = self.get_executor(step_type)
                 step_result = await self._execute_step(executor, step_info)
                 result += step_result + "\n"
 
-                # Check if agent wants to terminate
+                # Verifica se o agente quer encerrar
                 if hasattr(executor, "state") and executor.state == AgentState.FINISHED:
                     break
 
             return result
         except Exception as e:
-            logger.error(f"Error in PlanningFlow: {str(e)}")
-            return f"Execution failed: {str(e)}"
+            logger.error(f"Erro em PlanningFlow: {str(e)}")
+            return f"Execução falhou: {str(e)}"
 
     async def _create_initial_plan(self, request: str) -> None:
-        """Create an initial plan based on the request using the flow's LLM and PlanningTool."""
-        logger.info(f"Creating initial plan with ID: {self.active_plan_id}")
+        """Cria um plano inicial com base na solicitação usando o LLM e PlanningTool do fluxo."""
+        logger.info(f"Criando plano inicial com ID: {self.active_plan_id}")
 
-        # Create a system message for plan creation
+        # Cria uma mensagem de sistema para criação do plano
         system_message = Message.system_message(
-            "You are a planning assistant. Create a concise, actionable plan with clear steps. "
-            "Focus on key milestones rather than detailed sub-steps. "
-            "Optimize for clarity and efficiency."
+            "Você é um assistente de planejamento. Crie um plano conciso e acionável com passos claros. "
+            "Concentre-se em marcos chave em vez de sub-passos detalhados. "
+            "Otimize para clareza e eficiência."
         )
 
-        # Create a user message with the request
+        # Cria uma mensagem de usuário com a solicitação
         user_message = Message.user_message(
-            f"Create a reasonable plan with clear steps to accomplish the task: {request}"
+            f"Crie um plano razoável com passos claros para realizar a tarefa: {request}"
         )
 
-        # Call LLM with PlanningTool
+        # Chama LLM com PlanningTool
         response = await self.llm.ask_tool(
             messages=[user_message],
             system_msgs=[system_message],
@@ -157,60 +157,60 @@ class PlanningFlow(BaseFlow):
             tool_choice=ToolChoice.AUTO,
         )
 
-        # Process tool calls if present
+        # Processa chamadas de ferramenta se presentes
         if response.tool_calls:
             for tool_call in response.tool_calls:
                 if tool_call.function.name == "planning":
-                    # Parse the arguments
+                    # Analisa os argumentos
                     args = tool_call.function.arguments
                     if isinstance(args, str):
                         try:
                             args = json.loads(args)
                         except json.JSONDecodeError:
-                            logger.error(f"Failed to parse tool arguments: {args}")
+                            logger.error(f"Falha ao analisar argumentos da ferramenta: {args}")
                             continue
 
-                    # Ensure plan_id is set correctly and execute the tool
+                    # Garante que plan_id esteja definido corretamente e executa a ferramenta
                     args["plan_id"] = self.active_plan_id
 
-                    # Execute the tool via ToolCollection instead of directly
+                    # Executa a ferramenta via ToolCollection em vez de diretamente
                     result = await self.planning_tool.execute(**args)
 
-                    logger.info(f"Plan creation result: {str(result)}")
+                    logger.info(f"Resultado da criação do plano: {str(result)}")
                     return
 
-        # If execution reached here, create a default plan
-        logger.warning("Creating default plan")
+        # Se a execução chegou aqui, cria um plano padrão
+        logger.warning("Criando plano padrão")
 
-        # Create default plan using the ToolCollection
+        # Cria plano padrão usando ToolCollection
         await self.planning_tool.execute(
             **{
                 "command": "create",
                 "plan_id": self.active_plan_id,
-                "title": f"Plan for: {request[:50]}{'...' if len(request) > 50 else ''}",
-                "steps": ["Analyze request", "Execute task", "Verify results"],
+                "title": f"Plano para: {request[:50]}{'...' if len(request) > 50 else ''}",
+                "steps": ["Analisar solicitação", "Executar tarefa", "Verificar resultados"],
             }
         )
 
     async def _get_current_step_info(self) -> tuple[Optional[int], Optional[dict]]:
         """
-        Parse the current plan to identify the first non-completed step's index and info.
-        Returns (None, None) if no active step is found.
+        Analisa o plano atual para identificar o índice e as informações do primeiro passo não concluído.
+        Retorna (None, None) se nenhum passo ativo for encontrado.
         """
         if (
             not self.active_plan_id
             or self.active_plan_id not in self.planning_tool.plans
         ):
-            logger.error(f"Plan with ID {self.active_plan_id} not found")
+            logger.error(f"Plano com ID {self.active_plan_id} não encontrado")
             return None, None
 
         try:
-            # Direct access to plan data from planning tool storage
+            # Acesso direto aos dados do plano do armazenamento da ferramenta de planejamento
             plan_data = self.planning_tool.plans[self.active_plan_id]
             steps = plan_data.get("steps", [])
             step_statuses = plan_data.get("step_statuses", [])
 
-            # Find first non-completed step
+            # Encontra o primeiro passo não concluído
             for i, step in enumerate(steps):
                 if i >= len(step_statuses):
                     status = PlanStepStatus.NOT_STARTED.value
@@ -218,17 +218,17 @@ class PlanningFlow(BaseFlow):
                     status = step_statuses[i]
 
                 if status in PlanStepStatus.get_active_statuses():
-                    # Extract step type/category if available
+                    # Extrai o tipo/categoria do passo se disponível
                     step_info = {"text": step}
 
-                    # Try to extract step type from the text (e.g., [SEARCH] or [CODE])
+                    # Tenta extrair o tipo de passo do texto (ex: [SEARCH] ou [CODE])
                     import re
 
                     type_match = re.search(r"\[([A-Z_]+)\]", step)
                     if type_match:
                         step_info["type"] = type_match.group(1).lower()
 
-                    # Mark current step as in_progress
+                    # Marca o passo atual como em_progresso
                     try:
                         await self.planning_tool.execute(
                             command="mark_step",
@@ -237,8 +237,8 @@ class PlanningFlow(BaseFlow):
                             step_status=PlanStepStatus.IN_PROGRESS.value,
                         )
                     except Exception as e:
-                        logger.warning(f"Error marking step as in_progress: {e}")
-                        # Update step status directly if needed
+                        logger.warning(f"Erro ao marcar passo como em_progresso: {e}")
+                        # Atualiza o status do passo diretamente se necessário
                         if i < len(step_statuses):
                             step_statuses[i] = PlanStepStatus.IN_PROGRESS.value
                         else:
@@ -250,48 +250,48 @@ class PlanningFlow(BaseFlow):
 
                     return i, step_info
 
-            return None, None  # No active step found
+            return None, None  # Nenhum passo ativo encontrado
 
         except Exception as e:
-            logger.warning(f"Error finding current step index: {e}")
+            logger.warning(f"Erro ao encontrar índice do passo atual: {e}")
             return None, None
 
     async def _execute_step(self, executor: BaseAgent, step_info: dict) -> str:
-        """Execute the current step with the specified agent using agent.run()."""
-        # Prepare context for the agent with current plan status
+        """Executa o passo atual com o agente especificado usando agent.run()."""
+        # Prepara o contexto para o agente com o status atual do plano
         plan_status = await self._get_plan_text()
-        step_text = step_info.get("text", f"Step {self.current_step_index}")
+        step_text = step_info.get("text", f"Passo {self.current_step_index}")
 
-        # Create a prompt for the agent to execute the current step
+        # Cria um prompt para o agente executar o passo atual
         step_prompt = f"""
-        CURRENT PLAN STATUS:
+        STATUS ATUAL DO PLANO:
         {plan_status}
 
-        YOUR CURRENT TASK:
-        You are now working on step {self.current_step_index}: "{step_text}"
+        SUA TAREFA ATUAL:
+        Você está trabalhando no passo {self.current_step_index}: "{step_text}"
 
-        Please execute this step using the appropriate tools. When you're done, provide a summary of what you accomplished.
+        Por favor, execute este passo usando as ferramentas apropriadas. Quando terminar, forneça um resumo do que você realizou.
         """
 
-        # Use agent.run() to execute the step
+        # Usa agent.run() para executar o passo
         try:
             step_result = await executor.run(step_prompt)
 
-            # Mark the step as completed after successful execution
+            # Marca o passo como concluído após execução bem-sucedida
             await self._mark_step_completed()
 
             return step_result
         except Exception as e:
-            logger.error(f"Error executing step {self.current_step_index}: {e}")
-            return f"Error executing step {self.current_step_index}: {str(e)}"
+            logger.error(f"Erro ao executar passo {self.current_step_index}: {e}")
+            return f"Erro ao executar passo {self.current_step_index}: {str(e)}"
 
     async def _mark_step_completed(self) -> None:
-        """Mark the current step as completed."""
+        """Marca o passo atual como concluído."""
         if self.current_step_index is None:
             return
 
         try:
-            # Mark the step as completed
+            # Marca o passo como concluído
             await self.planning_tool.execute(
                 command="mark_step",
                 plan_id=self.active_plan_id,
@@ -299,53 +299,53 @@ class PlanningFlow(BaseFlow):
                 step_status=PlanStepStatus.COMPLETED.value,
             )
             logger.info(
-                f"Marked step {self.current_step_index} as completed in plan {self.active_plan_id}"
+                f"Marcado passo {self.current_step_index} como concluído no plano {self.active_plan_id}"
             )
         except Exception as e:
-            logger.warning(f"Failed to update plan status: {e}")
-            # Update step status directly in planning tool storage
+            logger.warning(f"Falha ao atualizar status do plano: {e}")
+            # Atualiza o status do passo diretamente no armazenamento da ferramenta de planejamento
             if self.active_plan_id in self.planning_tool.plans:
                 plan_data = self.planning_tool.plans[self.active_plan_id]
                 step_statuses = plan_data.get("step_statuses", [])
 
-                # Ensure the step_statuses list is long enough
+                # Garante que a lista step_statuses seja longa o suficiente
                 while len(step_statuses) <= self.current_step_index:
                     step_statuses.append(PlanStepStatus.NOT_STARTED.value)
 
-                # Update the status
+                # Atualiza o status
                 step_statuses[self.current_step_index] = PlanStepStatus.COMPLETED.value
                 plan_data["step_statuses"] = step_statuses
 
     async def _get_plan_text(self) -> str:
-        """Get the current plan as formatted text."""
+        """Obtém o plano atual como texto formatado."""
         try:
             result = await self.planning_tool.execute(
                 command="get", plan_id=self.active_plan_id
             )
             return result.output if hasattr(result, "output") else str(result)
         except Exception as e:
-            logger.error(f"Error getting plan: {e}")
+            logger.error(f"Erro ao obter plano: {e}")
             return self._generate_plan_text_from_storage()
 
     def _generate_plan_text_from_storage(self) -> str:
-        """Generate plan text directly from storage if the planning tool fails."""
+        """Gera texto do plano diretamente do armazenamento se a ferramenta de planejamento falhar."""
         try:
             if self.active_plan_id not in self.planning_tool.plans:
-                return f"Error: Plan with ID {self.active_plan_id} not found"
+                return f"Erro: Plano com ID {self.active_plan_id} não encontrado"
 
             plan_data = self.planning_tool.plans[self.active_plan_id]
-            title = plan_data.get("title", "Untitled Plan")
+            title = plan_data.get("title", "Plano sem título")
             steps = plan_data.get("steps", [])
             step_statuses = plan_data.get("step_statuses", [])
             step_notes = plan_data.get("step_notes", [])
 
-            # Ensure step_statuses and step_notes match the number of steps
+            # Garante que step_statuses e step_notes correspondam ao número de passos
             while len(step_statuses) < len(steps):
                 step_statuses.append(PlanStepStatus.NOT_STARTED.value)
             while len(step_notes) < len(steps):
                 step_notes.append("")
 
-            # Count steps by status
+            # Conta passos por status
             status_counts = {status: 0 for status in PlanStepStatus.get_all_statuses()}
 
             for status in step_statuses:
@@ -356,69 +356,69 @@ class PlanningFlow(BaseFlow):
             total = len(steps)
             progress = (completed / total) * 100 if total > 0 else 0
 
-            plan_text = f"Plan: {title} (ID: {self.active_plan_id})\n"
+            plan_text = f"Plano: {title} (ID: {self.active_plan_id})\n"
             plan_text += "=" * len(plan_text) + "\n\n"
 
             plan_text += (
-                f"Progress: {completed}/{total} steps completed ({progress:.1f}%)\n"
+                f"Progresso: {completed}/{total} passos concluídos ({progress:.1f}%)\n"
             )
-            plan_text += f"Status: {status_counts[PlanStepStatus.COMPLETED.value]} completed, {status_counts[PlanStepStatus.IN_PROGRESS.value]} in progress, "
-            plan_text += f"{status_counts[PlanStepStatus.BLOCKED.value]} blocked, {status_counts[PlanStepStatus.NOT_STARTED.value]} not started\n\n"
-            plan_text += "Steps:\n"
+            plan_text += f"Status: {status_counts[PlanStepStatus.COMPLETED.value]} concluídos, {status_counts[PlanStepStatus.IN_PROGRESS.value]} em progresso, "
+            plan_text += f"{status_counts[PlanStepStatus.BLOCKED.value]} bloqueados, {status_counts[PlanStepStatus.NOT_STARTED.value]} não iniciados\n\n"
+            plan_text += "Passos:\n"
 
             status_marks = PlanStepStatus.get_status_marks()
 
             for i, (step, status, notes) in enumerate(
                 zip(steps, step_statuses, step_notes)
             ):
-                # Use status marks to indicate step status
+                # Usa marcas de status para indicar o status do passo
                 status_mark = status_marks.get(
                     status, status_marks[PlanStepStatus.NOT_STARTED.value]
                 )
 
                 plan_text += f"{i}. {status_mark} {step}\n"
                 if notes:
-                    plan_text += f"   Notes: {notes}\n"
+                    plan_text += f"   Notas: {notes}\n"
 
             return plan_text
         except Exception as e:
-            logger.error(f"Error generating plan text from storage: {e}")
-            return f"Error: Unable to retrieve plan with ID {self.active_plan_id}"
+            logger.error(f"Erro ao gerar texto do plano do armazenamento: {e}")
+            return f"Erro: Não foi possível recuperar o plano com ID {self.active_plan_id}"
 
     async def _finalize_plan(self) -> str:
-        """Finalize the plan and provide a summary using the flow's LLM directly."""
+        """Finaliza o plano e fornece um resumo usando o LLM do fluxo diretamente."""
         plan_text = await self._get_plan_text()
 
-        # Create a summary using the flow's LLM directly
+        # Cria um resumo usando o LLM do fluxo diretamente
         try:
             system_message = Message.system_message(
-                "You are a planning assistant. Your task is to summarize the completed plan."
+                "Você é um assistente de planejamento. Sua tarefa é resumir o plano concluído."
             )
 
             user_message = Message.user_message(
-                f"The plan has been completed. Here is the final plan status:\n\n{plan_text}\n\nPlease provide a summary of what was accomplished and any final thoughts."
+                f"O plano foi concluído. Aqui está o status final do plano:\n\n{plan_text}\n\nPor favor, forneça um resumo do que foi realizado e quaisquer considerações finais."
             )
 
             response = await self.llm.ask(
                 messages=[user_message], system_msgs=[system_message]
             )
 
-            return f"Plan completed:\n\n{response}"
+            return f"Plano concluído:\n\n{response}"
         except Exception as e:
-            logger.error(f"Error finalizing plan with LLM: {e}")
+            logger.error(f"Erro ao finalizar plano com LLM: {e}")
 
-            # Fallback to using an agent for the summary
+            # Recorrer ao uso de um agente para o resumo
             try:
                 agent = self.primary_agent
                 summary_prompt = f"""
-                The plan has been completed. Here is the final plan status:
+                O plano foi concluído. Aqui está o status final do plano:
 
                 {plan_text}
 
-                Please provide a summary of what was accomplished and any final thoughts.
+                Por favor, forneça um resumo do que foi realizado e quaisquer considerações finais.
                 """
                 summary = await agent.run(summary_prompt)
-                return f"Plan completed:\n\n{summary}"
+                return f"Plano concluído:\n\n{summary}"
             except Exception as e2:
-                logger.error(f"Error finalizing plan with agent: {e2}")
-                return "Plan completed. Error generating summary."
+                logger.error(f"Erro ao finalizar plano com agente: {e2}")
+                return "Plano concluído. Erro ao gerar resumo."
