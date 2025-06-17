@@ -174,7 +174,7 @@ class SandboxPythonExecutor(BaseTool):
             #     # ... (resto da lógica como estava antes, mas precisa cuidado com script_filename vs original_script_filename_on_host)
 
         except SandboxTimeoutError as e_timeout:
-            stderr_val = f"Execution timed out after {timeout} seconds for command '{command}'.\n{str(e_timeout)}"
+            stderr_val = f"SandboxTimeoutError: A execução do comando '{command}' excedeu o tempo limite de {timeout} segundos.\nDetalhes: {str(e_timeout)}"
             exit_code_val = 124
         except FileNotFoundError as e_fnf: 
             stderr_val = f"FileNotFoundError during sandbox execution: {str(e_fnf)}"
