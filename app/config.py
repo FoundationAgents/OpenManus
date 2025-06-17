@@ -96,7 +96,7 @@ class SandboxSettings(BaseModel):
     work_dir: str = Field("/workspace", description="Container working directory")
     memory_limit: str = Field("512m", description="Memory limit")
     cpu_limit: float = Field(1.0, description="CPU limit")
-    timeout: int = Field(300, description="Default command timeout (seconds)")
+    timeout: int = Field(604800, description="Default command timeout (seconds) - 7 days")
     network_enabled: bool = Field(
         False, description="Whether network access is allowed"
     )
