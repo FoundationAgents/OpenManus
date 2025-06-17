@@ -32,6 +32,11 @@ class PythonExecute(BaseTool):
                 "type": "string",
                 "description": "Optional. The working directory in which to execute the code. Defaults to the agent's main process working directory if not specified.",
                 "nullable": True
+            },
+            "timeout": {
+                       "type": "integer",
+                       "description": "Optional. The maximum execution time in seconds for the code. Defaults to 120 seconds.",
+                       "default": 120
             }
         },
         "required": ["code"],
@@ -79,7 +84,7 @@ class PythonExecute(BaseTool):
     async def execute(
         self,
         code: str,
-        timeout: int = 5, # Mantido timeout padrão
+        timeout: int = 120,
         working_directory: Optional[str] = None,
     ) -> Dict:
         """
@@ -87,11 +92,16 @@ class PythonExecute(BaseTool):
 
         Args:
             code (str): The Python code to execute.
-            timeout (int): Execution timeout in seconds.
-            working_directory (Optional[str]): The working directory for code execution.
+            timeout (int): Optional. The maximum execution time in seconds for the code.
+                           Defaults to 120 seconds as configured in the class.
+            working_directory (Optional[str]): Optional. The working directory for code execution.
+                                               Defaults to the agent's main process working directory if not specified.
 
         Returns:
             Dict: Contains 'stdout', 'stderr', 'exit_code', 'success' status, and 'observation'.
+                  'exit_code' is 0 for success, 1 for error or timeout.
+                  'success' is True if exit_code is 0, False otherwise.
+                  'observation' mirrors 'stdout' on success and 'stderr' on failure.
         """
         try:
             ast.parse(code)
