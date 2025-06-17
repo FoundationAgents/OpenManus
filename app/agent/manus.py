@@ -84,7 +84,7 @@ class Manus(ToolCallAgent):
     _fallback_attempted_for_tool_call_id: Optional[str] = PrivateAttr(default=None)
     _pending_fallback_tool_call: Optional[ToolCall] = PrivateAttr(default=None)
     _last_ask_human_for_fallback_id: Optional[str] = PrivateAttr(default=None)
-    autonomous_mode: bool = PrivateAttr(default=False) # Flag to indicate if the agent should operate without asking for continuation feedback periodically.
+    _autonomous_mode: bool = PrivateAttr(default=False) # Flag to indicate if the agent should operate without asking for continuation feedback periodically.
 
 
     def __getstate__(self):
@@ -382,7 +382,7 @@ class Manus(ToolCallAgent):
                 return False
             await self.periodic_user_check_in(is_final_check=True, is_failure_scenario=False)
             return True
-        if not self.autonomous_mode and self.current_step > 0 and self.max_steps > 0 and self.current_step % self.max_steps == 0: # Skip periodic check-in if in autonomous mode
+        if not self._autonomous_mode and self.current_step > 0 and self.max_steps > 0 and self.current_step % self.max_steps == 0: # Skip periodic check-in if in autonomous mode
             continue_execution = await self.periodic_user_check_in(is_failure_scenario=False)
             return continue_execution
         return False
@@ -727,12 +727,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             self._initialized = True
 
         # Check for autonomous mode trigger in initial user prompt
-        if self.current_step == 0 and not self.autonomous_mode: # Só verifica no primeiro passo prático
+        if self.current_step == 0 and not self._autonomous_mode: # Só verifica no primeiro passo prático
             first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None)
             if first_user_message:
                 prompt_content = first_user_message.content.strip().lower()
                 if prompt_content.startswith("execute em modo autônomo:") or prompt_content.startswith("modo autônomo:"):
-                    self.autonomous_mode = True
+                    self._autonomous_mode = True
                     logger.info("Modo autônomo ativado por prompt do usuário.")
                     # Opcional: Remover a frase gatilho do prompt para não confundir o LLM depois
                     # clean_prompt = prompt_content.replace("execute em modo autônomo:", "").replace("modo autônomo:", "").strip()
