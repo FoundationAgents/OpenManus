@@ -27,7 +27,7 @@ from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.file_operators import LocalFileOperator
 
 from app.tool.read_file_content import ReadFileContentTool
-from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
+from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool, ResetCurrentTaskChecklistTool
 from app.tool.file_system_tools import CheckFileExistenceTool, ListFilesTool # Added ListFilesTool
 from app.agent.checklist_manager import ChecklistManager # Added for _is_checklist_complete
 from .regex_patterns import re_subprocess
@@ -114,7 +114,7 @@ class Manus(ToolCallAgent):
         from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool
 
         from app.tool.read_file_content import ReadFileContentTool
-        from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
+        from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool, ResetCurrentTaskChecklistTool
         from app.tool.file_system_tools import ListFilesTool # Adicionado ListFilesTool
         # Imports for background process tools already added at the top of the file for __init__
         # No need to re-import here if they are module-level imports
@@ -132,7 +132,7 @@ class Manus(ToolCallAgent):
             SandboxPythonExecutor(), BrowserUseTool(), FormatPythonCode(),
 
             ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
-            ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
+            ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(), ResetCurrentTaskChecklistTool(),
             CheckFileExistenceTool(), ListFilesTool(),
             ExecuteBackgroundProcessTool(), CheckProcessStatusTool(), GetProcessOutputTool()
         )
@@ -150,13 +150,13 @@ class Manus(ToolCallAgent):
         from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool
 
         from app.tool.read_file_content import ReadFileContentTool
-        from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool
+        from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool, ResetCurrentTaskChecklistTool
         from app.tool.file_system_tools import ListFilesTool # Adicionado ListFilesTool
         self.available_tools = ToolCollection(
             PythonExecute(), BrowserUseTool(), StrReplaceEditor(), AskHuman(), Terminate(),
             Bash(), SandboxPythonExecutor(), FormatPythonCode(), ReplaceCodeBlock(),
             ApplyDiffPatch(), ASTRefactorTool(), ReadFileContentTool(),
-            ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(),
+            ViewChecklistTool(), AddChecklistTaskTool(), UpdateChecklistTaskTool(), ResetCurrentTaskChecklistTool(),
             CheckFileExistenceTool(), ListFilesTool(),
             ExecuteBackgroundProcessTool(), CheckProcessStatusTool(), GetProcessOutputTool()
         )

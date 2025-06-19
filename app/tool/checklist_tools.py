@@ -211,3 +211,36 @@ class UpdateChecklistTaskTool(BaseTool):
             raise ToolError(
                 f"Erro inesperado ao atualizar status da tarefa no checklist: {e}"
             )
+
+
+class ResetCurrentTaskChecklistTool(BaseTool):
+    name: str = "reset_current_task_checklist"
+    description: str = (
+        "Resets the main task checklist. This action is irreversible and will clear all existing tasks. "
+        "It should be used when transitioning to a completely new task or when the current checklist is no longer relevant."
+    )
+    args_schema: Dict[str, Any] = {"type": "object", "properties": {}, "required": []}
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        logger.info("ResetCurrentTaskChecklistTool invoked.")
+        try:
+            manager = ChecklistManager()
+            # Overwrite the checklist with an empty list of tasks
+            await manager._save_checklist([])
+            # Optional: Verify by reloading and checking if it's empty
+            await manager._load_checklist()
+            if not manager.get_tasks():
+                return ToolResult(
+                    output="Checklist principal de tarefas resetado com sucesso. Todas as tarefas foram removidas."
+                )
+            else:
+                # This case should ideally not be reached if _save_checklist and _load_checklist are correct
+                logger.error(
+                    "ResetCurrentTaskChecklistTool: Checklist not empty after reset attempt."
+                )
+                raise ToolError(
+                    "Falha ao resetar o checklist. O checklist não está vazio após a operação."
+                )
+        except Exception as e:
+            logger.error(f"ResetCurrentTaskChecklistTool: Error resetting checklist: {e}")
+            raise ToolError(f"Erro ao resetar o checklist: {e}")

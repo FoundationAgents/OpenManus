@@ -632,6 +632,47 @@ class ToolCallAgent(ReActAgent):
                         step_result = await self.step() # Executa o ciclo think-act normal do agente
                         results.append(f"Step {self.current_step}: {step_result}")
 
+                        # --- Início do Ciclo de Confirmação de Ação ---
+                        # Verificar se a última ação foi uma "Ação Crítica"
+                        # A última ação executada está em self.tool_calls (do `think` anterior)
+                        # e o resultado está na última mensagem TOOL da memória.
+                        if self.tool_calls and self.memory.messages:
+                            last_executed_tool_call = self.tool_calls[0] # Assumindo que `act` processa uma por uma ou a primeira é a relevante
+                            # Ou, se `act` processa todas, precisamos iterar `self.tool_calls` e verificar cada uma.
+                            # Por simplicidade, vamos focar na `reset_current_task_checklist` por enquanto.
+
+                            # Identificar Ações Críticas
+                            critical_actions_map = {
+                                "reset_current_task_checklist": {
+                                    "verification_tool": "view_checklist",
+                                    "confirmation_message_template": "[SISTEMA EXECUTOR]: Ação crítica '{action_name}' foi executada. "
+                                                                   "Sua próxima ação DEVE ser verificar o resultado. "
+                                                                   "Use a ferramenta '{verification_tool}' para confirmar que o checklist está vazio antes de prosseguir."
+                                }
+                                # Adicionar outras ações críticas e suas ferramentas de verificação aqui
+                                # "another_critical_action": {
+                                #    "verification_tool": "tool_to_verify_another_action",
+                                #    "confirmation_message_template": "..."
+                                # }
+                            }
+
+                            last_tool_message = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.TOOL and msg.tool_call_id == last_executed_tool_call.id), None)
+
+                            if last_tool_message and last_tool_message.name in critical_actions_map:
+                                action_details = critical_actions_map[last_tool_message.name]
+                                # Verificar se a ação crítica foi bem-sucedida (ausência de "Error:" no resultado)
+                                # A `content` da Tool Message é a observação.
+                                if "Error:" not in last_tool_message.content:
+                                    confirmation_prompt = action_details["confirmation_message_template"].format(
+                                        action_name=last_tool_message.name,
+                                        verification_tool=action_details["verification_tool"]
+                                    )
+                                    self.memory.add_message(Message.system_message(confirmation_prompt))
+                                    logger.info(f"[{self.name}] Ação Crítica '{last_tool_message.name}' executada. Injetando prompt de confirmação: {confirmation_prompt}")
+                                else:
+                                    logger.warning(f"[{self.name}] Ação Crítica '{last_tool_message.name}' parece ter falhado. Não injetando prompt de confirmação. Resultado: {last_tool_message.content}")
+                        # --- Fim do Ciclo de Confirmação de Ação ---
+
                         if self.is_stuck():
                             self.handle_stuck_state()
 

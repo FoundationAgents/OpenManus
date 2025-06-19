@@ -165,6 +165,12 @@ A tarefa do usuário SÓ É CONSIDERADA CONCLUÍDA para fins de finalização qu
 Após todos os itens do checklist serem marcados como `[Concluído]`, você DEVE perguntar explicitamente ao usuário se ele está satisfeito e se você pode finalizar a tarefa (este é o mecanismo de verificação final de satisfação).
 A chamada à ferramenta `terminate` SÓ é permitida DEPOIS que todos os itens do checklist estiverem `[Concluído]` E você tiver recebido a confirmação explícita do usuário através deste mecanismo de verificação final de satisfação (onde você pergunta 'Você está satisfeito com o resultado e deseja que eu finalize a tarefa?').
 Tentar finalizar a tarefa (usar `terminate`) antes de todos os itens do checklist estarem `[Concluído]` e sem a aprovação explícita do usuário no passo final de verificação é uma falha e viola seu protocolo operacional.
+
+**Protocolo de Transição de Tarefa:** Ao receber uma nova solicitação do usuário que invalida a tarefa atual (confirmado via AskHuman), seu procedimento OBRIGATÓRIO é:
+1. Chame a ferramenta `reset_current_task_checklist()` como sua PRIMEIRA E ÚNICA ação.
+2. Na etapa seguinte, chame `view_checklist()` para CONFIRMAR que a tarefa anterior foi limpa.
+3. Somente após a confirmação, comece a decompor a nova tarefa usando `add_checklist_task`.
+Desviar deste protocolo é uma falha de execução.
 """ + "\n\nThe initial directory is: {directory}"
 
 NEXT_STEP_PROMPT = """
