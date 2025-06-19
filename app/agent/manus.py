@@ -937,15 +937,17 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 logger.info("A última mensagem do usuário não é uma resposta direta à pergunta de fallback do sandbox. Ignorando para fins de fallback.")
             else:
                 user_response_text = last_message.content.strip().lower()
-                original_failed_tool_call = self._pending_fallback_tool_call # self._pending_fallback_tool_call é garantido não ser None aqui
+                # original_failed_tool_call deve ser não-None aqui porque _pending_fallback_tool_call é setado antes de AskHuman ser chamado.
+                # E esta seção só é alcançada se _pending_fallback_tool_call for verdadeiro.
+                original_failed_tool_call = self._pending_fallback_tool_call
 
                 if user_response_text == "sim":
-                    logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}") # Esta linha já está dentro do `if user_response_text == "sim":`
+                    logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
                     try:
                         original_args = json.loads(original_failed_tool_call.function.arguments)
                         fallback_args = {}
 
-                    if "code" in original_args and original_args["code"]:
+                        if "code" in original_args and original_args["code"]:
                         fallback_args["code"] = original_args["code"]
                     elif "file_path" in original_args and original_args["file_path"]:
                         # Não podemos fazer fallback direto para PythonExecute com file_path
