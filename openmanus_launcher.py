@@ -17,7 +17,7 @@ DEFAULT_CONFIG_FILE_NAME = "config.example.toml"
 WORKSPACE_DIR = "workspace"
 
 # API Key provided in the prompt
-USER_PROVIDED_API_KEY = "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"
+USER_PROVIDED_API_KEY = "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"
 
 def check_python_version():
     """Checks if the current Python version meets the minimum requirement."""
@@ -221,11 +221,11 @@ def create_workspace_directory():
         sys.exit(1)
 
 def launch_application(venv_python_executable):
-    """Launches the main application script."""
-    print("Launching the application (run_flow.py)...")
-    run_flow_script = "run_flow.py" # Assuming it's in the root
-    if not os.path.exists(run_flow_script):
-        print(f"Error: Main application script '{run_flow_script}' not found in the current directory.")
+    """Launches the main application GUI script."""
+    print("Launching the application GUI (app_gui.py)...")
+    gui_script = "app_gui.py" # Assuming it's in the root
+    if not os.path.exists(gui_script):
+        print(f"Error: Main application GUI script '{gui_script}' not found in the current directory.")
         print("Please ensure the launcher is run from the repository root.")
         sys.exit(1)
     try:
@@ -233,7 +233,7 @@ def launch_application(venv_python_executable):
         env = os.environ.copy()
         # Activate venv for the subprocess by modifying PATH might be more robust
         # but for direct calls to venv_python_executable, it's usually fine.
-        # However, run_flow.py might itself call other scripts/tools.
+        # However, app_gui.py might itself call other scripts/tools.
         # Let's ensure the venv's bin/Scripts directory is at the start of PATH
         venv_scripts_dir = os.path.dirname(venv_python_executable)
         env["PATH"] = venv_scripts_dir + os.pathsep + env.get("PATH", "")
@@ -243,28 +243,28 @@ def launch_application(venv_python_executable):
 
 
         process = subprocess.run(
-            [venv_python_executable, run_flow_script],
+            [venv_python_executable, gui_script],
             check=True,
             text=True, # Capture output as text
             env=env
         )
         # If check=True and the process exits with non-zero, CalledProcessError will be raised.
         # If we want to see output even on success, we can print process.stdout, process.stderr
-        print("Application launched successfully.")
+        print("Application GUI launched successfully.")
         if process.stdout:
-            print("Application stdout:\n", process.stdout)
+            print("Application GUI stdout:\n", process.stdout)
         if process.stderr:
-            print("Application stderr:\n", process.stderr) # Should be empty on success normally
+            print("Application GUI stderr:\n", process.stderr) # Should be empty on success normally
 
     except subprocess.CalledProcessError as e:
-        print(f"Application '{run_flow_script}' exited with an error (return code {e.returncode}).")
+        print(f"Application GUI '{gui_script}' exited with an error (return code {e.returncode}).")
         if e.stdout:
-            print("Application stdout:\n", e.stdout)
+            print("Application GUI stdout:\n", e.stdout)
         if e.stderr:
-            print("Application stderr:\n", e.stderr)
+            print("Application GUI stderr:\n", e.stderr)
         sys.exit(1)
     except FileNotFoundError:
-        print(f"Error: The Python executable '{venv_python_executable}' was not found for launching the application.")
+        print(f"Error: The Python executable '{venv_python_executable}' was not found for launching the application GUI.")
         sys.exit(1)
 
 
