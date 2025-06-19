@@ -36,10 +36,20 @@ class OpenAIResponse:
 
 # Main client class for interacting with Amazon Bedrock
 class BedrockClient:
-    def __init__(self):
+    def __init__(
+        self,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_region_name: str | None = None,
+    ):
         # Initialize Bedrock client, you need to configure AWS env first
         try:
-            self.client = boto3.client("bedrock-runtime")
+            self.client = boto3.client(
+                "bedrock-runtime",
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region_name=aws_region_name,
+            )
             self.chat = Chat(self.client)
         except Exception as e:
             print(f"Error initializing Bedrock client: {e}")
@@ -173,9 +183,9 @@ class ChatCompletions:
                         "role": bedrock_response.get("output", {})
                         .get("message", {})
                         .get("role", "assistant"),
-                        "tool_calls": openai_tool_calls
-                        if openai_tool_calls != []
-                        else None,
+                        "tool_calls": (
+                            openai_tool_calls if openai_tool_calls != [] else None
+                        ),
                         "function_call": None,
                     },
                 }
