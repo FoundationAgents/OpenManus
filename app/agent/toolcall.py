@@ -9,6 +9,7 @@ from app.agent.react import ReActAgent
 from app.config import config # Added
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
+from app.sandbox.client import SANDBOX_CLIENT # Adicionado para correção do NameError
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function
 from app.agent.critic_agent import CriticAgent # Adicionado para o agente crítico

@@ -727,10 +727,58 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             await self.initialize_mcp_servers()
             self._initialized = True
 
-        # Check for autonomous mode trigger in initial user prompt
-        if self.current_step == 0 and not self._autonomous_mode: # Só verifica no primeiro passo prático
+        # --- Lógica de Verificação Inicial do Checklist ---
+        # self.current_step é 0 na primeira chamada a `run`, e se torna 1 na primeira chamada a `think` via `super().run()`
+        # No entanto, o loop em ToolCallAgent.run incrementa current_step *antes* de chamar self.step() (que chama think).
+        # Então, a primeira vez que este `think` é chamado, current_step já é 1.
+        if self.current_step == 1:
             first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None)
             if first_user_message:
+                current_user_prompt = first_user_message.content
+
+                try:
+                    checklist_manager = ChecklistManager()
+                    await checklist_manager._load_checklist() # Carrega o checklist existente
+
+                    if checklist_manager.get_tasks(): # Se existem tarefas
+                        # Verifica se há tarefas não concluídas
+                        has_pending_or_in_progress = any(
+                            task.get('status', '').lower() not in ['concluído', 'concluido', 'finalizado']
+                            for task in checklist_manager.get_tasks()
+                        )
+
+                        if has_pending_or_in_progress:
+                            logger.info(f"Checklist existente com tarefas pendentes/em andamento encontrado no início da nova interação com prompt: '{current_user_prompt[:100]}...'")
+                            # Adicionar uma mensagem ao sistema para o LLM considerar
+                            # O LLM então decidirá se pergunta ao usuário, limpa o checklist, etc.
+                            system_message_for_llm = (
+                                "INSTRUÇÃO IMPORTANTE: Um novo prompt do usuário foi recebido, mas existe um checklist de uma tarefa anterior "
+                                "com itens pendentes ou em andamento. Analise o novo prompt do usuário e o checklist existente (que será "
+                                "mostrado a você se você usar 'view_checklist').\n"
+                                "Decida se o novo prompt é uma continuação da tarefa anterior ou uma tarefa completamente nova.\n"
+                                "- Se for uma CONTINUAÇÃO ou MODIFICAÇÃO da tarefa anterior, prossiga normalmente, atualizando o checklist conforme necessário.\n"
+                                "- Se parecer uma TAREFA COMPLETAMENTE NOVA e não relacionada:\n"
+                                "  1. Use a ferramenta 'ask_human' para perguntar ao usuário: 'Detectei um novo pedido: \"{user_prompt_summary}\". "
+                                "Você gostaria de descartar o checklist da tarefa anterior e iniciar um novo para este pedido? "
+                                "Responda \"sim, limpar e iniciar novo\" ou \"não, continuar anterior\".'\n"
+                                "  2. Se o usuário responder 'sim, limpar e iniciar novo', você DEVE então usar 'str_replace_editor' com o comando 'delete' para apagar "
+                                "o arquivo 'checklist_principal_tarefa.md' e, em seguida, prosseguir para decompor o novo pedido e criar um novo checklist.\n"
+                                "  3. Se o usuário responder 'não, continuar anterior', informe que você continuará a tarefa anterior e ignore o novo prompt por enquanto (ou tente integrá-lo se fizer sentido)."
+                            ).format(user_prompt_summary=current_user_prompt[:70] + "...")
+
+                            self.memory.add_message(Message.system_message(system_message_for_llm))
+                            # Não retorna True aqui, deixa o LLM processar esta instrução no seu fluxo normal de `think`.
+                except FileNotFoundError:
+                    logger.info("Nenhum arquivo de checklist anterior encontrado. Procedendo normalmente com o novo prompt.")
+                except Exception as e_checklist_check:
+                    logger.error(f"Erro ao verificar checklist existente no início da tarefa: {e_checklist_check}")
+        # --- Fim da Lógica de Verificação Inicial do Checklist ---
+
+        # Check for autonomous mode trigger in initial user prompt
+        # Esta verificação de modo autônomo também deve ocorrer idealmente apenas uma vez no início.
+        if self.current_step == 1 and not self._autonomous_mode:
+            first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None) # Re-obter, pode ter sido modificado
+            if first_user_message: # first_user_message pode ser None se a memória foi limpa
                 prompt_content = first_user_message.content.strip().lower()
                 if prompt_content.startswith("execute em modo autônomo:") or prompt_content.startswith("modo autônomo:"):
                     self._autonomous_mode = True
@@ -751,14 +799,22 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             and hasattr(last_message, 'tool_call_id') # Garantir que tool_call_id existe
         ):
             tool_call_id_from_message = last_message.tool_call_id
-            if tool_call_id_from_message != self._fallback_attempted_for_tool_call_id:
+            if tool_call_id_from_message != self._fallback_attempted_for_tool_call_id: # Evitar processar o mesmo erro múltiplas vezes
                 try:
-                    # O conteúdo da mensagem da ferramenta DEVE ser um dicionário Python aqui,
-                    # pois é o resultado direto da execução da ferramenta, não uma string JSON do LLM.
-                    tool_result_content = json.loads(last_message.content) # Se content é string JSON
-                    # Se last_message.content já é um dict, json.loads não é necessário.
-                    # O log original indicava "Failed to parse tool result content for fallback logic",
-                    # então é provável que `last_message.content` seja uma string JSON.
+                    # last_message.content é a string de observação, e.g., "Observed output...: {'key': 'value'}"
+                    # Precisamos extrair o dicionário da string.
+                    actual_tool_result_dict_str = None
+                    match = re.search(r":\s*(\{.*\})\s*$", last_message.content)
+                    if match:
+                        actual_tool_result_dict_str = match.group(1)
+
+                    if actual_tool_result_dict_str:
+                        tool_result_content = json.loads(actual_tool_result_dict_str)
+                    else:
+                        # Se não encontrar o padrão, talvez o formato da observação mudou
+                        # ou não contém um dict no final. Logar e pular.
+                        logger.warning(f"Não foi possível extrair o dicionário de resultado da ferramenta da observação para fallback: {last_message.content}")
+                        tool_result_content = None
 
                     if isinstance(tool_result_content, dict) and tool_result_content.get("exit_code") == -2:
                         logger.warning(
