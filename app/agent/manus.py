@@ -940,10 +940,10 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 original_failed_tool_call = self._pending_fallback_tool_call # self._pending_fallback_tool_call é garantido não ser None aqui
 
                 if user_response_text == "sim":
-                    logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
-                try:
-                    original_args = json.loads(original_failed_tool_call.function.arguments)
-                    fallback_args = {}
+                    logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}") # Esta linha já está dentro do `if user_response_text == "sim":`
+                    try:
+                        original_args = json.loads(original_failed_tool_call.function.arguments)
+                        fallback_args = {}
 
                     if "code" in original_args and original_args["code"]:
                         fallback_args["code"] = original_args["code"]
