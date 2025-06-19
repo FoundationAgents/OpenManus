@@ -11,6 +11,7 @@ from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function
+from app.agent.critic_agent import CriticAgent # Adicionado para o agente crítico
 
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 from app.tool.base import ToolResult # Added
@@ -39,9 +40,18 @@ class ToolCallAgent(ReActAgent):
 
     tool_calls: List[ToolCall] = Field(default_factory=list)
     _current_base64_image: Optional[str] = None
+    critic_agent: Optional[CriticAgent] = None # Adicionado para o agente crítico
+    steps_since_last_critic_review: int = 0 # Adicionado para o agente crítico
 
     max_steps: int = 30
     max_observe: Optional[Union[int, bool]] = None
+
+    def __init__(self, **data: Any): # Adicionado __init__
+        super().__init__(**data)
+        if self.llm:
+            self.critic_agent = CriticAgent(llm_client=self.llm)
+        else:
+            logger.warning("LLM não disponível para ToolCallAgent no momento da inicialização do CriticAgent.")
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
@@ -445,7 +455,232 @@ class ToolCallAgent(ReActAgent):
 
     async def run(self, request: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""
+        # --- Início da Lógica do Agente Crítico ---
+        CRITIC_REVIEW_INTERVAL = 5 # A cada quantas etapas o crítico revisa
+        # --- Fim da Lógica do Agente Crítico ---
         try:
-            return await super().run(request)
+            # A lógica de `super().run(request)` está agora em `BaseAgent.run`
+            # Precisamos replicar e modificar o loop de `BaseAgent.run` aqui
+            # para inserir a chamada ao crítico.
+
+            if self.state == AgentState.IDLE:
+                if request:
+                    self.update_memory("user", request)
+                self.state = AgentState.RUNNING
+            elif self.state == AgentState.AWAITING_USER_FEEDBACK:
+                if request:
+                    self.update_memory("user", request)
+                self.state = AgentState.RUNNING
+            elif self.state == AgentState.RUNNING:
+                if request:
+                    self.update_memory("user", request)
+            else:
+                logger.error(f"Run method called on agent in an unstartable/unresumable state: {self.state.value}. Raising RuntimeError.")
+                raise RuntimeError(f"Cannot run/resume agent from state: {self.state.value}")
+
+            results: List[str] = []
+            self.steps_since_last_critic_review = 0 # Resetar no início de um novo run
+
+            while self.state == AgentState.RUNNING:
+                async with self.state_context(AgentState.RUNNING):
+                    while self.state not in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.USER_PAUSED]:
+                        self.current_step += 1
+                        self.steps_since_last_critic_review += 1
+
+                        if hasattr(self, 'user_pause_requested_event') and self.user_pause_requested_event.is_set():
+                            self.user_pause_requested_event.clear()
+                            self.state = AgentState.USER_PAUSED
+                            break
+
+                        if await self.should_request_feedback():
+                            self.state = AgentState.AWAITING_USER_FEEDBACK
+                            break
+
+                        if self.state in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.AWAITING_USER_FEEDBACK]:
+                            break
+
+                        # --- Início da Lógica do Agente Crítico ---
+                        # --- Início da Lógica de Ativação e Processamento do Agente Crítico ---
+                        if self.critic_agent and self.steps_since_last_critic_review >= CRITIC_REVIEW_INTERVAL:
+                            logger.info(f"[{self.name}] Agente Crítico ativado na etapa {self.current_step} (total) / {self.steps_since_last_critic_review} (desde última revisão).")
+
+                            # Obter o plano/checklist atual. Específico para agentes como Manus.
+                            current_plan_markdown = "Plano não disponível para o crítico."
+                            try:
+                                # Tenta obter de um checklist_manager se existir (como em Manus)
+                                checklist_manager = getattr(self, 'checklist_manager', None)
+                                if checklist_manager and hasattr(checklist_manager, 'get_tasks_as_markdown'):
+                                    current_plan_markdown = await checklist_manager.get_tasks_as_markdown()
+                                # Fallback para ler diretamente o arquivo de checklist (se o agente for Manus ou similar)
+                                elif hasattr(self, '_is_checklist_complete'):
+                                    local_op = LocalFileOperator() # Ferramenta para operações de arquivo local
+                                    checklist_path = str(config.workspace_root / "checklist_principal_tarefa.md")
+                                    if await local_op.exists(checklist_path):
+                                        current_plan_markdown = await local_op.read_file(checklist_path)
+                                    else:
+                                        current_plan_markdown = "Checklist principal ('checklist_principal_tarefa.md') não encontrado."
+                            except Exception as e_plan_read:
+                                logger.warning(f"[{self.name}] Não foi possível obter o plano detalhado para o Agente Crítico: {e_plan_read}")
+
+                            # Coletar resultados de ferramentas recentes para o crítico.
+                            # O crítico espera uma lista de dicts com 'name', 'content', 'tool_call_id'.
+                            # As últimas N mensagens do tipo TOOL são relevantes.
+                            recent_tool_action_results = []
+                            # Iterar sobre as últimas ~2*CRITIC_REVIEW_INTERVAL mensagens para capturar pares de tool_call/tool_response
+                            # Olhar um pouco mais para trás para garantir que pegamos os resultados das ferramentas desde a última revisão.
+                            lookback_messages_count = self.steps_since_last_critic_review * 2 + 5 # Heurística
+                            for msg in reversed(self.memory.messages[-lookback_messages_count:]):
+                                if msg.role == Role.TOOL and hasattr(msg, 'name') and hasattr(msg, 'content') and hasattr(msg, 'tool_call_id'):
+                                    recent_tool_action_results.append({
+                                        "name": msg.name,
+                                        "content": msg.content, # Este é o resultado formatado da ferramenta (observação)
+                                        "tool_call_id": msg.tool_call_id
+                                    })
+                                if len(recent_tool_action_results) >= CRITIC_REVIEW_INTERVAL + 2: # Limita o número de resultados de ferramentas
+                                    break
+                            recent_tool_action_results.reverse() # Manter a ordem cronológica
+
+                            # Chamar o Agente Crítico
+                            critic_feedback_text, critic_redirect_suggestion = self.critic_agent.review_plan_and_progress(
+                                current_plan_markdown=current_plan_markdown,
+                                messages=[msg.model_dump() for msg in self.memory.messages[-10:]], # Últimas 10 mensagens como dicts
+                                tool_results=recent_tool_action_results, # Resultados de ferramentas processados
+                                current_step=self.current_step,
+                                steps_since_last_review=self.steps_since_last_critic_review
+                            )
+
+                            # Adicionar feedback do crítico à memória para o LLM principal considerar
+                            self.memory.add_message(Message.system_message(f"Feedback do Agente Crítico: {critic_feedback_text}"))
+                            logger.info(f"[{self.name}] Feedback do Agente Crítico: {critic_feedback_text.splitlines()[0]}...") # Log da primeira linha
+
+                            # Processar sugestão de redirecionamento do crítico
+                            if critic_redirect_suggestion and isinstance(critic_redirect_suggestion, dict):
+                                critic_clarification = critic_redirect_suggestion.get("clarification", "Nenhuma clarificação adicional do crítico.")
+                                self.memory.add_message(Message.system_message(f"Nota do Crítico sobre Redirecionamento: {critic_clarification}"))
+                                logger.info(f"[{self.name}] Nota do Crítico sobre Redirecionamento: {critic_clarification}")
+
+                                action_type = critic_redirect_suggestion.get("action_type")
+                                details = critic_redirect_suggestion.get("details", {})
+
+                                # Exemplo: Se o crítico sugerir modificar o plano e a ferramenta estiver disponível
+                                if action_type == "MODIFY_PLAN" and "task_description" in details:
+                                    add_task_tool_name = "add_checklist_task"
+                                    if self.available_tools.get_tool(add_task_tool_name):
+                                        try:
+                                            add_task_args = {
+                                                "description": details["task_description"],
+                                                "priority": details.get("priority", "normal"),
+                                                "status": "Pendente"
+                                            }
+                                            add_task_call = ToolCall(
+                                                id=f"critic_mod_plan_{self.current_step}",
+                                                function=Function(name=add_task_tool_name, arguments=json.dumps(add_task_args))
+                                            )
+                                            logger.info(f"[{self.name}] Crítico sugeriu MODIFY_PLAN. Tentando adicionar tarefa via {add_task_tool_name} com args: {add_task_args}")
+                                            # Executa a ferramenta "fora de banda" (não parte do ciclo think/act normal do LLM)
+                                            add_task_result_obs = await self.execute_tool(add_task_call)
+                                            self.memory.add_message(Message.tool_message(
+                                                content=add_task_result_obs, # Observação da execução da ferramenta
+                                                tool_call_id=add_task_call.id,
+                                                name=add_task_tool_name
+                                            ))
+                                            self.memory.add_message(Message.system_message(f"Crítico: Tarefa '{details['task_description']}' foi (tentativamente) adicionada ao plano."))
+                                        except Exception as e_critic_add_task:
+                                            logger.error(f"[{self.name}] Erro ao tentar adicionar tarefa sugerida pelo crítico: {e_critic_add_task}")
+                                            self.memory.add_message(Message.system_message(f"Crítico: Falha ao tentar adicionar tarefa '{details['task_description']}' ao plano via ferramenta."))
+                                    else:
+                                        # Se a ferramenta não estiver disponível, o LLM principal precisa ser informado para agir sobre a sugestão.
+                                        self.memory.add_message(Message.system_message(
+                                            f"ALERTA DO CRÍTICO: Sugestão para modificar o plano: Adicionar tarefa '{details['task_description']}'. "
+                                            f"A ferramenta '{add_task_tool_name}' não está diretamente disponível para o crítico. "
+                                            "O agente principal deve considerar esta sugestão."
+                                        ))
+                                # Lidar com outros action_types (REQUEST_HUMAN_INPUT, SUGGEST_ALTERNATIVE_TOOL)
+                                # Adicionando mensagens fortes à memória para o LLM principal considerar.
+                                elif action_type == "REQUEST_HUMAN_INPUT" and "question" in details:
+                                    ask_human_tool_name = "ask_human"
+                                    self.memory.add_message(Message.system_message(
+                                        f"ALERTA DO CRÍTICO: É crucial obter input humano. "
+                                        f"Por favor, considere usar a ferramenta '{ask_human_tool_name}' com a seguinte pergunta: {details['question']}"
+                                    ))
+                                elif action_type == "SUGGEST_ALTERNATIVE_TOOL" and "alternative_tool_name" in details:
+                                    self.memory.add_message(Message.system_message(
+                                        f"ALERTA DO CRÍTICO: Considere usar a ferramenta '{details['alternative_tool_name']}' "
+                                        f"com argumentos aproximados: {details.get('alternative_tool_args', {})} "
+                                        f"em vez de '{details.get('failed_tool', 'a ferramenta anterior')}'. "
+                                        "O agente principal deve avaliar e decidir sobre esta sugestão."
+                                    ))
+
+                            self.steps_since_last_critic_review = 0 # Resetar contador após revisão
+                        # --- Fim da Lógica do Agente Crítico ---
+
+                        step_result = await self.step() # Executa o ciclo think-act normal do agente
+                        results.append(f"Step {self.current_step}: {step_result}")
+
+                        if self.is_stuck():
+                            self.handle_stuck_state()
+
+                if self.state == AgentState.AWAITING_USER_FEEDBACK:
+                    break
+                elif self.state == AgentState.USER_PAUSED:
+                    break
+
+                if self.state not in [AgentState.RUNNING]:
+                    break
+
+            # Lógica de finalização do BaseAgent.run
+            if self.state == AgentState.USER_HALTED:
+                pass
+            elif self.state == AgentState.AWAITING_USER_FEEDBACK:
+                pass
+            elif self.state == AgentState.USER_PAUSED:
+                pass
+            elif self.current_step >= self.max_steps and self.max_steps > 0:
+                self.state = AgentState.FINISHED
+            elif not self.tool_calls and self.state == AgentState.RUNNING:
+                 # Em ToolCallAgent, self.tool_calls é resetado em `think`.
+                 # Se `think` não produziu novas tool_calls, pode ser um sinal de conclusão.
+                last_message = self.memory.messages[-1] if self.memory.messages else None
+                if last_message and last_message.role == Role.ASSISTANT and not last_message.tool_calls and last_message.content:
+                    # Se a última mensagem do assistente tem conteúdo mas não tem tool_calls,
+                    # pode ser uma resposta final.
+                    logger.info("Agente terminou de pensar e não produziu novas chamadas de ferramenta. Considerando como FINISHED.")
+                    self.state = AgentState.FINISHED
+                # Se não, pode ser que o `think` precise de mais contexto ou o loop deva continuar
+                # para permitir que `should_request_feedback` ou `is_stuck` atuem.
+                # Por segurança, se o agente não se decidiu por FINISHED/ERROR/HALTED,
+                # e não há mais `tool_calls` para processar, e não está esperando feedback,
+                # então podemos considerar como FINISHED para evitar loops infinitos.
+                elif self.state == AgentState.RUNNING: # Ainda RUNNING e sem tool_calls
+                    logger.info("Agente no estado RUNNING sem novas tool_calls. Considerando como FINISHED.")
+                    self.state = AgentState.FINISHED
+
+            elif self.state == AgentState.RUNNING:
+                self.state = AgentState.FINISHED
+            elif self.state == AgentState.ERROR:
+                pass
+            elif self.state == AgentState.FINISHED:
+                pass
+            else:
+                logger.error(f"Execution ended with an unexpected or unhandled state: {self.state.value} at step {self.current_step}. Review agent logic.")
+
+            final_summary = f"Execution concluded. Final state: {self.state.value}, Current step: {self.current_step}."
+            results.append(final_summary)
+
+            # SANDBOX_CLIENT.cleanup() é chamado em BaseAgent.run, então não precisamos duplicar aqui
+            # se ToolCallAgent.run está substituindo completamente BaseAgent.run.
+            # No entanto, a instrução original era `await super().run(request)`,
+            # o que significa que a limpeza do sandbox já estaria no `finally` do `super().run`.
+            # Como estamos reescrevendo o loop, precisamos garantir que a limpeza ocorra.
+            # A limpeza das ferramentas individuais é feita no `finally` abaixo.
+
+            return "\n".join(results) if results else "No steps executed or execution ended."
+
         finally:
-            await self.cleanup()
+            await self.cleanup() # Limpeza das ferramentas do ToolCallAgent
+            # Se BaseAgent.run() não for chamado (porque o sobrescrevemos),
+            # precisamos garantir que SANDBOX_CLIENT.cleanup() seja chamado.
+            # Se este `run` substitui completamente o `BaseAgent.run`, então:
+            if hasattr(SANDBOX_CLIENT, 'cleanup') and callable(SANDBOX_CLIENT.cleanup):
+                 await SANDBOX_CLIENT.cleanup()
+            logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
