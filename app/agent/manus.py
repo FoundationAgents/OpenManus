@@ -761,8 +761,11 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                                 "  1. Use a ferramenta 'ask_human' para perguntar ao usuário: 'Detectei um novo pedido: \"{user_prompt_summary}\". "
                                 "Você gostaria de descartar o checklist da tarefa anterior e iniciar um novo para este pedido? "
                                 "Responda \"sim, limpar e iniciar novo\" ou \"não, continuar anterior\".'\n"
-                                "  2. Se o usuário responder 'sim, limpar e iniciar novo', você DEVE então usar 'str_replace_editor' com o comando 'delete' para apagar "
-                                "o arquivo 'checklist_principal_tarefa.md' e, em seguida, prosseguir para decompor o novo pedido e criar um novo checklist.\n"
+                                # Instrução Refinada para limpeza:
+                                "  2. Se o usuário responder 'sim, limpar e iniciar novo' (ou uma variação afirmativa clara para limpar e começar de novo), "
+                                "você DEVE então usar a ferramenta 'str_replace_editor' com os seguintes argumentos EXATOS para limpar o checklist: "
+                                "command=\"create\", path=\"checklist_principal_tarefa.md\", file_text=\"\" (string vazia), overwrite=True. "
+                                "APÓS limpar o checklist, prossiga para decompor o novo pedido e criar um novo checklist para ele.\n"
                                 "  3. Se o usuário responder 'não, continuar anterior', informe que você continuará a tarefa anterior e ignore o novo prompt por enquanto (ou tente integrá-lo se fizer sentido)."
                             ).format(user_prompt_summary=current_user_prompt[:70] + "...")
 

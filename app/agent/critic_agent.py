@@ -110,6 +110,7 @@ class CriticAgent:
 
     def review_plan_and_progress(self,
                                  current_plan_markdown: str,
+                                 initial_user_prompt: Optional[str], # Novo parâmetro
                                  messages: List[Dict[str, Any]],
                                  tool_results: List[Dict[str, Any]],
                                  current_step: int,
@@ -120,6 +121,7 @@ class CriticAgent:
 
         Args:
             current_plan_markdown: String markdown do checklist/plano atual.
+            initial_user_prompt: O prompt inicial do usuário para a tarefa corrente.
             messages: Lista de mensagens recentes (histórico da conversa).
             tool_results: Lista de resultados recentes de ferramentas.
             current_step: O número total de passos de execução do agente principal.
@@ -134,7 +136,7 @@ class CriticAgent:
 
         # O prompt do sistema do crítico é a docstring da classe.
         # {PlanoAtual} é um placeholder que será preenchido.
-        # system_prompt_for_llm = self.__doc__.format(PlanoAtual=current_plan_markdown)
+        # system_prompt_for_llm = self.__doc__.format(PlanoAtual=current_plan_markdown) # A docstring já é o prompt.
 
         # A chamada ao LLM do crítico para análise semântica está desativada por padrão
         # para focar nas heurísticas programáticas. Pode ser ativada se necessário.
@@ -153,6 +155,26 @@ class CriticAgent:
         total_checklist_tasks, completed_checklist_tasks_now = self._parse_checklist_progress(current_plan_markdown)
 
         t50_concerns: List[str] = [] # Lista para acumular preocupações sobre T50.
+
+        # 0. Análise de Desvio da Intenção Original (se o prompt inicial for fornecido)
+        if initial_user_prompt:
+            # Esta é uma heurística muito simples. Uma análise real de desalinhamento
+            # provavelmente exigiria uma chamada LLM ao próprio crítico.
+            # Aqui, apenas verificamos se o checklist parece muito pequeno ou vazio
+            # enquanto o prompt do usuário não é trivial.
+            prompt_summary = initial_user_prompt[:100] + "..." if initial_user_prompt else "N/A"
+            if total_checklist_tasks < 2 and len(initial_user_prompt) > 50: # Arbitrário: prompt longo mas <2 tarefas no checklist
+                # E se as tarefas existentes não parecem ser de decomposição
+                is_decomposition_task_present = any(
+                    "decompor" in task.lower() or "popular checklist" in task.lower()
+                    for task in current_plan_markdown.splitlines() if task.strip().startswith("- [")
+                )
+                if not is_decomposition_task_present:
+                    t50_concerns.append(
+                        f"Desalinhamento Potencial da Intenção: O prompt inicial do usuário ('{prompt_summary}') "
+                        f"parece substancial, mas o plano atual tem poucas tarefas ({total_checklist_tasks}) e nenhuma "
+                        "tarefa clara de decomposição inicial. O plano pode não refletir a intenção completa do usuário."
+                    )
 
         # 1. Análise de Estagnação do Checklist
         # Verifica se houve progresso real no checklist desde a última revisão.
