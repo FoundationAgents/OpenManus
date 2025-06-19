@@ -761,18 +761,65 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                                 "  1. Use a ferramenta 'ask_human' para perguntar ao usuário: 'Detectei um novo pedido: \"{user_prompt_summary}\". "
                                 "Você gostaria de descartar o checklist da tarefa anterior e iniciar um novo para este pedido? "
                                 "Responda \"sim, limpar e iniciar novo\" ou \"não, continuar anterior\".'\n"
-                                "  2. Se o usuário responder 'sim, limpar e iniciar novo', você DEVE então usar 'str_replace_editor' com o comando 'delete' para apagar "
-                                "o arquivo 'checklist_principal_tarefa.md' e, em seguida, prosseguir para decompor o novo pedido e criar um novo checklist.\n"
+                                # A Etapa 2 da instrução (limpeza do checklist) será tratada diretamente no código abaixo
+                                # se o usuário confirmar, em vez de depender do LLM para chamar a ferramenta correta.
+                                "  2. Se o usuário responder 'sim, limpar e iniciar novo' (ou uma variação afirmativa), o sistema tentará limpar o checklist anterior. Você deverá então focar em decompor o novo pedido.\n"
                                 "  3. Se o usuário responder 'não, continuar anterior', informe que você continuará a tarefa anterior e ignore o novo prompt por enquanto (ou tente integrá-lo se fizer sentido)."
                             ).format(user_prompt_summary=current_user_prompt[:70] + "...")
 
                             self.memory.add_message(Message.system_message(system_message_for_llm))
                             # Não retorna True aqui, deixa o LLM processar esta instrução no seu fluxo normal de `think`.
+                            # A decisão de chamar AskHuman será do LLM.
                 except FileNotFoundError:
                     logger.info("Nenhum arquivo de checklist anterior encontrado. Procedendo normalmente com o novo prompt.")
                 except Exception as e_checklist_check:
                     logger.error(f"Erro ao verificar checklist existente no início da tarefa: {e_checklist_check}")
-        # --- Fim da Lógica de Verificação Inicial do Checklist ---
+
+        # --- Processamento da Resposta do Usuário para Limpeza de Checklist (se aplicável) ---
+        # Esta seção é nova e lida com a ação direta de limpar o checklist.
+        if len(self.memory.messages) >= 2:
+            last_user_msg = self.memory.messages[-1]
+            prev_assistant_msg_tool_call = self.memory.messages[-2] # Mensagem da ferramenta AskHuman
+
+            if last_user_msg.role == Role.USER and \
+               prev_assistant_msg_tool_call.role == Role.TOOL and \
+               hasattr(prev_assistant_msg_tool_call, 'name') and prev_assistant_msg_tool_call.name == AskHuman().name and \
+               "descartar o checklist da tarefa anterior" in prev_assistant_msg_tool_call.content: # Verifica se foi a pergunta sobre o checklist
+
+                user_response_lower = last_user_msg.content.strip().lower()
+                # Check for affirmative responses like "sim", "sim, limpar", "sim, descarte", "sim, pode limpar" etc.
+                if user_response_lower.startswith("sim"):
+                    logger.info(f"Usuário confirmou limpar o checklist anterior. Resposta: '{last_user_msg.content}'")
+                    checklist_path_to_delete = str(config.workspace_root / "checklist_principal_tarefa.md")
+                    try:
+                        op = LocalFileOperator()
+                        await op.delete_file(checklist_path_to_delete) # Usa o novo método delete_file
+                        self.memory.add_message(Message.system_message(
+                            "AÇÃO DO SISTEMA: O checklist da tarefa anterior foi limpo conforme solicitado pelo usuário. "
+                            "Por favor, proceda com a decomposição da nova tarefa solicitada e crie um novo checklist para ela."
+                        ))
+                        logger.info(f"Checklist anterior em '{checklist_path_to_delete}' deletado com sucesso.")
+                        # Forçar o LLM a repensar com o novo estado (checklist limpo)
+                        # Limpar self.tool_calls para garantir que o LLM gere novas ações.
+                        self.tool_calls = []
+                        # Atualizar o prompt inicial para o crítico, pois uma nova tarefa está começando.
+                        # A `current_user_prompt` da lógica de verificação inicial do checklist (no início de `think`)
+                        # é o prompt que levou a esta nova tarefa.
+                        if hasattr(self, 'initial_user_prompt_for_critic') and current_user_prompt:
+                            self.initial_user_prompt_for_critic = current_user_prompt
+                            logger.info(f"Prompt inicial para o crítico atualizado para: '{current_user_prompt[:100]}...'")
+
+                        # O LLM no próximo ciclo de `super().think()` verá a mensagem do sistema e agirá.
+                    except Exception as e_delete_checklist:
+                        logger.error(f"Falha ao tentar deletar o checklist anterior ({checklist_path_to_delete}) diretamente: {e_delete_checklist}")
+                        self.memory.add_message(Message.system_message(
+                            f"ERRO DO SISTEMA: Falha ao tentar limpar o checklist da tarefa anterior. Erro: {e_delete_checklist}. "
+                            "Por favor, tente limpar o checklist manualmente usando as ferramentas disponíveis ou informe o usuário."
+                        ))
+                else:
+                    logger.info(f"Usuário não confirmou a limpeza do checklist anterior. Resposta: '{last_user_msg.content}'")
+                    # O LLM deve ter sido instruído a continuar com a tarefa anterior neste caso.
+        # --- Fim da Lógica de Verificação Inicial do Checklist e Processamento da Limpeza ---
 
         # Check for autonomous mode trigger in initial user prompt
         # Esta verificação de modo autônomo também deve ocorrer idealmente apenas uma vez no início.
@@ -879,23 +926,21 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             # Por enquanto, confiamos que a última mensagem do usuário após _pending_fallback_tool_call ser setado é a resposta.
             # Adicionamos _last_ask_human_for_fallback_id para uma verificação mais robusta se a mensagem anterior foi o AskHuman
         ):
-            # Verificar se a mensagem ANTERIOR foi o AskHuman que fizemos
+            is_direct_fallback_response = False
             if len(self.memory.messages) >= 2:
-                potential_ask_human_tool_msg = self.memory.messages[-2]
-                if not (potential_ask_human_tool_msg.role == Role.TOOL and \
-                        hasattr(potential_ask_human_tool_msg, 'name') and potential_ask_human_tool_msg.name == AskHuman().name and \
-                        hasattr(potential_ask_human_tool_msg, 'tool_call_id') and potential_ask_human_tool_msg.tool_call_id == self._last_ask_human_for_fallback_id):
-                    # A última mensagem do usuário não é uma resposta direta à nossa pergunta de fallback específica.
-                    # Resetar _pending_fallback_tool_call para evitar processamento incorreto se o usuário apenas digitou algo.
-                    # self._pending_fallback_tool_call = None # Comentado por enquanto, pode ser muito agressivo.
-                    # logger.info("A última mensagem do usuário não parece ser uma resposta direta à pergunta de fallback. Ignorando para fins de fallback.")
-                    pass # Não faz nada aqui, deixa o fluxo normal do `think` continuar.
+                prev_message = self.memory.messages[-2] # A mensagem da ferramenta AskHuman
+                if prev_message.role == Role.TOOL and hasattr(prev_message, 'name') and prev_message.name == AskHuman().name and \
+                   hasattr(prev_message, 'tool_call_id') and prev_message.tool_call_id == self._last_ask_human_for_fallback_id:
+                    is_direct_fallback_response = True
 
-            user_response_text = last_message.content.strip().lower()
-            original_failed_tool_call = self._pending_fallback_tool_call
+            if not is_direct_fallback_response:
+                logger.info("A última mensagem do usuário não é uma resposta direta à pergunta de fallback do sandbox. Ignorando para fins de fallback.")
+            else:
+                user_response_text = last_message.content.strip().lower()
+                original_failed_tool_call = self._pending_fallback_tool_call # self._pending_fallback_tool_call é garantido não ser None aqui
 
-            if user_response_text == "sim":
-                logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
+                if user_response_text == "sim":
+                    logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
                 try:
                     original_args = json.loads(original_failed_tool_call.function.arguments)
                     fallback_args = {}

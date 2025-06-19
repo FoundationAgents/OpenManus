@@ -104,6 +104,14 @@ class LocalFileOperator(FileOperator):
         """Operador local não traduz para caminhos do sandbox, retorna o original."""
         return str(host_path)
 
+    async def delete_file(self, path: PathLike) -> None:
+        """Deleta um arquivo local."""
+        try:
+            Path(path).unlink(missing_ok=True) # missing_ok=True para não dar erro se já não existir
+            logger.info(f"Arquivo local {path} deletado (ou já não existia).")
+        except Exception as e:
+            raise ToolError(f"Falha ao deletar arquivo local {path}: {str(e)}")
+
 
 class SandboxFileOperator(FileOperator):
     """Implementação de operações de arquivo para o ambiente sandbox."""

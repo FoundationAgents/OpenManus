@@ -41,18 +41,20 @@ class ToolCallAgent(ReActAgent):
 
     tool_calls: List[ToolCall] = Field(default_factory=list)
     _current_base64_image: Optional[str] = None
-    critic_agent: Optional[CriticAgent] = None # Adicionado para o agente crítico
-    steps_since_last_critic_review: int = 0 # Adicionado para o agente crítico
+    critic_agent: Optional[CriticAgent] = None
+    steps_since_last_critic_review: int = 0
+    initial_user_prompt_for_critic: Optional[str] = None # Para armazenar o prompt inicial para o crítico
 
     max_steps: int = 30
     max_observe: Optional[Union[int, bool]] = None
 
-    def __init__(self, **data: Any): # Adicionado __init__
+    def __init__(self, **data: Any):
         super().__init__(**data)
         if self.llm:
             self.critic_agent = CriticAgent(llm_client=self.llm)
         else:
             logger.warning("LLM não disponível para ToolCallAgent no momento da inicialização do CriticAgent.")
+        self.initial_user_prompt_for_critic = None # Inicializa o atributo
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
@@ -467,14 +469,25 @@ class ToolCallAgent(ReActAgent):
             if self.state == AgentState.IDLE:
                 if request:
                     self.update_memory("user", request)
+                    self.initial_user_prompt_for_critic = request # Armazena o prompt inicial
                 self.state = AgentState.RUNNING
-            elif self.state == AgentState.AWAITING_USER_FEEDBACK:
-                if request:
+            elif self.state == AgentState.AWAITING_USER_FEEDBACK: # Se estiver resumindo, o prompt já deve estar na memória
+                if request: # Se um novo prompt for fornecido ao retomar, ele se torna o "inicial" para esta nova fase.
                     self.update_memory("user", request)
+                    self.initial_user_prompt_for_critic = request
+                elif not self.initial_user_prompt_for_critic: # Tenta pegar da memória se não foi setado
+                    first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
+                    if first_user_msg:
+                        self.initial_user_prompt_for_critic = first_user_msg.content
                 self.state = AgentState.RUNNING
-            elif self.state == AgentState.RUNNING:
-                if request:
+            elif self.state == AgentState.RUNNING: # Se já está rodando e `run` é chamado (talvez internamente)
+                if request: # Um novo request pode substituir o prompt "inicial"
                     self.update_memory("user", request)
+                    self.initial_user_prompt_for_critic = request
+                elif not self.initial_user_prompt_for_critic: # Garante que temos um, se possível
+                    first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
+                    if first_user_msg:
+                        self.initial_user_prompt_for_critic = first_user_msg.content
             else:
                 logger.error(f"Run method called on agent in an unstartable/unresumable state: {self.state.value}. Raising RuntimeError.")
                 raise RuntimeError(f"Cannot run/resume agent from state: {self.state.value}")
@@ -544,8 +557,9 @@ class ToolCallAgent(ReActAgent):
                             # Chamar o Agente Crítico
                             critic_feedback_text, critic_redirect_suggestion = self.critic_agent.review_plan_and_progress(
                                 current_plan_markdown=current_plan_markdown,
-                                messages=[msg.model_dump() for msg in self.memory.messages[-10:]], # Últimas 10 mensagens como dicts
-                                tool_results=recent_tool_action_results, # Resultados de ferramentas processados
+                                initial_user_prompt=self.initial_user_prompt_for_critic, # Passar o prompt inicial
+                                messages=[msg.model_dump() for msg in self.memory.messages[-10:]],
+                                tool_results=recent_tool_action_results,
                                 current_step=self.current_step,
                                 steps_since_last_review=self.steps_since_last_critic_review
                             )
