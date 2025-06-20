@@ -937,12 +937,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         if original_tool_call_for_sandbox:
                             self._pending_fallback_tool_call = original_tool_call_for_sandbox
 
+                            # tool_error_message foi definida algumas linhas acima com o erro específico do sandbox
                             ask_human_question = (
-                                "A execução segura no sandbox falhou devido a um problema de ambiente "
-                                "(Docker não disponível ou imagem incorreta). Deseja tentar executar o script "
-                                "diretamente na máquina do agente? ATENÇÃO: Isso pode ser um risco de segurança "
-                                "se o script for desconhecido ou malicioso. Responda 'sim' para executar "
-                                "diretamente ou 'não' para cancelar."
+                                f"A execução segura no sandbox falhou com o seguinte erro: '{tool_error_message}'.\n"
+                                "Deseja tentar executar o script diretamente na máquina do agente? \n"
+                                "ATENÇÃO: Isso pode ser um risco de segurança se o script for desconhecido ou malicioso. \n"
+                                "Responda 'sim' para executar diretamente ou 'não' para cancelar."
                             )
                             self.memory.add_message(Message.assistant_message(
                                 "Alerta: Problema ao executar script em ambiente seguro (sandbox)."

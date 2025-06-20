@@ -52,6 +52,20 @@ class SandboxPythonExecutor(BaseTool):
     async def execute(self, code: Optional[str] = None, timeout: int = 60, file_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Executes Python code from a string or a file path (copied from host) within the sandbox.
+        """
+        logger.info(f"SandboxPythonExecutor.execute called. Code provided: {bool(code)}, file_path: '{file_path}', timeout: {timeout}")
+
+        if not config.sandbox.use_sandbox:
+            error_msg = "SandboxPythonExecutor cannot be used because config.sandbox.use_sandbox is set to False. Use PythonExecute for host execution or enable the sandbox in the configuration."
+            logger.error(error_msg)
+            # Retornar um dicionário que se assemelha a uma falha de ferramenta para consistência
+            return {
+                "stdout": "",
+                "stderr": f"ToolError: {error_msg}",
+                "exit_code": -5, # Código de erro específico para sandbox desabilitado
+            }
+
+        # Validação inicial de parâmetros
 
         Args:
             code: An optional string containing the Python code.
