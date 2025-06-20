@@ -86,6 +86,7 @@ class Manus(ToolCallAgent):
     _pending_fallback_tool_call: Optional[ToolCall] = PrivateAttr(default=None)
     _last_ask_human_for_fallback_id: Optional[str] = PrivateAttr(default=None)
     _autonomous_mode: bool = PrivateAttr(default=False) # Flag to indicate if the agent should operate without asking for continuation feedback periodically.
+    _reset_initiated_by_new_directive: bool = PrivateAttr(default=False) # Flag para SRE Ação 1.X.2
 
 
     def __getstate__(self):
@@ -743,63 +744,49 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 tool_calls=self.tool_calls,
                 content="Uma nova diretiva de tarefa foi recebida. Resetando o checklist para iniciar a nova tarefa."
             ))
-            self.current_step = 0 # Resetar current_step para que a lógica de current_step == 1 funcione corretamente no próximo think
-            self._new_task_directive_received = False # Limpar a flag
-            return True # Executar o reset do checklist
+            self.current_step = 0
+            self._new_task_directive_received = False
+            self._reset_initiated_by_new_directive = True # SINALIZAR que o reset foi por nova diretiva
+            return True
 
         # --- Lógica de Verificação Inicial e Reset Automático do Checklist ---
-        # (Esta lógica agora também serve como fallback se _new_task_directive_received não foi setada,
-        # mas é o início real de uma nova execução do agente)
-        if self.current_step == 1: # Indica o início de uma nova interação/tarefa principal
-            logger.info("Início de nova tarefa (current_step == 1). Verificando necessidade de resetar checklist.")
-            checklist_path = config.workspace_root / "checklist_principal_tarefa.md"
-            local_op = LocalFileOperator()
-
-            try:
-                # Verificar se o checklist existe e não está vazio, indicando uma tarefa anterior.
-                # A lógica exata para "não vazio" pode ser refinada (ex: verificar se tem mais que um header).
-                # Por agora, a simples existência já é um gatilho.
-                if await local_op.exists(str(checklist_path)):
-                    # Se o arquivo de checklist existe, é uma indicação de que uma tarefa anterior pode ter existido.
-                    # Automaticamente reseta o checklist.
-                    logger.info(f"Checklist anterior encontrado em '{checklist_path}'. Resetando automaticamente para a nova tarefa.")
-
-                    reset_tool_name = ResetCurrentTaskChecklistTool().name # Obter nome da ferramenta dinamicamente
-                    reset_tool_call_id = str(uuid.uuid4())
-
-                    self.tool_calls = [
-                        ToolCall(
-                            id=reset_tool_call_id,
-                            function=FunctionCall(
-                                name=reset_tool_name,
-                                arguments=json.dumps({}) # Reset não precisa de args
+        if self.current_step == 1:
+            if not self._reset_initiated_by_new_directive:
+                logger.info("Início de nova tarefa (current_step == 1) e nenhum reset por diretiva recente. Verificando necessidade de resetar checklist existente.")
+                checklist_path = config.workspace_root / "checklist_principal_tarefa.md"
+                local_op = LocalFileOperator()
+                try:
+                    if await local_op.exists(str(checklist_path)):
+                        # Verificar se o checklist não está vazio pode ser uma otimização,
+                        # mas resetar um checklist já vazio não é problemático.
+                        logger.info(f"Checklist anterior encontrado em '{checklist_path}'. Resetando automaticamente para a nova tarefa.")
+                        reset_tool_name = ResetCurrentTaskChecklistTool().name
+                        self.tool_calls = [
+                            ToolCall(
+                                id=str(uuid.uuid4()),
+                                function=FunctionCall(name=reset_tool_name, arguments=json.dumps({}))
                             )
-                        )
-                    ]
-                    # Adicionar uma mensagem ao assistente para que o LLM saiba que o reset ocorreu/está ocorrendo.
-                    # E também para que o usuário veja esta ação.
-                    # Corrigido: Usar Message.from_tool_calls ou criar e atribuir.
-                    # Como o self.tool_calls já está definido com a chamada para reset_current_task_checklist,
-                    # e a mensagem é um pensamento do assistente que leva a essa chamada,
-                    # Message.from_tool_calls é o mais apropriado.
-                    self.memory.add_message(Message.from_tool_calls(
-                        tool_calls=self.tool_calls,
-                        content="Detectada uma nova tarefa. Resetando o checklist da tarefa anterior para começar do zero."
-                    ))
-                    # Força a execução desta ferramenta de reset e depois o LLM pensará novamente.
-                    return True # Indica que uma ação (reset) foi planejada e deve ser executada.
-                else:
-                    logger.info(f"Nenhum checklist anterior encontrado em '{checklist_path}'. Procedendo com a criação normal do checklist pela lógica do LLM.")
-                    # Se o checklist não existe, o fluxo normal do LLM (que deve criar o checklist) continua.
-                    # Nenhuma ação forçada aqui.
-            except Exception as e_reset_check:
-                logger.error(f"Erro ao verificar/tentar resetar checklist automaticamente: {e_reset_check}")
-                # Em caso de erro aqui, é mais seguro deixar o LLM tentar lidar com a situação
-                # em vez de potencialmente bloquear o agente. O LLM ainda deve tentar criar o checklist.
+                        ]
+                        self.memory.add_message(Message.from_tool_calls(
+                            tool_calls=self.tool_calls,
+                            content="Detectado início de tarefa com checklist existente. Resetando o checklist da tarefa anterior para começar do zero."
+                        ))
+                        self._reset_initiated_by_new_directive = True # Sinaliza que um reset ocorreu nesta fase inicial
+                        return True
+                    else:
+                        logger.info(f"Nenhum checklist anterior encontrado em '{checklist_path}'. Procedendo com a criação normal do checklist pelo LLM.")
+                except Exception as e_reset_check:
+                    logger.error(f"Erro ao verificar/tentar resetar checklist automaticamente no current_step == 1: {e_reset_check}")
+            else:
+                logger.info("current_step == 1, mas um reset por nova diretiva já ocorreu. Pulando reset automático.")
+
+            # Limpar a flag _reset_initiated_by_new_directive aqui, pois current_step == 1 já foi processado
+            # e o LLM agora deve pensar sobre o conteúdo inicial do checklist.
+            self._reset_initiated_by_new_directive = False
 
         # --- Fim da Lógica de Reset Automático do Checklist ---
 
-        # Check for autonomous mode trigger in initial user prompt (manter esta lógica)
+        # Check for autonomous mode trigger in initial user prompt
         # Esta verificação de modo autônomo também deve ocorrer idealmente apenas uma vez no início.
         if self.current_step == 1 and not self._autonomous_mode:
             first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None) # Re-obter, pode ter sido modificado
@@ -826,24 +813,39 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             tool_call_id_from_message = last_message.tool_call_id
             if tool_call_id_from_message != self._fallback_attempted_for_tool_call_id: # Evitar processar o mesmo erro múltiplas vezes
                 try:
-                    # last_message.content é a string de observação, e.g., "Observed output...: {'key': 'value'}"
-                    # Precisamos extrair o dicionário da string.
-                    actual_tool_result_dict_str = None
-                    match = re.search(r":\s*(\{.*\})\s*$", last_message.content)
+                    # last_message.content é a string de observação, formatada por ToolCallAgent.act()
+                    # Ex: "Observed output of cmd `sandbox_python_executor` executed (converted from <class 'dict'>):\n{'stdout': '', 'stderr': \"ToolError: {...}\", 'exit_code': -2}"
+                    # Precisamos extrair o dicionário principal.
+                    tool_result_content = None
+                    # Tenta encontrar um dicionário JSON na string.
+                    # Esta regex busca por algo que comece com '{' e termine com '}' e seja o último na string,
+                    # ou o único JSON na string.
+                    # É um pouco frágil; o ideal seria que ToolCallAgent.act formatasse de uma maneira mais parseável
+                    # ou que SandboxPythonExecutor retornasse ToolResult e o erro fosse processado de forma estruturada.
+                    match = re.search(r"(\{[\s\S]*\})\s*$", last_message.content)
                     if match:
-                        actual_tool_result_dict_str = match.group(1)
-
-                    if actual_tool_result_dict_str:
-                        tool_result_content = json.loads(actual_tool_result_dict_str)
+                        json_like_str = match.group(1)
+                        try:
+                            tool_result_content = json.loads(json_like_str)
+                            logger.info(f"Dicionário de resultado da ferramenta extraído para fallback: {tool_result_content}")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Falha ao parsear JSON extraído da observação para fallback: '{json_like_str}'. Erro: {e}. Conteúdo original: {last_message.content}")
+                            tool_result_content = None # Garante que não prossiga se o parse falhar
                     else:
-                        # Se não encontrar o padrão, talvez o formato da observação mudou
-                        # ou não contém um dict no final. Logar e pular.
-                        logger.warning(f"Não foi possível extrair o dicionário de resultado da ferramenta da observação para fallback: {last_message.content}")
-                        tool_result_content = None
+                        logger.warning(f"Não foi possível extrair um dicionário JSON da observação para fallback: {last_message.content}")
 
+                    # Agora, tool_result_content é o dicionário principal retornado pela ferramenta (ex: {'stdout': ..., 'stderr': ..., 'exit_code': -2})
+                    # Se o stderr contiver um ToolError que é uma string representando outro JSON, isso precisaria de um segundo parse.
+                    # No caso do log: 'stderr': "ToolError: {'success': false, ...}"
+                    # O erro real está DENTRO do stderr.
+
+                    # A verificação de exit_code == -2 é sobre o resultado da execução do sandbox_python_executor em si.
                     if isinstance(tool_result_content, dict) and tool_result_content.get("exit_code") == -2:
+                        # A mensagem de erro detalhada está em tool_result_content.get("stderr")
+                        error_detail_str = tool_result_content.get("stderr", "")
                         logger.warning(
                             f"SandboxPythonExecutor falhou com exit_code -2 (erro de criação do sandbox) para tool_call_id {tool_call_id_from_message}. "
+                            f"Detalhe do erro (stderr da ferramenta): {error_detail_str}"
                             "Iniciando lógica de fallback."
                         )
 
