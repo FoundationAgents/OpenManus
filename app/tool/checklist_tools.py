@@ -225,22 +225,28 @@ class ResetCurrentTaskChecklistTool(BaseTool):
         logger.info("ResetCurrentTaskChecklistTool invoked.")
         try:
             manager = ChecklistManager()
-            # Overwrite the checklist with an empty list of tasks
-            await manager._save_checklist([])
-            # Optional: Verify by reloading and checking if it's empty
+            # Call the new reset_checklist method
+            await manager.reset_checklist()
+
+            # Verify by reloading and checking if it's empty (optional, but good for confidence)
+            # _load_checklist is implicitly called by get_tasks if tasks haven't been loaded,
+            # but calling explicitly ensures we're checking the persisted state.
             await manager._load_checklist()
             if not manager.get_tasks():
                 return ToolResult(
                     output="Checklist principal de tarefas resetado com sucesso. Todas as tarefas foram removidas."
                 )
             else:
-                # This case should ideally not be reached if _save_checklist and _load_checklist are correct
+                # This case should ideally not be reached if reset_checklist and _load_checklist are correct
                 logger.error(
                     "ResetCurrentTaskChecklistTool: Checklist not empty after reset attempt."
                 )
-                raise ToolError(
-                    "Falha ao resetar o checklist. O checklist não está vazio após a operação."
-                )
+                # It's better to return a ToolError here if the reset failed verification.
+                # However, the original code raised ToolError on any exception, so we'll maintain that.
+                # For a more specific error to the agent:
+                return ToolResult(error="Falha ao verificar o reset do checklist. O checklist não está vazio após a operação.")
+
         except Exception as e:
-            logger.error(f"ResetCurrentTaskChecklistTool: Error resetting checklist: {e}")
+            logger.error(f"ResetCurrentTaskChecklistTool: Error resetting checklist: {e}", exc_info=True)
+            # Re-raise as ToolError to be consistent with how other tool errors are handled by the agent
             raise ToolError(f"Erro ao resetar o checklist: {e}")
