@@ -961,18 +961,18 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                             self._pending_fallback_tool_call = None
                             self._last_ask_human_for_fallback_id = None
                             return True
-                        else:
+                        else: # Nem 'code' nem 'file_path'
                             logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
                             self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
                             self.tool_calls = []
-                         self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
-                         self._pending_fallback_tool_call = None
-                         self._last_ask_human_for_fallback_id = None
-                         return True
+                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tentado mesmo se falhar aqui
+                            self._pending_fallback_tool_call = None
+                            self._last_ask_human_for_fallback_id = None
+                            return True # Retorna para o LLM repensar
 
-                    # Se chegamos aqui, é porque fallback_args["code"] foi definido
-                    fallback_timeout = original_args.get("timeout", 120) # Usar timeout do sandbox ou o novo default de PythonExecute
-                    fallback_args["timeout"] = fallback_timeout
+                        # Se chegamos aqui, é porque fallback_args["code"] foi definido
+                        fallback_timeout = original_args.get("timeout", 120)
+                        fallback_args["timeout"] = fallback_timeout
 
                     new_fallback_tool_call = ToolCall(
                         id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
