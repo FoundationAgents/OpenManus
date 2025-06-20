@@ -950,22 +950,21 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         if "code" in original_args and original_args["code"]:
                             fallback_args["code"] = original_args["code"]
                         elif "file_path" in original_args and original_args["file_path"]:
-                            # Não podemos fazer fallback direto para PythonExecute com file_path
                             self.memory.add_message(Message.assistant_message(
                                 f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
-                            "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
-                            "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
-                            "ou considere outra ferramenta para ler o arquivo primeiro."
-                        ))
-                        self.tool_calls = [] # Limpa quaisquer chamadas de ferramentas planejadas
-                        self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tentado/tratado
-                        self._pending_fallback_tool_call = None
-                        self._last_ask_human_for_fallback_id = None
-                        return True # Volta para o LLM pensar
-                    else: # Nem 'code' nem 'file_path'
-                         logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
-                         self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
-                         self.tool_calls = []
+                                "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
+                                "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
+                                "ou considere outra ferramenta para ler o arquivo primeiro."
+                            ))
+                            self.tool_calls = []
+                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
+                            self._pending_fallback_tool_call = None
+                            self._last_ask_human_for_fallback_id = None
+                            return True
+                        else:
+                            logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
+                            self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
+                            self.tool_calls = []
                          self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
                          self._pending_fallback_tool_call = None
                          self._last_ask_human_for_fallback_id = None
