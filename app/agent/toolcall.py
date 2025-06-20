@@ -639,3 +639,4 @@ class ToolCallAgent(BaseAgent):
             if hasattr(SANDBOX_CLIENT, 'cleanup') and callable(SANDBOX_CLIENT.cleanup):
                  await SANDBOX_CLIENT.cleanup()
             logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
+
