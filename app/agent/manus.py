@@ -1062,24 +1062,12 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                     return True # Execute the planned fallback tool_call (or let LLM re-evaluate if errors occurred)
 
                 elif user_response_text == "não":
-                            )
-                        )
-                        self.tool_calls = [new_fallback_tool_call]
-                        self.memory.add_message(Message.assistant_message(
-                            f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
-                            "Lembre-se dos riscos de segurança."
-                        ))
-                        logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
-
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
-                        self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
-                        self.tool_calls = [] # Clear any planned calls
-                    except Exception as e_fallback_exec:
-                        logger.error(f"Erro inesperado durante a preparação ou execução do fallback para PythonExecute: {e_fallback_exec}", exc_info=True)
-                        self.memory.add_message(Message.assistant_message(f"Erro inesperado ao tentar fallback: {e_fallback_exec}"))
-                        self.tool_calls = [] # Clear any planned calls
-
+                    self.tool_calls = [new_fallback_tool_call]
+                    self.memory.add_message(Message.assistant_message(
+                        f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
+                        "Lembre-se dos riscos de segurança."
+                    ))
+                    logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
                     return True # Execute the planned fallback tool_call (or let LLM re-evaluate if errors occurred)
 
                 elif user_response_text == "não":
