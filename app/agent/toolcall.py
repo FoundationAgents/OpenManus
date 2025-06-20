@@ -1,10 +1,12 @@
 import asyncio
 import json
 from typing import Any, List, Optional, Union
+from uuid import UUID # Adicionado para current_workflow_id
 
 from pydantic import Field
 
 from app.config import config
+
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded, AgentEnvironmentError
 from app.logger import logger
@@ -20,18 +22,26 @@ from app.tool.file_operators import LocalFileOperator
 from app.tool.code_formatter import FormatPythonCode
 from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool
 
+# Importações para o novo paradigma orientado a eventos
+from app.event_bus.redis_bus import RedisEventBus
+from app.event_bus.events import (
+    ToolCallInitiatedEvent, # Este evento não será publicado se a execução da ferramenta for direta
+    SubtaskCompletedEvent,
+    SubtaskFailedEvent,
+    HumanInputRequiredEvent # AskHuman agora publica isso
+)
+# from app.checkpointing.postgresql_checkpointer import PostgreSQLCheckpointer
+
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
-class ToolCallAgent(ReActAgent):
-    """Base agent class for handling tool/function calls with enhanced abstraction"""
-
+class ToolCallAgent(BaseAgent):
     name: str = "toolcall"
-    description: str = "an agent that can execute tool calls."
-
+    description: str = "an agent that can execute tool calls based on events."
     system_prompt: str = SYSTEM_PROMPT
-    next_step_prompt: str = NEXT_STEP_PROMPT
+    next_step_prompt: Optional[str] = NEXT_STEP_PROMPT
+
 
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate(), FormatPythonCode(), ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool()
@@ -45,14 +55,80 @@ class ToolCallAgent(ReActAgent):
     steps_since_last_critic_review: int = 0
     initial_user_prompt_for_critic: Optional[str] = None
 
-    max_steps: int = 30
-    max_observe: Optional[Union[int, bool]] = None
 
-    def __init__(self, **data: Any):
+    event_bus: RedisEventBus # Injetado no construtor
+    # checkpointer: Optional[PostgreSQLCheckpointer] = None # Injetado se necessário
+
+    current_workflow_id: Optional[UUID] = None
+    current_subtask_id: Optional[str] = None
+    current_subtask_prompt: Optional[str] = None
+
+    max_steps_per_subtask: int = 10 # Número de ciclos de think/act por subtarefa
+    max_observe: Optional[Union[int, bool]] = 10000 # Limite para observação de ferramenta
+
+    # Contador para tentativas de auto-correção dentro de handle_tool_result
+    _max_self_correction_attempts_per_tool_error: int = 1
+
+
+    def __init__(self, event_bus: RedisEventBus, **data: Any):
         super().__init__(**data)
-        if self.llm:
-            self.critic_agent = CriticAgent(llm_client=self.llm)
+        self.event_bus = event_bus
+        # Se available_tools não for definido pela subclasse, inicializar vazio
+        if not isinstance(self.available_tools, ToolCollection):
+            self.available_tools = ToolCollection()
+        # Adicionar Terminate se não estiver lá, pois é fundamental
+        if not self.available_tools.get_tool(Terminate().name):
+            self.available_tools.add_tool(Terminate())
+
+
+    async def process_action(
+        self,
+        workflow_id: UUID,
+        subtask_id: str,
+        action_prompt: Optional[str] = None,
+        human_response: Optional[str] = None,
+        resuming_from_checkpoint_id: Optional[str] = None,
+        **action_details
+    ) -> None:
+        self.current_workflow_id = workflow_id
+        self.current_subtask_id = subtask_id
+        self.current_subtask_prompt = action_prompt or f"Process subtask {subtask_id}"
+        self.current_step = 0
+
+        async with self.state_context(AgentState.RUNNING):
+            logger.info(f"Agent {self.name}: Starting subtask '{self.current_subtask_id}' for workflow '{self.current_workflow_id}'. Prompt: '{self.current_subtask_prompt[:100]}...'")
+
+            if resuming_from_checkpoint_id:
+                logger.info(f"Agent {self.name} resuming from checkpoint {resuming_from_checkpoint_id} for subtask {self.current_subtask_id}.")
+                # Lógica de restauração de checkpoint (memória, current_step, etc.)
+                # checkpoint_data = await self.checkpointer.load_checkpoint_data(UUID(resuming_from_checkpoint_id))
+                # if checkpoint_data:
+                #     await self.checkpointer.deserialize_agent_state(self, ...) # Passar os snapshots corretos
+                # else:
+                #     await self._publish_subtask_failed(f"Could not load checkpoint {resuming_from_checkpoint_id}.")
+                #     return
+                pass # Placeholder
+
+            if human_response:
+                self.update_memory(Role.USER, f"Human input received: {human_response}")
+            
+            self.update_memory(Role.USER, self.current_subtask_prompt)
+
+            # Iniciar o ciclo de processamento da subtarefa
+            await self._process_current_subtask_iteration()
+
+    async def _process_current_subtask_iteration(self):
+        """Executa um ciclo de think e depois lida com as tool_calls planejadas."""
+        self.current_step += 1
+        if self.current_step > self.max_steps_per_subtask:
+            logger.warning(f"Agent {self.name} reached max_steps_per_subtask ({self.max_steps_per_subtask}) for subtask {self.current_subtask_id}.")
+            await self._publish_subtask_failed("Max steps reached for subtask.")
+            return
+
+        if await self.think(): # Pensa e define self.tool_calls
+            await self.act_and_handle_results() # Executa ferramentas e lida com resultados
         else:
+
             logger.warning("LLM não disponível para ToolCallAgent no momento da inicialização do CriticAgent.")
         self.initial_user_prompt_for_critic = None
 
@@ -89,20 +165,22 @@ class ToolCallAgent(ReActAgent):
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
 
+
+    async def think(self) -> bool:
+        current_system_prompt = self.system_prompt.format(directory=str(config.workspace_root)) if self.system_prompt else None
         try:
             response = await self.llm.ask_tool(
                 messages=self.messages,
-                system_msgs=(
-                    [Message.system_message(self.system_prompt.format(directory=str(config.workspace_root)))]
-                    if self.system_prompt
-                    else None
-                ),
+                system_msgs=[Message.system_message(current_system_prompt)] if current_system_prompt else None,
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
-        except ValueError:
-            raise
+        except TokenLimitExceeded as tle:
+            logger.error(f"Token limit exceeded for subtask {self.current_subtask_id}: {tle}")
+            await self._publish_subtask_failed(f"Token limit exceeded: {tle}")
+            return False
         except Exception as e:
+
             if hasattr(e, "__cause__") and isinstance(e.__cause__, TokenLimitExceeded):
                 token_limit_error = e.__cause__
                 logger.error(f"🚨 Token limit error (from RetryError): {token_limit_error}")
@@ -198,8 +276,10 @@ class ToolCallAgent(ReActAgent):
             results.append(result)
         return "\n\n".join(results)
 
+
     async def execute_tool(self, command: ToolCall) -> str:
         from app.tool.sandbox_python_executor import SandboxPythonExecutor
+
 
         if not command:
             logger.error("execute_tool: Command object is None.")
@@ -319,14 +399,13 @@ class ToolCallAgent(ReActAgent):
                 observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)} using str()):\n{current_output_str}"
                 return observation
 
+
         except json.JSONDecodeError:
-            logger.error(f"[TOOL_FAIL] Tool '{name}' failed: Invalid JSON arguments.")
-            error_msg = f"Error parsing arguments for {name}: Invalid JSON format"
-            logger.error(
-                f"📝 Oops! The arguments for '{name}' don't make sense - invalid JSON, arguments:{command.function.arguments}"
-            )
-            return f"Error: {error_msg}"
+            err_msg = f"Error parsing arguments for tool {name}: Invalid JSON. Arguments: {command.function.arguments}"
+            logger.error(err_msg)
+            return f"Error: {err_msg}"
         except Exception as e:
+
             logger.error(f"[TOOL_FAIL] Tool '{name}' failed with exception: {str(e)}")
             error_msg = f"⚠️ Tool '{name}' encountered a problem: {str(e)}"
             logger.exception(error_msg)
@@ -560,4 +639,3 @@ class ToolCallAgent(ReActAgent):
             if hasattr(SANDBOX_CLIENT, 'cleanup') and callable(SANDBOX_CLIENT.cleanup):
                  await SANDBOX_CLIENT.cleanup()
             logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
-
