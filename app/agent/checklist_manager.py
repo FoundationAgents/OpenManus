@@ -90,7 +90,8 @@ class ChecklistManager:
                     pass
                 else:
                     # Log other lines that don't match the expected format and are not comments
-                    logger.warning(
+                    # Changed from warning to debug to reduce noise for non-critical parsing issues.
+                    logger.debug(
                         f"Could not parse checklist line: '{line}' in file {self.checklist_path} at line {line_number + 1}. Skipping."
                     )
 
