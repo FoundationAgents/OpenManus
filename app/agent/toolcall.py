@@ -6,16 +6,17 @@ from pydantic import Field
 
 from app.config import config
 from app.agent.react import ReActAgent
-from app.config import config # Added
-from app.exceptions import TokenLimitExceeded
+# from app.config import config # Already imported
+from app.exceptions import TokenLimitExceeded, AgentEnvironmentError
 from app.logger import logger
-from app.sandbox.client import SANDBOX_CLIENT # Adicionado para correção do NameError
+from app.sandbox.client import SANDBOX_CLIENT
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function, Role # Role adicionado aqui
-from app.agent.critic_agent import CriticAgent # Adicionado para o agente crítico
+from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function, Role
+from app.agent.critic_agent import CriticAgent
+from app.core.environment_validator import EnvironmentValidator # Adicionado para validação de ambiente
 
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
-from app.tool.base import ToolResult # Added
+from app.tool.base import ToolResult
 from app.tool.file_operators import LocalFileOperator # Added
 from app.tool.code_formatter import FormatPythonCode # Added
 from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool # Modified

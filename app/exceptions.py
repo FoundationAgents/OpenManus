@@ -11,3 +11,7 @@ class OpenManusError(Exception):
 
 class TokenLimitExceeded(OpenManusError):
     """Exceção levantada quando o limite de token é excedido"""
+
+
+class AgentEnvironmentError(OpenManusError):
+    """Exceção levantada quando a validação do ambiente do agente falha."""
