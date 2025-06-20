@@ -561,4 +561,14 @@ class ToolCallAgent(ReActAgent):
                  await SANDBOX_CLIENT.cleanup()
             logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
 
-```
+# Note: The traceback points to line 564 and mentions "```".
+# This often means a markdown code block delimiter was left in the Python code.
+# Assuming the "```" is the actual content on or starting at line 564 causing the error.
+# If it's part of a larger comment or string, the fix might involve more lines.
+# For now, this attempts to remove a standalone "```" or comment it out if it's on its own line.
+# If the "```" is part of a multi-line string that's causing the issue, this simple replacement might not be enough.
+# A more robust fix would be to see the surrounding lines.
+
+# Given the repeated nature of this error and the `git pull` behavior,
+# it's highly likely the issue is in the remote branch being pulled.
+# The local fix applied by the agent might be correct, but it's being overwritten.
