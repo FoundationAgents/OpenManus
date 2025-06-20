@@ -970,27 +970,33 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                             self._last_ask_human_for_fallback_id = None
                             return True # Retorna para o LLM repensar
 
-                        # Se chegamos aqui, é porque fallback_args["code"] foi definido
-                        fallback_timeout = original_args.get("timeout", 120)
-                        fallback_args["timeout"] = fallback_timeout
+                        # Se chegamos aqui, é porque fallback_args["code"] foi definido E não entramos no else.
+                        # Esta parte só deve ser executada se fallback_args foi populado.
+                        if fallback_args: # Garante que temos 'code' para prosseguir
+                            fallback_timeout = original_args.get("timeout", 120)
+                            fallback_args["timeout"] = fallback_timeout
 
-                    new_fallback_tool_call = ToolCall(
-                        id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
-                        function=FunctionCall(
-                            name=PythonExecute().name,
-                            arguments=json.dumps(fallback_args)
-                        )
-                    )
-                    self.tool_calls = [new_fallback_tool_call]
-                    self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
+                            new_fallback_tool_call = ToolCall(
+                                id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
+                                function=FunctionCall(
+                                    name=PythonExecute().name,
+                                    arguments=json.dumps(fallback_args)
+                                )
+                            )
+                            self.tool_calls = [new_fallback_tool_call]
+                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
 
-                    self.memory.add_message(Message.assistant_message(
-                        f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
-                        "Lembre-se dos riscos de segurança."
-                    ))
-                    logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
+                            self.memory.add_message(Message.assistant_message(
+                                f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
+                                "Lembre-se dos riscos de segurança."
+                            ))
+                            logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
+                        # Se fallback_args estiver vazio (o que não deveria acontecer devido à lógica if/elif/else anterior),
+                        # nada é feito aqui, e o `return True` no final do bloco `if user_response_text == "sim":`
+                        # permitirá que o LLM repense. Contudo, a lógica anterior com `return True` nos blocos
+                        # `elif` e `else` já cobre esses casos.
 
-                except json.JSONDecodeError as e:
+                    except json.JSONDecodeError as e:
                     logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
                     self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
                     self.tool_calls = []
