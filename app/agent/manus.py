@@ -727,7 +727,29 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             await self.initialize_mcp_servers()
             self._initialized = True
 
+        # --- Lógica para Nova Diretiva de Tarefa Recebida ---
+        if hasattr(self, '_new_task_directive_received') and self._new_task_directive_received:
+            logger.info("Nova diretiva de tarefa recebida detectada. Planejando reset do checklist e reinício da contagem de passos.")
+            self.tool_calls = [
+                ToolCall(
+                    id=str(uuid.uuid4()),
+                    function=FunctionCall(
+                        name=ResetCurrentTaskChecklistTool().name,
+                        arguments=json.dumps({})
+                    )
+                )
+            ]
+            self.memory.add_message(Message.from_tool_calls(
+                tool_calls=self.tool_calls,
+                content="Uma nova diretiva de tarefa foi recebida. Resetando o checklist para iniciar a nova tarefa."
+            ))
+            self.current_step = 0 # Resetar current_step para que a lógica de current_step == 1 funcione corretamente no próximo think
+            self._new_task_directive_received = False # Limpar a flag
+            return True # Executar o reset do checklist
+
         # --- Lógica de Verificação Inicial e Reset Automático do Checklist ---
+        # (Esta lógica agora também serve como fallback se _new_task_directive_received não foi setada,
+        # mas é o início real de uma nova execução do agente)
         if self.current_step == 1: # Indica o início de uma nova interação/tarefa principal
             logger.info("Início de nova tarefa (current_step == 1). Verificando necessidade de resetar checklist.")
             checklist_path = config.workspace_root / "checklist_principal_tarefa.md"
@@ -1674,39 +1696,44 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "success", "message": "Tarefa concluída com sucesso com aprovação do usuário."}'))]
                 self.state = AgentState.TERMINATED
                 self._just_resumed_from_feedback = False
-                return False
+                return False # Stop execution, will be terminated by main loop
             elif user_response_text.startswith("revisar:"):
                 nova_instrucao = user_response_content_for_memory.replace("revisar:", "").strip()
-                logger.info(f"Manus: Usuário forneceu novas instruções para revisão final: {nova_instrucao}")
+                logger.info(f"Manus: Usuário forneceu instruções para revisão final: {nova_instrucao}")
                 self.memory.add_message(Message.assistant_message(f"Entendido. Vou revisar com base nas suas instruções: {nova_instrucao}"))
+                self._new_task_directive_received = False # Explicitly false, it's a revision
+                self.state = AgentState.RUNNING # Continue with the current task
                 self._just_resumed_from_feedback = True
-                return True
-            else:
-                logger.info(f"Manus: Usuário forneceu entrada não reconhecida ('{user_response_text}') durante verificação final. Solicitando novamente.")
-                self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim' para finalizar ou 'revisar: [instruções]'."))
+                return False # Return False to allow BaseAgent.run to call think()
+            else: # Unrecognized response during final check, treat as new instructions / new task.
+                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante verificação final. Tratando como novas instruções/tarefa.")
+                self.memory.add_message(Message.assistant_message(f"Entendido. Recebi novas instruções: '{user_response_content_for_memory}'. Vou reavaliar o plano e o checklist."))
+                self._new_task_directive_received = True
+                self.state = AgentState.RUNNING
                 self._just_resumed_from_feedback = True
-                return True
-        else:
+                return False
+        else: # Not a final check (normal periodic check-in)
             if user_response_text == "parar":
                 self.state = AgentState.USER_HALTED
                 self._just_resumed_from_feedback = False
-                return False
+                return False # Stop execution
             elif user_response_text.startswith("mudar:"):
                 nova_instrucao = user_response_content_for_memory.replace("mudar:", "").strip()
-                logger.info(f"Manus: Usuário forneceu novas instruções: {nova_instrucao}")
+                logger.info(f"Manus: Usuário forneceu novas instruções (via 'mudar:'): {nova_instrucao}")
                 self.memory.add_message(Message.assistant_message(f"Entendido. Vou seguir suas novas instruções: {nova_instrucao}"))
+                self._new_task_directive_received = True
+                self.state = AgentState.RUNNING
                 self._just_resumed_from_feedback = True
-                return True
-            else: # Padrão para continuar para qualquer outra entrada ou entrada vazia.
-                if user_response_text == "continuar":
-                    logger.info("Manus: Usuário escolheu CONTINUAR execução.")
-                    self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
-                elif not user_response_text and user_response_content_for_memory is not None : # Captura string vazia se user_response_content_for_memory foi preenchido
-                     logger.info("Manus: Usuário forneceu resposta vazia, interpretada como 'CONTINUAR'.")
-                     self.memory.add_message(Message.assistant_message("Resposta vazia recebida. Continuando com a tarefa."))
-                else: # Captura qualquer outra resposta não vazia e não específica
-                     logger.info(f"Manus: Usuário respondeu '{user_response_text}', interpretado como 'CONTINUAR'.")
-                     self.memory.add_message(Message.assistant_message(f"Resposta '{user_response_content_for_memory}' recebida. Continuando com a tarefa."))
-
-                self._just_resumed_from_feedback = True # Define isso para não pedirmos feedback novamente imediatamente
-                return True
+                return False
+            elif user_response_text == "continuar":
+                logger.info("Manus: Usuário escolheu CONTINUAR execução.")
+                self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
+                self._just_resumed_from_feedback = True
+                return True # Continue execution by returning True to should_request_feedback
+            else: # Unrecognized response during normal check-in, treat as new instructions
+                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante check-in periódico. Tratando como novas instruções.")
+                self.memory.add_message(Message.assistant_message(f"Entendido. Recebi novas instruções: '{user_response_content_for_memory}'. Vou reavaliar o plano."))
+                self._new_task_directive_received = True
+                self.state = AgentState.RUNNING
+                self._just_resumed_from_feedback = True
+                return False
