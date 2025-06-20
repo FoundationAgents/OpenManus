@@ -948,11 +948,11 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         fallback_args = {}
 
                         if "code" in original_args and original_args["code"]:
-                        fallback_args["code"] = original_args["code"]
-                    elif "file_path" in original_args and original_args["file_path"]:
-                        # Não podemos fazer fallback direto para PythonExecute com file_path
-                        self.memory.add_message(Message.assistant_message(
-                            f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
+                            fallback_args["code"] = original_args["code"]
+                        elif "file_path" in original_args and original_args["file_path"]:
+                            # Não podemos fazer fallback direto para PythonExecute com file_path
+                            self.memory.add_message(Message.assistant_message(
+                                f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
                             "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
                             "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
                             "ou considere outra ferramenta para ler o arquivo primeiro."
