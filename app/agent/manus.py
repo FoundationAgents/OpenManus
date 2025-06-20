@@ -937,12 +937,14 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 logger.info("A última mensagem do usuário não é uma resposta direta à pergunta de fallback do sandbox. Ignorando para fins de fallback.")
             else:
                 user_response_text = last_message.content.strip().lower()
-                # original_failed_tool_call deve ser não-None aqui porque _pending_fallback_tool_call é setado antes de AskHuman ser chamado.
-                # E esta seção só é alcançada se _pending_fallback_tool_call for verdadeiro.
                 original_failed_tool_call = self._pending_fallback_tool_call
+                # Reset pending state immediately, regardless of outcome, to prevent reprocessing.
+                self._pending_fallback_tool_call = None
+                self._last_ask_human_for_fallback_id = None
 
                 if user_response_text == "sim":
                     logger.info(f"Usuário aprovou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
+                    self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
                     try:
                         original_args = json.loads(original_failed_tool_call.function.arguments)
                         fallback_args = {}
@@ -950,88 +952,72 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                         if "code" in original_args and original_args["code"]:
                             fallback_args["code"] = original_args["code"]
                         elif "file_path" in original_args and original_args["file_path"]:
+                            # This case is problematic for PythonExecute, which expects 'code'.
+                            # Inform the user and let LLM decide next steps.
                             self.memory.add_message(Message.assistant_message(
                                 f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
                                 "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
                                 "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
                                 "ou considere outra ferramenta para ler o arquivo primeiro."
                             ))
-                            self.tool_calls = []
-                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
-                            self._pending_fallback_tool_call = None
-                            self._last_ask_human_for_fallback_id = None
-                            return True
-                        else: # Nem 'code' nem 'file_path'
+                            self.tool_calls = [] # Clear any planned calls
+                            return True # Let LLM re-evaluate based on this new info.
+                        else:
+                            # Neither 'code' nor 'file_path' found, this is an internal error.
                             logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
                             self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
                             self.tool_calls = []
-                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tentado mesmo se falhar aqui
-                            self._pending_fallback_tool_call = None
-                            self._last_ask_human_for_fallback_id = None
-                            return True # Retorna para o LLM repensar
+                            return True # Let LLM re-evaluate.
 
-                        # Se chegamos aqui, é porque fallback_args["code"] foi definido E não entramos no else.
-                        # Esta parte só deve ser executada se fallback_args foi populado.
-                        if fallback_args: # Garante que temos 'code' para prosseguir
-                            fallback_timeout = original_args.get("timeout", 120)
-                            fallback_args["timeout"] = fallback_timeout
+                        # At this point, fallback_args["code"] must be set if we didn't return early.
+                        fallback_timeout = original_args.get("timeout", 120) # Default timeout
+                        fallback_args["timeout"] = fallback_timeout
 
-                            new_fallback_tool_call = ToolCall(
-                                id=str(uuid.uuid4()), # Novo ID para a tentativa de fallback
-                                function=FunctionCall(
-                                    name=PythonExecute().name,
-                                    arguments=json.dumps(fallback_args)
-                                )
+                        new_fallback_tool_call = ToolCall(
+                            id=str(uuid.uuid4()), # New ID for the fallback attempt
+                            function=FunctionCall(
+                                name=PythonExecute().name,
+                                arguments=json.dumps(fallback_args)
                             )
-                            self.tool_calls = [new_fallback_tool_call]
-                            self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
-
-                            self.memory.add_message(Message.assistant_message(
-                                f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
-                                "Lembre-se dos riscos de segurança."
-                            ))
-                            logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
-                        # Se fallback_args estiver vazio (o que não deveria acontecer devido à lógica if/elif/else anterior),
-                        # nada é feito aqui, e o `return True` no final do bloco `if user_response_text == "sim":`
-                        # permitirá que o LLM repense. Contudo, a lógica anterior com `return True` nos blocos
-                        # `elif` e `else` já cobre esses casos.
+                        )
+                        self.tool_calls = [new_fallback_tool_call]
+                        self.memory.add_message(Message.assistant_message(
+                            f"Ok, tentando executar o código diretamente usando '{PythonExecute().name}'. "
+                            "Lembre-se dos riscos de segurança."
+                        ))
+                        logger.info(f"ToolCall de fallback planejada para PythonExecute: {new_fallback_tool_call}")
 
                     except json.JSONDecodeError as e:
-                    logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
-                    self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
-                    self.tool_calls = []
-                except Exception as e_fallback_exec:
-                    logger.error(f"Erro inesperado durante a execução do fallback para PythonExecute: {e_fallback_exec}", exc_info=True)
-                    self.memory.add_message(Message.assistant_message(f"Erro inesperado ao tentar fallback: {e_fallback_exec}"))
-                    self.tool_calls = []
+                        logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
+                        self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
+                        self.tool_calls = [] # Clear any planned calls
+                    except Exception as e_fallback_exec:
+                        logger.error(f"Erro inesperado durante a preparação ou execução do fallback para PythonExecute: {e_fallback_exec}", exc_info=True)
+                        self.memory.add_message(Message.assistant_message(f"Erro inesperado ao tentar fallback: {e_fallback_exec}"))
+                        self.tool_calls = [] # Clear any planned calls
 
-                self._pending_fallback_tool_call = None
-                self._last_ask_human_for_fallback_id = None
-                return True # Executar a tool_call de fallback (PythonExecute)
+                    return True # Execute the planned fallback tool_call (or let LLM re-evaluate if errors occurred)
 
-            elif user_response_text == "não":
-                logger.info(f"Usuário negou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
-                self.memory.add_message(Message.assistant_message(
-                    "Entendido. A execução do script foi cancelada conforme sua solicitação."
-                ))
-                self.tool_calls = []
-                self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Marcar como tratado
-                self._pending_fallback_tool_call = None
-                self._last_ask_human_for_fallback_id = None
-                return True # Deixar o LLM decidir o que fazer após o cancelamento
-            else:
-                logger.info(f"Resposta não reconhecida do usuário ('{user_response_text}') para a pergunta de fallback. Solicitando novamente ou tratando como 'não'.")
-                self.memory.add_message(Message.assistant_message(
-                    f"Resposta '{last_message.content}' não reconhecida. Assumindo 'não' para a execução direta. A execução do script foi cancelada."
-                ))
-                self.tool_calls = []
-                self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id
-                self._pending_fallback_tool_call = None
-                self._last_ask_human_for_fallback_id = None
-                return True
+                elif user_response_text == "não":
+                    logger.info(f"Usuário negou fallback para PythonExecute para a tool_call original ID: {original_failed_tool_call.id}")
+                    self.memory.add_message(Message.assistant_message(
+                        "Entendido. A execução do script foi cancelada conforme sua solicitação."
+                    ))
+                    self.tool_calls = [] # No further action on this script
+                    self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Mark as handled
+                    return True # Let LLM decide what to do next.
+
+                else: # Unrecognized response
+                    logger.info(f"Resposta não reconhecida do usuário ('{user_response_text}') para a pergunta de fallback. Tratando como 'não'.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Resposta '{last_message.content}' não reconhecida. Assumindo 'não' para a execução direta. A execução do script foi cancelada."
+                    ))
+                    self.tool_calls = [] # No further action on this script
+                    self._fallback_attempted_for_tool_call_id = original_failed_tool_call.id # Mark as handled
+                    return True # Let LLM decide what to do next.
 
         # --- Fim da Lógica de Fallback ---
-        
+
         user_prompt_message = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.USER), None)
         user_prompt_content = user_prompt_message.content if user_prompt_message else ""
         SELF_CODING_TRIGGER = "execute self coding cycle: "
