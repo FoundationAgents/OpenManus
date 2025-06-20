@@ -334,26 +334,31 @@ class ToolCallAgent(ReActAgent):
             logger.info(f"[TOOL_END] Tool '{name}' executed successfully.")
 
             # Store PID file path if this was the sandbox executor
+            # Este bloco é executado ANTES da formatação da observação.
+            # tool_output aqui é o retorno direto do SandboxPythonExecutor.execute(), que agora é ToolResult.
             if name == SandboxPythonExecutor().name:
-                # Check if tool_output is a dict, which is the expected return type for SandboxPythonExecutor
-                # when it successfully returns a pid_file_path.
-                if isinstance(tool_output, dict) and "pid_file_path" in tool_output:
-                    self._current_sandbox_pid_file = tool_output["pid_file_path"]
-                    self._current_script_tool_call_id = command.id
-                    self._current_sandbox_pid = None # Reset PID, will be read if needed
-                    logger.info(f"Stored PID file path '{self._current_sandbox_pid_file}' for tool call ID '{command.id}'.")
-                # If tool_output is ToolResult, it means SandboxPythonExecutor might have wrapped its dict output
-                # or an error occurred. If it's an error, it will be handled by the ToolResult processing below.
-                # If it's a ToolResult containing the dict, we might need to extract it.
-                # However, the current SandboxPythonExecutor().execute() method returns a dict directly, not a ToolResult.
-                # So, this condition might be more for future-proofing or if other tools behave differently.
-                elif isinstance(tool_output, ToolResult) and isinstance(tool_output.output, dict) and "pid_file_path" in tool_output.output:
-                    self._current_sandbox_pid_file = tool_output.output["pid_file_path"]
-                    self._current_script_tool_call_id = command.id
-                    self._current_sandbox_pid = None
-                    logger.info(f"Stored PID file path '{self._current_sandbox_pid_file}' (from ToolResult.output) for tool call ID '{command.id}'.")
+                if isinstance(tool_output, ToolResult):
+                    if tool_output.error:
+                        # Se houve um erro primário na ferramenta (ex: falha ao copiar, erro de ambiente ANTES de executar)
+                        # pid_file_path pode não estar no output ou não ser relevante.
+                        logger.warning(f"SandboxPythonExecutor retornou um erro: {tool_output.error}. Não esperando pid_file_path.")
+                    elif isinstance(tool_output.output, dict) and "pid_file_path" in tool_output.output:
+                        self._current_sandbox_pid_file = tool_output.output["pid_file_path"]
+                        self._current_script_tool_call_id = command.id
+                        self._current_sandbox_pid = None # Reset PID, will be read if needed
+                        logger.info(f"Stored PID file path '{self._current_sandbox_pid_file}' for tool call ID '{command.id}'.")
+                    else:
+                        # O output não é um dict ou não tem pid_file_path, mas não houve erro primário na ToolResult.
+                        # Isso pode acontecer se o script executou mas não gerou o output esperado pela ferramenta interna,
+                        # ou se o sandbox_python_executor teve uma falha interna não capturada como ToolResult.error.
+                        logger.warning(
+                            f"Tool {name} (ToolResult) did not contain 'pid_file_path' in its 'output' dictionary "
+                            f"or 'output' was not a dictionary. Output: {tool_output.output}"
+                        )
                 else:
-                    logger.warning(f"Tool {name} did not return 'pid_file_path' as expected. Output type: {type(tool_output)}")
+                    # Isso não deveria acontecer se SandboxPythonExecutor sempre retorna ToolResult.
+                    logger.error(f"SandboxPythonExecutor retornou um tipo inesperado: {type(tool_output)}, esperava ToolResult.")
+
 
             # Handle special tools
             await self._handle_special_tool(name=name, result=tool_output)
@@ -363,10 +368,17 @@ class ToolCallAgent(ReActAgent):
                 if tool_output.base64_image:
                     self._current_base64_image = tool_output.base64_image
 
-                if tool_output.error:
+                if tool_output.error: # Erro primário da ferramenta
                     current_output_str = f"Error: {tool_output.error}"
+                    # Se houver output adicional mesmo com erro, podemos concatenar
+                    if tool_output.output is not None:
+                        current_output_str += f"\nAdditional output: {json.dumps(tool_output.output) if isinstance(tool_output.output, dict) else str(tool_output.output)}"
                 elif tool_output.output is not None:
-                    current_output_str = str(tool_output.output)
+                    # Se output for dict, serializar para JSON para a observação.
+                    if isinstance(tool_output.output, dict):
+                        current_output_str = json.dumps(tool_output.output)
+                    else:
+                        current_output_str = str(tool_output.output)
                 else:
                     current_output_str = "" # Saída vazia se não houver erro nem output
 
@@ -375,6 +387,16 @@ class ToolCallAgent(ReActAgent):
                     if current_output_str
                     else f"Cmd `{name}` completed with no observable output or error."
                 )
+                elif isinstance(tool_output, dict): # Tratar dict especificamente
+                    self._current_base64_image = None
+                    try:
+                        # Converter o dicionário para uma string JSON válida
+                        current_output_str = json.dumps(tool_output)
+                        observation = f"Observed output of cmd `{name}` executed (dict converted to JSON):\n{current_output_str}"
+                    except TypeError as e:
+                        logger.error(f"Falha ao serializar a saída do dicionário da ferramenta '{name}' para JSON: {e}. Usando str() como fallback.")
+                        current_output_str = str(tool_output) # Fallback para str() se json.dumps falhar
+                        observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)} using str()):\n{current_output_str}"
             elif isinstance(tool_output, str):
                 self._current_base64_image = None # Garantir que não haja imagem base64 de uma execução anterior
                 current_output_str = tool_output
@@ -384,11 +406,11 @@ class ToolCallAgent(ReActAgent):
                     else f"Cmd `{name}` completed with no observable string output."
                 )
             else:
-                # Caso para tipos inesperados, pode ser logado ou tratado como erro
-                logger.warning(f"Tool '{name}' returned an unexpected type: {type(tool_output)}. Converting to string.")
+                    # Caso para tipos inesperados que não são ToolResult, str ou dict
+                    logger.warning(f"Tool '{name}' returned an unhandled type: {type(tool_output)}. Converting to string using str().")
                 self._current_base64_image = None
                 current_output_str = str(tool_output) # Tenta converter para string como fallback
-                observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)}):\n{current_output_str}"
+                    observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)} using str()):\n{current_output_str}"
 
             return observation
         except json.JSONDecodeError:

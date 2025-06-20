@@ -6,9 +6,9 @@ from io import StringIO
 from typing import Dict, Optional
 import traceback # Added import traceback
 import ast # Added import ast
-from app.logger import logger # Added import logger
+from app.logger import logger
 
-from app.tool.base import BaseTool
+from app.tool.base import BaseTool, ToolResult # Import ToolResult
 
 
 class PythonExecute(BaseTool):
@@ -138,5 +138,15 @@ class PythonExecute(BaseTool):
                 timeout_message = f"Execution timeout after {timeout} seconds"
                 if working_directory:
                     timeout_message += f" (in working_directory: '{working_directory}')"
-                return {"stdout": "", "stderr": timeout_message, "exit_code": 1, "success": False, "observation": timeout_message}
-            return dict(result)
+
+                timeout_output = {"stdout": "", "stderr": timeout_message, "exit_code": 1, "success": False, "observation": timeout_message}
+                return ToolResult(error="Execution timed out.", output=timeout_output)
+
+            final_result_dict = dict(result)
+            # Determinar se houve erro para o campo error do ToolResult
+            tool_error_msg = None
+            if not final_result_dict.get("success", False):
+                tool_error_msg = final_result_dict.get("stderr", "Python execution failed without specific stderr.")
+                if not tool_error_msg: # Caso stderr seja vazio mas success é False
+                    tool_error_msg = "Python execution failed with an unspecified error."
+            return ToolResult(output=final_result_dict, error=tool_error_msg)

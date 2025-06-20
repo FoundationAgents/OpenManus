@@ -1,14 +1,14 @@
 import asyncio # Should be there
-import os # Added
-import uuid # Should be there
-from typing import Any, Dict, Optional # Optional should be there
+import os
+import uuid
+from typing import Any, Dict, Optional
 
 from app.sandbox.client import SANDBOX_CLIENT
 from app.config import config
 from app.sandbox.core.exceptions import SandboxTimeoutError
-from app.tool.base import BaseTool
+from app.tool.base import BaseTool, ToolResult # Import ToolResult
 from app.exceptions import ToolError
-from app.logger import logger # Added
+from app.logger import logger
 
 
 class SandboxPythonExecutor(BaseTool):
