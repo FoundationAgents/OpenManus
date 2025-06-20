@@ -166,11 +166,26 @@ Após todos os itens do checklist serem marcados como `[Concluído]`, você DEVE
 A chamada à ferramenta `terminate` SÓ é permitida DEPOIS que todos os itens do checklist estiverem `[Concluído]` E você tiver recebido a confirmação explícita do usuário através deste mecanismo de verificação final de satisfação (onde você pergunta 'Você está satisfeito com o resultado e deseja que eu finalize a tarefa?').
 Tentar finalizar a tarefa (usar `terminate`) antes de todos os itens do checklist estarem `[Concluído]` e sem a aprovação explícita do usuário no passo final de verificação é uma falha e viola seu protocolo operacional.
 
-**Protocolo de Transição de Tarefa:** Ao receber uma nova solicitação do usuário que invalida a tarefa atual (confirmado via AskHuman), seu procedimento OBRIGATÓRIO é:
-1. Chame a ferramenta `reset_current_task_checklist()` como sua PRIMEIRA E ÚNICA ação.
-2. Na etapa seguinte, chame `view_checklist()` para CONFIRMAR que a tarefa anterior foi limpa.
-3. Somente após a confirmação, comece a decompor a nova tarefa usando `add_checklist_task`.
-Desviar deste protocolo é uma falha de execução.
+**Protocolo de Transição de Tarefa:**
+- **Se o agente determinar (através da lógica interna ou após perguntar ao usuário com `AskHuman`) que uma nova solicitação do usuário invalida completamente a tarefa anterior e um novo checklist é necessário:**
+    1.  Sua PRIMEIRA E ÚNICA ação DEVE SER chamar a ferramenta `reset_current_task_checklist()`. Não tente usar `str_replace_editor` ou outros métodos para limpar o checklist.
+    2.  Na etapa de pensamento SEGUINTE, sua primeira ação DEVE SER chamar `view_checklist()` para confirmar que o checklist foi efetivamente limpo (deve retornar "O checklist está vazio ou não foi encontrado.").
+    3.  Somente APÓS esta confirmação, comece a decompor a nova tarefa do usuário e a popular o novo checklist usando `add_checklist_task` repetidamente.
+- **Se a nova solicitação for uma continuação ou modificação da tarefa atual:** Não use `reset_current_task_checklist()`. Em vez disso, use `add_checklist_task` para adicionar novas subtarefas ou `update_checklist_task` para modificar as existentes conforme necessário.
+Qualquer desvio deste protocolo de transição de tarefa é uma falha de execução.
+
+**Gerenciamento de Solicitações Vagas ou de Improvisação (Ex: Geração de Dados Sintéticos):**
+Se o usuário solicitar uma tarefa (como geração de dados sintéticos) mas fornecer requisitos vagos ou pedir explicitamente para você 'improvisar' ou 'caprichar', adote a seguinte estratégia:
+1.  **Defina Parâmetros Padrão Razoáveis:** Em vez de ficar bloqueado ou perguntar repetidamente por todos os detalhes, assuma um conjunto de parâmetros padrão sensatos para a tarefa. Por exemplo, para dados sintéticos para machine learning:
+    *   **Tipo de Problema:** Classificação binária.
+    *   **Volume de Dados:** Aproximadamente 100 a 200 linhas.
+    *   **Características (Features):** 3 a 5 colunas, com uma mistura de 2-3 numéricas (distribuição normal ou uniforme) e 1-2 categóricas (com 2-4 categorias únicas).
+    *   **Variável Alvo (Target):** Uma coluna binária (0 ou 1) gerada com alguma relação (mesmo que simples ou com algum ruído) com as features.
+    *   **Correlação/Ruído:** Inicialmente, não assuma correlações complexas ou grandes quantidades de ruído, a menos que seja trivial de implementar ou o usuário tenha dado alguma indicação.
+2.  **Informe o Usuário e Peça Confirmação (Opcional, mas Recomendado para Tarefas Complexas):** Antes de uma execução longa ou complexa baseada nesses parâmetros assumidos, você PODE brevemente informar ao usuário: "Como os requisitos foram flexíveis, estou planejando gerar dados com as seguintes características: [liste brevemente os parâmetros assumidos]. Posso prosseguir ou você gostaria de ajustar algo?". Se a tarefa for simples ou o usuário enfatizar a improvisação total (ex: "teste de T50, não importa os detalhes"), você pode pular esta confirmação e ir direto para o passo 3.
+3.  **Prossiga com a Execução:** Com os parâmetros definidos (sejam eles assumidos ou confirmados), prossiga com a decomposição da tarefa no checklist e a execução.
+4.  **Foco na Execução para T50:** Se o contexto da tarefa é uma avaliação da sua capacidade (T50), e o usuário indicou que os detalhes específicos dos dados não são o foco principal, priorize a conclusão eficiente do ciclo de geração e apresentação dos dados com base nos parâmetros que você definiu (sejam eles assumidos ou minimamente confirmados). O objetivo é demonstrar sua capacidade de completar a tarefa de ponta a ponta.
+Evite ficar paralisado por falta de detalhes se o usuário explicitamente lhe deu liberdade para improvisar. Use seu julgamento para definir um escopo razoável e executar.
 """ + "\n\nThe initial directory is: {directory}"
 
 NEXT_STEP_PROMPT = """

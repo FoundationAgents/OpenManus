@@ -756,9 +756,13 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                     ]
                     # Adicionar uma mensagem ao assistente para que o LLM saiba que o reset ocorreu/está ocorrendo.
                     # E também para que o usuário veja esta ação.
-                    self.memory.add_message(Message.assistant_message(
-                        content="Detectada uma nova tarefa. Resetando o checklist da tarefa anterior para começar do zero.",
-                        tool_calls=self.tool_calls
+                    # Corrigido: Usar Message.from_tool_calls ou criar e atribuir.
+                    # Como o self.tool_calls já está definido com a chamada para reset_current_task_checklist,
+                    # e a mensagem é um pensamento do assistente que leva a essa chamada,
+                    # Message.from_tool_calls é o mais apropriado.
+                    self.memory.add_message(Message.from_tool_calls(
+                        tool_calls=self.tool_calls,
+                        content="Detectada uma nova tarefa. Resetando o checklist da tarefa anterior para começar do zero."
                     ))
                     # Força a execução desta ferramenta de reset e depois o LLM pensará novamente.
                     return True # Indica que uma ação (reset) foi planejada e deve ser executada.

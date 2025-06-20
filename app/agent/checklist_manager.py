@@ -85,8 +85,11 @@ class ChecklistManager:
                         "agent": agent.strip() if agent else None,
                     }
                     self.tasks.append(task_entry)
+                elif line.startswith("#"):
+                    # Silently ignore lines starting with # (comments/headers)
+                    pass
                 else:
-                    # Log lines that don't match the expected format
+                    # Log other lines that don't match the expected format and are not comments
                     logger.warning(
                         f"Could not parse checklist line: '{line}' in file {self.checklist_path} at line {line_number + 1}. Skipping."
                     )
