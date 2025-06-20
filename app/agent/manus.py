@@ -824,28 +824,38 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                     # ou que SandboxPythonExecutor retornasse ToolResult e o erro fosse processado de forma estruturada.
                     match = re.search(r"(\{[\s\S]*\})\s*$", last_message.content)
                     if match:
-                        json_like_str = match.group(1)
+                        python_dict_like_str = match.group(1)
                         try:
-                            tool_result_content = json.loads(json_like_str)
-                            logger.info(f"Dicionário de resultado da ferramenta extraído para fallback: {tool_result_content}")
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Falha ao parsear JSON extraído da observação para fallback: '{json_like_str}'. Erro: {e}. Conteúdo original: {last_message.content}")
+                            # Usar ast.literal_eval para converter a string em um dicionário Python
+                            tool_result_content = ast.literal_eval(python_dict_like_str)
+                            logger.info(f"Dicionário de resultado da ferramenta (via ast.literal_eval) extraído para fallback: {tool_result_content}")
+                        except (ValueError, SyntaxError) as e:
+                            logger.error(f"Falha ao parsear string com ast.literal_eval: '{python_dict_like_str}'. Erro: {e}. Conteúdo original: {last_message.content}")
                             tool_result_content = None # Garante que não prossiga se o parse falhar
                     else:
-                        logger.warning(f"Não foi possível extrair um dicionário JSON da observação para fallback: {last_message.content}")
+                        logger.warning(f"Não foi possível extrair um dicionário (formato Python) da observação para fallback: {last_message.content}")
+                        tool_result_content = None
 
-                    # Agora, tool_result_content é o dicionário principal retornado pela ferramenta (ex: {'stdout': ..., 'stderr': ..., 'exit_code': -2})
-                    # Se o stderr contiver um ToolError que é uma string representando outro JSON, isso precisaria de um segundo parse.
-                    # No caso do log: 'stderr': "ToolError: {'success': false, ...}"
-                    # O erro real está DENTRO do stderr.
-
-                    # A verificação de exit_code == -2 é sobre o resultado da execução do sandbox_python_executor em si.
                     if isinstance(tool_result_content, dict) and tool_result_content.get("exit_code") == -2:
                         # A mensagem de erro detalhada está em tool_result_content.get("stderr")
+                        # Esta string pode conter ela mesma uma representação de dicionário.
+                        # Ex: "ToolError: {'success': false, 'error_type': 'environment', ...}"
                         error_detail_str = tool_result_content.get("stderr", "")
+
+                        # Tentar extrair a mensagem mais interna do ToolError se presente
+                        tool_error_message = error_detail_str # Default to the whole stderr string
+                        if error_detail_str.startswith("ToolError: "):
+                            try:
+                                inner_error_dict_str = error_detail_str.replace("ToolError: ", "", 1)
+                                inner_error_dict = ast.literal_eval(inner_error_dict_str)
+                                if isinstance(inner_error_dict, dict) and "message" in inner_error_dict:
+                                    tool_error_message = inner_error_dict["message"]
+                            except (ValueError, SyntaxError) as e_inner:
+                                logger.warning(f"Não foi possível parsear o conteúdo detalhado do ToolError em stderr: '{error_detail_str}'. Erro: {e_inner}. Usando stderr completo.")
+
                         logger.warning(
                             f"SandboxPythonExecutor falhou com exit_code -2 (erro de criação do sandbox) para tool_call_id {tool_call_id_from_message}. "
-                            f"Detalhe do erro (stderr da ferramenta): {error_detail_str}"
+                            f"Mensagem de erro principal: '{tool_error_message}' (Extraído de stderr: '{error_detail_str}')"
                             "Iniciando lógica de fallback."
                         )
 
@@ -928,36 +938,67 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                     try:
                         original_args = json.loads(original_failed_tool_call.function.arguments)
                         fallback_args = {}
+                        fallback_tool_name = PythonExecute().name
+                        assistant_message_on_fallback = ""
 
-                        if "code" in original_args and original_args["code"]:
+                        if "file_path" in original_args and original_args["file_path"]:
+                            script_file_path = original_args["file_path"]
+                            fallback_args["file_path_to_execute"] = script_file_path
+                            # Define working_directory como o diretório do script, se não especificado de outra forma.
+                            # A ferramenta PythonExecute já tem lógica para isso se WD não for passado.
+                            # Para ser explícito aqui:
+                            fallback_args["working_directory"] = os.path.dirname(script_file_path)
+                            assistant_message_on_fallback = (
+                                f"Ok, tentando executar o script '{os.path.basename(script_file_path)}' "
+                                f"diretamente usando '{fallback_tool_name}' no diretório '{fallback_args['working_directory']}'. "
+                                "Lembre-se dos riscos de segurança."
+                            )
+                            logger.info(f"Preparando fallback para executar arquivo '{script_file_path}' com PythonExecute.")
+
+                        elif "code" in original_args and original_args["code"]:
                             fallback_args["code"] = original_args["code"]
-                        elif "file_path" in original_args and original_args["file_path"]:
-                            # This case is problematic for PythonExecute, which expects 'code'.
-                            # Inform the user and let LLM decide next steps.
-                            self.memory.add_message(Message.assistant_message(
-                                f"Entendido. No entanto, a tentativa original era executar um arquivo (`{original_args['file_path']}`) no sandbox. "
-                                "A execução direta alternativa (`PythonExecute`) requer o conteúdo do código, não o caminho do arquivo. "
-                                "Não posso realizar este fallback automaticamente. Por favor, forneça o conteúdo do script se desejar executá-lo diretamente, "
-                                "ou considere outra ferramenta para ler o arquivo primeiro."
-                            ))
-                            self.tool_calls = [] # Clear any planned calls
-                            return True # Let LLM re-evaluate based on this new info.
+                            # working_directory pode ser herdado ou deixado como None se não houver contexto de arquivo.
+                            # Se original_args tivesse um working_directory, poderíamos usá-lo.
+                            if "working_directory" in original_args:
+                                fallback_args["working_directory"] = original_args["working_directory"]
+                            assistant_message_on_fallback = (
+                                f"Ok, tentando executar o código fornecido diretamente usando '{fallback_tool_name}'. "
+                                "Lembre-se dos riscos de segurança."
+                            )
+                            logger.info("Preparando fallback para executar código string com PythonExecute.")
                         else:
-                            # Neither 'code' nor 'file_path' found, this is an internal error.
                             logger.error(f"Não foi possível realizar fallback para PythonExecute: 'code' ou 'file_path' não encontrado nos args originais: {original_args}")
                             self.memory.add_message(Message.assistant_message("Erro interno: não foi possível encontrar o código ou caminho do arquivo para a execução de fallback."))
                             self.tool_calls = []
                             return True # Let LLM re-evaluate.
 
-                        # At this point, fallback_args["code"] must be set if we didn't return early.
-                        fallback_timeout = original_args.get("timeout", 120) # Default timeout
-                        fallback_args["timeout"] = fallback_timeout
+                        original_timeout = original_args.get("timeout")
+                        if original_timeout is not None:
+                            fallback_args["timeout"] = original_timeout
 
                         new_fallback_tool_call = ToolCall(
                             id=str(uuid.uuid4()), # New ID for the fallback attempt
                             function=FunctionCall(
-                                name=PythonExecute().name,
+                                name=fallback_tool_name, # Use a variável
                                 arguments=json.dumps(fallback_args)
+                            )
+                        )
+                        self.tool_calls = [new_fallback_tool_call]
+                        self.memory.add_message(Message.assistant_message(assistant_message_on_fallback))
+                        logger.info(f"ToolCall de fallback planejada para {fallback_tool_name}: {new_fallback_tool_call}")
+
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Falha ao parsear argumentos da tool_call original durante o fallback: {original_failed_tool_call.function.arguments}. Erro: {e}")
+                        self.memory.add_message(Message.assistant_message("Erro interno ao preparar a execução de fallback. Não é possível continuar com esta tentativa."))
+                        self.tool_calls = [] # Clear any planned calls
+                    except Exception as e_fallback_exec:
+                        logger.error(f"Erro inesperado durante a preparação ou execução do fallback para PythonExecute: {e_fallback_exec}", exc_info=True)
+                        self.memory.add_message(Message.assistant_message(f"Erro inesperado ao tentar fallback: {e_fallback_exec}"))
+                        self.tool_calls = [] # Clear any planned calls
+
+                    return True # Execute the planned fallback tool_call (or let LLM re-evaluate if errors occurred)
+
+                elif user_response_text == "não":
                             )
                         )
                         self.tool_calls = [new_fallback_tool_call]

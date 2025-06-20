@@ -56,13 +56,13 @@ class EnvironmentValidator:
             client = docker.from_env()
             client.ping() # Verifica se o daemon Docker está respondendo
             logger.info("Conexão com o Docker bem-sucedida (ping).")
-            # Opcional: tentar uma operação mais complexa como listar containers
-            # client.containers.list(limit=1)
-            # logger.info("Listagem de containers Docker (limit=1) bem-sucedida.")
+            # Tentar uma operação mais complexa como listar containers
+            client.containers.list(limit=1)
+            logger.info("Listagem de containers Docker (limit=1) bem-sucedida.")
             return True
         except DockerException as e:
             msg = (
-                "Falha ao conectar ao serviço Docker. Verifique se o Docker está em execução "
+                "Falha ao conectar ao serviço Docker ou executar operações básicas. Verifique se o Docker está em execução "
                 "e se o usuário atual tem permissão para acessá-lo. "
                 f"Erro: {e}"
             )
