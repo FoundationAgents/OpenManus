@@ -37,8 +37,7 @@ from typing import Optional, Tuple, List, Dict, Any # Melhorando type hints
 # se importado diretamente, mas como está em arquivos separados, isso não é um problema.
 
 class CriticAgent:
-    """
-    Você é um Agente de Monitoramento e Refinamento de Horizonte Temporal, com o objetivo principal de otimizar a eficácia e a confiabilidade da execução de tarefas de longo horizonte para outros agentes de IA ou fluxos de trabalho complexos. Seu Propósito Principal: Sua função é fornecer feedback crítico, identificar desvios e redirecionar a execução de tarefas para aumentar o horizonte temporal de sucesso, visando especialmente o alcance do Horizonte de Tempo de Conclusão de Tarefa de 50% (T50) – a duração da tarefa (medida em tempo de um especialista humano qualificado) que o agente consegue concluir com 50% de confiabilidade.
+    """Você é um Agente de Monitoramento e Refinamento de Horizonte Temporal, com o objetivo principal de otimizar a eficácia e a confiabilidade da execução de tarefas de longo horizonte para outros agentes de IA ou fluxos de trabalho complexos. Seu Propósito Principal: Sua função é fornecer feedback crítico, identificar desvios e redirecionar a execução de tarefas para aumentar o horizonte temporal de sucesso, visando especialmente o alcance do Horizonte de Tempo de Conclusão de Tarefa de 50% (T50) – a duração da tarefa (medida em tempo de um especialista humano qualificado) que o agente consegue concluir com 50% de confiabilidade.
     Monitoramento e Avaliação Crítica: Para cada tarefa em execução, você deve monitorar ativamente o progresso, as ações (utilizando o padrão ReAct: 'pensar' e 'agir') e o consumo de recursos. Sua ativação ocorrerá a cada 5 etapas da execução do agente principal. Sua avaliação crítica deve focar em:
     •
     Progresso em relação ao T50: Estimar se o ritmo de execução e a qualidade dos passos indicam que o T50 será alcançado.
@@ -110,7 +109,7 @@ class CriticAgent:
 
     def review_plan_and_progress(self,
                                  current_plan_markdown: str,
-                                 initial_user_prompt: Optional[str], # Novo parâmetro
+                                 initial_user_prompt: Optional[str],
                                  messages: List[Dict[str, Any]],
                                  tool_results: List[Dict[str, Any]],
                                  current_step: int,
@@ -134,49 +133,44 @@ class CriticAgent:
                   ou None se nenhuma sugestão crítica for feita.
         """
 
-        # O prompt do sistema do crítico é a docstring da classe.
-        # {PlanoAtual} é um placeholder que será preenchido.
-        # system_prompt_for_llm = self.__doc__.format(PlanoAtual=current_plan_markdown) # A docstring já é o prompt.
-
-        # A chamada ao LLM do crítico para análise semântica está desativada por padrão
-        # para focar nas heurísticas programáticas. Pode ser ativada se necessário.
-        # llm_messages = [
-        #     {"role": "system", "content": system_prompt_for_llm},
-        #     {"role": "user", "content": (
-        #         f"Analisando o progresso da tarefa na etapa {current_step}. "
-        #         f"Passos desde a última revisão: {steps_since_last_review}. "
-        #         f"Histórico de mensagens (últimas {len(messages)}): {messages}. "
-        #         f"Resultados das ferramentas (últimos {len(tool_results)}): {tool_results}."
-        #         "Por favor, forneça uma avaliação crítica e sugestões de redirecionamento se necessário."
-        #     )}
-        # ]
-        # llm_feedback_str = self.llm_client.chat.completions.create(...) # Chamada simulada
-
         total_checklist_tasks, completed_checklist_tasks_now = self._parse_checklist_progress(current_plan_markdown)
+        t50_concerns: List[str] = []
+        sugestao_redirecionamento: Optional[Dict[str, Any]] = None # Inicializa aqui
 
-        t50_concerns: List[str] = [] # Lista para acumular preocupações sobre T50.
-
-        # 0. Análise de Desvio da Intenção Original (se o prompt inicial for fornecido)
+        # 0. Análise de Desvio da Intenção Original
         if initial_user_prompt:
-            # Esta é uma heurística muito simples. Uma análise real de desalinhamento
-            # provavelmente exigiria uma chamada LLM ao próprio crítico.
-            # Aqui, apenas verificamos se o checklist parece muito pequeno ou vazio
-            # enquanto o prompt do usuário não é trivial.
-            prompt_summary = initial_user_prompt[:100] + "..." if initial_user_prompt else "N/A"
-            if total_checklist_tasks < 2 and len(initial_user_prompt) > 50: # Arbitrário: prompt longo mas <2 tarefas no checklist
-                # E se as tarefas existentes não parecem ser de decomposição
-                is_decomposition_task_present = any(
-                    "decompor" in task.lower() or "popular checklist" in task.lower()
-                    for task in current_plan_markdown.splitlines() if task.strip().startswith("- [")
-                )
-                if not is_decomposition_task_present:
-                    t50_concerns.append(
-                        f"Desalinhamento Potencial da Intenção: O prompt inicial do usuário ('{prompt_summary}') "
-                        f"parece substancial, mas o plano atual tem poucas tarefas ({total_checklist_tasks}) e nenhuma "
-                        "tarefa clara de decomposição inicial. O plano pode não refletir a intenção completa do usuário."
+            prompt_summary = initial_user_prompt[:100] + "..."
+            # Heurística: se o prompt inicial é substancial, mas o checklist atual é muito pequeno ou
+            # parece ser de uma tarefa anterior (muitas tarefas concluídas sem relação com o novo prompt).
+            # Esta é uma heurística simplificada e pode precisar de ajuste.
+            # Uma análise semântica real do LLM seria mais robusta.
+            if len(initial_user_prompt) > 50 and total_checklist_tasks > 0:
+                # Verifica se a maioria das tarefas está concluída, o que pode indicar um checklist antigo.
+                if completed_checklist_tasks_now > total_checklist_tasks * 0.7:
+                    concern_msg = (
+                        f"Desalinhamento Potencial da Intenção: Um novo prompt ('{prompt_summary}') foi recebido, "
+                        f"mas o checklist atual ({completed_checklist_tasks_now}/{total_checklist_tasks} concluídas) "
+                        "parece ser de uma tarefa anterior. O plano pode não refletir a intenção atual do usuário."
                     )
+                    t50_concerns.append(concern_msg)
+                    # Sugestão de alta prioridade para limpar o checklist
+                    sugestao_redirecionamento = {
+                        "action_type": "MODIFY_PLAN", # Ou talvez um novo tipo "RESET_CHECKLIST_FOR_NEW_TASK"
+                        "details": {
+                            "task_description": "Resetar o checklist para alinhar com o novo prompt do usuário.",
+                            "priority": "altíssima" # Sinaliza que isso deve ser tratado antes de outros problemas
+                        },
+                        "clarification": (
+                            "Detectado um novo prompt de usuário, mas o checklist existente parece pertencer a uma tarefa anterior. "
+                            "Sugiro resetar o checklist e criar um novo baseado no prompt atual: "
+                            f"'{initial_user_prompt}'. Isso pode exigir uma confirmação do usuário via 'ask_human' "
+                            "pelo agente principal antes de deletar o checklist existente."
+                        )
+                    }
+                    # Se um desalinhamento forte for detectado, podemos retornar cedo ou priorizar esta sugestão.
+                    # Por enquanto, vamos permitir que outras análises ocorram, mas esta sugestão terá prioridade se gerada.
 
-        # 1. Análise de Estagnação do Checklist
+        # 1. Análise de Estagnação do Checklist (Só executa se não houver sugestão de desalinhamento forte)
         # Verifica se houve progresso real no checklist desde a última revisão.
         if self.last_review_completed_tasks is not None and \
            steps_since_last_review >= self.stagnation_step_threshold and \
@@ -218,10 +212,26 @@ class CriticAgent:
                     # Tenta extrair a mensagem de erro específica.
                     match = re.search(r"error: (.*)", tool_content_str, re.IGNORECASE)
                     if match:
-                        error_message_part = match.group(1)[:75].strip() # Primeiros 75 chars da mensagem de erro
-                        error_signature = f"tool_error_{tool_name}_{error_message_part}"
+                        error_message_full = match.group(1).strip()
+                        # Identificar tipos específicos de erro aqui
+                        if "empty text parameter" in error_message_full or \
+                           "missing required parameter" in error_message_full or \
+                           "required parameter" in error_message_full: # Adicionado para cobrir mais casos
+                            error_signature = f"tool_error_{tool_name}_missing_param"
+                        elif (tool_name.lower() == "pythonexecute" or tool_name.lower() == "sandboxpythonexecutor") and \
+                             ("execution error" in error_message_full or "failed to execute" in error_message_full or "syntaxerror" in error_message_full or "indentationerror" in error_message_full):
+                            error_signature = f"tool_error_{tool_name}_sandbox_execution_error"
+                        # Adicionar outras detecções específicas de erro aqui (ex: API LLM)
+                        # else if "api key" in error_message_full and "llm" in tool_name.lower():
+                        #    error_signature = f"tool_error_{tool_name}_llm_api_key_issue"
+                        else:
+                            error_message_part = error_message_full[:75].strip() # Assinatura genérica se não for específica
+                            error_signature = f"tool_error_{tool_name}_{error_message_part}"
                 elif "traceback (most recent call last)" in tool_content_str: # Caso genérico de traceback
                      error_signature = f"traceback_{tool_name}"
+                # Adicionar aqui a detecção de erros de API do LLM que podem não seguir o padrão "Error: "
+                # Ex: se o resultado da ferramenta for um JSON de erro da API OpenAI/Anthropic
+                # Isso é mais complexo e pode ser um TODO para análise baseada em LLM se a heurística for insuficiente.
 
                 if error_signature:
                     self.error_history[error_signature] += 1
@@ -257,26 +267,64 @@ class CriticAgent:
 
                 failed_tool_name_from_sig = "desconhecida"
                 error_details_from_sig = "não especificado"
-                if most_frequent_error_sig:
-                     parts = most_frequent_error_sig.split('_', 2) # Divide em no máximo 3 partes
-                     if len(parts) == 3 and parts[0] == "tool" and parts[1] == "error":
-                         failed_tool_name_from_sig = parts[1] # Nome da ferramenta corrigido
-                         error_details_from_sig = parts[2]
-                     elif len(parts) >= 2 and parts[0] == "traceback": # Ex: traceback_toolname
-                         failed_tool_name_from_sig = parts[1]
-                         error_details_from_sig = "Traceback ocorrido"
+                specific_error_type_for_clarification = "Erro genérico de ferramenta."
 
-                feedback += f"\nRecomendação Principal: Investigar a causa raiz do erro repetitivo com '{failed_tool_name_from_sig}'. Detalhe: '{error_details_from_sig}'.\n"
+                if most_frequent_error_sig:
+                    parts = most_frequent_error_sig.split('_', 2)
+                    if len(parts) == 3 and parts[0] == "tool" and parts[1] == "error":
+                        failed_tool_name_from_sig = parts[1]
+                        error_type_suffix = parts[2]
+                        if error_type_suffix == "missing_param":
+                            specific_error_type_for_clarification = "Parâmetro ausente ou inválido."
+                            error_details_from_sig = "missing_param"
+                        elif error_type_suffix == "sandbox_execution_error":
+                            specific_error_type_for_clarification = "Erro na execução dentro do sandbox (possivelmente erro de sintaxe ou tempo de execução no script)."
+                            error_details_from_sig = "sandbox_execution_error"
+                        # Adicionar mais mapeamentos de error_type_suffix para specific_error_type_for_clarification
+                        else:
+                            specific_error_type_for_clarification = f"Detalhe do erro: {error_type_suffix}"
+                            error_details_from_sig = error_type_suffix
+                    elif len(parts) >= 2 and parts[0] == "traceback":
+                        failed_tool_name_from_sig = parts[1]
+                        error_details_from_sig = "Traceback ocorrido"
+                        specific_error_type_for_clarification = "Ocorreu um traceback durante a execução da ferramenta."
+
+                feedback += f"\nRecomendação Principal: Investigar a causa raiz do erro repetitivo com '{failed_tool_name_from_sig}'. Tipo de erro: '{specific_error_type_for_clarification}'.\n"
                 sugestao_redirecionamento = {
                     "action_type": "MODIFY_PLAN",
                     "details": {
-                        "task_description": f"Investigar e corrigir a causa do erro repetitivo com a ferramenta '{failed_tool_name_from_sig}' (detalhe: {error_details_from_sig}).",
+                        "task_description": f"Investigar e corrigir a causa do erro repetitivo com a ferramenta '{failed_tool_name_from_sig}'. Tipo de erro diagnosticado: {specific_error_type_for_clarification}",
                         "priority": "crítica"
                     },
-                    "clarification": f"Sugiro adicionar uma tarefa prioritária para resolver o erro com '{failed_tool_name_from_sig}' antes de prosseguir."
+                    "clarification": (f"A ferramenta '{failed_tool_name_from_sig}' está falhando repetidamente. "
+                                      f"Diagnóstico: {specific_error_type_for_clarification} "
+                                      f"Sugiro adicionar uma tarefa prioritária para investigar e resolver este problema antes de prosseguir. "
+                                      "Considere verificar os argumentos passados, o estado do ambiente, ou se a ferramenta é a mais adequada.")
                 }
                 if most_frequent_error_sig: # Resetar o contador APÓS a sugestão ser feita.
                     self.error_history[most_frequent_error_sig] = 0
+
+            elif any("Desalinhamento Potencial da Intenção" in concern for concern in t50_concerns) and sugestao_redirecionamento is None:
+                # Esta condição é para o caso de desalinhamento ser a *única* preocupação crítica no momento.
+                # A sugestão de MODIFY_PLAN para desalinhamento já foi criada na seção 0 se detectada.
+                # Aqui apenas garantimos que ela seja usada se for a única crítica.
+                # (A lógica anterior já define sugestao_redirecionamento na seção 0, então esta 'elif' pode não ser estritamente necessária
+                # se a sugestão de desalinhamento for sempre a prioritária quando ocorre. Mas, para clareza:)
+                if any("Desalinhamento Potencial da Intenção" in concern for concern in t50_concerns):
+                     # A sugestão já deve ter sido definida na seção 0.
+                     # Se por algum motivo não foi, poderíamos recriá-la aqui, mas o ideal é que a seção 0 já cuide disso.
+                     # Para garantir, vamos verificar se já existe uma sugestão. Se não, e há desalinhamento, criamos.
+                     if not sugestao_redirecionamento: # Se a sugestão de desalinhamento não foi criada antes (improvável)
+                        feedback += "\nRecomendação Principal: O plano atual pode não refletir totalmente a intenção original do usuário.\n"
+                        sugestao_redirecionamento = {
+                            "action_type": "MODIFY_PLAN",
+                            "details": {
+                                "task_description": "Revisar e realinhar o checklist com o prompt inicial do usuário. Considerar resetar o checklist se a tarefa for completamente nova.",
+                                "priority": "altíssima"
+                            },
+                            "clarification": "O plano atual parece desalinhado com o pedido original. Sugiro uma revisão completa do checklist, possivelmente começando um novo."
+                        }
+
 
             elif any("Estagnação do Checklist" in concern for concern in t50_concerns) or \
                  any("Progresso Lento Inicial" in concern for concern in t50_concerns):

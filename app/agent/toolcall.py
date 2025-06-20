@@ -469,22 +469,29 @@ class ToolCallAgent(ReActAgent):
             if self.state == AgentState.IDLE:
                 if request:
                     self.update_memory("user", request)
-                    self.initial_user_prompt_for_critic = request # Armazena o prompt inicial
+                    # Apenas define initial_user_prompt_for_critic se for realmente o início (IDLE)
+                    if self.initial_user_prompt_for_critic is None:
+                        self.initial_user_prompt_for_critic = request
                 self.state = AgentState.RUNNING
-            elif self.state == AgentState.AWAITING_USER_FEEDBACK: # Se estiver resumindo, o prompt já deve estar na memória
-                if request: # Se um novo prompt for fornecido ao retomar, ele se torna o "inicial" para esta nova fase.
+            elif self.state == AgentState.AWAITING_USER_FEEDBACK:
+                if request: # Se um novo prompt for fornecido ao retomar
                     self.update_memory("user", request)
-                    self.initial_user_prompt_for_critic = request
-                elif not self.initial_user_prompt_for_critic: # Tenta pegar da memória se não foi setado
+                    # Considerar se este novo prompt deve substituir o initial_user_prompt_for_critic
+                    # Por ora, manteremos o primeiríssimo prompt do usuário para o crítico, a menos que uma nova tarefa seja explicitamente indicada.
+                    # Se a lógica de reset de checklist for implementada, initial_user_prompt_for_critic deve ser resetado também.
+                elif not self.initial_user_prompt_for_critic:
                     first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
                     if first_user_msg:
                         self.initial_user_prompt_for_critic = first_user_msg.content
                 self.state = AgentState.RUNNING
-            elif self.state == AgentState.RUNNING: # Se já está rodando e `run` é chamado (talvez internamente)
-                if request: # Um novo request pode substituir o prompt "inicial"
+            elif self.state == AgentState.RUNNING:
+                if request:
                     self.update_memory("user", request)
-                    self.initial_user_prompt_for_critic = request
-                elif not self.initial_user_prompt_for_critic: # Garante que temos um, se possível
+                    # Se já está RUNNING e um novo request chega, isso pode ser uma nova tarefa ou uma modificação.
+                    # Para o Crítico, o "prompt inicial" ainda deve ser o primeiro da sessão da tarefa.
+                    # Não atualizaremos initial_user_prompt_for_critic aqui, a menos que haja uma lógica
+                    # explícita para resetar a tarefa.
+                elif not self.initial_user_prompt_for_critic:
                     first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
                     if first_user_msg:
                         self.initial_user_prompt_for_critic = first_user_msg.content
@@ -493,7 +500,14 @@ class ToolCallAgent(ReActAgent):
                 raise RuntimeError(f"Cannot run/resume agent from state: {self.state.value}")
 
             results: List[str] = []
-            self.steps_since_last_critic_review = 0 # Resetar no início de um novo run
+            # self.steps_since_last_critic_review é resetado no início de um novo run no BaseAgent,
+            # mas como estamos sobrescrevendo, precisamos garantir que seja resetado aqui se for uma nova tarefa.
+            # Se for uma continuação, não deve ser resetado.
+            # A lógica de quando resetar initial_user_prompt e steps_since_last_critic_review
+            # pode precisar de mais refinamento dependendo de como as "novas tarefas" são sinalizadas.
+            if self.current_step == 0: # Assumindo que current_step=0 indica o início de uma nova execução/tarefa.
+                 self.steps_since_last_critic_review = 0
+
 
             while self.state == AgentState.RUNNING:
                 async with self.state_context(AgentState.RUNNING):
@@ -566,54 +580,51 @@ class ToolCallAgent(ReActAgent):
 
                             # Adicionar feedback do crítico à memória para o LLM principal considerar
                             self.memory.add_message(Message.system_message(f"Feedback do Agente Crítico: {critic_feedback_text}"))
-                            logger.info(f"[{self.name}] Feedback do Agente Crítico: {critic_feedback_text.splitlines()[0]}...") # Log da primeira linha
+                            logger.info(f"[{self.name}] Feedback do Agente Crítico: {critic_feedback_text.splitlines()[0]}...")
 
                             # Processar sugestão de redirecionamento do crítico
                             if critic_redirect_suggestion and isinstance(critic_redirect_suggestion, dict):
                                 critic_clarification = critic_redirect_suggestion.get("clarification", "Nenhuma clarificação adicional do crítico.")
-                                self.memory.add_message(Message.system_message(f"Nota do Crítico sobre Redirecionamento: {critic_clarification}"))
-                                logger.info(f"[{self.name}] Nota do Crítico sobre Redirecionamento: {critic_clarification}")
+                                # Adiciona a clarificação com o prefixo de ALERTA
+                                self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: {critic_clarification}"))
+                                logger.info(f"[{self.name}] ALERTA DO CRÍTICO (Clarificação): {critic_clarification}")
 
                                 action_type = critic_redirect_suggestion.get("action_type")
                                 details = critic_redirect_suggestion.get("details", {})
 
-                                # Exemplo: Se o crítico sugerir modificar o plano e a ferramenta estiver disponível
                                 if action_type == "MODIFY_PLAN" and "task_description" in details:
                                     add_task_tool_name = "add_checklist_task"
                                     if self.available_tools.get_tool(add_task_tool_name):
                                         try:
                                             add_task_args = {
                                                 "description": details["task_description"],
-                                                "priority": details.get("priority", "normal"),
-                                                "status": "Pendente"
+                                                "priority": details.get("priority", "normal"), # Assumindo que o crítico pode sugerir prioridade
+                                                "status": "Pendente" # Nova tarefa é pendente
                                             }
                                             add_task_call = ToolCall(
-                                                id=f"critic_mod_plan_{self.current_step}",
+                                                id=f"critic_mod_plan_{self.current_step}", # ID único para a chamada de ferramenta
                                                 function=Function(name=add_task_tool_name, arguments=json.dumps(add_task_args))
                                             )
                                             logger.info(f"[{self.name}] Crítico sugeriu MODIFY_PLAN. Tentando adicionar tarefa via {add_task_tool_name} com args: {add_task_args}")
-                                            # Executa a ferramenta "fora de banda" (não parte do ciclo think/act normal do LLM)
                                             add_task_result_obs = await self.execute_tool(add_task_call)
                                             self.memory.add_message(Message.tool_message(
-                                                content=add_task_result_obs, # Observação da execução da ferramenta
+                                                content=add_task_result_obs,
                                                 tool_call_id=add_task_call.id,
                                                 name=add_task_tool_name
                                             ))
-                                            self.memory.add_message(Message.system_message(f"Crítico: Tarefa '{details['task_description']}' foi (tentativamente) adicionada ao plano."))
+                                            # Adiciona uma mensagem de sistema informando que a tarefa foi (tentativamente) adicionada.
+                                            self.memory.add_message(Message.system_message(f"Feedback do Agente Crítico: Tarefa '{details['task_description']}' foi (tentativamente) adicionada ao plano conforme sugestão do crítico."))
                                         except Exception as e_critic_add_task:
                                             logger.error(f"[{self.name}] Erro ao tentar adicionar tarefa sugerida pelo crítico: {e_critic_add_task}")
-                                            self.memory.add_message(Message.system_message(f"Crítico: Falha ao tentar adicionar tarefa '{details['task_description']}' ao plano via ferramenta."))
+                                            self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: Falha ao tentar adicionar tarefa '{details['task_description']}' ao plano via ferramenta, conforme sugestão do crítico."))
                                     else:
-                                        # Se a ferramenta não estiver disponível, o LLM principal precisa ser informado para agir sobre a sugestão.
                                         self.memory.add_message(Message.system_message(
                                             f"ALERTA DO CRÍTICO: Sugestão para modificar o plano: Adicionar tarefa '{details['task_description']}'. "
-                                            f"A ferramenta '{add_task_tool_name}' não está diretamente disponível para o crítico. "
+                                            f"A ferramenta '{add_task_tool_name}' não está diretamente disponível. "
                                             "O agente principal deve considerar esta sugestão."
                                         ))
-                                # Lidar com outros action_types (REQUEST_HUMAN_INPUT, SUGGEST_ALTERNATIVE_TOOL)
-                                # Adicionando mensagens fortes à memória para o LLM principal considerar.
                                 elif action_type == "REQUEST_HUMAN_INPUT" and "question" in details:
-                                    ask_human_tool_name = "ask_human"
+                                    ask_human_tool_name = "ask_human" # Supondo que o nome da ferramenta é este
                                     self.memory.add_message(Message.system_message(
                                         f"ALERTA DO CRÍTICO: É crucial obter input humano. "
                                         f"Por favor, considere usar a ferramenta '{ask_human_tool_name}' com a seguinte pergunta: {details['question']}"
@@ -625,6 +636,7 @@ class ToolCallAgent(ReActAgent):
                                         f"em vez de '{details.get('failed_tool', 'a ferramenta anterior')}'. "
                                         "O agente principal deve avaliar e decidir sobre esta sugestão."
                                     ))
+                                # Adicionar outros tipos de ação do crítico aqui, se necessário.
 
                             self.steps_since_last_critic_review = 0 # Resetar contador após revisão
                         # --- Fim da Lógica do Agente Crítico ---
@@ -660,18 +672,35 @@ class ToolCallAgent(ReActAgent):
 
                             if last_tool_message and last_tool_message.name in critical_actions_map:
                                 action_details = critical_actions_map[last_tool_message.name]
-                                # Verificar se a ação crítica foi bem-sucedida (ausência de "Error:" no resultado)
-                                # A `content` da Tool Message é a observação.
-                                if "Error:" not in last_tool_message.content:
+                                if "Error:" not in last_tool_message.content: # Ação crítica bem-sucedida
                                     confirmation_prompt = action_details["confirmation_message_template"].format(
                                         action_name=last_tool_message.name,
                                         verification_tool=action_details["verification_tool"]
                                     )
                                     self.memory.add_message(Message.system_message(confirmation_prompt))
                                     logger.info(f"[{self.name}] Ação Crítica '{last_tool_message.name}' executada. Injetando prompt de confirmação: {confirmation_prompt}")
-                                else:
+                                else: # Ação crítica falhou
                                     logger.warning(f"[{self.name}] Ação Crítica '{last_tool_message.name}' parece ter falhado. Não injetando prompt de confirmação. Resultado: {last_tool_message.content}")
                         # --- Fim do Ciclo de Confirmação de Ação ---
+
+                        # --- Início do Processamento de Sugestões do Crítico (após a ação do agente principal) ---
+                        # Esta seção foi movida para DENTRO do loop de `step_result = await self.step()`,
+                        # para que as sugestões do crítico sejam processadas APÓS a ação do agente e ANTES do próximo `think`.
+                        # A chamada ao crítico ainda ocorre ANTES de `self.step()`.
+                        # O `critic_redirect_suggestion` é da iteração anterior do crítico.
+                        # Esta lógica precisa ser reavaliada: o processamento da sugestão deve ocorrer
+                        # *antes* do `self.step()` para influenciar o `think` atual.
+                        # A lógica de processamento de sugestões foi movida para *antes* de `await self.step()`
+                        # e após a chamada do crítico.
+
+                        # O código de processamento de sugestões do crítico já está posicionado corretamente
+                        # dentro do bloco `if self.critic_agent and self.steps_since_last_critic_review >= CRITIC_REVIEW_INTERVAL:`,
+                        # que é chamado ANTES de `step_result = await self.step()`.
+                        # Portanto, as modificações para o item 1.5 já estão refletidas lá.
+                        # Nenhuma mudança adicional é necessária aqui para o item 1.5 especificamente,
+                        # pois a estrutura já permite que o ToolCallAgent processe as sugestões.
+                        # Assegurar que as mensagens adicionadas à memória pelo processamento da sugestão do crítico
+                        # sejam consideradas pelo `self.think()` subsequente é o comportamento padrão.
 
                         if self.is_stuck():
                             self.handle_stuck_state()
