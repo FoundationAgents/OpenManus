@@ -52,6 +52,32 @@ Conteúdo do Checklist Principal (`checklist_principal_tarefa.md`):
 {checklist_content}
 """
 
+PROMPT_CLASSIFY_USER_DIRECTIVE_TEMPLATE = """
+Você é um assistente que ajuda a classificar a intenção de uma nova diretiva do usuário em relação a uma tarefa em andamento.
+Dada a tarefa atual (representada pelo checklist), o histórico recente da conversa e a nova diretiva do usuário, classifique a diretiva como:
+
+(A) TAREFA NOVA: A diretiva representa uma tarefa completamente nova e não relacionada com o checklist atual.
+(B) MODIFICAÇÃO/CONTINUAÇÃO: A diretiva é uma modificação, adição, ou continuação da tarefa representada pelo checklist atual.
+(C) ESCLARECIMENTO/PERGUNTA: A diretiva é uma pergunta ou pedido de esclarecimento que não altera fundamentalmente o plano de tarefas.
+
+Contexto:
+Checklist Atual:
+{checklist_content}
+
+Histórico Recente da Conversa (últimas ~3 mensagens):
+{conversation_history}
+
+Nova Diretiva do Usuário:
+"{user_directive}"
+
+Responda APENAS com a letra da classificação (A, B ou C).
+Se for (A) ou (B) e a nova diretiva for clara, opcionalmente, após a letra e um hífen, forneça um resumo muito breve da nova tarefa ou da modificação.
+Exemplos de resposta:
+A - Gerar relatório de vendas trimestral.
+B - Adicionar coluna de 'total' à tabela de dados.
+C
+"""
+
 
 class Manus(ToolCallAgent):
     """Um agente versátil de propósito geral com suporte para ferramentas locais e MCP."""
@@ -88,6 +114,43 @@ class Manus(ToolCallAgent):
     _autonomous_mode: bool = PrivateAttr(default=False) # Flag to indicate if the agent should operate without asking for continuation feedback periodically.
     _reset_initiated_by_new_directive: bool = PrivateAttr(default=False) # Flag para SRE Ação 1.X.2
 
+    async def _classify_user_directive(self, user_directive: str, checklist_content: str, conversation_history: str) -> tuple[str, Optional[str]]:
+        """
+        Consulta o LLM para classificar a diretiva do usuário.
+        Retorna uma tupla: (classificação (A, B, ou C), resumo opcional).
+        """
+        if not self.llm:
+            logger.error("LLM não disponível para _classify_user_directive.")
+            return "B", "LLM indisponível, assumindo modificação da tarefa atual." # Fallback seguro
+
+        prompt = PROMPT_CLASSIFY_USER_DIRECTIVE_TEMPLATE.format(
+            checklist_content=checklist_content,
+            conversation_history=conversation_history,
+            user_directive=user_directive
+        )
+        messages_for_llm = [Message.user_message(prompt)] # Pode adicionar system prompt se necessário
+
+        try:
+            response_text = await self.llm.ask(messages=messages_for_llm, stream=False)
+            response_text = response_text.strip()
+
+            classification = "C" # Default to clarification
+            summary = None
+
+            if response_text:
+                parts = response_text.split("-", 1)
+                classification_char = parts[0].strip().upper()
+                if classification_char in ["A", "B", "C"]:
+                    classification = classification_char
+
+                if len(parts) > 1:
+                    summary = parts[1].strip()
+
+            logger.info(f"Diretiva do usuário classificada como '{classification}' com resumo: '{summary if summary else 'N/A'}'")
+            return classification, summary
+        except Exception as e:
+            logger.error(f"Erro ao classificar diretiva do usuário via LLM: {e}")
+            return "B", f"Erro na classificação, assumindo modificação. Detalhe: {e}" # Fallback seguro
 
     def __getstate__(self):
         logger.info(f"Manus.__getstate__ chamado para instância: {self!r}")
@@ -1637,6 +1700,8 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                  logger.info(f"Relatório de autoanálise recebido do LLM: {relatorio_autoanalise[:300]}...")
             else:
                 logger.error("Instância LLM (self.llm) não disponível para autoanálise.")
+                # Define um relatório padrão se o LLM não estiver disponível, para não quebrar o fluxo
+                relatorio_autoanalise = "Autoanálise não disponível (LLM offline). Progresso conforme o último ciclo."
         except Exception as e_llm_call:
             logger.error(f"Erro durante chamada LLM interna para autoanálise: {e_llm_call}")
             relatorio_autoanalise = f"Não foi possível gerar o relatório de autoanálise devido a um erro: {e_llm_call}"
@@ -1748,13 +1813,39 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self.state = AgentState.RUNNING # Continue with the current task
                 self._just_resumed_from_feedback = True
                 return False # Return False to allow BaseAgent.run to call think()
-            else: # Unrecognized response during final check, treat as new instructions / new task.
-                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante verificação final. Tratando como novas instruções/tarefa.")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Recebi novas instruções: '{user_response_content_for_memory}'. Vou reavaliar o plano e o checklist."))
-                self._new_task_directive_received = True
+            else: # Unrecognized response during final check
+                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante verificação final. Classificando intenção...")
+                history_for_classification = "\n".join([f"{msg.role.value}: {msg.content}" for msg in self.memory.messages[-3:]])
+
+                classification, summary = await self._classify_user_directive(
+                    user_directive=user_response_content_for_memory, # Usar o conteúdo original
+                    checklist_content=checklist_content_str, # Já carregado para autoanálise
+                    conversation_history=history_for_classification
+                )
+
+                if classification == "A":
+                    logger.info("Classificado como TAREFA NOVA (após verificação final). Resetando checklist e current_step.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Iniciando uma nova tarefa: '{summary if summary else user_response_content_for_memory}'. Vou resetar o checklist anterior."
+                    ))
+                    self._new_task_directive_received = True
+                    self.current_step = 0
+                elif classification == "B":
+                    logger.info("Classificado como MODIFICAÇÃO/CONTINUAÇÃO (após verificação final). Mantendo checklist.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Vou incorporar suas modificações/instruções à tarefa atual: '{summary if summary else user_response_content_for_memory}'."
+                    ))
+                    self._new_task_directive_received = False
+                else: # classification == "C" or fallback
+                    logger.info("Classificado como ESCLARECIMENTO/PERGUNTA ou fallback (após verificação final). Mantendo checklist.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Processando sua pergunta/esclarecimento: '{summary if summary else user_response_content_for_memory}'."
+                    ))
+                    self._new_task_directive_received = False
+
                 self.state = AgentState.RUNNING
                 self._just_resumed_from_feedback = True
-                return False
+                return False # Sempre retorna False para que think() seja chamado
         else: # Not a final check (normal periodic check-in)
             if user_response_text == "parar":
                 self.state = AgentState.USER_HALTED
@@ -1773,10 +1864,38 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
                 self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
                 self._just_resumed_from_feedback = True
                 return True # Continue execution by returning True to should_request_feedback
-            else: # Unrecognized response during normal check-in, treat as new instructions
-                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante check-in periódico. Tratando como novas instruções.")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Recebi novas instruções: '{user_response_content_for_memory}'. Vou reavaliar o plano."))
-                self._new_task_directive_received = True
+            else: # Unrecognized response during normal check-in
+                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante check-in periódico. Classificando intenção...")
+
+                # Preparar contexto para classificação
+                history_for_classification = "\n".join([f"{msg.role.value}: {msg.content}" for msg in self.memory.messages[-3:]]) # Últimas 3 mensagens
+
+                classification, summary = await self._classify_user_directive(
+                    user_directive=user_response_content_for_memory, # Usar o conteúdo original
+                    checklist_content=checklist_content_str, # Já carregado para autoanálise
+                    conversation_history=history_for_classification
+                )
+
+                if classification == "A":
+                    logger.info("Classificado como TAREFA NOVA. Resetando checklist e current_step.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Iniciando uma nova tarefa: '{summary if summary else user_response_content_for_memory}'. Vou resetar o checklist anterior."
+                    ))
+                    self._new_task_directive_received = True
+                    self.current_step = 0 # Força o reset do checklist e reinício da contagem de passos no think()
+                elif classification == "B":
+                    logger.info("Classificado como MODIFICAÇÃO/CONTINUAÇÃO. Mantendo checklist.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Vou continuar a tarefa atual com as seguintes modificações/instruções: '{summary if summary else user_response_content_for_memory}'."
+                    ))
+                    self._new_task_directive_received = False
+                else: # classification == "C" or fallback
+                    logger.info("Classificado como ESCLARECIMENTO/PERGUNTA ou fallback. Mantendo checklist.")
+                    self.memory.add_message(Message.assistant_message(
+                        f"Entendido. Processando sua pergunta/esclarecimento: '{summary if summary else user_response_content_for_memory}'."
+                    ))
+                    self._new_task_directive_received = False
+
                 self.state = AgentState.RUNNING
                 self._just_resumed_from_feedback = True
-                return False
+                return False # Sempre retorna False para que think() seja chamado

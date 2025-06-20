@@ -561,4 +561,3 @@ class ToolCallAgent(ReActAgent):
                  await SANDBOX_CLIENT.cleanup()
             logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
 
-# ```
