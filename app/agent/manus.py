@@ -727,101 +727,53 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             await self.initialize_mcp_servers()
             self._initialized = True
 
-        # --- Lógica de Verificação Inicial do Checklist ---
-        # self.current_step é 0 na primeira chamada a `run`, e se torna 1 na primeira chamada a `think` via `super().run()`
-        # No entanto, o loop em ToolCallAgent.run incrementa current_step *antes* de chamar self.step() (que chama think).
-        # Então, a primeira vez que este `think` é chamado, current_step já é 1.
-        if self.current_step == 1:
-            first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None)
-            if first_user_message:
-                current_user_prompt = first_user_message.content
+        # --- Lógica de Verificação Inicial e Reset Automático do Checklist ---
+        if self.current_step == 1: # Indica o início de uma nova interação/tarefa principal
+            logger.info("Início de nova tarefa (current_step == 1). Verificando necessidade de resetar checklist.")
+            checklist_path = config.workspace_root / "checklist_principal_tarefa.md"
+            local_op = LocalFileOperator()
 
-                try:
-                    checklist_manager = ChecklistManager()
-                    await checklist_manager._load_checklist() # Carrega o checklist existente
+            try:
+                # Verificar se o checklist existe e não está vazio, indicando uma tarefa anterior.
+                # A lógica exata para "não vazio" pode ser refinada (ex: verificar se tem mais que um header).
+                # Por agora, a simples existência já é um gatilho.
+                if await local_op.exists(str(checklist_path)):
+                    # Se o arquivo de checklist existe, é uma indicação de que uma tarefa anterior pode ter existido.
+                    # Automaticamente reseta o checklist.
+                    logger.info(f"Checklist anterior encontrado em '{checklist_path}'. Resetando automaticamente para a nova tarefa.")
 
-                    if checklist_manager.get_tasks(): # Se existem tarefas
-                        # Verifica se há tarefas não concluídas
-                        has_pending_or_in_progress = any(
-                            task.get('status', '').lower() not in ['concluído', 'concluido', 'finalizado']
-                            for task in checklist_manager.get_tasks()
+                    reset_tool_name = ResetCurrentTaskChecklistTool().name # Obter nome da ferramenta dinamicamente
+                    reset_tool_call_id = str(uuid.uuid4())
+
+                    self.tool_calls = [
+                        ToolCall(
+                            id=reset_tool_call_id,
+                            function=FunctionCall(
+                                name=reset_tool_name,
+                                arguments=json.dumps({}) # Reset não precisa de args
+                            )
                         )
-
-                        if has_pending_or_in_progress:
-                            logger.info(f"Checklist existente com tarefas pendentes/em andamento encontrado no início da nova interação com prompt: '{current_user_prompt[:100]}...'")
-                            # Adicionar uma mensagem ao sistema para o LLM considerar
-                            # O LLM então decidirá se pergunta ao usuário, limpa o checklist, etc.
-                            system_message_for_llm = (
-                                "INSTRUÇÃO IMPORTANTE: Um novo prompt do usuário foi recebido, mas existe um checklist de uma tarefa anterior "
-                                "com itens pendentes ou em andamento. Analise o novo prompt do usuário e o checklist existente (que será "
-                                "mostrado a você se você usar 'view_checklist').\n"
-                                "Decida se o novo prompt é uma continuação da tarefa anterior ou uma tarefa completamente nova.\n"
-                                "- Se for uma CONTINUAÇÃO ou MODIFICAÇÃO da tarefa anterior, prossiga normalmente, atualizando o checklist conforme necessário.\n"
-                                "- Se parecer uma TAREFA COMPLETAMENTE NOVA e não relacionada:\n"
-                                "  1. Use a ferramenta 'ask_human' para perguntar ao usuário: 'Detectei um novo pedido: \"{user_prompt_summary}\". "
-                                "Você gostaria de descartar o checklist da tarefa anterior e iniciar um novo para este pedido? "
-                                "Responda \"sim, limpar e iniciar novo\" ou \"não, continuar anterior\".'\n"
-                                # A Etapa 2 da instrução (limpeza do checklist) será tratada diretamente no código abaixo
-                                # se o usuário confirmar, em vez de depender do LLM para chamar a ferramenta correta.
-                                "  2. Se o usuário responder 'sim, limpar e iniciar novo' (ou uma variação afirmativa), o sistema tentará limpar o checklist anterior. Você deverá então focar em decompor o novo pedido.\n"
-                                "  3. Se o usuário responder 'não, continuar anterior', informe que você continuará a tarefa anterior e ignore o novo prompt por enquanto (ou tente integrá-lo se fizer sentido)."
-                            ).format(user_prompt_summary=current_user_prompt[:70] + "...")
-
-                            self.memory.add_message(Message.system_message(system_message_for_llm))
-                            # Não retorna True aqui, deixa o LLM processar esta instrução no seu fluxo normal de `think`.
-                            # A decisão de chamar AskHuman será do LLM.
-                except FileNotFoundError:
-                    logger.info("Nenhum arquivo de checklist anterior encontrado. Procedendo normalmente com o novo prompt.")
-                except Exception as e_checklist_check:
-                    logger.error(f"Erro ao verificar checklist existente no início da tarefa: {e_checklist_check}")
-
-        # --- Processamento da Resposta do Usuário para Limpeza de Checklist (se aplicável) ---
-        # Esta seção é nova e lida com a ação direta de limpar o checklist.
-        if len(self.memory.messages) >= 2:
-            last_user_msg = self.memory.messages[-1]
-            prev_assistant_msg_tool_call = self.memory.messages[-2] # Mensagem da ferramenta AskHuman
-
-            if last_user_msg.role == Role.USER and \
-               prev_assistant_msg_tool_call.role == Role.TOOL and \
-               hasattr(prev_assistant_msg_tool_call, 'name') and prev_assistant_msg_tool_call.name == AskHuman().name and \
-               "descartar o checklist da tarefa anterior" in prev_assistant_msg_tool_call.content: # Verifica se foi a pergunta sobre o checklist
-
-                user_response_lower = last_user_msg.content.strip().lower()
-                # Check for affirmative responses like "sim", "sim, limpar", "sim, descarte", "sim, pode limpar" etc.
-                if user_response_lower.startswith("sim"):
-                    logger.info(f"Usuário confirmou limpar o checklist anterior. Resposta: '{last_user_msg.content}'")
-                    checklist_path_to_delete = str(config.workspace_root / "checklist_principal_tarefa.md")
-                    try:
-                        op = LocalFileOperator()
-                        await op.delete_file(checklist_path_to_delete) # Usa o novo método delete_file
-                        self.memory.add_message(Message.system_message(
-                            "AÇÃO DO SISTEMA: O checklist da tarefa anterior foi limpo conforme solicitado pelo usuário. "
-                            "Por favor, proceda com a decomposição da nova tarefa solicitada e crie um novo checklist para ela."
-                        ))
-                        logger.info(f"Checklist anterior em '{checklist_path_to_delete}' deletado com sucesso.")
-                        # Forçar o LLM a repensar com o novo estado (checklist limpo)
-                        # Limpar self.tool_calls para garantir que o LLM gere novas ações.
-                        self.tool_calls = []
-                        # Atualizar o prompt inicial para o crítico, pois uma nova tarefa está começando.
-                        # A `current_user_prompt` da lógica de verificação inicial do checklist (no início de `think`)
-                        # é o prompt que levou a esta nova tarefa.
-                        if hasattr(self, 'initial_user_prompt_for_critic') and current_user_prompt:
-                            self.initial_user_prompt_for_critic = current_user_prompt
-                            logger.info(f"Prompt inicial para o crítico atualizado para: '{current_user_prompt[:100]}...'")
-
-                        # O LLM no próximo ciclo de `super().think()` verá a mensagem do sistema e agirá.
-                    except Exception as e_delete_checklist:
-                        logger.error(f"Falha ao tentar deletar o checklist anterior ({checklist_path_to_delete}) diretamente: {e_delete_checklist}")
-                        self.memory.add_message(Message.system_message(
-                            f"ERRO DO SISTEMA: Falha ao tentar limpar o checklist da tarefa anterior. Erro: {e_delete_checklist}. "
-                            "Por favor, tente limpar o checklist manualmente usando as ferramentas disponíveis ou informe o usuário."
-                        ))
+                    ]
+                    # Adicionar uma mensagem ao assistente para que o LLM saiba que o reset ocorreu/está ocorrendo.
+                    # E também para que o usuário veja esta ação.
+                    self.memory.add_message(Message.assistant_message(
+                        content="Detectada uma nova tarefa. Resetando o checklist da tarefa anterior para começar do zero.",
+                        tool_calls=self.tool_calls
+                    ))
+                    # Força a execução desta ferramenta de reset e depois o LLM pensará novamente.
+                    return True # Indica que uma ação (reset) foi planejada e deve ser executada.
                 else:
-                    logger.info(f"Usuário não confirmou a limpeza do checklist anterior. Resposta: '{last_user_msg.content}'")
-                    # O LLM deve ter sido instruído a continuar com a tarefa anterior neste caso.
-        # --- Fim da Lógica de Verificação Inicial do Checklist e Processamento da Limpeza ---
+                    logger.info(f"Nenhum checklist anterior encontrado em '{checklist_path}'. Procedendo com a criação normal do checklist pela lógica do LLM.")
+                    # Se o checklist não existe, o fluxo normal do LLM (que deve criar o checklist) continua.
+                    # Nenhuma ação forçada aqui.
+            except Exception as e_reset_check:
+                logger.error(f"Erro ao verificar/tentar resetar checklist automaticamente: {e_reset_check}")
+                # Em caso de erro aqui, é mais seguro deixar o LLM tentar lidar com a situação
+                # em vez de potencialmente bloquear o agente. O LLM ainda deve tentar criar o checklist.
 
-        # Check for autonomous mode trigger in initial user prompt
+        # --- Fim da Lógica de Reset Automático do Checklist ---
+
+        # Check for autonomous mode trigger in initial user prompt (manter esta lógica)
         # Esta verificação de modo autônomo também deve ocorrer idealmente apenas uma vez no início.
         if self.current_step == 1 and not self._autonomous_mode:
             first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None) # Re-obter, pode ter sido modificado

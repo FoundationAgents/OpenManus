@@ -31,8 +31,17 @@ class ChecklistManager:
         # _load_checklist will be called explicitly by the tool after instantiation if needed.
 
     def _normalize_description(self, description: str) -> str:
-        """Normalizes a task description for comparison (case-insensitive, strips whitespace)."""
-        return description.strip().lower()
+        """
+        Normalizes a task description for comparison.
+        - Converts to lowercase.
+        - Strips leading/trailing whitespace.
+        - Removes agent tags like "[Agente: ...]" for matching purposes.
+        """
+        # Remove agent tag if present, e.g., "[Agente: Manus] "
+        # This regex matches "[Agente: any_non_bracket_chars] " (note the trailing space)
+        # and also handles cases where there might not be a space after the tag.
+        normalized_desc = re.sub(r"\[Agente:\s*[^\]]+\]\s*", "", description, flags=re.IGNORECASE)
+        return normalized_desc.strip().lower()
 
     async def _load_checklist(self):
         """
@@ -123,16 +132,23 @@ class ChecklistManager:
         logger.info(
             f"Rewriting checklist file at: {self.checklist_path} with {len(self.tasks)} tasks."
         )
-        content_to_write = []
-        for task in self.tasks:
-            agent_part = f" [Agente: {task['agent']}]" if task.get("agent") else ""
-            content_to_write.append(
-                f"- [{task['status']}]" + agent_part + f" {task['description']}"
-            )
+        content_to_write_list = []
+        if self.tasks: # Only write tasks if there are any
+            for task in self.tasks:
+                agent_part = f" [Agente: {task['agent']}]" if task.get("agent") else ""
+                content_to_write_list.append(
+                    f"- [{task['status']}]" + agent_part + f" {task['description']}"
+                )
+            content_final = "\n".join(content_to_write_list) + "\n"
+        else:
+            # If there are no tasks (e.g., after a reset), write an empty file
+            # or a file with just a header, depending on how _load_checklist handles it.
+            # For simplicity and robustness, writing an empty string for an empty checklist.
+            content_final = "" # Empty content for an empty checklist
 
         try:
             await self.file_operator.write_file(
-                str(self.checklist_path), "\n".join(content_to_write) + "\n"
+                str(self.checklist_path), content_final
             )
             # Success log is now part of the calling logger.info line
         except ToolError as e:
@@ -141,6 +157,12 @@ class ChecklistManager:
             logger.error(
                 f"Unexpected error writing checklist file {self.checklist_path}: {e}"
             )
+
+    async def reset_checklist(self):
+        """Resets the checklist to an empty state."""
+        logger.info(f"Resetting checklist at {self.checklist_path}.")
+        self.tasks = []
+        await self._rewrite_checklist_file() # This will now write an empty file
 
     def get_tasks(self) -> List[Dict[str, str]]:
         """
