@@ -558,58 +558,75 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             return True
 
         # --- Lógica de Verificação Inicial e Reset Automático do Checklist ---
-        if self.current_step == 1:
-            if not self._reset_initiated_by_new_directive:
-                logger.info("Início de nova tarefa (current_step == 1) e nenhum reset por diretiva recente. Verificando necessidade de resetar checklist existente.")
-                checklist_path = config.workspace_root / "checklist_principal_tarefa.md"
-                local_op = LocalFileOperator()
-                try:
-                    if await local_op.exists(str(checklist_path)):
-                        # Verificar se o checklist não está vazio pode ser uma otimização,
-                        # mas resetar um checklist já vazio não é problemático.
-                        logger.info(f"Checklist anterior encontrado em '{checklist_path}'. Resetando automaticamente para a nova tarefa.")
-                        reset_tool_name = ResetCurrentTaskChecklistTool().name
-                        self.tool_calls = [
-                            ToolCall(
-                                id=str(uuid.uuid4()),
-                                function=FunctionCall(name=reset_tool_name, arguments=json.dumps({}))
-                            )
-                        ]
-                        self.memory.add_message(Message.from_tool_calls(
-                            tool_calls=self.tool_calls,
-                            content="Detectado início de tarefa com checklist existente. Resetando o checklist da tarefa anterior para começar do zero."
-                        ))
-                        self._reset_initiated_by_new_directive = True # Sinaliza que um reset ocorreu nesta fase inicial
-                        return True
-                    else:
-                        logger.info(f"Nenhum checklist anterior encontrado em '{checklist_path}'. Procedendo com a criação normal do checklist pelo LLM.")
-                except Exception as e_reset_check:
-                    logger.error(f"Erro ao verificar/tentar resetar checklist automaticamente no current_step == 1: {e_reset_check}")
+        # --- Lógica de Edição Manual do Checklist ---
+        # Esta lógica será acionada se for o início de uma nova interação principal (novo prompt do usuário)
+        # ou se _new_task_directive_received foi setado por periodic_user_check_in.
+        # A flag _reset_initiated_by_new_directive ajuda a coordenar isso.
+
+        # Se um novo prompt de usuário foi recebido e ainda não processamos a edição do checklist para ele.
+        # self.current_step == 1 é um bom indicador de um novo ciclo de 'run' principal.
+        # _new_task_directive_received seria True se periodic_user_check_in classificou como TAREFA NOVA.
+
+        # Condição para invocar o editor de checklist:
+        # 1. É o primeiro passo de pensamento para o prompt atual do usuário.
+        # 2. Ou, _new_task_directive_received foi explicitamente definido como True (vindo de periodic_user_check_in).
+        # A flag _just_resumed_from_feedback_internal é usada para evitar re-editar o checklist
+        # imediatamente após o usuário responder a um periodic_user_check_in que *não* era para uma nova tarefa.
+
+        # Heurística: se a última mensagem não for do assistente (ou seja, é do usuário ou sistema),
+        # e não acabamos de resumir de um feedback que não era uma nova tarefa,
+        # então provavelmente é um novo input do usuário que precisa de edição do checklist.
+        last_msg_role = self.memory.messages[-1].role if self.memory.messages else None
+
+        # Invocaremos o editor do checklist se:
+        # - For o primeiro passo (novo prompt principal).
+        # - Ou se uma nova diretiva de tarefa foi sinalizada (vindo de periodic_user_check_in).
+        # - E não acabamos de voltar de um feedback que era apenas uma continuação.
+        needs_checklist_edit = False
+        if self.current_step == 1 and not self._just_resumed_from_feedback_internal:
+            needs_checklist_edit = True
+            logger.info("Manus.think: current_step == 1 e não resumindo de feedback de continuação. Edição de checklist necessária.")
+        elif hasattr(self, '_new_task_directive_received') and self._new_task_directive_received:
+            needs_checklist_edit = True
+            logger.info("Manus.think: _new_task_directive_received é True. Edição de checklist necessária.")
+
+        if needs_checklist_edit:
+            edited_successfully = await self._handle_checklist_editing_cycle()
+            # Resetar a flag _new_task_directive_received após a tentativa de edição.
+            if hasattr(self, '_new_task_directive_received') and self._new_task_directive_received:
+                self._new_task_directive_received = False # Consumir a flag
+
+            if not edited_successfully:
+                logger.error("Manus.think: Ciclo de edição do checklist falhou ou não produziu um checklist válido. O agente pode não conseguir prosseguir corretamente.")
             else:
-                logger.info("current_step == 1, mas um reset por nova diretiva já ocorreu. Pulando reset automático.")
+                logger.info("Manus.think: Checklist editado com sucesso. Prosseguindo com o `super().think()`.")
 
-            # Limpar a flag _reset_initiated_by_new_directive aqui, pois current_step == 1 já foi processado
-            # e o LLM agora deve pensar sobre o conteúdo inicial do checklist.
-            self._reset_initiated_by_new_directive = False
+        self._just_resumed_from_feedback_internal = False
+        # --- Fim da Lógica de Edição Manual do Checklist ---
 
-        # --- Fim da Lógica de Reset Automático do Checklist ---
 
         # Check for autonomous mode trigger in initial user prompt
-        # Esta verificação de modo autônomo também deve ocorrer idealmente apenas uma vez no início.
+        # Esta verificação só faz sentido no primeiro ciclo real de `think` para um novo prompt do usuário.
+        # `self.current_step == 1` e `not self._autonomous_mode` é uma boa condição.
         if self.current_step == 1 and not self._autonomous_mode:
-            first_user_message = next((msg for msg in self.memory.messages if msg.role == Role.USER), None) # Re-obter, pode ter sido modificado
-            if first_user_message: # first_user_message pode ser None se a memória foi limpa
-                prompt_content = first_user_message.content.strip().lower()
+            # Encontra a última mensagem do usuário para verificar o comando de modo autônomo.
+            # Isso é mais robusto do que assumir que a primeira mensagem na memória é o prompt atual.
+            last_user_message_for_autonomy_check = None
+            for msg_idx in range(len(self.memory.messages) -1, -1, -1):
+                if self.memory.messages[msg_idx].role == Role.USER:
+                    last_user_message_for_autonomy_check = self.memory.messages[msg_idx]
+                    break
+
+            if last_user_message_for_autonomy_check and last_user_message_for_autonomy_check.content:
+                prompt_content = last_user_message_for_autonomy_check.content.strip().lower()
                 if prompt_content.startswith("execute em modo autônomo:") or prompt_content.startswith("modo autônomo:"):
                     self._autonomous_mode = True
                     logger.info("Modo autônomo ativado por prompt do usuário.")
-                    # Opcional: Remover a frase gatilho do prompt para não confundir o LLM depois
-                    # clean_prompt = prompt_content.replace("execute em modo autônomo:", "").replace("modo autônomo:", "").strip()
-                    # first_user_message.content = clean_prompt
-                    # (Cuidado ao modificar self.memory.messages diretamente, pode ser melhor adicionar uma msg do sistema)
                     self.memory.add_message(Message.assistant_message("Modo autônomo ativado. Não pedirei permissão para continuar a cada ciclo de etapas."))
+                    # Opcional: Remover a frase gatilho do prompt para não confundir o LLM depois
+                    # No entanto, isso pode ser complexo se a mensagem do usuário já foi usada para edição do checklist.
+                    # É mais seguro apenas adicionar a mensagem do assistente e deixar o LLM ignorar a frase gatilho.
 
-        # Sandbox Execution Fallback Logic: Detects sandbox creation failure and asks user for direct execution.
         last_message = self.memory.messages[-1] if self.memory.messages else None
         # Etapa A: Detectar falha do SandboxPythonExecutor e perguntar ao usuário
         if (
