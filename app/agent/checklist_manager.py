@@ -27,8 +27,10 @@ class ChecklistManager:
         ] = (
             []
         )  # e.g., [{'description': 'Do X', 'status': 'Pendente', 'agent': 'Manus'}]
+        self.notes_content: str = "" # Armazena o conteúdo da seção de notas
         self.file_operator = LocalFileOperator()
-        # _load_checklist will be called explicitly by the tool after instantiation if needed.
+        # _load_checklist will be called explicitly by the tool after instantiation if needed,
+        # or by methods that require the latest checklist state before modification.
 
     def _normalize_description(self, description: str) -> str:
         """
@@ -58,25 +60,36 @@ class ChecklistManager:
 
             if not content:  # Handles empty file content
                 logger.info(
-                    f"Checklist file at {self.checklist_path} is empty. Initializing with empty task list."
+                    f"Checklist file at {self.checklist_path} is empty. Initializing with empty task list and notes."
                 )
                 self.tasks = []
+                self.notes_content = self._get_default_notes_header()
                 return
 
+            # Separar checklist de notas
+            parts = content.split(self._get_notes_delimiter_regex(), 1)
+            checklist_part = parts[0]
+            if len(parts) > 1:
+                self.notes_content = self._get_notes_delimiter_text() + parts[1].strip()
+            else:
+                self.notes_content = self._get_default_notes_header()
+
+
             self.tasks = []  # Reset tasks before loading
-            # Pattern to match: - [Status] [Agent: NAME] Description (agent part optional)
-            # Status can be Pendente, Em Andamento, Concluído, Bloqueado (case insensitive)
             task_pattern = re.compile(
                 r"-\s*\[(Pendente|Em Andamento|Concluído|Bloqueado)\]\s*(?:\[Agente:\s*(?P<agent>[^\]]+)\]\s*)?(?P<desc>.+)",
                 re.IGNORECASE,
             )
-            for line_number, line in enumerate(content.splitlines()):
+            for line_number, line in enumerate(checklist_part.splitlines()):
                 line = line.strip()
                 if not line:  # Skip empty lines
                     continue
+                if line.startswith("# Checklist Principal de Tarefas"): # Ignorar o cabeçalho do checklist
+                    continue
+
                 match = task_pattern.match(line)
                 if match:
-                    status = match.group(1).capitalize()  # Normalize status
+                    status = match.group(1).capitalize()
                     agent = match.group("agent")
                     description = match.group("desc").strip()
                     task_entry = {
@@ -86,75 +99,82 @@ class ChecklistManager:
                     }
                     self.tasks.append(task_entry)
                 elif line.startswith("#"):
-                    # Silently ignore lines starting with # (comments/headers)
                     pass
                 else:
-                    # Log other lines that don't match the expected format and are not comments
-                    # Changed from warning to debug to reduce noise for non-critical parsing issues.
                     logger.debug(
                         f"Could not parse checklist line: '{line}' in file {self.checklist_path} at line {line_number + 1}. Skipping."
                     )
-
-            logger.info(f"Loaded {len(self.tasks)} tasks from {self.checklist_path}.")
+            logger.info(f"Loaded {len(self.tasks)} tasks and notes section from {self.checklist_path}.")
 
         except ToolError as e:
-            # Assuming ToolError from LocalFileOperator wraps FileNotFoundError or similar
-            # The LocalFileOperator.read_file should ideally raise a specific FileNotFoundError
-            # that can be caught, or its ToolError should clearly indicate "file not found".
-            # For now, we check the string representation as before, but ideally,
-            # LocalFileOperator().read_file would raise FileNotFoundError directly
-            # if app.exceptions.ToolError is a wrapper.
-            # If LocalFileOperator can raise FileNotFoundError directly (e.g. if it's not caught and wrapped by ToolError):
-            # except FileNotFoundError:
-            #    logger.info(f"Arquivo de checklist '{self.checklist_path}' não encontrado. Iniciando com uma checklist vazia.")
-            #    self.tasks = []
-            #
-            # Given the current structure (ToolError wrapping), we stick to string checking for "File not found"
             if "File not found" in str(e) or "No such file or directory" in str(e):
-                # This is the specific log message requested by the issue for FileNotFoundError
                 logger.info(
-                    f"Arquivo de checklist '{self.checklist_path}' não encontrado. Iniciando com uma checklist vazia."
+                    f"Arquivo de checklist '{self.checklist_path}' não encontrado. Iniciando com uma checklist e notas vazias."
                 )
             else:
-                # Log other ToolErrors
                 logger.error(
                     f"ToolError occurred while reading checklist file {self.checklist_path}: {e}"
                 )
-            self.tasks = []  # Initialize with empty list for any ToolError
-
+            self.tasks = []
+            self.notes_content = self._get_default_notes_header()
         except Exception as e:
-            # Catch any other unexpected errors during loading/parsing
             logger.error(
                 f"Unexpected error while loading checklist {self.checklist_path}: {e}"
             )
-            self.tasks = []  # Initialize with empty list for safety
+            self.tasks = []
+            self.notes_content = self._get_default_notes_header()
+
+    def _get_notes_delimiter_regex(self) -> str:
+        return r"\n---\s*\n# Área de Notas e Comentários\n"
+
+    def _get_notes_delimiter_text(self) -> str:
+        return "\n---\n# Área de Notas e Comentários\n"
+
+    def _get_default_notes_header(self) -> str:
+        return "# Área de Notas e Comentários\n"
 
     async def _rewrite_checklist_file(self):
         """
-        Rewrites the checklist file with the current tasks.
+        Rewrites the checklist file with the current tasks and notes.
         """
         logger.info(
-            f"Rewriting checklist file at: {self.checklist_path} with {len(self.tasks)} tasks."
+            f"Rewriting checklist file at: {self.checklist_path} with {len(self.tasks)} tasks and notes."
         )
-        content_to_write_list = []
-        if self.tasks: # Only write tasks if there are any
+
+        # Format tasks
+        task_lines = ["# Checklist Principal de Tarefas\n"] # Adiciona cabeçalho para as tarefas
+        if self.tasks:
             for task in self.tasks:
                 agent_part = f" [Agente: {task['agent']}]" if task.get("agent") else ""
-                content_to_write_list.append(
+                task_lines.append(
                     f"- [{task['status']}]" + agent_part + f" {task['description']}"
                 )
-            content_final = "\n".join(content_to_write_list) + "\n"
-        else:
-            # If there are no tasks (e.g., after a reset), write an empty file
-            # or a file with just a header, depending on how _load_checklist handles it.
-            # For simplicity and robustness, writing an empty string for an empty checklist.
-            content_final = "" # Empty content for an empty checklist
+
+        # Ensure notes_content has the header if it's empty or missing
+        current_notes = self.notes_content if self.notes_content and self.notes_content.strip() else self._get_default_notes_header()
+        if not current_notes.strip().startswith("# Área de Notas e Comentários"):
+            current_notes = self._get_default_notes_header() + current_notes.strip()
+
+
+        # Combine tasks and notes
+        # If there are tasks, add a newline after them before the delimiter.
+        # If no tasks, the checklist_part will just be the header.
+        checklist_part_str = "\n".join(task_lines)
+        if self.tasks: # Adiciona uma linha em branco extra se houver tarefas, antes do delimitador de notas
+            checklist_part_str += "\n"
+
+        content_final = checklist_part_str + self._get_notes_delimiter_text() + current_notes.split(self._get_notes_delimiter_text(), 1)[-1].strip()
+
+        # Para garantir que sempre haja uma nova linha no final do arquivo, se houver conteúdo.
+        if content_final.strip():
+            content_final = content_final.rstrip() + "\n"
+        else: # Se o arquivo estiver completamente vazio (sem tarefas, sem notas)
+            content_final = "\n" # Escreve apenas uma nova linha para um arquivo "vazio" mas existente
 
         try:
             await self.file_operator.write_file(
                 str(self.checklist_path), content_final
             )
-            # Success log is now part of the calling logger.info line
         except ToolError as e:
             logger.error(f"Error writing checklist file {self.checklist_path}: {e}")
         except Exception as e:
@@ -163,14 +183,22 @@ class ChecklistManager:
             )
 
     async def reset_checklist(self):
-        """Resets the checklist to an empty state."""
+        """Resets the checklist tasks and notes to an empty state, keeping the notes header."""
         logger.info(f"Resetting checklist at {self.checklist_path}.")
         self.tasks = []
-        await self._rewrite_checklist_file() # This will now write an empty file
+        self.notes_content = self._get_default_notes_header() # Mantém o cabeçalho das notas
+        await self._rewrite_checklist_file()
+
+    def get_tasks_and_notes(self) -> Tuple[List[Dict[str, str]], str]:
+        """
+        Returns a copy of the current tasks and the current notes content.
+        """
+        return [task.copy() for task in self.tasks], self.notes_content
 
     def get_tasks(self) -> List[Dict[str, str]]:
         """
         Returns a copy of the current tasks.
+        (Mantido para compatibilidade com ferramentas existentes que só precisam das tarefas)
         """
         return [task.copy() for task in self.tasks]
 
