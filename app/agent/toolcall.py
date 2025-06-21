@@ -8,6 +8,7 @@ from pydantic import Field
 from app.config import config
 
 from app.agent.react import ReActAgent
+from app.agent.base import BaseAgent
 from app.exceptions import TokenLimitExceeded, AgentEnvironmentError
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -56,7 +57,7 @@ class ToolCallAgent(BaseAgent):
     initial_user_prompt_for_critic: Optional[str] = None
 
 
-    event_bus: RedisEventBus # Injetado no construtor
+    event_bus: RedisEventBus = Field(..., description="Event bus para comunicação entre agentes e ferramentas")
     # checkpointer: Optional[PostgreSQLCheckpointer] = None # Injetado se necessário
 
     current_workflow_id: Optional[UUID] = None
@@ -71,8 +72,8 @@ class ToolCallAgent(BaseAgent):
 
 
     def __init__(self, event_bus: RedisEventBus, **data: Any):
+        data['event_bus'] = event_bus
         super().__init__(**data)
-        self.event_bus = event_bus
         # Se available_tools não for definido pela subclasse, inicializar vazio
         if not isinstance(self.available_tools, ToolCollection):
             self.available_tools = ToolCollection()
@@ -425,7 +426,11 @@ class ToolCallAgent(BaseAgent):
     async def _handle_special_tool(self, name: str, result: Any, **kwargs):
         if not self._is_special_tool(name):
             return
-        if self._should_finish_execution(name=name, result=result, **kwargs):
+        # Se for ask_human, aguarda input humano
+        if name.lower() == "ask_human":
+            logger.info(f"🕒 Special tool '{name}' requisitou input humano. Mudando estado para AWAITING_USER_FEEDBACK.")
+            self.state = AgentState.AWAITING_USER_FEEDBACK
+        elif self._should_finish_execution(name=name, result=result, **kwargs):
             logger.info(f"🏁 Special tool '{name}' has completed the task!")
             self.state = AgentState.FINISHED
 
@@ -495,11 +500,17 @@ class ToolCallAgent(BaseAgent):
             if self.current_step == 0:
                  self.steps_since_last_critic_review = 0
 
-            while self.state == AgentState.RUNNING:
+            max_steps_per_run = 3  # Limite de passos por execução
+            steps_this_run = 0
+            while self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run:
                 async with self.state_context(AgentState.RUNNING):
-                    while self.state not in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.USER_PAUSED]:
+                    while self.state not in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.USER_PAUSED, AgentState.AWAITING_USER_FEEDBACK]:
                         self.current_step += 1
                         self.steps_since_last_critic_review += 1
+                        steps_this_run += 1
+                        if steps_this_run >= max_steps_per_run:
+                            logger.info(f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução.")
+                            break
 
                         if hasattr(self, 'user_pause_requested_event') and self.user_pause_requested_event.is_set():
                             self.user_pause_requested_event.clear()

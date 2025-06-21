@@ -6,6 +6,7 @@ import threading
 from app.config import config # Added for workspace directory creation
 
 from app.agent.manus import Manus
+from app.event_bus.redis_bus import RedisEventBus
 from app.logger import logger
 from app.schema import AgentState # Import AgentState
 
@@ -49,7 +50,8 @@ async def main():
         logger.error(f"[main.py] Não foi possível criar o diretório do workspace {config.workspace_root}: {e_mkdir}. Continuando, mas operações de arquivo no workspace podem falhar.")
 
     # Criar e inicializar o agente Manus
-    agent = await Manus.create()
+    event_bus = RedisEventBus()
+    agent = Manus(event_bus=event_bus)
     agent.max_steps = 10 # Máximo de passos por ciclo agent.run()
     logger.info(f"[main.py] Agente criado. agent.max_steps inicial = {agent.max_steps}, estado inicial = {agent.state.value}")
 

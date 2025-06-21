@@ -15,6 +15,11 @@ def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+class RedisConfig:
+    host = "localhost"
+    port = 6379
+    db = 0
+
 PROJECT_ROOT = get_project_root()
 WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
 
@@ -184,6 +189,7 @@ class Config:
                 if not self._initialized:
                     self._config = None
                     self._load_initial_config()
+                    self.redis = RedisConfig()  # Adiciona configuração mínima de Redis
                     self._initialized = True
 
     @staticmethod

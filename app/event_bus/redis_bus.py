@@ -3,6 +3,7 @@ import json
 from typing import Callable, Dict, Optional
 
 import redis.asyncio as redis
+from redis.exceptions import ConnectionError, ResponseError, TimeoutError
 
 from app.config import config
 from app.logger import logger
@@ -35,7 +36,7 @@ class RedisEventBus:
             )
             await self.redis_client.ping()
             logger.info(f"Successfully connected to Redis at {self.redis_host}:{self.redis_port}")
-        except redis.exceptions.ConnectionError as e:
+        except ConnectionError as e:
             logger.error(f"Failed to connect to Redis: {e}")
             self.redis_client = None
             raise
@@ -83,7 +84,7 @@ class RedisEventBus:
                 mkstream=True # Create the stream if it doesn't exist
             )
             logger.info(f"Consumer group '{group_name}' ensured for stream '{stream_name}'.")
-        except redis.exceptions.ResponseError as e:
+        except ResponseError as e:
             if "BUSYGROUP" in str(e):
                 logger.info(f"Consumer group '{group_name}' already exists for stream '{stream_name}'.")
             else:
@@ -169,10 +170,10 @@ class RedisEventBus:
                             await self.redis_client.xack(stream_name, group_name, event_id) # Acknowledge it to remove
 
 
-            except redis.exceptions.TimeoutError: # From XREADGROUP block
+            except TimeoutError: # From XREADGROUP block
                 logger.debug(f"Consumer {consumer_name} for stream {stream_name}: No new messages, continuing.")
                 continue # Timeout is expected, just continue loop
-            except redis.exceptions.ConnectionError as e_conn:
+            except ConnectionError as e_conn:
                 logger.error(f"Consumer {consumer_name}: Redis connection error: {e_conn}. Will attempt to reconnect.")
                 await asyncio.sleep(5) # Wait before attempting to reconnect in the next iteration
             except Exception as e:

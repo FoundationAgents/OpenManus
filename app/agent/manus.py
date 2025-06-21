@@ -23,6 +23,8 @@ from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.sandbox_python_executor import SandboxPythonExecutor
 from app.tool.str_replace_editor import StrReplaceEditor
+from app.tool.code_formatter import FormatPythonCode
+from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool
 from app.tool.file_operators import LocalFileOperator
 from app.tool.read_file_content import ReadFileContentTool
 from app.tool.checklist_tools import ViewChecklistTool, AddChecklistTaskTool, UpdateChecklistTaskTool, ResetCurrentTaskChecklistTool
@@ -98,38 +100,54 @@ class Manus(ToolCallAgent):
     special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name.lower(), AskHuman().name.lower()])
     browser_context_helper: Optional[BrowserContextHelper] = None
 
-  def __init__(self, event_bus: RedisEventBus, **data):
-    super().__init__(event_bus=event_bus, **data)
-    self._mcp_clients = MCPClients()
-    self._checklist_manager = ChecklistManager(
-        checklist_filename=f"manus_internal_checklist_{self.current_subtask_id or 'default'}.md"
-    )
+    def handle_tool_result(self, *args, **kwargs):
+        pass
 
-    self.available_tools = ToolCollection()  # começar vazio e depois adicionar
-    self.available_tools.add_tools(
-        PythonExecute(),
-        BrowserUseTool(),
-        StrReplaceEditor(),
-        AskHuman(),
-        Terminate(),
-        Bash(),
-        SandboxPythonExecutor(),
-        ReadFileContentTool(),
-        ViewChecklistTool(),
-        AddChecklistTaskTool(),
-        UpdateChecklistTaskTool(),
-        ResetCurrentTaskChecklistTool(),
-        CheckFileExistenceTool(),
-        ListFilesTool(),
-        ExecuteBackgroundProcessTool(),
-        CheckProcessStatusTool(),
-        GetProcessOutputTool(),
-        FormatPythonCode(),
-        ReplaceCodeBlock(),
-        ApplyDiffPatch(),
-        ASTRefactorTool(),
-    )
-    self._initialized = False
+    async def step(self):
+        # Lógica padrão: pensar e agir se métodos existirem
+        if hasattr(self, "think") and hasattr(self, "act"):
+            should_act = await self.think()
+            if not should_act:
+                return "Thinking complete - no action needed"
+            return await self.act()
+        return "No step logic implemented"
+
+    async def should_request_feedback(self, *args, **kwargs):
+        return False
+
+    def __init__(self, event_bus: RedisEventBus, **data):
+        data['event_bus'] = event_bus
+        super().__init__(**data)
+        self.current_step = 0
+        self._mcp_clients = MCPClients()
+        self._checklist_manager = ChecklistManager(
+            checklist_filename=f"manus_internal_checklist_{self.current_subtask_id or 'default'}.md"
+        )
+        self.available_tools = ToolCollection()  # começar vazio e depois adicionar
+        self.available_tools.add_tools(
+            PythonExecute(),
+            BrowserUseTool(),
+            StrReplaceEditor(),
+            AskHuman(),
+            Terminate(),
+            Bash(),
+            SandboxPythonExecutor(),
+            ReadFileContentTool(),
+            ViewChecklistTool(),
+            AddChecklistTaskTool(),
+            UpdateChecklistTaskTool(),
+            ResetCurrentTaskChecklistTool(),
+            CheckFileExistenceTool(),
+            ListFilesTool(),
+            ExecuteBackgroundProcessTool(),
+            CheckProcessStatusTool(),
+            GetProcessOutputTool(),
+            FormatPythonCode(),
+            ReplaceCodeBlock(),
+            ApplyDiffPatch(),
+            ASTRefactorTool(),
+        )
+        self._initialized = False
 
 async def _classify_user_directive(
     self,

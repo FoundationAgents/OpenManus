@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from app.config import config
 from app.exceptions import ToolError

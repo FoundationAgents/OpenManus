@@ -54,16 +54,23 @@ class AskHuman(BaseTool):
         try:
             from app.config import config # Late import to ensure config is loaded
             if hasattr(config, 'redis'):
-                self.event_bus = RedisEventBus() # CUIDADO: Isso pode criar múltiplas conexões se não for singleton
+                object.__setattr__(self, 'event_bus', RedisEventBus()) # CUIDADO: Isso pode criar múltiplas conexões se não for singleton
             else:
                 logger.error("AskHuman: Configuração do Redis não encontrada. A ferramenta AskHuman não funcionará.")
-                self.event_bus = None
+                object.__setattr__(self, 'event_bus', None)
         except ImportError:
             logger.error("AskHuman: Falha ao importar config. A ferramenta AskHuman não funcionará.")
-            self.event_bus = None
+            object.__setattr__(self, 'event_bus', None)
         except Exception as e:
             logger.error(f"AskHuman: Erro ao inicializar RedisEventBus: {e}. A ferramenta AskHuman não funcionará.")
-            self.event_bus = None
+            object.__setattr__(self, 'event_bus', None)
+
+    # Sobrescreve __setattr__ para ignorar event_bus como campo Pydantic
+    def __setattr__(self, name, value):
+        if name == "event_bus":
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
 
 
     async def execute(self,

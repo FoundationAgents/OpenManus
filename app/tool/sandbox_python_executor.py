@@ -66,31 +66,32 @@ class SandboxPythonExecutor(BaseTool):
             }
 
         # Validação inicial de parâmetros
+        
+        # Args:
+        #     code: An optional string containing the Python code.
+        #     timeout: Max execution time in seconds. Defaults to 60.
+        #     file_path: An optional string specifying the absolute path to a Python script
+        #                on the host machine (within workspace_root) to be copied and executed.
+        #
+        # Returns:
+        #     A dictionary containing the execution results:
+        #     - "stdout" (str): The standard output from the executed code.
+        #     - "stderr" (str): The standard error output. This will include
+        #                       tracebacks if the Python script raises an unhandled exception.
+        #     - "exit_code" (int): The exit code of the Python script.
+        #                          Typically, 0 indicates success, and non-zero
+        #                          indicates an error. A special exit code 124
+        #                          is used if the execution times out. Other negative
+        #                          values (-1, -2, -3) might indicate internal tool
+        #                          or sandbox errors.
+        #
+        # Raises:
+        #     No explicit exceptions are raised by this method directly to the caller.
+        #     Instead, errors are captured and returned within the result dictionary
+        #     (e.g., in "stderr" and "exit_code").
+        #     - SandboxTimeoutError: If execution exceeds `timeout`, `stderr` will
+        # END DOCSTRING
 
-        Args:
-            code: An optional string containing the Python code.
-            timeout: Max execution time in seconds. Defaults to 60.
-            file_path: An optional string specifying the absolute path to a Python script
-                       on the host machine (within workspace_root) to be copied and executed.
-
-        Returns:
-            A dictionary containing the execution results:
-            - "stdout" (str): The standard output from the executed code.
-            - "stderr" (str): The standard error output. This will include
-                              tracebacks if the Python script raises an unhandled exception.
-            - "exit_code" (int): The exit code of the Python script.
-                                 Typically, 0 indicates success, and non-zero
-                                 indicates an error. A special exit code 124
-                                 is used if the execution times out. Other negative
-                                 values (-1, -2, -3) might indicate internal tool
-                                 or sandbox errors.
-
-        Raises:
-            No explicit exceptions are raised by this method directly to the caller.
-            Instead, errors are captured and returned within the result dictionary
-            (e.g., in "stderr" and "exit_code").
-            - SandboxTimeoutError: If execution exceeds `timeout`, `stderr` will
-        """
         logger.info(f"SandboxPythonExecutor.execute called. Code provided: {bool(code)}, file_path: '{file_path}', timeout: {timeout}")
         # Validação inicial de parâmetros
         if not code and not file_path:
