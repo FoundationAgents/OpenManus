@@ -1,9 +1,18 @@
+import uuid
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.event import (
+    AgentEvent,
+    BaseAgentEvents,
+    EventHandler,
+    EventItem,
+    ReActAgentEvents,
+)
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -42,6 +51,14 @@ class BaseAgent(BaseModel, ABC):
 
     duplicate_threshold: int = 2
 
+    # Events
+    events: AgentEvent = Field(default_factory=AgentEvent, description="Agent events")
+
+    # Termination
+    should_terminate: bool = Field(
+        default=False, description="Whether to terminate the agent"
+    )
+
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"  # Allow extra fields for flexibility in subclasses
@@ -53,6 +70,7 @@ class BaseAgent(BaseModel, ABC):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+        self.events.start()
         return self
 
     @asynccontextmanager
@@ -74,12 +92,24 @@ class BaseAgent(BaseModel, ABC):
         previous_state = self.state
         self.state = new_state
         try:
+            self.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": previous_state.value, "new_state": self.state.value},
+            )
             yield
         except Exception as e:
             self.state = AgentState.ERROR  # Transition to ERROR on failure
+            self.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": self.state.value, "new_state": AgentState.ERROR.value},
+            )
             raise e
         finally:
             self.state = previous_state  # Revert to previous state
+            self.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": self.state.value, "new_state": previous_state.value},
+            )
 
     def update_memory(
         self,
@@ -113,6 +143,11 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
+    @AgentEvent.event_wrapper(
+        before_event=BaseAgentEvents.LIFECYCLE_START,
+        after_event=BaseAgentEvents.LIFECYCLE_COMPLETE,
+        error_event=BaseAgentEvents.LIFECYCLE_ERROR,
+    )
     async def run(self, request: Optional[str] = None) -> str:
         """Execute the agent's main loop asynchronously.
 
@@ -136,12 +171,15 @@ class BaseAgent(BaseModel, ABC):
             while (
                 self.current_step < self.max_steps and self.state != AgentState.FINISHED
             ):
+                if self.should_terminate:
+                    break
                 self.current_step += 1
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 step_result = await self.step()
 
                 # Check for stuck state
                 if self.is_stuck():
+                    self.emit(BaseAgentEvents.STATE_STUCK_DETECTED, {})
                     self.handle_stuck_state()
 
                 results.append(f"Step {self.current_step}: {step_result}")
@@ -149,6 +187,9 @@ class BaseAgent(BaseModel, ABC):
             if self.current_step >= self.max_steps:
                 self.current_step = 0
                 self.state = AgentState.IDLE
+                self.emit(
+                    BaseAgentEvents.STEP_MAX_REACHED, {"max_steps": self.max_steps}
+                )
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
@@ -166,6 +207,9 @@ class BaseAgent(BaseModel, ABC):
         Observed duplicate responses. Consider new strategies and avoid repeating ineffective paths already attempted."
         self.next_step_prompt = f"{stuck_prompt}\n{self.next_step_prompt}"
         logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
+        self.emit(
+            BaseAgentEvents.STATE_STUCK_HANDLED, {"new_prompt": self.next_step_prompt}
+        )
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""
@@ -185,6 +229,72 @@ class BaseAgent(BaseModel, ABC):
 
         return duplicate_count >= self.duplicate_threshold
 
+    def emit(
+        self, name: str, data: Any, options: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Emit an event and add it to the processing queue.
+
+        Args:
+            name: The name of the event to emit
+            data: Event data dictionary
+            options: Optional event options
+
+        Example:
+            ```python
+            # Simple event emission
+            agent.emit("agent:state:change", {
+                "old_state": old_state.value,
+                "new_state": new_state.value
+            })
+
+            # Subscribe to events with regex pattern
+            async def on_state_events(event: EventItem):
+                print(f"Event {event.name}: State changed from {event.old_state} to {event.new_state}")
+
+            agent.on("agent:state:.*", on_state_events)
+            ```
+        """
+        if options is None:
+            options = {}
+        if "id" not in options or options["id"] is None or options["id"] == "":
+            options["id"] = str(uuid.uuid4())
+        event = EventItem(
+            id=options.get("id"),
+            parent_id=options.get("parent_id"),
+            name=name,
+            step=self.current_step,
+            timestamp=datetime.now(),
+            content=data,
+        )
+        self.events.put(event)
+
+    def on(self, event_pattern: str, handler: EventHandler) -> None:
+        """Register an event handler for events matching the specified pattern.
+
+        Args:
+            event_pattern: Regex pattern to match event names
+            handler: The async function to be called when matching events occur.
+                    The handler must accept event as its first parameter.
+
+        Example:
+            ```python
+            # Subscribe to all lifecycle events
+            async def on_lifecycle(event: EventItem):
+                print(f"Lifecycle event {event.name} occurred with data: {event.content}")
+
+            agent.on("agent:lifecycle:.*", on_lifecycle)
+
+            # Subscribe to specific state changes
+            async def on_state_change(event: EventItem):
+                print(f"State changed from {event.old_state} to {event.new_state}")
+
+            agent.on("agent:state:change", on_state_change)
+            ```
+        """
+        if not callable(handler):
+            raise ValueError("Event handler must be a callable")
+        self.events.add_handler(event_pattern, handler)
+
     @property
     def messages(self) -> List[Message]:
         """Retrieve a list of messages from the agent's memory."""
@@ -194,3 +304,7 @@ class BaseAgent(BaseModel, ABC):
     def messages(self, value: List[Message]):
         """Set the list of messages in the agent's memory."""
         self.memory.messages = value
+
+    def terminate(self):
+        """Request to terminate the current task."""
+        self.should_terminate = True

@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Union
 from pydantic import Field
 
 from app.agent.react import ReActAgent
+from app.event import AgentEvent, ReActAgentEvents, ToolCallAgentEvents
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
@@ -71,7 +72,7 @@ class ToolCallAgent(ReActAgent):
                 self.state = AgentState.FINISHED
                 return False
             raise
-
+        self.emit(ToolCallAgentEvents.TOOL_SELECTED, {"tool_calls": response.tool_calls})
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
         )
@@ -128,6 +129,11 @@ class ToolCallAgent(ReActAgent):
             )
             return False
 
+    @AgentEvent.event_wrapper(
+        before_event=ToolCallAgentEvents.TOOL_START,
+        after_event=ToolCallAgentEvents.TOOL_COMPLETE,
+        error_event=ToolCallAgentEvents.TOOL_ERROR
+    )
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
         if not self.tool_calls:
@@ -139,6 +145,7 @@ class ToolCallAgent(ReActAgent):
 
         results = []
         for command in self.tool_calls:
+            self.emit(ToolCallAgentEvents.TOOL_EXECUTE_START, {"tool_call": command})
             # Reset base64_image for each tool call
             self._current_base64_image = None
 
@@ -160,6 +167,7 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(tool_msg)
             results.append(result)
+            self.emit(ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE, {"tool_call": command, "result": result})
 
         return "\n\n".join(results)
 
