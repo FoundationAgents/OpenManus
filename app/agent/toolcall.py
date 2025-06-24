@@ -500,17 +500,11 @@ class ToolCallAgent(BaseAgent):
             if self.current_step == 0:
                  self.steps_since_last_critic_review = 0
 
-            max_steps_per_run = 3  # Limite de passos por execução
-            steps_this_run = 0
-            while self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run:
+            while self.state == AgentState.RUNNING:
                 async with self.state_context(AgentState.RUNNING):
                     while self.state not in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.USER_PAUSED, AgentState.AWAITING_USER_FEEDBACK]:
                         self.current_step += 1
                         self.steps_since_last_critic_review += 1
-                        steps_this_run += 1
-                        if steps_this_run >= max_steps_per_run:
-                            logger.info(f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução.")
-                            break
 
                         if hasattr(self, 'user_pause_requested_event') and self.user_pause_requested_event.is_set():
                             self.user_pause_requested_event.clear()
@@ -624,7 +618,6 @@ class ToolCallAgent(BaseAgent):
             if self.state == AgentState.USER_HALTED: pass
             elif self.state == AgentState.AWAITING_USER_FEEDBACK: pass
             elif self.state == AgentState.USER_PAUSED: pass
-            elif self.current_step >= self.max_steps and self.max_steps > 0: self.state = AgentState.FINISHED
             elif not self.tool_calls and self.state == AgentState.RUNNING:
                 last_message = self.memory.messages[-1] if self.memory.messages else None
                 if last_message and last_message.role == Role.ASSISTANT and not last_message.tool_calls and last_message.content:
