@@ -134,11 +134,15 @@ class Manus(ToolCallAgent):
 
     async def should_request_feedback(self, *args, **kwargs):
         """Determine if a periodic check-in with the user should happen."""
+
         if (
             self.max_steps > 0
             and self.current_step >= self.max_steps
             and not self._autonomous_mode
         ):
+
+        if self.max_steps > 0 and self.current_step >= self.max_steps:
+
             await self.periodic_user_check_in()
             return True
         return False
@@ -416,6 +420,7 @@ async def _classify_user_directive(
                 await self._is_internal_checklist_complete_for_subtask()
             )
 
+
             if is_manus_checklist_complete:
                 logger.info(
                     f"Manus: Checklist interno para subtarefa {self.current_subtask_id} completo."
@@ -445,6 +450,7 @@ async def _classify_user_directive(
                 await self.periodic_user_check_in(
                     is_final_check=False, is_failure_scenario=False
                 )
+
                 self.state = AgentState.AWAITING_USER_FEEDBACK
                 return
 
@@ -2129,3 +2135,4 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         self._just_resumed_from_feedback_internal = True
         self.current_step = 0
         return True
+

@@ -162,6 +162,7 @@ async def main():
                     agent._pending_feedback_question
                     or "O agente solicitou seu feedback."
                 )
+
                 print(f"\n{feedback_prompt}\n")
                 user_input = ""
                 try:
@@ -170,6 +171,7 @@ async def main():
                     logger.warning(
                         "[main.py] Entrada interrompida durante AWAITING_USER_FEEDBACK. Encerrando."
                     )
+
                     agent.state = AgentState.USER_HALTED
                     break
                 agent._pending_feedback_question = None

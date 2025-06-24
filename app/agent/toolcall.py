@@ -889,6 +889,7 @@ class ToolCallAgent(BaseAgent):
                 pass
             elif self.state == AgentState.USER_PAUSED:
                 pass
+
             elif not self.tool_calls and self.state == AgentState.RUNNING:
                 last_message = (
                     self.memory.messages[-1] if self.memory.messages else None
