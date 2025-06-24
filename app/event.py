@@ -99,7 +99,7 @@ class ToolCallAgentEvents(BaseAgentEvents):
     TOOL_EXECUTE_COMPLETE = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:execute:complete"
 
 
-class AgentEvent:
+class EventBus:
     def __init__(self):
         self.queue: deque[EventItem] = deque()
         self._processing = False

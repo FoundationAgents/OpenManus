@@ -30,7 +30,7 @@ class TaskManager:
             event_patterns = [r"agent:.*"]
             # Register handlers for each event pattern
             for pattern in event_patterns:
-                agent.events.on(
+                agent.event_bus.on(
                     pattern,
                     lambda event: self.update_task_progress(
                         task_id=task_id,
