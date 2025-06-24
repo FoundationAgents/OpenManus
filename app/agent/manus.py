@@ -16,6 +16,7 @@ from app.event_bus.redis_bus import RedisEventBus
 from app.exceptions import ToolError
 from app.logger import logger
 from app.prompt.manus import SYSTEM_PROMPT
+
 from app.schema import AgentState
 from app.schema import Function as FunctionCall
 from app.schema import Message, Role
@@ -44,13 +45,14 @@ from app.tool.read_file_content import ReadFileContentTool
 from app.tool.sandbox_python_executor import SandboxPythonExecutor
 from app.tool.str_replace_editor import StrReplaceEditor
 
+
+from .regex_patterns import re_subprocess
+
 from .regex_patterns import re_subprocess
 
 
-INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE = """... (template como antes) ..."""
-TOOL_CORRECTION_PROMPT_TEMPLATE = """... (template como antes) ..."""
-
 PROMPT_CLASSIFY_USER_DIRECTIVE_TEMPLATE = """
+
 Você é um assistente que ajuda a classificar a intenção de uma nova diretiva do usuário em relação a uma tarefa em andamento.
 Dada a tarefa atual (representada pelo checklist), o histórico recente da conversa e a nova diretiva do usuário, classifique a diretiva como:
 
@@ -140,6 +142,7 @@ class Manus(ToolCallAgent):
             and self.current_step >= self.max_steps
             and not self._autonomous_mode
         ):
+
 
         if self.max_steps > 0 and self.current_step >= self.max_steps:
 
@@ -313,6 +316,7 @@ async def _classify_user_directive(
     async def _self_reflection_on_tool_failure(
         self, original_command: ToolCall, failure_observation: str, task_context: str
     ) -> Optional[ToolCall]:
+
         # ... (implementação como definida anteriormente, usando TOOL_CORRECTION_PROMPT_TEMPLATE) ...
         logger.info(
             f"Manus: Iniciando auto-reflexão para falha da ferramenta '{original_command.function.name}'."
@@ -330,6 +334,11 @@ async def _classify_user_directive(
             tool_args_str_for_prompt = json.dumps(
                 parsed_args, indent=2, ensure_ascii=False
             )
+        except json.JSONDecodeError:
+            tool_args_str_for_prompt = json.dumps(
+                parsed_args, indent=2, ensure_ascii=False
+            )
+
         except json.JSONDecodeError:
             tool_args_str_for_prompt = tool_args_str
         prompt_for_correction = TOOL_CORRECTION_PROMPT_TEMPLATE.format(
@@ -419,6 +428,7 @@ async def _classify_user_directive(
             is_manus_checklist_complete = (
                 await self._is_internal_checklist_complete_for_subtask()
             )
+            ask_human_planned_tool_call: Optional[ToolCall] = None
 
 
             if is_manus_checklist_complete:
@@ -426,6 +436,7 @@ async def _classify_user_directive(
                     f"Manus: Checklist interno para subtarefa {self.current_subtask_id} completo."
                 )
                 if not self._autonomous_mode:
+
                     await self.periodic_user_check_in(is_final_check=True)
                     self.state = AgentState.AWAITING_USER_FEEDBACK
                     return
@@ -447,6 +458,7 @@ async def _classify_user_directive(
                 and self.current_step % (self.max_steps_per_subtask // 2) == 0
                 and self.current_step < self.max_steps_per_subtask
             ):  # Check-in no meio da subtarefa
+
                 await self.periodic_user_check_in(
                     is_final_check=False, is_failure_scenario=False
                 )
@@ -491,6 +503,50 @@ async def _classify_user_directive(
                 return True
             return False  # No primeiro passo, um checklist vazio significa que precisa ser populado.
         return self._checklist_manager.are_all_tasks_complete()
+
+    async def periodic_user_check_in(
+        self, is_final_check: bool = False, is_failure_scenario: bool = False
+    ) -> Optional[ToolCall]:
+        # ... (lógica adaptada como antes para construir a pergunta) ...
+        # para gerar o `relatorio_autoanalise` como antes.
+        # Por enquanto, uma pergunta placeholder:
+        question_for_human = "Este é um check-in. Como devo proceder com a subtarefa?"
+        if is_final_check:
+            question_for_human = f"O checklist interno para a subtarefa '{self.current_subtask_id}' parece completo. Deseja marcar esta subtarefa como concluída?"
+        if is_failure_scenario:
+            # Aqui, o `relatorio_autoanalise` seria sobre a falha da subtarefa do Manus.
+            question_for_human = f"Encontrei um problema com a subtarefa '{self.current_subtask_id}'. [Relatório de Análise da Falha da Subtarefa aqui]. Como devo proceder?"
+
+        logger.info(
+            f"Manus: Planejando AskHuman para check-in na subtarefa {self.current_subtask_id}: {question_for_human[:100]}"
+        )
+
+        # Obter o ID do último checkpoint relevante. O Orchestrator pode precisar passar isso para o agente.
+        # Ou o agente pode precisar de acesso ao checkpointer para encontrar o último checkpoint para este workflow/subtarefa.
+        # Por agora, deixaremos como None.
+        relevant_checkpoint_id = None
+        # Se o agente tivesse acesso ao checkpointer:
+        # if self.checkpointer and self.current_workflow_id:
+        #    latest_chkpt_data = await self.checkpointer.load_latest_checkpoint_data(self.current_workflow_id)
+        #    if latest_chkpt_data: relevant_checkpoint_id = str(latest_chkpt_data["checkpoint_id"])
+
+        ask_human_args = {
+            "inquire": question_for_human,
+            "workflow_id": (
+                str(self.current_workflow_id)
+                if self.current_workflow_id
+                else "unknown_workflow"
+            ),
+            "subtask_id": self.current_subtask_id or "unknown_subtask",
+            "relevant_checkpoint_id": relevant_checkpoint_id,
+        }
+        return ToolCall(
+            id=f"ask_human_manus_{uuid.uuid4().hex[:4]}",
+            function=FunctionCall(
+                name=AskHuman().name, arguments=json.dumps(ask_human_args)
+            ),
+        )
+
 
     async def cleanup(self):  # Sobrescreve cleanup de ToolCallAgent
         logger.info(f"Manus ({self.name}) cleanup starting.")
@@ -2131,6 +2187,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             f"Manus: Solicitando feedback do usuário com prompt: {pergunta[:500]}..."
         )
         self.memory.add_message(Message.assistant_message(content=pergunta))
+
         self._pending_feedback_question = pergunta
         self._just_resumed_from_feedback_internal = True
         self.current_step = 0

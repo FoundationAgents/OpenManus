@@ -202,9 +202,12 @@ class ToolCallAgent(BaseAgent):
         try:
             response = await self.llm.ask_tool(
                 messages=self.messages,
-                system_msgs=[Message.system_message(current_system_prompt)]
-                if current_system_prompt
-                else None,
+                system_msgs=(
+                    [Message.system_message(current_system_prompt)]
+                    if current_system_prompt
+                    else None
+                ),
+
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
@@ -608,7 +611,12 @@ class ToolCallAgent(BaseAgent):
             if self.current_step == 0:
                 self.steps_since_last_critic_review = 0
 
-            while self.state == AgentState.RUNNING:
+            max_steps_per_run = self.max_steps if self.max_steps > 0 else float("inf")
+            steps_this_run = 0
+            while (
+                self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run
+            ):
+
                 async with self.state_context(AgentState.RUNNING):
                     while self.state not in [
                         AgentState.FINISHED,
@@ -619,6 +627,13 @@ class ToolCallAgent(BaseAgent):
                     ]:
                         self.current_step += 1
                         self.steps_since_last_critic_review += 1
+                        steps_this_run += 1
+                        if steps_this_run >= max_steps_per_run:
+                            logger.info(
+                                f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução."
+                            )
+                            break
+
 
                         if (
                             hasattr(self, "user_pause_requested_event")
@@ -889,6 +904,8 @@ class ToolCallAgent(BaseAgent):
                 pass
             elif self.state == AgentState.USER_PAUSED:
                 pass
+            elif self.current_step >= self.max_steps and self.max_steps > 0:
+                self.state = AgentState.FINISHED
 
             elif not self.tool_calls and self.state == AgentState.RUNNING:
                 last_message = (
