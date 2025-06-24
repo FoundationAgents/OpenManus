@@ -325,12 +325,13 @@ async def _classify_user_directive(
         if not self.tool_calls and not tool_observation.startswith("Error:"): # Se não houve erro ou foi corrigido
 
             is_manus_checklist_complete = await self._is_internal_checklist_complete_for_subtask()
-            ask_human_planned_tool_call: Optional[ToolCall] = None
 
             if is_manus_checklist_complete:
                 logger.info(f"Manus: Checklist interno para subtarefa {self.current_subtask_id} completo.")
                 if not self._autonomous_mode:
-                    ask_human_planned_tool_call = await self.periodic_user_check_in(is_final_check=True)
+                    await self.periodic_user_check_in(is_final_check=True)
+                    self.state = AgentState.AWAITING_USER_FEEDBACK
+                    return
                 else:
                     logger.info(f"Manus: Modo autônomo. Marcando subtarefa {self.current_subtask_id} como concluída.")
                     await self._publish_subtask_completed(result={"response": f"Subtarefa {self.current_subtask_id} concluída autonomamente."})
@@ -340,11 +341,8 @@ async def _classify_user_directive(
                  self.max_steps_per_subtask > 0 and \
                  self.current_step % (self.max_steps_per_subtask // 2) == 0 and \
                  self.current_step < self.max_steps_per_subtask: # Check-in no meio da subtarefa
-                ask_human_planned_tool_call = await self.periodic_user_check_in(is_final_check=False, is_failure_scenario=False)
-
-            if ask_human_planned_tool_call:
-                self.tool_calls = [ask_human_planned_tool_call]
-                await self.act()
+                await self.periodic_user_check_in(is_final_check=False, is_failure_scenario=False)
+                self.state = AgentState.AWAITING_USER_FEEDBACK
                 return
 
             if not is_manus_checklist_complete:
@@ -1530,6 +1528,8 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         logger.info(f"Manus: Solicitando feedback do usuário com prompt: {pergunta[:500]}...")
         self.memory.add_message(Message.assistant_message(content=pergunta))
         self._pending_feedback_question = pergunta
+
+        self._just_resumed_from_feedback_internal = True
         self.current_step = 0
         return True
 
