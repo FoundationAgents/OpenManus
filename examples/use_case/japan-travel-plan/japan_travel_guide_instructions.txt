@@ -1,62 +1,62 @@
-JAPAN TRAVEL HANDBOOK - GUIDE TO VERSIONS
+MANUAL DE VIAGEM DO JAPÃO - GUIA DE VERSÕES
 
-Location: D:/OpenManus/
+Localização: D:/OpenManus/
 
-1. DETAILED DIGITAL VERSION
-File: japan_travel_handbook.html
-Best for: Desktop/laptop viewing
-Features:
-- Complete comprehensive guide
-- Detailed itinerary
-- Full proposal planning section
-- All hotel recommendations
-- Comprehensive budget breakdown
-Usage: Open in web browser for trip planning and detailed reference
+1. VERSÃO DIGITAL DETALHADA
+Arquivo: japan_travel_handbook.html
+Melhor para: Visualização em desktop/laptop
+Recursos:
+- Guia completo e abrangente
+- Roteiro detalhado
+- Seção completa de planejamento da proposta
+- Todas as recomendações de hotéis
+- Detalhamento completo do orçamento
+Uso: Abra no navegador da web para planejamento da viagem e referência detalhada
 
-2. PRINT-FRIENDLY VERSION
-File: japan_travel_handbook_print.html
-Best for: Physical reference during travel
-Features:
-- Condensed essential information
-- Optimized for paper printing
-- Clear, printer-friendly formatting
-- Quick reference tables
-Usage: Print and keep in travel documents folder
+2. VERSÃO AMIGÁVEL PARA IMPRESSÃO
+Arquivo: japan_travel_handbook_print.html
+Melhor para: Referência física durante a viagem
+Recursos:
+- Informações essenciais condensadas
+- Otimizado para impressão em papel
+- Formatação clara e amigável para impressão
+- Tabelas de referência rápida
+Uso: Imprima e guarde na pasta de documentos de viagem
 
-3. MOBILE-OPTIMIZED VERSION
-File: japan_travel_handbook_mobile.html
-Best for: On-the-go reference during trip
-Features:
-- Touch-friendly interface
-- Collapsible sections
-- Quick access emergency buttons
-- Dark mode support
-- Responsive design
-Usage: Save to phone's browser bookmarks for quick access
+3. VERSÃO OTIMIZADA PARA CELULAR
+Arquivo: japan_travel_handbook_mobile.html
+Melhor para: Referência rápida durante a viagem
+Recursos:
+- Interface amigável ao toque
+- Seções recolhíveis
+- Botões de acesso rápido para emergências
+- Suporte ao modo escuro
+- Design responsivo
+Uso: Salve nos favoritos do navegador do celular para acesso rápido
 
-RECOMMENDED SETUP:
-1. Before Trip:
-   - Use detailed version for planning
-   - Print the print-friendly version
-   - Save mobile version to phone
+CONFIGURAÇÃO RECOMENDADA:
+1. Antes da Viagem:
+   - Use a versão detalhada para planejamento
+   - Imprima a versão amigável para impressão
+   - Salve a versão móvel no celular
 
-2. During Trip:
-   - Keep printed version with travel documents
-   - Use mobile version for daily reference
-   - Access detailed version when needed for specific information
+2. Durante a Viagem:
+   - Mantenha a versão impressa com os documentos de viagem
+   - Use a versão móvel para referência diária
+   - Acesse a versão detalhada quando necessário para informações específicas
 
-3. Emergency Access:
-   - Mobile version has quick-access emergency information
-   - Keep printed version as backup
-   - All emergency numbers and contacts in both versions
+3. Acesso de Emergência:
+   - A versão móvel possui informações de emergência de acesso rápido
+   - Mantenha a versão impressa como backup
+   - Todos os números de emergência e contatos em ambas as versões
 
-Note: All versions contain the same core information but are formatted differently for optimal use in different situations.
+Nota: Todas as versões contêm as mesmas informações centrais, mas são formatadas de maneira diferente para uso otimizado em diferentes situações.
 
-IMPORTANT DATES:
-- Trip Duration: April 15-23, 2024
-- Proposal Day: April 19, 2024
-- Key Reservation Deadlines:
-  * Flights: Book by January 2024
-  * Hotels: Book by February 2024
-  * Restaurant Reservations: Book by January 2024
-  * JR Pass: Purchase by March 2024
+DATAS IMPORTANTES:
+- Duração da Viagem: 15-23 de Abril de 2024
+- Dia da Proposta: 19 de Abril de 2024
+- Prazos Chave para Reservas:
+  * Voos: Reservar até Janeiro de 2024
+  * Hotéis: Reservar até Fevereiro de 2024
+  * Reservas de Restaurantes: Reservar até Janeiro de 2024
+  * JR Pass: Comprar até Março de 2024

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Protocol
+from typing import Dict, Optional, Protocol, Any # Add Any
 
 from app.config import SandboxSettings
+from app.logger import logger
 from app.sandbox.core.sandbox import DockerSandbox
 
 
@@ -59,7 +60,7 @@ class BaseSandboxClient(ABC):
         """Creates sandbox."""
 
     @abstractmethod
-    async def run_command(self, command: str, timeout: Optional[int] = None) -> str:
+    async def run_command(self, command: str, timeout: Optional[int] = None) -> Dict[str, Any]:
         """Executes command."""
 
     @abstractmethod
@@ -107,7 +108,7 @@ class LocalSandboxClient(BaseSandboxClient):
         self.sandbox = DockerSandbox(config, volume_bindings)
         await self.sandbox.create()
 
-    async def run_command(self, command: str, timeout: Optional[int] = None) -> str:
+    async def run_command(self, command: str, timeout: Optional[int] = None) -> Dict[str, Any]:
         """Runs command in sandbox.
 
         Args:
@@ -115,13 +116,17 @@ class LocalSandboxClient(BaseSandboxClient):
             timeout: Execution timeout in seconds.
 
         Returns:
-            Command output.
+            A dictionary containing "exit_code", "stdout", and "stderr".
 
         Raises:
-            RuntimeError: If sandbox not initialized.
+            RuntimeError: If sandbox not initialized or command execution fails.
+            SandboxTimeoutError: If the command times out.
         """
         if not self.sandbox:
             raise RuntimeError("Sandbox not initialized")
+        # This will now return the dictionary {"exit_code": ..., "stdout": ..., "stderr": ...}
+        # Exceptions like SandboxTimeoutError or RuntimeError (for other exec failures)
+        # will be propagated from self.sandbox.run_command
         return await self.sandbox.run_command(command, timeout)
 
     async def copy_from(self, container_path: str, local_path: str) -> None:
@@ -184,9 +189,14 @@ class LocalSandboxClient(BaseSandboxClient):
 
     async def cleanup(self) -> None:
         """Cleans up resources."""
+        logger.info("LocalSandboxClient.cleanup: Starting...")
         if self.sandbox:
+            logger.info("LocalSandboxClient.cleanup: About to call self.sandbox.cleanup()")
             await self.sandbox.cleanup()
+            logger.info("LocalSandboxClient.cleanup: self.sandbox.cleanup() completed.")
             self.sandbox = None
+            logger.info("LocalSandboxClient.cleanup: self.sandbox set to None.")
+        logger.info("LocalSandboxClient.cleanup: Finished.")
 
 
 def create_sandbox_client() -> LocalSandboxClient:
