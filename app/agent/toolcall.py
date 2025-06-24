@@ -12,7 +12,6 @@ from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 
-
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
@@ -72,7 +71,9 @@ class ToolCallAgent(ReActAgent):
                 self.state = AgentState.FINISHED
                 return False
             raise
-        self.emit(ToolCallAgentEvents.TOOL_SELECTED, {"tool_calls": response.tool_calls})
+        self.events.emit(
+            ToolCallAgentEvents.TOOL_SELECTED, {"tool_calls": response.tool_calls}
+        )
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
         )
@@ -129,28 +130,34 @@ class ToolCallAgent(ReActAgent):
             )
             return False
 
-    @AgentEvent.event_wrapper(
-        before_event=ToolCallAgentEvents.TOOL_START,
-        after_event=ToolCallAgentEvents.TOOL_COMPLETE,
-        error_event=ToolCallAgentEvents.TOOL_ERROR
-    )
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
+        self.events.emit(ToolCallAgentEvents.TOOL_START, {})
         if not self.tool_calls:
             if self.tool_choices == ToolChoice.REQUIRED:
+                self.events.emit(
+                    ToolCallAgentEvents.TOOL_ERROR, {"error": TOOL_CALL_REQUIRED}
+                )
                 raise ValueError(TOOL_CALL_REQUIRED)
 
             # Return last message content if no tool calls
+            self.events.emit(ToolCallAgentEvents.TOOL_COMPLETE, {})
             return self.messages[-1].content or "No content or commands to execute"
 
         results = []
         for command in self.tool_calls:
-            self.emit(ToolCallAgentEvents.TOOL_EXECUTE_START, {"tool_call": command})
+
             # Reset base64_image for each tool call
             self._current_base64_image = None
 
+            self.events.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_START, {"tool_call": command}
+            )
             result = await self.execute_tool(command)
-
+            self.events.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
+                {"tool_call": command, "result": result},
+            )
             if self.max_observe:
                 result = result[: self.max_observe]
 
@@ -167,8 +174,7 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(tool_msg)
             results.append(result)
-            self.emit(ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE, {"tool_call": command, "result": result})
-
+        self.events.emit(ToolCallAgentEvents.TOOL_COMPLETE, {})
         return "\n\n".join(results)
 
     async def execute_tool(self, command: ToolCall) -> str:

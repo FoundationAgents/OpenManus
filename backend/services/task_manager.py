@@ -30,7 +30,7 @@ class TaskManager:
             event_patterns = [r"agent:.*"]
             # Register handlers for each event pattern
             for pattern in event_patterns:
-                agent.on(
+                agent.events.on(
                     pattern,
                     lambda event: self.update_task_progress(
                         task_id=task_id,
@@ -64,8 +64,8 @@ class TaskManager:
                 "parent_id": event.parent_id,
                 "type": "progress",
                 "name": event.name,
-                "step": event.step,
                 "content": event.content,
+                "timestamp": event.timestamp.timestamp(),
             }
             self.histories[task_id].append(event_dict)
 

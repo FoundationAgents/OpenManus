@@ -1,20 +1,20 @@
 import asyncio
 import re
+import uuid
 from collections import deque
 from datetime import datetime
-from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
+    Dict,
     List,
     NamedTuple,
     Optional,
     ParamSpec,
     Pattern,
     TypeVar,
-    Dict,
 )
 
 from app.logger import logger
@@ -31,7 +31,6 @@ class EventItem(NamedTuple):
     id: Optional[str]
     parent_id: Optional[str]
     name: str
-    step: int
     timestamp: datetime
     content: Any
 
@@ -43,6 +42,7 @@ class EventPattern:
     def __init__(self, pattern: str, handler: EventHandler):
         self.pattern: Pattern = re.compile(pattern)
         self.handler: EventHandler = handler
+
 
 # Event constants
 BASE_AGENT_EVENTS_PREFIX = "agent:lifecycle"
@@ -98,6 +98,7 @@ class ToolCallAgentEvents(BaseAgentEvents):
     TOOL_EXECUTE_START = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:execute:start"
     TOOL_EXECUTE_COMPLETE = f"{TOOL_CALL_ACT_AGENT_EVENTS_PREFIX}:execute:complete"
 
+
 class AgentEvent:
     def __init__(self):
         self.queue: deque[EventItem] = deque()
@@ -111,6 +112,71 @@ class AgentEvent:
         self.queue.append(event)
         self._event.set()
         pass
+
+    def emit(
+        self, name: str, data: Any, options: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Emit an event and add it to the processing queue.
+
+        Args:
+            name: The name of the event to emit
+            data: Event data dictionary
+            options: Optional event options
+
+        Example:
+            ```python
+            # Simple event emission
+            event.emit("agent:state:change", {
+                "old_state": old_state.value,
+                "new_state": new_state.value
+            })
+
+            # Subscribe to events with regex pattern
+            async def on_state_events(event: EventItem):
+                print(f"Event {event.name}: State changed from {event.old_state} to {event.new_state}")
+
+            event.on("agent:state:.*", on_state_events)
+            ```
+        """
+        if options is None:
+            options = {}
+        if "id" not in options or options["id"] is None or options["id"] == "":
+            options["id"] = str(uuid.uuid4())
+        event = EventItem(
+            id=options.get("id"),
+            parent_id=options.get("parent_id"),
+            name=name,
+            timestamp=datetime.now(),
+            content=data,
+        )
+        self.put(event)
+
+    def on(self, event_pattern: str, handler: EventHandler) -> None:
+        """Register an event handler for events matching the specified pattern.
+
+        Args:
+            event_pattern: Regex pattern to match event names
+            handler: The async function to be called when matching events occur.
+                    The handler must accept event as its first parameter.
+
+        Example:
+            ```python
+            # Subscribe to all lifecycle events
+            async def on_lifecycle(event: EventItem):
+                print(f"Lifecycle event {event.name} occurred with data: {event.content}")
+
+            event.on("agent:lifecycle:.*", on_lifecycle)
+
+            # Subscribe to specific state changes
+            async def on_state_change(event: EventItem):
+                print(f"State changed from {event.old_state} to {event.new_state}")
+
+            event.on("agent:state:change", on_state_change)
+            ```
+        """
+        if not callable(handler):
+            raise ValueError("Event handler must be a callable")
+        self.add_handler(event_pattern, handler)
 
     def add_handler(self, event_pattern: str, handler: EventHandler) -> None:
         """Add an event handler with regex pattern support.
@@ -177,78 +243,3 @@ class AgentEvent:
     def stop(self) -> None:
         if self._task and not self._task.done():
             self._task.cancel()
-
-    def event_wrapper(
-        before_event: str, after_event: str, error_event: Optional[str] = None
-    ):
-        """A generic decorator that wraps a method with before/after event notifications.
-
-        Args:
-            before_event: Event name to emit before method execution
-            after_event: Event name to emit after successful method execution
-            error_event: Optional event name to emit on error (defaults to f"{after_event}:error")
-
-        Example:
-            @event_wrapper("step:before", "step:after")
-            async def step(self) -> str:
-                return "Step result"
-
-            @event_wrapper("tool:start", "tool:end", "tool:error")
-            async def execute_tool(self) -> str:
-                return "Tool result"
-        """
-
-        def decorator(func: Callable[P, R]) -> Callable[P, R]:
-            @wraps(func)
-            async def wrapper(
-                self: "BaseAgent", *args: P.args, **kwargs: P.kwargs
-            ) -> R:
-                # Get counter for this specific method
-                method_name = func.__name__
-                counter_name = f"_{method_name}_counter"
-                current_count = getattr(self, counter_name, 0) + 1
-                setattr(self, counter_name, current_count)
-
-                # Prepare base event data
-                event_data = {
-                    "method": method_name,
-                    "count": current_count,
-                    "message": f"Executing {method_name} #{current_count}",
-                }
-
-                # Emit before event
-                self.emit(before_event, event_data)
-
-                try:
-                    # Execute the method
-                    result = await func(self, *args, **kwargs)
-
-                    # Add result to event data
-                    event_data.update(
-                        {
-                            "result": result,
-                            "message": f"Completed {method_name} #{current_count}",
-                        }
-                    )
-
-                    # Emit after event
-                    self.emit(after_event, event_data)
-
-                    return result
-                except Exception as e:
-                    # Prepare error event data
-                    error_data = {
-                        **event_data,
-                        "error": str(e),
-                        "message": f"Error in {method_name} #{current_count}: {str(e)}",
-                    }
-
-                    # Emit error event
-                    actual_error_event = error_event or f"{after_event}:error"
-                    self.emit(actual_error_event, error_data)
-                    raise
-
-            return wrapper
-
-        return decorator
-
