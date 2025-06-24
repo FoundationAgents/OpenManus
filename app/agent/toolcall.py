@@ -1,36 +1,41 @@
 import asyncio
 import json
 from typing import Any, List, Optional, Union
-from uuid import UUID # Adicionado para current_workflow_id
+from uuid import UUID  # Adicionado para current_workflow_id
 
 from pydantic import Field
 
-from app.config import config
-
-from app.agent.react import ReActAgent
 from app.agent.base import BaseAgent
-from app.exceptions import TokenLimitExceeded, AgentEnvironmentError
-from app.logger import logger
-from app.sandbox.client import SANDBOX_CLIENT
-from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice, Function, Role
 from app.agent.critic_agent import CriticAgent
+from app.config import config
 from app.core.environment_validator import EnvironmentValidator
-
-from app.tool import CreateChatCompletion, Terminate, ToolCollection
-from app.tool.base import ToolResult
-from app.tool.file_operators import LocalFileOperator
-from app.tool.code_formatter import FormatPythonCode
-from app.tool.code_editor_tools import ReplaceCodeBlock, ApplyDiffPatch, ASTRefactorTool
+from app.event_bus.events import HumanInputRequiredEvent  # AskHuman agora publica isso
+from app.event_bus.events import (
+    ToolCallInitiatedEvent,  # Este evento não será publicado se a execução da ferramenta for direta
+)
 
 # Importações para o novo paradigma orientado a eventos
 from app.event_bus.redis_bus import RedisEventBus
-from app.event_bus.events import (
-    ToolCallInitiatedEvent, # Este evento não será publicado se a execução da ferramenta for direta
-    SubtaskCompletedEvent,
-    SubtaskFailedEvent,
-    HumanInputRequiredEvent # AskHuman agora publica isso
+from app.exceptions import AgentEnvironmentError, TokenLimitExceeded
+from app.logger import logger
+from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.sandbox.client import SANDBOX_CLIENT
+from app.schema import (
+    TOOL_CHOICE_TYPE,
+    AgentState,
+    Function,
+    Message,
+    Role,
+    ToolCall,
+    ToolChoice,
 )
+from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool.base import ToolResult
+from app.tool.code_editor_tools import ApplyDiffPatch, ASTRefactorTool, ReplaceCodeBlock
+from app.tool.code_formatter import FormatPythonCode
+from app.tool.file_operators import LocalFileOperator
+
+
 # from app.checkpointing.postgresql_checkpointer import PostgreSQLCheckpointer
 
 
@@ -43,9 +48,13 @@ class ToolCallAgent(BaseAgent):
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: Optional[str] = NEXT_STEP_PROMPT
 
-
     available_tools: ToolCollection = ToolCollection(
-        CreateChatCompletion(), Terminate(), FormatPythonCode(), ReplaceCodeBlock(), ApplyDiffPatch(), ASTRefactorTool()
+        CreateChatCompletion(),
+        Terminate(),
+        FormatPythonCode(),
+        ReplaceCodeBlock(),
+        ApplyDiffPatch(),
+        ASTRefactorTool(),
     )
     tool_choices: TOOL_CHOICE_TYPE = ToolChoice.AUTO
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
@@ -56,23 +65,25 @@ class ToolCallAgent(BaseAgent):
     steps_since_last_critic_review: int = 0
     initial_user_prompt_for_critic: Optional[str] = None
 
-
-    event_bus: RedisEventBus = Field(..., description="Event bus para comunicação entre agentes e ferramentas")
+    event_bus: RedisEventBus = Field(
+        ..., description="Event bus para comunicação entre agentes e ferramentas"
+    )
     # checkpointer: Optional[PostgreSQLCheckpointer] = None # Injetado se necessário
 
     current_workflow_id: Optional[UUID] = None
     current_subtask_id: Optional[str] = None
     current_subtask_prompt: Optional[str] = None
 
-    max_steps_per_subtask: int = 10 # Número de ciclos de think/act por subtarefa
-    max_observe: Optional[Union[int, bool]] = 10000 # Limite para observação de ferramenta
+    max_steps_per_subtask: int = 10  # Número de ciclos de think/act por subtarefa
+    max_observe: Optional[
+        Union[int, bool]
+    ] = 10000  # Limite para observação de ferramenta
 
     # Contador para tentativas de auto-correção dentro de handle_tool_result
     _max_self_correction_attempts_per_tool_error: int = 1
 
-
     def __init__(self, event_bus: RedisEventBus, **data: Any):
-        data['event_bus'] = event_bus
+        data["event_bus"] = event_bus
         super().__init__(**data)
         # Se available_tools não for definido pela subclasse, inicializar vazio
         if not isinstance(self.available_tools, ToolCollection):
@@ -81,7 +92,6 @@ class ToolCallAgent(BaseAgent):
         if not self.available_tools.get_tool(Terminate().name):
             self.available_tools.add_tool(Terminate())
 
-
     async def process_action(
         self,
         workflow_id: UUID,
@@ -89,7 +99,7 @@ class ToolCallAgent(BaseAgent):
         action_prompt: Optional[str] = None,
         human_response: Optional[str] = None,
         resuming_from_checkpoint_id: Optional[str] = None,
-        **action_details
+        **action_details,
     ) -> None:
         self.current_workflow_id = workflow_id
         self.current_subtask_id = subtask_id
@@ -97,10 +107,14 @@ class ToolCallAgent(BaseAgent):
         self.current_step = 0
 
         async with self.state_context(AgentState.RUNNING):
-            logger.info(f"Agent {self.name}: Starting subtask '{self.current_subtask_id}' for workflow '{self.current_workflow_id}'. Prompt: '{self.current_subtask_prompt[:100]}...'")
+            logger.info(
+                f"Agent {self.name}: Starting subtask '{self.current_subtask_id}' for workflow '{self.current_workflow_id}'. Prompt: '{self.current_subtask_prompt[:100]}...'"
+            )
 
             if resuming_from_checkpoint_id:
-                logger.info(f"Agent {self.name} resuming from checkpoint {resuming_from_checkpoint_id} for subtask {self.current_subtask_id}.")
+                logger.info(
+                    f"Agent {self.name} resuming from checkpoint {resuming_from_checkpoint_id} for subtask {self.current_subtask_id}."
+                )
                 # Lógica de restauração de checkpoint (memória, current_step, etc.)
                 # checkpoint_data = await self.checkpointer.load_checkpoint_data(UUID(resuming_from_checkpoint_id))
                 # if checkpoint_data:
@@ -108,11 +122,11 @@ class ToolCallAgent(BaseAgent):
                 # else:
                 #     await self._publish_subtask_failed(f"Could not load checkpoint {resuming_from_checkpoint_id}.")
                 #     return
-                pass # Placeholder
+                pass  # Placeholder
 
             if human_response:
                 self.update_memory(Role.USER, f"Human input received: {human_response}")
-            
+
             self.update_memory(Role.USER, self.current_subtask_prompt)
 
             # Iniciar o ciclo de processamento da subtarefa
@@ -122,15 +136,18 @@ class ToolCallAgent(BaseAgent):
         """Executa um ciclo de think e depois lida com as tool_calls planejadas."""
         self.current_step += 1
         if self.current_step > self.max_steps_per_subtask:
-            logger.warning(f"Agent {self.name} reached max_steps_per_subtask ({self.max_steps_per_subtask}) for subtask {self.current_subtask_id}.")
+            logger.warning(
+                f"Agent {self.name} reached max_steps_per_subtask ({self.max_steps_per_subtask}) for subtask {self.current_subtask_id}."
+            )
             await self._publish_subtask_failed("Max steps reached for subtask.")
             return
 
-        if await self.think(): # Pensa e define self.tool_calls
-            await self.act_and_handle_results() # Executa ferramentas e lida com resultados
+        if await self.think():  # Pensa e define self.tool_calls
+            await self.act_and_handle_results()  # Executa ferramentas e lida com resultados
         else:
-
-            logger.warning("LLM não disponível para ToolCallAgent no momento da inicialização do CriticAgent.")
+            logger.warning(
+                "LLM não disponível para ToolCallAgent no momento da inicialização do CriticAgent."
+            )
         self.initial_user_prompt_for_critic = None
 
     async def think(self) -> bool:
@@ -142,23 +159,33 @@ class ToolCallAgent(BaseAgent):
             try:
                 checklist_exists = await local_op.exists(checklist_path_str)
             except Exception as e:
-                logger.error(f"Error checking for checklist existence: {e}. Proceeding with LLM thought.")
-                checklist_exists = False 
+                logger.error(
+                    f"Error checking for checklist existence: {e}. Proceeding with LLM thought."
+                )
+                checklist_exists = False
 
             if not checklist_exists:
-                logger.info(f"Checklist file '{checklist_path_str}' not found or error during check at step 1. Enforcing creation.")
+                logger.info(
+                    f"Checklist file '{checklist_path_str}' not found or error during check at step 1. Enforcing creation."
+                )
                 initial_checklist_content = "- [Pendente] Decompor a solicitação do usuário e popular o checklist com as subtarefas."
                 escaped_checklist_path_str = json.dumps(checklist_path_str)
-                escaped_initial_checklist_content = json.dumps(initial_checklist_content)
+                escaped_initial_checklist_content = json.dumps(
+                    initial_checklist_content
+                )
                 arguments_json_string = f'{{"command": "create", "path": {escaped_checklist_path_str}, "file_text": {escaped_initial_checklist_content}}}'
                 forced_tool_call = ToolCall(
                     id="forced_checklist_creation_001",
-                    function=Function(name="str_replace_editor", arguments=arguments_json_string)
+                    function=Function(
+                        name="str_replace_editor", arguments=arguments_json_string
+                    ),
                 )
                 self.tool_calls = [forced_tool_call]
                 assistant_thought_content = "A primeira ação é criar o checklist da tarefa para organizar o trabalho."
                 self.memory.add_message(
-                    Message.from_tool_calls(content=assistant_thought_content, tool_calls=self.tool_calls)
+                    Message.from_tool_calls(
+                        content=assistant_thought_content, tool_calls=self.tool_calls
+                    )
                 )
                 return True
 
@@ -166,25 +193,35 @@ class ToolCallAgent(BaseAgent):
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
 
-
     async def think(self) -> bool:
-        current_system_prompt = self.system_prompt.format(directory=str(config.workspace_root)) if self.system_prompt else None
+        current_system_prompt = (
+            self.system_prompt.format(directory=str(config.workspace_root))
+            if self.system_prompt
+            else None
+        )
         try:
             response = await self.llm.ask_tool(
                 messages=self.messages,
-                system_msgs=[Message.system_message(current_system_prompt)] if current_system_prompt else None,
+                system_msgs=(
+                    [Message.system_message(current_system_prompt)]
+                    if current_system_prompt
+                    else None
+                ),
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
         except TokenLimitExceeded as tle:
-            logger.error(f"Token limit exceeded for subtask {self.current_subtask_id}: {tle}")
+            logger.error(
+                f"Token limit exceeded for subtask {self.current_subtask_id}: {tle}"
+            )
             await self._publish_subtask_failed(f"Token limit exceeded: {tle}")
             return False
         except Exception as e:
-
             if hasattr(e, "__cause__") and isinstance(e.__cause__, TokenLimitExceeded):
                 token_limit_error = e.__cause__
-                logger.error(f"🚨 Token limit error (from RetryError): {token_limit_error}")
+                logger.error(
+                    f"🚨 Token limit error (from RetryError): {token_limit_error}"
+                )
                 self.memory.add_message(
                     Message.assistant_message(
                         f"Maximum token limit reached, cannot continue execution: {str(token_limit_error)}"
@@ -194,34 +231,44 @@ class ToolCallAgent(BaseAgent):
                 return False
             raise
 
-        raw_openai_tool_calls = response.tool_calls if response and response.tool_calls else []
+        raw_openai_tool_calls = (
+            response.tool_calls if response and response.tool_calls else []
+        )
         converted_tool_calls = []
         if raw_openai_tool_calls:
             for openai_tc in raw_openai_tool_calls:
                 if openai_tc.function:
                     app_function = Function(
                         name=openai_tc.function.name,
-                        arguments=openai_tc.function.arguments
+                        arguments=openai_tc.function.arguments,
                     )
                     app_tc = ToolCall(
                         id=openai_tc.id,
                         type=openai_tc.type if openai_tc.type else "function",
-                        function=app_function
+                        function=app_function,
                     )
                     converted_tool_calls.append(app_tc)
                 else:
-                    logger.warning(f"OpenAI tool_call (ID: {openai_tc.id}) missing function component, skipping conversion.")
+                    logger.warning(
+                        f"OpenAI tool_call (ID: {openai_tc.id}) missing function component, skipping conversion."
+                    )
 
         self.tool_calls = converted_tool_calls
         tool_calls = self.tool_calls
         content = response.content if response and response.content else ""
 
         logger.info(f"✨ {self.name}'s thoughts: {content}")
-        logger.info(f"🛠️ {self.name} selected {len(self.tool_calls) if self.tool_calls else 0} tools to use")
+        logger.info(
+            f"🛠️ {self.name} selected {len(self.tool_calls) if self.tool_calls else 0} tools to use"
+        )
         if self.tool_calls:
-            logger.info(f"🧰 Tools being prepared: {[call.function.name for call in self.tool_calls]}")
+            logger.info(
+                f"🧰 Tools being prepared: {[call.function.name for call in self.tool_calls]}"
+            )
             if self.tool_calls:
-                 logger.info(f"🔧 Tool arguments: {self.tool_calls[0].function.arguments}")
+                logger.info(
+                    f"🔧 Tool arguments: {self.tool_calls[0].function.arguments}"
+                )
 
         try:
             if response is None:
@@ -229,7 +276,9 @@ class ToolCallAgent(BaseAgent):
 
             if self.tool_choices == ToolChoice.NONE:
                 if tool_calls:
-                    logger.warning(f"🤔 Hmm, {self.name} tried to use tools when they weren't available!")
+                    logger.warning(
+                        f"🤔 Hmm, {self.name} tried to use tools when they weren't available!"
+                    )
                 if content:
                     self.memory.add_message(Message.assistant_message(content))
                     return True
@@ -251,7 +300,11 @@ class ToolCallAgent(BaseAgent):
             return bool(self.tool_calls)
         except Exception as e:
             logger.error(f"🚨 Oops! The {self.name}'s thinking process hit a snag: {e}")
-            self.memory.add_message(Message.assistant_message(f"Error encountered while processing: {str(e)}"))
+            self.memory.add_message(
+                Message.assistant_message(
+                    f"Error encountered while processing: {str(e)}"
+                )
+            )
             return False
 
     async def act(self) -> str:
@@ -266,7 +319,9 @@ class ToolCallAgent(BaseAgent):
             result = await self.execute_tool(command)
             if self.max_observe and isinstance(result, str):
                 result = result[: self.max_observe]
-            logger.info(f"🎯 Tool '{command.function.name}' completed its mission! Result: {result}")
+            logger.info(
+                f"🎯 Tool '{command.function.name}' completed its mission! Result: {result}"
+            )
             tool_msg = Message.tool_message(
                 content=result,
                 tool_call_id=command.id,
@@ -277,37 +332,49 @@ class ToolCallAgent(BaseAgent):
             results.append(result)
         return "\n\n".join(results)
 
-
     async def execute_tool(self, command: ToolCall) -> str:
         from app.tool.sandbox_python_executor import SandboxPythonExecutor
-
 
         if not command:
             logger.error("execute_tool: Command object is None.")
             return "Error: Invalid command object (None)."
         if not isinstance(command, ToolCall):
-            logger.error(f"execute_tool: Command object is not a ToolCall instance, got {type(command)}.")
+            logger.error(
+                f"execute_tool: Command object is not a ToolCall instance, got {type(command)}."
+            )
             return f"Error: Invalid command object type ({type(command)})."
 
         current_function = command.function
         if not current_function:
-            logger.error(f"execute_tool: command.function is None for command ID {command.id}.")
+            logger.error(
+                f"execute_tool: command.function is None for command ID {command.id}."
+            )
             return "Error: Command function is None."
         if not isinstance(current_function, Function):
-            logger.error(f"execute_tool: command.function is not a Function instance for command ID {command.id}, got {type(current_function)}.")
+            logger.error(
+                f"execute_tool: command.function is not a Function instance for command ID {command.id}, got {type(current_function)}."
+            )
             return f"Error: Invalid command function type ({type(current_function)})."
 
         name = ""
         try:
             name = current_function.name
             if not name:
-                logger.error(f"execute_tool: command.function.name is None or empty for command ID {command.id}.")
+                logger.error(
+                    f"execute_tool: command.function.name is None or empty for command ID {command.id}."
+                )
                 return "Error: Command function name is missing or empty."
         except AttributeError as e_name_access:
-            logger.error(f"execute_tool: AttributeError while accessing command.function.name for command ID {command.id}. Error: {e_name_access}", exc_info=True)
+            logger.error(
+                f"execute_tool: AttributeError while accessing command.function.name for command ID {command.id}. Error: {e_name_access}",
+                exc_info=True,
+            )
             return "Error: Failed to access function name due to AttributeError."
         except Exception as e_general_name_access:
-            logger.error(f"execute_tool: Unexpected error while accessing command.function.name for command ID {command.id}. Error: {e_general_name_access}", exc_info=True)
+            logger.error(
+                f"execute_tool: Unexpected error while accessing command.function.name for command ID {command.id}. Error: {e_general_name_access}",
+                exc_info=True,
+            )
             return "Error: Unexpected error accessing function name."
 
         if name not in self.available_tools.tool_map:
@@ -316,12 +383,12 @@ class ToolCallAgent(BaseAgent):
         try:
             args = json.loads(command.function.arguments or "{}")
             if name == "str_replace_editor":
-                if 'path' not in args and 'path_absoluto' in args:
-                    args['path'] = args.pop('path_absoluto')
-                elif 'path' not in args and 'caminho_completo_do_arquivo' in args:
-                    args['path'] = args.pop('caminho_completo_do_arquivo')
-                elif 'path' not in args and 'script_internal_file_path' in args:
-                    args['path'] = args.pop('script_internal_file_path')
+                if "path" not in args and "path_absoluto" in args:
+                    args["path"] = args.pop("path_absoluto")
+                elif "path" not in args and "caminho_completo_do_arquivo" in args:
+                    args["path"] = args.pop("caminho_completo_do_arquivo")
+                elif "path" not in args and "script_internal_file_path" in args:
+                    args["path"] = args.pop("script_internal_file_path")
 
             logger.info(f"[TOOL_START] Activating tool '{name}' with args: {args}")
             tool_output = await self.available_tools.execute(name=name, tool_input=args)
@@ -330,19 +397,30 @@ class ToolCallAgent(BaseAgent):
             if name == SandboxPythonExecutor().name:
                 if isinstance(tool_output, ToolResult):
                     if tool_output.error:
-                        logger.warning(f"SandboxPythonExecutor returned an error: {tool_output.error}. Not expecting pid_file_path.")
-                    elif isinstance(tool_output.output, dict) and "pid_file_path" in tool_output.output:
-                        self._current_sandbox_pid_file = tool_output.output["pid_file_path"]
+                        logger.warning(
+                            f"SandboxPythonExecutor returned an error: {tool_output.error}. Not expecting pid_file_path."
+                        )
+                    elif (
+                        isinstance(tool_output.output, dict)
+                        and "pid_file_path" in tool_output.output
+                    ):
+                        self._current_sandbox_pid_file = tool_output.output[
+                            "pid_file_path"
+                        ]
                         self._current_script_tool_call_id = command.id
                         self._current_sandbox_pid = None
-                        logger.info(f"Stored PID file path '{self._current_sandbox_pid_file}' for tool call ID '{command.id}'.")
+                        logger.info(
+                            f"Stored PID file path '{self._current_sandbox_pid_file}' for tool call ID '{command.id}'."
+                        )
                     else:
                         logger.warning(
                             f"Tool {name} (ToolResult) did not contain 'pid_file_path' in its 'output' dictionary "
                             f"or 'output' was not a dictionary. Output: {tool_output.output}"
                         )
                 else:
-                    logger.error(f"SandboxPythonExecutor returned an unexpected type: {type(tool_output)}, esperava ToolResult.")
+                    logger.error(
+                        f"SandboxPythonExecutor returned an unexpected type: {type(tool_output)}, esperava ToolResult."
+                    )
 
             await self._handle_special_tool(name=name, result=tool_output)
 
@@ -356,7 +434,11 @@ class ToolCallAgent(BaseAgent):
                 if tool_output.error:
                     current_output_str = f"Error: {tool_output.error}"
                     if tool_output.output is not None:
-                        output_detail = json.dumps(tool_output.output) if isinstance(tool_output.output, dict) else str(tool_output.output)
+                        output_detail = (
+                            json.dumps(tool_output.output)
+                            if isinstance(tool_output.output, dict)
+                            else str(tool_output.output)
+                        )
                         current_output_str += f"\nAdditional output: {output_detail}"
                 elif tool_output.output is not None:
                     if isinstance(tool_output.output, dict):
@@ -368,7 +450,9 @@ class ToolCallAgent(BaseAgent):
                 if current_output_str:
                     observation = f"Observed output of cmd `{name}` executed:\n{current_output_str}"
                 else:
-                    observation = f"Cmd `{name}` completed with no observable output or error."
+                    observation = (
+                        f"Cmd `{name}` completed with no observable output or error."
+                    )
                 # Explicit return for ToolResult case
                 return observation
 
@@ -379,10 +463,12 @@ class ToolCallAgent(BaseAgent):
                     current_output_str = json.dumps(tool_output)
                     observation = f"Observed output of cmd `{name}` executed (dict converted to JSON):\n{current_output_str}"
                 except TypeError as e:
-                    logger.error(f"Falha ao serializar a saída do dicionário da ferramenta '{name}' para JSON: {e}. Usando str() como fallback.")
+                    logger.error(
+                        f"Falha ao serializar a saída do dicionário da ferramenta '{name}' para JSON: {e}. Usando str() como fallback."
+                    )
                     current_output_str = str(tool_output)
                     observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)} using str()):\n{current_output_str}"
-                return observation # Explicit return for dict case
+                return observation  # Explicit return for dict case
 
             elif isinstance(tool_output, str):
                 self._current_base64_image = None
@@ -390,33 +476,42 @@ class ToolCallAgent(BaseAgent):
                 if current_output_str:
                     observation = f"Observed output of cmd `{name}` executed:\n{current_output_str}"
                 else:
-                    observation = f"Cmd `{name}` completed with no observable string output."
-                return observation # Explicit return for str case
+                    observation = (
+                        f"Cmd `{name}` completed with no observable string output."
+                    )
+                return observation  # Explicit return for str case
 
-            else: # Fallback for any other unhandled types
-                logger.warning(f"Tool '{name}' returned an unhandled type: {type(tool_output)}. Converting to string using str().")
+            else:  # Fallback for any other unhandled types
+                logger.warning(
+                    f"Tool '{name}' returned an unhandled type: {type(tool_output)}. Converting to string using str()."
+                )
                 self._current_base64_image = None
                 current_output_str = str(tool_output)
                 observation = f"Observed output of cmd `{name}` executed (converted from {type(tool_output)} using str()):\n{current_output_str}"
                 return observation
-
 
         except json.JSONDecodeError:
             err_msg = f"Error parsing arguments for tool {name}: Invalid JSON. Arguments: {command.function.arguments}"
             logger.error(err_msg)
             return f"Error: {err_msg}"
         except Exception as e:
-
             logger.error(f"[TOOL_FAIL] Tool '{name}' failed with exception: {str(e)}")
             error_msg = f"⚠️ Tool '{name}' encountered a problem: {str(e)}"
             logger.exception(error_msg)
             return f"Error: {error_msg}"
         finally:
-            if hasattr(self, '_current_script_tool_call_id') and self._current_script_tool_call_id == command.id:
-                if hasattr(self, '_cleanup_sandbox_file') and callable(getattr(self, '_cleanup_sandbox_file')):
+            if (
+                hasattr(self, "_current_script_tool_call_id")
+                and self._current_script_tool_call_id == command.id
+            ):
+                if hasattr(self, "_cleanup_sandbox_file") and callable(
+                    getattr(self, "_cleanup_sandbox_file")
+                ):
                     await self._cleanup_sandbox_file(self._current_sandbox_pid_file)
                 else:
-                    logger.warning(f"Agent {self.name} does not have a _cleanup_sandbox_file method. PID file {self._current_sandbox_pid_file} may not be cleaned if it exists.")
+                    logger.warning(
+                        f"Agent {self.name} does not have a _cleanup_sandbox_file method. PID file {self._current_sandbox_pid_file} may not be cleaned if it exists."
+                    )
 
                 logger.info(f"Clearing PID tracking for tool call ID '{command.id}'.")
                 self._current_sandbox_pid = None
@@ -428,7 +523,9 @@ class ToolCallAgent(BaseAgent):
             return
         # Se for ask_human, aguarda input humano
         if name.lower() == "ask_human":
-            logger.info(f"🕒 Special tool '{name}' requisitou input humano. Mudando estado para AWAITING_USER_FEEDBACK.")
+            logger.info(
+                f"🕒 Special tool '{name}' requisitou input humano. Mudando estado para AWAITING_USER_FEEDBACK."
+            )
             self.state = AgentState.AWAITING_USER_FEEDBACK
         elif self._should_finish_execution(name=name, result=result, **kwargs):
             logger.info(f"🏁 Special tool '{name}' has completed the task!")
@@ -458,16 +555,21 @@ class ToolCallAgent(BaseAgent):
         CRITIC_REVIEW_INTERVAL = 5
         try:
             if self.state == AgentState.IDLE or self.current_step == 0:
-                logger.info(f"[{self.name}] Executando validação de pré-execução do ambiente...")
+                logger.info(
+                    f"[{self.name}] Executando validação de pré-execução do ambiente..."
+                )
                 validator = EnvironmentValidator(agent_name=self.name)
                 env_ok, error_messages = await validator.run_all_checks()
                 if not env_ok:
                     consolidated_error_msg = (
                         f"Validação de pré-execução do ambiente falhou para o agente '{self.name}'. "
-                        "Por favor, verifique os erros e tente novamente.\n" + "\n".join(error_messages)
+                        "Por favor, verifique os erros e tente novamente.\n"
+                        + "\n".join(error_messages)
                     )
                     logger.error(consolidated_error_msg)
-                    self.memory.add_message(Message.system_message(consolidated_error_msg))
+                    self.memory.add_message(
+                        Message.system_message(consolidated_error_msg)
+                    )
                     self.state = AgentState.ERROR
                     raise AgentEnvironmentError(consolidated_error_msg)
 
@@ -481,7 +583,9 @@ class ToolCallAgent(BaseAgent):
                 if request:
                     self.update_memory("user", request)
                 elif not self.initial_user_prompt_for_critic:
-                    first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
+                    first_user_msg = next(
+                        (m for m in self.memory.messages if m.role == Role.USER), None
+                    )
                     if first_user_msg:
                         self.initial_user_prompt_for_critic = first_user_msg.content
                 self.state = AgentState.RUNNING
@@ -489,30 +593,49 @@ class ToolCallAgent(BaseAgent):
                 if request:
                     self.update_memory("user", request)
                 elif not self.initial_user_prompt_for_critic:
-                    first_user_msg = next((m for m in self.memory.messages if m.role == Role.USER), None)
+                    first_user_msg = next(
+                        (m for m in self.memory.messages if m.role == Role.USER), None
+                    )
                     if first_user_msg:
                         self.initial_user_prompt_for_critic = first_user_msg.content
             else:
-                logger.error(f"Run method called on agent in an unstartable/unresumable state: {self.state.value}. Raising RuntimeError.")
-                raise RuntimeError(f"Cannot run/resume agent from state: {self.state.value}")
+                logger.error(
+                    f"Run method called on agent in an unstartable/unresumable state: {self.state.value}. Raising RuntimeError."
+                )
+                raise RuntimeError(
+                    f"Cannot run/resume agent from state: {self.state.value}"
+                )
 
             results: List[str] = []
             if self.current_step == 0:
-                 self.steps_since_last_critic_review = 0
+                self.steps_since_last_critic_review = 0
 
-            max_steps_per_run = 3  # Limite de passos por execução
+            max_steps_per_run = self.max_steps if self.max_steps > 0 else float("inf")
             steps_this_run = 0
-            while self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run:
+            while (
+                self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run
+            ):
                 async with self.state_context(AgentState.RUNNING):
-                    while self.state not in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.USER_PAUSED, AgentState.AWAITING_USER_FEEDBACK]:
+                    while self.state not in [
+                        AgentState.FINISHED,
+                        AgentState.ERROR,
+                        AgentState.USER_HALTED,
+                        AgentState.USER_PAUSED,
+                        AgentState.AWAITING_USER_FEEDBACK,
+                    ]:
                         self.current_step += 1
                         self.steps_since_last_critic_review += 1
                         steps_this_run += 1
                         if steps_this_run >= max_steps_per_run:
-                            logger.info(f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução.")
+                            logger.info(
+                                f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução."
+                            )
                             break
 
-                        if hasattr(self, 'user_pause_requested_event') and self.user_pause_requested_event.is_set():
+                        if (
+                            hasattr(self, "user_pause_requested_event")
+                            and self.user_pause_requested_event.is_set()
+                        ):
                             self.user_pause_requested_event.clear()
                             self.state = AgentState.USER_PAUSED
                             break
@@ -521,76 +644,198 @@ class ToolCallAgent(BaseAgent):
                             self.state = AgentState.AWAITING_USER_FEEDBACK
                             break
 
-                        if self.state in [AgentState.FINISHED, AgentState.ERROR, AgentState.USER_HALTED, AgentState.AWAITING_USER_FEEDBACK]:
+                        if self.state in [
+                            AgentState.FINISHED,
+                            AgentState.ERROR,
+                            AgentState.USER_HALTED,
+                            AgentState.AWAITING_USER_FEEDBACK,
+                        ]:
                             break
 
-                        if self.critic_agent and self.steps_since_last_critic_review >= CRITIC_REVIEW_INTERVAL:
-                            logger.info(f"[{self.name}] Agente Crítico ativado na etapa {self.current_step} (total) / {self.steps_since_last_critic_review} (desde última revisão).")
-                            current_plan_markdown = "Plano não disponível para o crítico."
+                        if (
+                            self.critic_agent
+                            and self.steps_since_last_critic_review
+                            >= CRITIC_REVIEW_INTERVAL
+                        ):
+                            logger.info(
+                                f"[{self.name}] Agente Crítico ativado na etapa {self.current_step} (total) / {self.steps_since_last_critic_review} (desde última revisão)."
+                            )
+                            current_plan_markdown = (
+                                "Plano não disponível para o crítico."
+                            )
                             try:
-                                checklist_manager = getattr(self, 'checklist_manager', None)
-                                if checklist_manager and hasattr(checklist_manager, 'get_tasks_as_markdown'):
-                                    current_plan_markdown = await checklist_manager.get_tasks_as_markdown()
-                                elif hasattr(self, '_is_checklist_complete'):
+                                checklist_manager = getattr(
+                                    self, "checklist_manager", None
+                                )
+                                if checklist_manager and hasattr(
+                                    checklist_manager, "get_tasks_as_markdown"
+                                ):
+                                    current_plan_markdown = (
+                                        await checklist_manager.get_tasks_as_markdown()
+                                    )
+                                elif hasattr(self, "_is_checklist_complete"):
                                     local_op = LocalFileOperator()
-                                    checklist_path = str(config.workspace_root / "checklist_principal_tarefa.md")
+                                    checklist_path = str(
+                                        config.workspace_root
+                                        / "checklist_principal_tarefa.md"
+                                    )
                                     if await local_op.exists(checklist_path):
-                                        current_plan_markdown = await local_op.read_file(checklist_path)
+                                        current_plan_markdown = (
+                                            await local_op.read_file(checklist_path)
+                                        )
                                     else:
                                         current_plan_markdown = "Checklist principal ('checklist_principal_tarefa.md') não encontrado."
                             except Exception as e_plan_read:
-                                logger.warning(f"[{self.name}] Não foi possível obter o plano detalhado para o Agente Crítico: {e_plan_read}")
+                                logger.warning(
+                                    f"[{self.name}] Não foi possível obter o plano detalhado para o Agente Crítico: {e_plan_read}"
+                                )
 
                             recent_tool_action_results = []
-                            lookback_messages_count = self.steps_since_last_critic_review * 2 + 5
-                            for msg in reversed(self.memory.messages[-lookback_messages_count:]):
-                                if msg.role == Role.TOOL and hasattr(msg, 'name') and hasattr(msg, 'content') and hasattr(msg, 'tool_call_id'):
-                                    recent_tool_action_results.append({
-                                        "name": msg.name,
-                                        "content": msg.content,
-                                        "tool_call_id": msg.tool_call_id
-                                    })
-                                if len(recent_tool_action_results) >= CRITIC_REVIEW_INTERVAL + 2:
+                            lookback_messages_count = (
+                                self.steps_since_last_critic_review * 2 + 5
+                            )
+                            for msg in reversed(
+                                self.memory.messages[-lookback_messages_count:]
+                            ):
+                                if (
+                                    msg.role == Role.TOOL
+                                    and hasattr(msg, "name")
+                                    and hasattr(msg, "content")
+                                    and hasattr(msg, "tool_call_id")
+                                ):
+                                    recent_tool_action_results.append(
+                                        {
+                                            "name": msg.name,
+                                            "content": msg.content,
+                                            "tool_call_id": msg.tool_call_id,
+                                        }
+                                    )
+                                if (
+                                    len(recent_tool_action_results)
+                                    >= CRITIC_REVIEW_INTERVAL + 2
+                                ):
                                     break
                             recent_tool_action_results.reverse()
 
-                            critic_feedback_text, critic_redirect_suggestion = self.critic_agent.review_plan_and_progress(
+                            (
+                                critic_feedback_text,
+                                critic_redirect_suggestion,
+                            ) = self.critic_agent.review_plan_and_progress(
                                 current_plan_markdown=current_plan_markdown,
                                 initial_user_prompt=self.initial_user_prompt_for_critic,
-                                messages=[msg.model_dump() for msg in self.memory.messages[-10:]],
+                                messages=[
+                                    msg.model_dump()
+                                    for msg in self.memory.messages[-10:]
+                                ],
                                 tool_results=recent_tool_action_results,
                                 current_step=self.current_step,
-                                steps_since_last_review=self.steps_since_last_critic_review
+                                steps_since_last_review=self.steps_since_last_critic_review,
                             )
-                            self.memory.add_message(Message.system_message(f"Feedback do Agente Crítico: {critic_feedback_text}"))
-                            logger.info(f"[{self.name}] Feedback do Agente Crítico: {critic_feedback_text.splitlines()[0]}...")
+                            self.memory.add_message(
+                                Message.system_message(
+                                    f"Feedback do Agente Crítico: {critic_feedback_text}"
+                                )
+                            )
+                            logger.info(
+                                f"[{self.name}] Feedback do Agente Crítico: {critic_feedback_text.splitlines()[0]}..."
+                            )
 
-                            if critic_redirect_suggestion and isinstance(critic_redirect_suggestion, dict):
-                                critic_clarification = critic_redirect_suggestion.get("clarification", "Nenhuma clarificação adicional do crítico.")
-                                self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: {critic_clarification}"))
-                                logger.info(f"[{self.name}] ALERTA DO CRÍTICO (Clarificação): {critic_clarification}")
-                                action_type = critic_redirect_suggestion.get("action_type")
+                            if critic_redirect_suggestion and isinstance(
+                                critic_redirect_suggestion, dict
+                            ):
+                                critic_clarification = critic_redirect_suggestion.get(
+                                    "clarification",
+                                    "Nenhuma clarificação adicional do crítico.",
+                                )
+                                self.memory.add_message(
+                                    Message.system_message(
+                                        f"ALERTA DO CRÍTICO: {critic_clarification}"
+                                    )
+                                )
+                                logger.info(
+                                    f"[{self.name}] ALERTA DO CRÍTICO (Clarificação): {critic_clarification}"
+                                )
+                                action_type = critic_redirect_suggestion.get(
+                                    "action_type"
+                                )
                                 details = critic_redirect_suggestion.get("details", {})
-                                if action_type == "MODIFY_PLAN" and "task_description" in details:
+                                if (
+                                    action_type == "MODIFY_PLAN"
+                                    and "task_description" in details
+                                ):
                                     add_task_tool_name = "add_checklist_task"
-                                    if self.available_tools.get_tool(add_task_tool_name):
+                                    if self.available_tools.get_tool(
+                                        add_task_tool_name
+                                    ):
                                         try:
-                                            add_task_args = {"description": details["task_description"], "priority": details.get("priority", "normal"), "status": "Pendente"}
-                                            add_task_call = ToolCall(id=f"critic_mod_plan_{self.current_step}", function=Function(name=add_task_tool_name, arguments=json.dumps(add_task_args)))
-                                            logger.info(f"[{self.name}] Crítico sugeriu MODIFY_PLAN. Tentando adicionar tarefa via {add_task_tool_name} com args: {add_task_args}")
-                                            add_task_result_obs = await self.execute_tool(add_task_call)
-                                            self.memory.add_message(Message.tool_message(content=add_task_result_obs, tool_call_id=add_task_call.id, name=add_task_tool_name))
-                                            self.memory.add_message(Message.system_message(f"Feedback do Agente Crítico: Tarefa '{details['task_description']}' foi (tentativamente) adicionada ao plano conforme sugestão do crítico."))
+                                            add_task_args = {
+                                                "description": details[
+                                                    "task_description"
+                                                ],
+                                                "priority": details.get(
+                                                    "priority", "normal"
+                                                ),
+                                                "status": "Pendente",
+                                            }
+                                            add_task_call = ToolCall(
+                                                id=f"critic_mod_plan_{self.current_step}",
+                                                function=Function(
+                                                    name=add_task_tool_name,
+                                                    arguments=json.dumps(add_task_args),
+                                                ),
+                                            )
+                                            logger.info(
+                                                f"[{self.name}] Crítico sugeriu MODIFY_PLAN. Tentando adicionar tarefa via {add_task_tool_name} com args: {add_task_args}"
+                                            )
+                                            add_task_result_obs = (
+                                                await self.execute_tool(add_task_call)
+                                            )
+                                            self.memory.add_message(
+                                                Message.tool_message(
+                                                    content=add_task_result_obs,
+                                                    tool_call_id=add_task_call.id,
+                                                    name=add_task_tool_name,
+                                                )
+                                            )
+                                            self.memory.add_message(
+                                                Message.system_message(
+                                                    f"Feedback do Agente Crítico: Tarefa '{details['task_description']}' foi (tentativamente) adicionada ao plano conforme sugestão do crítico."
+                                                )
+                                            )
                                         except Exception as e_critic_add_task:
-                                            logger.error(f"[{self.name}] Erro ao tentar adicionar tarefa sugerida pelo crítico: {e_critic_add_task}")
-                                            self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: Falha ao tentar adicionar tarefa '{details['task_description']}' ao plano via ferramenta, conforme sugestão do crítico."))
+                                            logger.error(
+                                                f"[{self.name}] Erro ao tentar adicionar tarefa sugerida pelo crítico: {e_critic_add_task}"
+                                            )
+                                            self.memory.add_message(
+                                                Message.system_message(
+                                                    f"ALERTA DO CRÍTICO: Falha ao tentar adicionar tarefa '{details['task_description']}' ao plano via ferramenta, conforme sugestão do crítico."
+                                                )
+                                            )
                                     else:
-                                        self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: Sugestão para modificar o plano: Adicionar tarefa '{details['task_description']}'. A ferramenta '{add_task_tool_name}' não está diretamente disponível. O agente principal deve considerar esta sugestão."))
-                                elif action_type == "REQUEST_HUMAN_INPUT" and "question" in details:
+                                        self.memory.add_message(
+                                            Message.system_message(
+                                                f"ALERTA DO CRÍTICO: Sugestão para modificar o plano: Adicionar tarefa '{details['task_description']}'. A ferramenta '{add_task_tool_name}' não está diretamente disponível. O agente principal deve considerar esta sugestão."
+                                            )
+                                        )
+                                elif (
+                                    action_type == "REQUEST_HUMAN_INPUT"
+                                    and "question" in details
+                                ):
                                     ask_human_tool_name = "ask_human"
-                                    self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: É crucial obter input humano. Por favor, considere usar a ferramenta '{ask_human_tool_name}' com a seguinte pergunta: {details['question']}"))
-                                elif action_type == "SUGGEST_ALTERNATIVE_TOOL" and "alternative_tool_name" in details:
-                                    self.memory.add_message(Message.system_message(f"ALERTA DO CRÍTICO: Considere usar a ferramenta '{details['alternative_tool_name']}' com argumentos aproximados: {details.get('alternative_tool_args', {})} em vez de '{details.get('failed_tool', 'a ferramenta anterior')}'. O agente principal deve avaliar e decidir sobre esta sugestão."))
+                                    self.memory.add_message(
+                                        Message.system_message(
+                                            f"ALERTA DO CRÍTICO: É crucial obter input humano. Por favor, considere usar a ferramenta '{ask_human_tool_name}' com a seguinte pergunta: {details['question']}"
+                                        )
+                                    )
+                                elif (
+                                    action_type == "SUGGEST_ALTERNATIVE_TOOL"
+                                    and "alternative_tool_name" in details
+                                ):
+                                    self.memory.add_message(
+                                        Message.system_message(
+                                            f"ALERTA DO CRÍTICO: Considere usar a ferramenta '{details['alternative_tool_name']}' com argumentos aproximados: {details.get('alternative_tool_args', {})} em vez de '{details.get('failed_tool', 'a ferramenta anterior')}'. O agente principal deve avaliar e decidir sobre esta sugestão."
+                                        )
+                                    )
                             self.steps_since_last_critic_review = 0
 
                         step_result = await self.step()
@@ -601,53 +846,110 @@ class ToolCallAgent(BaseAgent):
                             critical_actions_map = {
                                 "reset_current_task_checklist": {
                                     "verification_tool": "view_checklist",
-                                    "confirmation_message_template": "[SISTEMA EXECUTOR]: Ação crítica '{action_name}' foi executada. Sua próxima ação DEVE ser verificar o resultado. Use a ferramenta '{verification_tool}' para confirmar que o checklist está vazio antes de prosseguir."
+                                    "confirmation_message_template": "[SISTEMA EXECUTOR]: Ação crítica '{action_name}' foi executada. Sua próxima ação DEVE ser verificar o resultado. Use a ferramenta '{verification_tool}' para confirmar que o checklist está vazio antes de prosseguir.",
                                 }
                             }
-                            last_tool_message = next((msg for msg in reversed(self.memory.messages) if msg.role == Role.TOOL and msg.tool_call_id == last_executed_tool_call.id), None)
-                            if last_tool_message and last_tool_message.name in critical_actions_map:
-                                action_details = critical_actions_map[last_tool_message.name]
+                            last_tool_message = next(
+                                (
+                                    msg
+                                    for msg in reversed(self.memory.messages)
+                                    if msg.role == Role.TOOL
+                                    and msg.tool_call_id == last_executed_tool_call.id
+                                ),
+                                None,
+                            )
+                            if (
+                                last_tool_message
+                                and last_tool_message.name in critical_actions_map
+                            ):
+                                action_details = critical_actions_map[
+                                    last_tool_message.name
+                                ]
                                 if "Error:" not in last_tool_message.content:
-                                    confirmation_prompt = action_details["confirmation_message_template"].format(action_name=last_tool_message.name, verification_tool=action_details["verification_tool"])
-                                    self.memory.add_message(Message.system_message(confirmation_prompt))
-                                    logger.info(f"[{self.name}] Ação Crítica '{last_tool_message.name}' executada. Injetando prompt de confirmação: {confirmation_prompt}")
+                                    confirmation_prompt = action_details[
+                                        "confirmation_message_template"
+                                    ].format(
+                                        action_name=last_tool_message.name,
+                                        verification_tool=action_details[
+                                            "verification_tool"
+                                        ],
+                                    )
+                                    self.memory.add_message(
+                                        Message.system_message(confirmation_prompt)
+                                    )
+                                    logger.info(
+                                        f"[{self.name}] Ação Crítica '{last_tool_message.name}' executada. Injetando prompt de confirmação: {confirmation_prompt}"
+                                    )
                                 else:
-                                    logger.warning(f"[{self.name}] Ação Crítica '{last_tool_message.name}' parece ter falhado. Não injetando prompt de confirmação. Resultado: {last_tool_message.content}")
+                                    logger.warning(
+                                        f"[{self.name}] Ação Crítica '{last_tool_message.name}' parece ter falhado. Não injetando prompt de confirmação. Resultado: {last_tool_message.content}"
+                                    )
 
                         if self.is_stuck():
                             self.handle_stuck_state()
 
-                if self.state == AgentState.AWAITING_USER_FEEDBACK: break
-                elif self.state == AgentState.USER_PAUSED: break
-                if self.state not in [AgentState.RUNNING]: break
+                if self.state == AgentState.AWAITING_USER_FEEDBACK:
+                    break
+                elif self.state == AgentState.USER_PAUSED:
+                    break
+                if self.state not in [AgentState.RUNNING]:
+                    break
 
-            if self.state == AgentState.USER_HALTED: pass
-            elif self.state == AgentState.AWAITING_USER_FEEDBACK: pass
-            elif self.state == AgentState.USER_PAUSED: pass
-            elif self.current_step >= self.max_steps and self.max_steps > 0: self.state = AgentState.FINISHED
+            if self.state == AgentState.USER_HALTED:
+                pass
+            elif self.state == AgentState.AWAITING_USER_FEEDBACK:
+                pass
+            elif self.state == AgentState.USER_PAUSED:
+                pass
+            elif self.current_step >= self.max_steps and self.max_steps > 0:
+                self.state = AgentState.FINISHED
             elif not self.tool_calls and self.state == AgentState.RUNNING:
-                last_message = self.memory.messages[-1] if self.memory.messages else None
-                if last_message and last_message.role == Role.ASSISTANT and not last_message.tool_calls and last_message.content:
-                    logger.info("Agente terminou de pensar e não produziu novas chamadas de ferramenta. Considerando como FINISHED.")
+                last_message = (
+                    self.memory.messages[-1] if self.memory.messages else None
+                )
+                if (
+                    last_message
+                    and last_message.role == Role.ASSISTANT
+                    and not last_message.tool_calls
+                    and last_message.content
+                ):
+                    logger.info(
+                        "Agente terminou de pensar e não produziu novas chamadas de ferramenta. Considerando como FINISHED."
+                    )
                     self.state = AgentState.FINISHED
                 elif self.state == AgentState.RUNNING:
-                    logger.info("Agente no estado RUNNING sem novas tool_calls. Considerando como FINISHED.")
+                    logger.info(
+                        "Agente no estado RUNNING sem novas tool_calls. Considerando como FINISHED."
+                    )
                     self.state = AgentState.FINISHED
-            elif self.state == AgentState.RUNNING: self.state = AgentState.FINISHED
-            elif self.state == AgentState.ERROR: pass
-            elif self.state == AgentState.FINISHED: pass
-            else: logger.error(f"Execution ended with an unexpected or unhandled state: {self.state.value} at step {self.current_step}. Review agent logic.")
+            elif self.state == AgentState.RUNNING:
+                self.state = AgentState.FINISHED
+            elif self.state == AgentState.ERROR:
+                pass
+            elif self.state == AgentState.FINISHED:
+                pass
+            else:
+                logger.error(
+                    f"Execution ended with an unexpected or unhandled state: {self.state.value} at step {self.current_step}. Review agent logic."
+                )
 
             final_summary = f"Execution concluded. Final state: {self.state.value}, Current step: {self.current_step}."
             results.append(final_summary)
-            return "\n".join(results) if results else "No steps executed or execution ended."
+            return (
+                "\n".join(results)
+                if results
+                else "No steps executed or execution ended."
+            )
 
         except AgentEnvironmentError as env_err:
-            logger.error(f"[{self.name}] Saindo devido a AgentEnvironmentError: {env_err}")
+            logger.error(
+                f"[{self.name}] Saindo devido a AgentEnvironmentError: {env_err}"
+            )
             raise
         finally:
             await self.cleanup()
-            if hasattr(SANDBOX_CLIENT, 'cleanup') and callable(SANDBOX_CLIENT.cleanup):
-                 await SANDBOX_CLIENT.cleanup()
-            logger.info(f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}")
-
+            if hasattr(SANDBOX_CLIENT, "cleanup") and callable(SANDBOX_CLIENT.cleanup):
+                await SANDBOX_CLIENT.cleanup()
+            logger.info(
+                f"ToolCallAgent run method finished for agent '{self.name}'. Final state: {self.state.value}"
+            )
