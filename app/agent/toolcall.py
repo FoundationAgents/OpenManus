@@ -207,6 +207,7 @@ class ToolCallAgent(BaseAgent):
                     if current_system_prompt
                     else None
                 ),
+
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
@@ -615,6 +616,7 @@ class ToolCallAgent(BaseAgent):
             while (
                 self.state == AgentState.RUNNING and steps_this_run < max_steps_per_run
             ):
+
                 async with self.state_context(AgentState.RUNNING):
                     while self.state not in [
                         AgentState.FINISHED,
@@ -631,6 +633,7 @@ class ToolCallAgent(BaseAgent):
                                 f"[LOOP] Limite de {max_steps_per_run} passos atingido nesta execução."
                             )
                             break
+
 
                         if (
                             hasattr(self, "user_pause_requested_event")
@@ -903,6 +906,7 @@ class ToolCallAgent(BaseAgent):
                 pass
             elif self.current_step >= self.max_steps and self.max_steps > 0:
                 self.state = AgentState.FINISHED
+
             elif not self.tool_calls and self.state == AgentState.RUNNING:
                 last_message = (
                     self.memory.messages[-1] if self.memory.messages else None

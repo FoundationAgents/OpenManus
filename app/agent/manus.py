@@ -16,6 +16,8 @@ from app.event_bus.redis_bus import RedisEventBus
 from app.exceptions import ToolError
 from app.logger import logger
 from app.prompt.manus import SYSTEM_PROMPT
+
+from app.schema import AgentState
 from app.schema import Function as FunctionCall
 from app.schema import Message, Role
 from app.tool import Terminate, ToolCollection
@@ -42,6 +44,9 @@ from app.tool.python_execute import PythonExecute
 from app.tool.read_file_content import ReadFileContentTool
 from app.tool.sandbox_python_executor import SandboxPythonExecutor
 from app.tool.str_replace_editor import StrReplaceEditor
+
+
+from .regex_patterns import re_subprocess
 
 from .regex_patterns import re_subprocess
 
@@ -131,11 +136,16 @@ class Manus(ToolCallAgent):
 
     async def should_request_feedback(self, *args, **kwargs):
         """Determine if a periodic check-in with the user should happen."""
+
         if (
             self.max_steps > 0
             and self.current_step >= self.max_steps
             and not self._autonomous_mode
         ):
+
+
+        if self.max_steps > 0 and self.current_step >= self.max_steps:
+
             await self.periodic_user_check_in()
             return True
         return False
@@ -306,6 +316,8 @@ async def _classify_user_directive(
     async def _self_reflection_on_tool_failure(
         self, original_command: ToolCall, failure_observation: str, task_context: str
     ) -> Optional[ToolCall]:
+
+        # ... (implementação como definida anteriormente, usando TOOL_CORRECTION_PROMPT_TEMPLATE) ...
         logger.info(
             f"Manus: Iniciando auto-reflexão para falha da ferramenta '{original_command.function.name}'."
         )
@@ -326,6 +338,7 @@ async def _classify_user_directive(
             tool_args_str_for_prompt = json.dumps(
                 parsed_args, indent=2, ensure_ascii=False
             )
+
         except json.JSONDecodeError:
             tool_args_str_for_prompt = tool_args_str
         prompt_for_correction = TOOL_CORRECTION_PROMPT_TEMPLATE.format(
@@ -417,14 +430,16 @@ async def _classify_user_directive(
             )
             ask_human_planned_tool_call: Optional[ToolCall] = None
 
+
             if is_manus_checklist_complete:
                 logger.info(
                     f"Manus: Checklist interno para subtarefa {self.current_subtask_id} completo."
                 )
                 if not self._autonomous_mode:
-                    ask_human_planned_tool_call = await self.periodic_user_check_in(
-                        is_final_check=True
-                    )
+
+                    await self.periodic_user_check_in(is_final_check=True)
+                    self.state = AgentState.AWAITING_USER_FEEDBACK
+                    return
                 else:
                     logger.info(
                         f"Manus: Modo autônomo. Marcando subtarefa {self.current_subtask_id} como concluída."
@@ -443,13 +458,12 @@ async def _classify_user_directive(
                 and self.current_step % (self.max_steps_per_subtask // 2) == 0
                 and self.current_step < self.max_steps_per_subtask
             ):  # Check-in no meio da subtarefa
-                ask_human_planned_tool_call = await self.periodic_user_check_in(
+
+                await self.periodic_user_check_in(
                     is_final_check=False, is_failure_scenario=False
                 )
 
-            if ask_human_planned_tool_call:
-                self.tool_calls = [ask_human_planned_tool_call]
-                await self.act()
+                self.state = AgentState.AWAITING_USER_FEEDBACK
                 return
 
             if not is_manus_checklist_complete:
@@ -532,6 +546,7 @@ async def _classify_user_directive(
                 name=AskHuman().name, arguments=json.dumps(ask_human_args)
             ),
         )
+
 
     async def cleanup(self):  # Sobrescreve cleanup de ToolCallAgent
         logger.info(f"Manus ({self.name}) cleanup starting.")
@@ -2069,6 +2084,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
             final_filtered_messages.append(msg)
 
         prompt_messages_list.extend(final_filtered_messages)
+
         internal_prompt_text = INTERNAL_SELF_ANALYSIS_PROMPT_TEMPLATE.format(
             X=num_messages_for_context, checklist_content=checklist_content_str
         )
@@ -2176,3 +2192,4 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         self._just_resumed_from_feedback_internal = True
         self.current_step = 0
         return True
+
