@@ -116,7 +116,17 @@ async def main():
                     logger.info(f"[main.py] Novo comando recebido: '{user_input}'. Memória do agente atualizada, current_step redefinido. Estado do agente definido para RUNNING.")
 
             elif agent.state == AgentState.AWAITING_USER_FEEDBACK:
-                logger.info("[main.py] Agente está AWAITING_USER_FEEDBACK. Feedback é assumido como processado pelo agente (ex: via Manus.periodic_user_check_in). Definindo estado para RUNNING para continuar.")
+                feedback_prompt = agent._pending_feedback_question or "O agente solicitou seu feedback."
+                print(f"\n{feedback_prompt}\n")
+                user_input = ""
+                try:
+                    user_input = input("Sua resposta: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    logger.warning("[main.py] Entrada interrompida durante AWAITING_USER_FEEDBACK. Encerrando.")
+                    agent.state = AgentState.USER_HALTED
+                    break
+                agent._pending_feedback_question = None
+                current_prompt_for_run = user_input if user_input else None
                 agent.state = AgentState.RUNNING
 
             elif agent.state == AgentState.RUNNING:

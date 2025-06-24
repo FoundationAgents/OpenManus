@@ -96,6 +96,7 @@ class Manus(ToolCallAgent):
     _last_ask_human_for_fallback_id: Optional[str] = PrivateAttr(default=None)
     _autonomous_mode: bool = PrivateAttr(default=False)
     _reset_initiated_by_new_directive: bool = PrivateAttr(default=False)
+    _pending_feedback_question: Optional[str] = PrivateAttr(default=None)
 
     special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name.lower(), AskHuman().name.lower()])
     browser_context_helper: Optional[BrowserContextHelper] = None
@@ -113,6 +114,10 @@ class Manus(ToolCallAgent):
         return "No step logic implemented"
 
     async def should_request_feedback(self, *args, **kwargs):
+        """Determine if a periodic check-in with the user should happen."""
+        if self.max_steps > 0 and self.current_step >= self.max_steps:
+            await self.periodic_user_check_in()
+            return True
         return False
 
     def __init__(self, event_bus: RedisEventBus, **data):
@@ -1524,147 +1529,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
 
         logger.info(f"Manus: Solicitando feedback do usuário com prompt: {pergunta[:500]}...")
         self.memory.add_message(Message.assistant_message(content=pergunta))
-
-        user_response_text = ""
-        user_response_content_for_memory = ""
-        try:
-            tool_instance = self.available_tools.get_tool(user_interaction_tool_name)
-            if tool_instance:
-                user_response_content_from_tool = await tool_instance.execute(inquire=pergunta)
-                if isinstance(user_response_content_from_tool, str):
-                    user_response_content_for_memory = user_response_content_from_tool
-                    user_response_text = user_response_content_from_tool.strip().lower()
-                    self.memory.add_message(Message.user_message(content=user_response_content_for_memory))
-                else:
-                    logger.warning(f"Resposta inesperada da ferramenta {user_interaction_tool_name}: {user_response_content_from_tool}")
-                    user_response_content_for_memory = str(user_response_content_from_tool)
-                    user_response_text = ""
-                    self.memory.add_message(Message.user_message(content=user_response_content_for_memory))
-            else:
-                logger.error(f"Falha ao obter instância da ferramenta {user_interaction_tool_name} novamente.")
-                return True
-        except Exception as e:
-            logger.error(f"Erro ao usar a ferramenta '{user_interaction_tool_name}': {e}")
-            self.memory.add_message(Message.system_message(f"Erro durante interação periódica com usuário: {e}. Continuando execução."))
-            return True
-
-        if is_failure_scenario:
-            if user_response_text == "sim, finalizar":
-                self.memory.add_message(Message.assistant_message("Entendido. Vou finalizar a tarefa agora devido à falha."))
-                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "failure", "message": "Usuário consentiu finalizar devido a falha irrecuperável."}'))]
-                self.state = AgentState.TERMINATED
-                self._just_resumed_from_feedback = False
-                return False
-            elif user_response_text.startswith("não, tentar outra abordagem:"):
-                nova_instrucao = user_response_content_for_memory.replace("não, tentar outra abordagem:", "").strip()
-                logger.info(f"Manus: Usuário forneceu novas instruções após falha: {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou tentar a seguinte abordagem: {nova_instrucao}"))
-                self._just_resumed_from_feedback = True
-                return True
-            else:
-                logger.info(f"Manus: Usuário forneceu entrada não reconhecida ('{user_response_text}') durante verificação de falha. Solicitando novamente.")
-                self.memory.add_message(Message.assistant_message(f"Não entendi sua resposta ('{user_response_content_for_memory}'). Por favor, use 'sim, finalizar' ou 'não, tentar outra abordagem: [instruções]'."))
-                self._just_resumed_from_feedback = True
-                return True
-        elif is_final_check:
-            if user_response_text == "sim":
-                self.memory.add_message(Message.assistant_message("Ótimo! Vou finalizar a tarefa agora com sucesso."))
-                self.tool_calls = [ToolCall(id=str(uuid.uuid4()), function=FunctionCall(name=Terminate().name, arguments='{"status": "success", "message": "Tarefa concluída com sucesso com aprovação do usuário."}'))]
-                self.state = AgentState.TERMINATED
-                self._just_resumed_from_feedback = False
-                return False # Stop execution, will be terminated by main loop
-            elif user_response_text.startswith("revisar:"):
-                nova_instrucao = user_response_content_for_memory.replace("revisar:", "").strip()
-                logger.info(f"Manus: Usuário forneceu instruções para revisão final: {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou revisar com base nas suas instruções: {nova_instrucao}"))
-                self._new_task_directive_received = False # Explicitly false, it's a revision
-                self.state = AgentState.RUNNING # Continue with the current task
-                self._just_resumed_from_feedback = True
-                return False # Return False to allow BaseAgent.run to call think()
-            else: # Unrecognized response during final check
-                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante verificação final. Classificando intenção...")
-                history_for_classification = "\n".join([f"{msg.role.value}: {msg.content}" for msg in self.memory.messages[-3:]])
-
-                classification, summary = await self._classify_user_directive(
-                    user_directive=user_response_content_for_memory, # Usar o conteúdo original
-                    checklist_content=checklist_content_str, # Já carregado para autoanálise
-                    conversation_history=history_for_classification
-                )
-
-                if classification == "A":
-                    logger.info("Classificado como TAREFA NOVA (após verificação final). Resetando checklist e current_step.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Iniciando uma nova tarefa: '{summary if summary else user_response_content_for_memory}'. Vou resetar o checklist anterior."
-                    ))
-                    self._new_task_directive_received = True
-                    self.current_step = 0
-                elif classification == "B":
-                    logger.info("Classificado como MODIFICAÇÃO/CONTINUAÇÃO (após verificação final). Mantendo checklist.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Vou incorporar suas modificações/instruções à tarefa atual: '{summary if summary else user_response_content_for_memory}'."
-                    ))
-                    self._new_task_directive_received = False
-                else: # classification == "C" or fallback
-                    logger.info("Classificado como ESCLARECIMENTO/PERGUNTA ou fallback (após verificação final). Mantendo checklist.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Processando sua pergunta/esclarecimento: '{summary if summary else user_response_content_for_memory}'."
-                    ))
-                    self._new_task_directive_received = False
-
-                self.state = AgentState.RUNNING
-                self._just_resumed_from_feedback = True
-                return False # Sempre retorna False para que think() seja chamado
-        else: # Not a final check (normal periodic check-in)
-            if user_response_text == "parar":
-                self.state = AgentState.USER_HALTED
-                self._just_resumed_from_feedback = False
-                return False # Stop execution
-            elif user_response_text.startswith("mudar:"):
-                nova_instrucao = user_response_content_for_memory.replace("mudar:", "").strip()
-                logger.info(f"Manus: Usuário forneceu novas instruções (via 'mudar:'): {nova_instrucao}")
-                self.memory.add_message(Message.assistant_message(f"Entendido. Vou seguir suas novas instruções: {nova_instrucao}"))
-                self._new_task_directive_received = True
-                self.state = AgentState.RUNNING
-                self._just_resumed_from_feedback = True
-                return False
-            elif user_response_text == "continuar":
-                logger.info("Manus: Usuário escolheu CONTINUAR execução.")
-                self.memory.add_message(Message.assistant_message("Entendido. Continuando com a tarefa."))
-                self._just_resumed_from_feedback = True
-                return True # Continue execution by returning True to should_request_feedback
-            else: # Unrecognized response during normal check-in
-                logger.info(f"Manus: Entrada não reconhecida ('{user_response_text}') durante check-in periódico. Classificando intenção...")
-
-                # Preparar contexto para classificação
-                history_for_classification = "\n".join([f"{msg.role.value}: {msg.content}" for msg in self.memory.messages[-3:]]) # Últimas 3 mensagens
-
-                classification, summary = await self._classify_user_directive(
-                    user_directive=user_response_content_for_memory, # Usar o conteúdo original
-                    checklist_content=checklist_content_str, # Já carregado para autoanálise
-                    conversation_history=history_for_classification
-                )
-
-                if classification == "A":
-                    logger.info("Classificado como TAREFA NOVA. Resetando checklist e current_step.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Iniciando uma nova tarefa: '{summary if summary else user_response_content_for_memory}'. Vou resetar o checklist anterior."
-                    ))
-                    self._new_task_directive_received = True
-                    self.current_step = 0 # Força o reset do checklist e reinício da contagem de passos no think()
-                elif classification == "B":
-                    logger.info("Classificado como MODIFICAÇÃO/CONTINUAÇÃO. Mantendo checklist.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Vou continuar a tarefa atual com as seguintes modificações/instruções: '{summary if summary else user_response_content_for_memory}'."
-                    ))
-                    self._new_task_directive_received = False
-                else: # classification == "C" or fallback
-                    logger.info("Classificado como ESCLARECIMENTO/PERGUNTA ou fallback. Mantendo checklist.")
-                    self.memory.add_message(Message.assistant_message(
-                        f"Entendido. Processando sua pergunta/esclarecimento: '{summary if summary else user_response_content_for_memory}'."
-                    ))
-                    self._new_task_directive_received = False
-
-                self.state = AgentState.RUNNING
-                self._just_resumed_from_feedback = True
-                return False # Sempre retorna False para que think() seja chamado
+        self._pending_feedback_question = pergunta
+        self.current_step = 0
+        return True
 
