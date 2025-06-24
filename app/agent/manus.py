@@ -1528,6 +1528,7 @@ Agora, forneça sua análise e a sugestão de ferramenta e parâmetros no format
         logger.info(f"Manus: Solicitando feedback do usuário com prompt: {pergunta[:500]}...")
         self.memory.add_message(Message.assistant_message(content=pergunta))
         self._pending_feedback_question = pergunta
+
         self._just_resumed_from_feedback_internal = True
         self.current_step = 0
         return True
