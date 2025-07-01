@@ -26,7 +26,7 @@ export default function TaskDetailPage() {
   const { containerRef: messagesContainerRef, shouldAutoScroll, handleScroll, scrollToBottom } = useAutoScroll();
 
   const setupEventSource = () => {
-    if (!taskId || isTaskCompleted) return;
+    if (!taskId) return;
 
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -130,8 +130,11 @@ export default function TaskDetailPage() {
   };
 
   useEffect(() => {
+    setMessages([]);
     setPreviewData(null);
     setIsTaskCompleted(false);
+    setIsThinking(false);
+    setIsTerminating(false);
     if (!taskId) return;
     setupEventSource();
   }, [taskId]);
