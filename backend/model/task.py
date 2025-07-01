@@ -8,6 +8,7 @@ from app.agent.manus import Manus
 class Task(BaseModel):
     id: str
     created_at: datetime
+    request: str
     agent: "Manus"
 
     def model_dump(self, *args, **kwargs):

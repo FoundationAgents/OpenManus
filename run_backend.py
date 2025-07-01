@@ -11,7 +11,21 @@ from pydantic import ValidationError
 
 from backend.route.tasks import router
 
-app = FastAPI()
+app = FastAPI(
+    title="OpenManus API",
+    description="OpenManus API Service",
+    version="1.0.0",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    contact={
+        "name": "OpenManus Team",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +36,28 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+
+@app.get("/api-docs", summary="Get API docs")
+async def get_api_docs():
+    """
+    Get API docs information
+
+    Return API basic information and access link
+    """
+    return {
+        "title": "OpenManus API",
+        "description": "OpenManus API Service",
+        "version": "1.0.0",
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "openapi_url": "/openapi.json",
+        "endpoints": {
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "openapi_json": "/openapi.json",
+        },
+    }
 
 
 def format_validation_error(errors: list[Any]) -> Dict[str, Any]:

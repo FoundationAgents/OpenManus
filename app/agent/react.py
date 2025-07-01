@@ -36,7 +36,7 @@ class ReActAgent(BaseAgent, ABC):
 
     async def step(self) -> str:
         """Execute a single step: think and act."""
-        self.event_bus.emit(ReActAgentEvents.STEP_START, {})
+        self.event_bus.emit(ReActAgentEvents.STEP_START, {"step": self.current_step})
         self.event_bus.emit(ReActAgentEvents.THINK_START, {})
         should_act = await self.think()
         self.event_bus.emit(ReActAgentEvents.THINK_COMPLETE, {})
@@ -62,7 +62,9 @@ class ReActAgent(BaseAgent, ABC):
         self.pre_step_completion_tokens = total_completion_tokens
 
         if not should_act:
-            self.event_bus.emit(ReActAgentEvents.STEP_COMPLETE, {})
+            self.event_bus.emit(
+                ReActAgentEvents.STEP_COMPLETE, {"step": self.current_step}
+            )
             return "Thinking complete - no action needed"
         self.event_bus.emit(ReActAgentEvents.ACT_START, {})
         result = await self.act()

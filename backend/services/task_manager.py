@@ -14,7 +14,7 @@ class TaskManager:
         self.tasks: Dict[str, Task] = {}
         self.histories: Dict[str, list] = {}
 
-    async def run_task(self, task_id: str, prompt: str):
+    async def run_task(self, task_id: str):
         """Run the task and set up corresponding event handlers.
 
         Args:
@@ -39,18 +39,19 @@ class TaskManager:
                 )
 
             # Run the agent
-            await agent.run(prompt)
+            await agent.run(task.request)
             await agent.cleanup()
             asyncio.create_task(self.delayed_remove(task_id))
 
         except Exception as e:
             logger.error(f"Error in task {task_id}: {str(e)}")
 
-    def create_task(self, task_id: str, agent: Manus) -> Task:
+    def create_task(self, task_id: str, agent: Manus, request: str) -> Task:
         task = Task(
             id=task_id,
             created_at=datetime.now(),
             agent=agent,
+            request=request,
         )
         self.tasks[task_id] = task
         self.histories[task_id] = []

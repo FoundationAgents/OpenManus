@@ -72,7 +72,21 @@ class ToolCallAgent(ReActAgent):
                 return False
             raise
         self.event_bus.emit(
-            ToolCallAgentEvents.TOOL_SELECTED, {"tool_calls": response.tool_calls}
+            ToolCallAgentEvents.TOOL_SELECTED,
+            {
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": call.type,
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": json.loads(call.function.arguments),
+                        },
+                    }
+                    for call in response.tool_calls or []
+                ],
+                "content": response.content,
+            },
         )
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
@@ -151,12 +165,22 @@ class ToolCallAgent(ReActAgent):
             self._current_base64_image = None
 
             self.event_bus.emit(
-                ToolCallAgentEvents.TOOL_EXECUTE_START, {"tool_call": command}
+                ToolCallAgentEvents.TOOL_EXECUTE_START,
+                {
+                    "id": command.id,
+                    "name": command.function.name,
+                    "args": json.loads(command.function.arguments or "{}"),
+                },
             )
             result = await self.execute_tool(command)
             self.event_bus.emit(
                 ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
-                {"tool_call": command, "result": result},
+                {
+                    "id": command.id,
+                    "name": command.function.name,
+                    "args": json.loads(command.function.arguments or "{}"),
+                    "result": (result if isinstance(result, str) else str(result)),
+                },
             )
             if self.max_observe:
                 result = result[: self.max_observe]
