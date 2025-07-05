@@ -1,0 +1,135 @@
+{
+  "messages": {
+    "startup": "正在启动 OpenManus...",
+    "processing": "正在处理您的请求...",
+    "completed": "请求处理完成。",
+    "interrupted": "操作被中断。",
+    "cleanup": "正在清理资源...",
+    "enter_prompt": "请输入您的提示: ",
+    "empty_prompt": "提供了空的提示。",
+    "welcome": "欢迎使用 OpenManus！",
+    "goodbye": "感谢您使用 OpenManus！"
+  },
+  "errors": {
+    "config_not_found": "未找到配置文件",
+    "invalid_config": "无效的配置: {error}",
+    "api_error": "API 错误: {error}",
+    "network_error": "网络错误: {error}",
+    "file_not_found": "文件未找到: {file}",
+    "permission_denied": "权限被拒绝: {action}",
+    "timeout": "操作超时",
+    "unknown_error": "发生未知错误: {error}"
+  },
+  "tools": {
+    "browser": {
+      "name": "浏览器工具",
+      "description": "自动化网页浏览器交互",
+      "starting": "正在启动浏览器...",
+      "closing": "正在关闭浏览器...",
+      "navigating": "正在导航到 {url}...",
+      "clicking": "正在点击元素...",
+      "typing": "正在输入文本...",
+      "screenshot": "正在截图..."
+    },
+    "file": {
+      "name": "文件工具",
+      "description": "文件操作和管理",
+      "reading": "正在读取文件: {file}",
+      "writing": "正在写入文件: {file}",
+      "creating": "正在创建文件: {file}",
+      "deleting": "正在删除文件: {file}",
+      "copying": "正在复制文件: {source} 到 {destination}"
+    },
+    "python": {
+      "name": "Python 执行器",
+      "description": "执行 Python 代码",
+      "executing": "正在执行 Python 代码...",
+      "completed": "Python 执行完成",
+      "error": "Python 执行错误: {error}"
+    },
+    "bash": {
+      "name": "Bash 工具",
+      "description": "执行 bash 命令",
+      "executing": "正在执行命令: {command}",
+      "completed": "命令执行完成",
+      "error": "命令执行错误: {error}"
+    },
+    "search": {
+      "name": "网络搜索",
+      "description": "在网络上搜索信息",
+      "searching": "正在搜索: {query}",
+      "results_found": "找到 {count} 个结果",
+      "no_results": "未找到结果: {query}"
+    }
+  },
+  "agents": {
+    "manus": {
+      "name": "Manus 代理",
+      "description": "通用人工智能代理",
+      "initializing": "正在初始化 Manus 代理...",
+      "ready": "Manus 代理已就绪"
+    },
+    "data_analysis": {
+      "name": "数据分析代理",
+      "description": "专门用于数据分析任务的代理",
+      "initializing": "正在初始化数据分析代理...",
+      "ready": "数据分析代理已就绪"
+    },
+    "browser": {
+      "name": "浏览器代理",
+      "description": "专门用于网页自动化的代理",
+      "initializing": "正在初始化浏览器代理...",
+      "ready": "浏览器代理已就绪"
+    }
+  },
+  "status": {
+    "idle": "空闲",
+    "working": "工作中",
+    "error": "错误",
+    "completed": "已完成",
+    "cancelled": "已取消",
+    "timeout": "超时"
+  },
+  "config": {
+    "loading": "正在加载配置...",
+    "loaded": "配置加载成功",
+    "error": "加载配置时出错: {error}",
+    "language_set": "语言已设置为: {language}",
+    "language_not_supported": "不支持语言 '{language}'。使用默认语言。"
+  },
+  "logs": {
+    "agent": {
+      "thoughts": "✨ {agent_name} 的思考: {content}",
+      "tools_selected": "🛠️ {agent_name} 选择了 {count} 个工具使用",
+      "tools_preparing": "🧰 正在准备工具: {tool_names}",
+      "tool_arguments": "🔧 工具参数: {arguments}",
+      "tool_completed": "🎯 工具 '{tool_name}' 完成了任务！结果: {result}",
+      "tool_activating": "🔧 正在激活工具: '{tool_name}'...",
+      "task_completed": "🏁 特殊工具 '{tool_name}' 已完成任务！",
+      "step_executing": "正在执行步骤 {current_step}/{max_steps}",
+      "max_steps_reached": "已终止: 达到最大步数 ({max_steps})"
+    },
+    "errors": {
+      "token_limit": "🚨 Token限制错误 (来自重试错误): {error}",
+      "tools_unavailable": "🤔 嗯，{agent_name} 试图在工具不可用时使用工具！",
+      "thinking_error": "🚨 哎呀！{agent_name} 的思考过程遇到了问题: {error}",
+      "validation_error": "ask_tool中的验证错误: {error}",
+      "openai_api_error": "OpenAI API错误: {error}",
+      "authentication_failed": "身份验证失败。请检查API密钥。",
+      "rate_limit_exceeded": "超出速率限制。考虑增加重试次数。",
+      "api_error": "API错误: {error}",
+      "unexpected_error": "ask_tool中的意外错误: {error}"
+    },
+    "tokens": {
+      "usage": "Token使用情况: 输入={input}, 完成={completion}, 累计输入={cumulative_input}, 累计完成={cumulative_completion}, 总计={total}, 累计总计={cumulative_total}"
+    },
+    "tools": {
+      "data_visualization": "📈 使用 {json_path} 进行数据可视化，类型: {tool_type}",
+      "web_search_failed": "从 {url} 获取内容失败: HTTP {status_code}",
+      "parsing_error": "HTML解析错误: {error}"
+    },
+    "flow": {
+      "creating_plan": "正在创建初始计划，ID: {plan_id}"
+    }
+  }
+}

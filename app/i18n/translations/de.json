@@ -1,0 +1,135 @@
+{
+  "messages": {
+    "startup": "OpenManus wird gestartet...",
+    "processing": "Ihre Anfrage wird bearbeitet...",
+    "completed": "Anfrageverarbeitung abgeschlossen.",
+    "interrupted": "Vorgang unterbrochen.",
+    "cleanup": "Ressourcen werden bereinigt...",
+    "enter_prompt": "Geben Sie Ihre Eingabeaufforderung ein: ",
+    "empty_prompt": "Leere Eingabeaufforderung bereitgestellt.",
+    "welcome": "Willkommen bei OpenManus!",
+    "goodbye": "Vielen Dank für die Nutzung von OpenManus!"
+  },
+  "errors": {
+    "config_not_found": "Konfigurationsdatei nicht gefunden",
+    "invalid_config": "Ungültige Konfiguration: {error}",
+    "api_error": "API-Fehler: {error}",
+    "network_error": "Netzwerkfehler: {error}",
+    "file_not_found": "Datei nicht gefunden: {file}",
+    "permission_denied": "Berechtigung verweigert: {action}",
+    "timeout": "Zeitüberschreitung des Vorgangs",
+    "unknown_error": "Ein unbekannter Fehler ist aufgetreten: {error}"
+  },
+  "tools": {
+    "browser": {
+      "name": "Browser-Tool",
+      "description": "Webbrowser-Interaktionen automatisieren",
+      "starting": "Browser wird gestartet...",
+      "closing": "Browser wird geschlossen...",
+      "navigating": "Navigation zu {url}...",
+      "clicking": "Klick auf Element...",
+      "typing": "Text wird eingegeben...",
+      "screenshot": "Screenshot wird erstellt..."
+    },
+    "file": {
+      "name": "Datei-Tool",
+      "description": "Dateioperationen und -verwaltung",
+      "reading": "Datei wird gelesen: {file}",
+      "writing": "Datei wird geschrieben: {file}",
+      "creating": "Datei wird erstellt: {file}",
+      "deleting": "Datei wird gelöscht: {file}",
+      "copying": "Datei wird kopiert: {source} nach {destination}"
+    },
+    "python": {
+      "name": "Python-Executor",
+      "description": "Python-Code ausführen",
+      "executing": "Python-Code wird ausgeführt...",
+      "completed": "Python-Ausführung abgeschlossen",
+      "error": "Python-Ausführungsfehler: {error}"
+    },
+    "bash": {
+      "name": "Bash-Tool",
+      "description": "Bash-Befehle ausführen",
+      "executing": "Befehl wird ausgeführt: {command}",
+      "completed": "Befehlsausführung abgeschlossen",
+      "error": "Befehlsausführungsfehler: {error}"
+    },
+    "search": {
+      "name": "Web-Suche",
+      "description": "Im Web nach Informationen suchen",
+      "searching": "Suche nach: {query}",
+      "results_found": "{count} Ergebnisse gefunden",
+      "no_results": "Keine Ergebnisse gefunden für: {query}"
+    }
+  },
+  "agents": {
+    "manus": {
+      "name": "Manus-Agent",
+      "description": "Universeller KI-Agent",
+      "initializing": "Manus-Agent wird initialisiert...",
+      "ready": "Manus-Agent ist bereit"
+    },
+    "data_analysis": {
+      "name": "Datenanalyse-Agent",
+      "description": "Spezialisierter Agent für Datenanalyse-Aufgaben",
+      "initializing": "Datenanalyse-Agent wird initialisiert...",
+      "ready": "Datenanalyse-Agent ist bereit"
+    },
+    "browser": {
+      "name": "Browser-Agent",
+      "description": "Spezialisierter Agent für Web-Automatisierung",
+      "initializing": "Browser-Agent wird initialisiert...",
+      "ready": "Browser-Agent ist bereit"
+    }
+  },
+  "status": {
+    "idle": "Leerlauf",
+    "working": "Arbeitet",
+    "error": "Fehler",
+    "completed": "Abgeschlossen",
+    "cancelled": "Abgebrochen",
+    "timeout": "Zeitüberschreitung"
+  },
+  "config": {
+    "loading": "Konfiguration wird geladen...",
+    "loaded": "Konfiguration erfolgreich geladen",
+    "error": "Fehler beim Laden der Konfiguration: {error}",
+    "language_set": "Sprache eingestellt auf: {language}",
+    "language_not_supported": "Sprache '{language}' wird nicht unterstützt. Standardsprache wird verwendet."
+  },
+  "logs": {
+    "agent": {
+      "thoughts": "✨ {agent_name}s Gedanken: {content}",
+      "tools_selected": "🛠️ {agent_name} hat {count} Tools zur Verwendung ausgewählt",
+      "tools_preparing": "🧰 Tools werden vorbereitet: {tool_names}",
+      "tool_arguments": "🔧 Tool-Argumente: {arguments}",
+      "tool_completed": "🎯 Tool '{tool_name}' hat seine Mission erfüllt! Ergebnis: {result}",
+      "tool_activating": "🔧 Tool wird aktiviert: '{tool_name}'...",
+      "task_completed": "🏁 Spezielles Tool '{tool_name}' hat die Aufgabe abgeschlossen!",
+      "step_executing": "Schritt {current_step}/{max_steps} wird ausgeführt",
+      "max_steps_reached": "Beendet: Maximale Schrittanzahl erreicht ({max_steps})"
+    },
+    "errors": {
+      "token_limit": "🚨 Token-Limit-Fehler (von RetryError): {error}",
+      "tools_unavailable": "🤔 Hmm, {agent_name} hat versucht, Tools zu verwenden, obwohl sie nicht verfügbar waren!",
+      "thinking_error": "🚨 Ups! Der Denkprozess von {agent_name} ist auf ein Problem gestoßen: {error}",
+      "validation_error": "Validierungsfehler in ask_tool: {error}",
+      "openai_api_error": "OpenAI API-Fehler: {error}",
+      "authentication_failed": "Authentifizierung fehlgeschlagen. API-Schlüssel überprüfen.",
+      "rate_limit_exceeded": "Rate-Limit überschritten. Erwägen Sie, die Wiederholungsversuche zu erhöhen.",
+      "api_error": "API-Fehler: {error}",
+      "unexpected_error": "Unerwarteter Fehler in ask_tool: {error}"
+    },
+    "tokens": {
+      "usage": "Token-Nutzung: Eingabe={input}, Vervollständigung={completion}, Kumulative Eingabe={cumulative_input}, Kumulative Vervollständigung={cumulative_completion}, Gesamt={total}, Kumulativ Gesamt={cumulative_total}"
+    },
+    "tools": {
+      "data_visualization": "📈 data_visualization mit {json_path} in: {tool_type}",
+      "web_search_failed": "Fehler beim Abrufen von Inhalten von {url}: HTTP {status_code}",
+      "parsing_error": "HTML-Parsing-Fehler: {error}"
+    },
+    "flow": {
+      "creating_plan": "Erstelle initialen Plan mit ID: {plan_id}"
+    }
+  }
+}
