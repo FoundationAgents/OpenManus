@@ -66,6 +66,28 @@ class RunflowSettings(BaseModel):
     )
 
 
+class LanguageSettings(BaseModel):
+    """Configuration for internationalization (i18n)"""
+
+    locale: str = Field(
+        default="en",
+        description="Language locale code (en, zh_cn, zh_tw)"
+    )
+
+
+class RuleSettings(BaseModel):
+    """Configuration for rule system"""
+
+    path: str = Field(
+        default="config/rules.txt",
+        description="Path to the rule file (relative to project root or absolute path)"
+    )
+    activate: bool = Field(
+        default=False,
+        description="Whether to enable the rule system"
+    )
+
+
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -166,6 +188,12 @@ class AppConfig(BaseModel):
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
     run_flow_config: Optional[RunflowSettings] = Field(
         None, description="Run flow configuration"
+    )
+    language_config: Optional[LanguageSettings] = Field(
+        None, description="Language configuration"
+    )
+    rule_config: Optional[RuleSettings] = Field(
+        None, description="Rule configuration"
     )
 
     class Config:
@@ -283,6 +311,19 @@ class Config:
             run_flow_settings = RunflowSettings(**run_flow_config)
         else:
             run_flow_settings = RunflowSettings()
+
+        language_config = raw_config.get("language")
+        if language_config:
+            language_settings = LanguageSettings(**language_config)
+        else:
+            language_settings = LanguageSettings()
+
+        rule_config = raw_config.get("rule")
+        if rule_config:
+            rule_settings = RuleSettings(**rule_config)
+        else:
+            rule_settings = RuleSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -296,6 +337,8 @@ class Config:
             "search_config": search_settings,
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
+            "language_config": language_settings,
+            "rule_config": rule_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -325,6 +368,16 @@ class Config:
     def run_flow_config(self) -> RunflowSettings:
         """Get the Run Flow configuration"""
         return self._config.run_flow_config
+
+    @property
+    def language_config(self) -> LanguageSettings:
+        """Get the Language configuration"""
+        return self._config.language_config
+
+    @property
+    def rule_config(self) -> RuleSettings:
+        """Get the Rule configuration"""
+        return self._config.rule_config
 
     @property
     def workspace_root(self) -> Path:

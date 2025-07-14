@@ -145,7 +145,7 @@ env/
 venv/
 ENV/
 env.bak/
-venv.bak/
+.conda
 
 # Spyder project settings
 .spyderproject
@@ -200,3 +200,6 @@ cython_debug/
 
 # node
 node_modules
+
+# rule
+config/rules.txt

@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import config
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
+from app.i18n import log_tool
 from app.tool.search import (
     BaiduSearchEngine,
     BingSearchEngine,
@@ -130,7 +131,7 @@ class WebContentFetcher:
 
             if response.status_code != 200:
                 logger.warning(
-                    f"Failed to fetch content from {url}: HTTP {response.status_code}"
+                    log_tool("web_search_failed", url=url, status_code=response.status_code)
                 )
                 return None
 

@@ -10,6 +10,7 @@ from app.config import config
 from app.llm import LLM
 from app.logger import logger
 from app.tool.base import BaseTool
+from app.i18n import log_tool
 
 
 class DataVisualization(BaseTool):
@@ -201,7 +202,7 @@ Outputs:
         language: str | None = "en",
     ) -> str:
         try:
-            logger.info(f"📈 data_visualization with {json_path} in: {tool_type} ")
+            logger.info(log_tool("data_visualization", json_path=json_path, tool_type=tool_type))
             with open(json_path, "r", encoding="utf-8") as file:
                 json_info = json.load(file)
             if tool_type == "visualization":

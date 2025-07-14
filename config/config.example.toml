@@ -103,3 +103,14 @@ server_reference = "app.mcp.server" # default server module reference
 # Your can add additional agents into run-flow workflow to solve different-type tasks.
 [runflow]
 use_data_analysis_agent = false     # The Data Analysi Agent to solve various data analysis tasks
+
+# Language configuration
+# Configure the locale for internationalization support
+[language]
+locale = "en"  # Options: "en" (English), "zh_cn" (Simplified Chinese), "zh_tw" (Traditional Chinese), "fr" (French), "de" (German), "ru" (Russian)
+
+# Rule configuration
+# Configure custom rules that are automatically applied to user prompts
+[rule]
+path = "config/rules.txt"  # Path to the rule file (relative to project root or absolute path)
+activate = false           # Whether to enable the rule system
