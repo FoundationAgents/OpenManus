@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.event import BaseAgentEvents, EventBus
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -42,6 +43,14 @@ class BaseAgent(BaseModel, ABC):
 
     duplicate_threshold: int = 2
 
+    # Event Bus
+    event_bus: EventBus = Field(default_factory=EventBus, description="Agent events")
+
+    # Termination
+    should_terminate: bool = Field(
+        default=False, description="Whether to terminate the agent"
+    )
+
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"  # Allow extra fields for flexibility in subclasses
@@ -53,6 +62,7 @@ class BaseAgent(BaseModel, ABC):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+        self.event_bus.start()
         return self
 
     @asynccontextmanager
@@ -74,12 +84,24 @@ class BaseAgent(BaseModel, ABC):
         previous_state = self.state
         self.state = new_state
         try:
+            self.event_bus.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": previous_state.value, "new_state": self.state.value},
+            )
             yield
         except Exception as e:
             self.state = AgentState.ERROR  # Transition to ERROR on failure
+            self.event_bus.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": self.state.value, "new_state": AgentState.ERROR.value},
+            )
             raise e
         finally:
             self.state = previous_state  # Revert to previous state
+            self.event_bus.emit(
+                BaseAgentEvents.STATE_CHANGE,
+                {"old_state": self.state.value, "new_state": previous_state.value},
+            )
 
     def update_memory(
         self,
@@ -125,7 +147,12 @@ class BaseAgent(BaseModel, ABC):
         Raises:
             RuntimeError: If the agent is not in IDLE state at start.
         """
+        self.event_bus.emit(BaseAgentEvents.LIFECYCLE_START, {"request": request})
         if self.state != AgentState.IDLE:
+            self.event_bus.emit(
+                BaseAgentEvents.LIFECYCLE_ERROR,
+                {"error": f"Not in IDLE state: {self.state}"},
+            )
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
         if request:
@@ -136,12 +163,15 @@ class BaseAgent(BaseModel, ABC):
             while (
                 self.current_step < self.max_steps and self.state != AgentState.FINISHED
             ):
+                if self.should_terminate:
+                    break
                 self.current_step += 1
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 step_result = await self.step()
 
                 # Check for stuck state
                 if self.is_stuck():
+                    self.event_bus.emit(BaseAgentEvents.STATE_STUCK_DETECTED, {})
                     self.handle_stuck_state()
 
                 results.append(f"Step {self.current_step}: {step_result}")
@@ -149,8 +179,12 @@ class BaseAgent(BaseModel, ABC):
             if self.current_step >= self.max_steps:
                 self.current_step = 0
                 self.state = AgentState.IDLE
+                self.event_bus.emit(
+                    BaseAgentEvents.STEP_MAX_REACHED, {"max_steps": self.max_steps}
+                )
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
+        self.event_bus.emit(BaseAgentEvents.LIFECYCLE_COMPLETE, {"results": results})
         return "\n".join(results) if results else "No steps executed"
 
     @abstractmethod
@@ -166,6 +200,9 @@ class BaseAgent(BaseModel, ABC):
         Observed duplicate responses. Consider new strategies and avoid repeating ineffective paths already attempted."
         self.next_step_prompt = f"{stuck_prompt}\n{self.next_step_prompt}"
         logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
+        self.event_bus.emit(
+            BaseAgentEvents.STATE_STUCK_HANDLED, {"new_prompt": self.next_step_prompt}
+        )
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""
@@ -194,3 +231,7 @@ class BaseAgent(BaseModel, ABC):
     def messages(self, value: List[Message]):
         """Set the list of messages in the agent's memory."""
         self.memory.messages = value
+
+    def terminate(self):
+        """Request to terminate the current task."""
+        self.should_terminate = True

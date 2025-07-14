@@ -5,12 +5,12 @@ from typing import Any, List, Optional, Union
 from pydantic import Field
 
 from app.agent.react import ReActAgent
+from app.event import EventBus, ReActAgentEvents, ToolCallAgentEvents
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
-
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
@@ -71,7 +71,23 @@ class ToolCallAgent(ReActAgent):
                 self.state = AgentState.FINISHED
                 return False
             raise
-
+        self.event_bus.emit(
+            ToolCallAgentEvents.TOOL_SELECTED,
+            {
+                "tool_calls": [
+                    {
+                        "id": call.id,
+                        "type": call.type,
+                        "function": {
+                            "name": call.function.name,
+                            "arguments": json.loads(call.function.arguments),
+                        },
+                    }
+                    for call in response.tool_calls or []
+                ],
+                "content": response.content,
+            },
+        )
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
         )
@@ -130,20 +146,42 @@ class ToolCallAgent(ReActAgent):
 
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
+        self.event_bus.emit(ToolCallAgentEvents.TOOL_START, {})
         if not self.tool_calls:
             if self.tool_choices == ToolChoice.REQUIRED:
+                self.event_bus.emit(
+                    ToolCallAgentEvents.TOOL_ERROR, {"error": TOOL_CALL_REQUIRED}
+                )
                 raise ValueError(TOOL_CALL_REQUIRED)
 
             # Return last message content if no tool calls
+            self.event_bus.emit(ToolCallAgentEvents.TOOL_COMPLETE, {})
             return self.messages[-1].content or "No content or commands to execute"
 
         results = []
         for command in self.tool_calls:
+
             # Reset base64_image for each tool call
             self._current_base64_image = None
 
+            self.event_bus.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_START,
+                {
+                    "id": command.id,
+                    "name": command.function.name,
+                    "args": json.loads(command.function.arguments or "{}"),
+                },
+            )
             result = await self.execute_tool(command)
-
+            self.event_bus.emit(
+                ToolCallAgentEvents.TOOL_EXECUTE_COMPLETE,
+                {
+                    "id": command.id,
+                    "name": command.function.name,
+                    "args": json.loads(command.function.arguments or "{}"),
+                    "result": (result if isinstance(result, str) else str(result)),
+                },
+            )
             if self.max_observe:
                 result = result[: self.max_observe]
 
@@ -160,7 +198,7 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(tool_msg)
             results.append(result)
-
+        self.event_bus.emit(ToolCallAgentEvents.TOOL_COMPLETE, {})
         return "\n\n".join(results)
 
     async def execute_tool(self, command: ToolCall) -> str:
