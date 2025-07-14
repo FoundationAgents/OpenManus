@@ -43,6 +43,7 @@ class MCPAgent(ToolCallAgent):
         server_url: Optional[str] = None,
         command: Optional[str] = None,
         args: Optional[List[str]] = None,
+        env: Optional[dict[str, str]] = None,
     ) -> None:
         """Initialize the MCP connection.
 
@@ -63,7 +64,7 @@ class MCPAgent(ToolCallAgent):
         elif self.connection_type == "stdio":
             if not command:
                 raise ValueError("Command is required for stdio connection")
-            await self.mcp_clients.connect_stdio(command=command, args=args or [])
+            await self.mcp_clients.connect_stdio(command=command, args=args or [], env=env)
         else:
             raise ValueError(f"Unsupported connection type: {self.connection_type}")
 
