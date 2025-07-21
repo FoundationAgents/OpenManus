@@ -8,7 +8,7 @@ async def main():
     # Create and initialize Manus agent
     agent = await Manus.create()
     try:
-        prompt = input("Enter your prompt: ")
+        prompt = "hello world"
         if not prompt.strip():
             logger.warning("Empty prompt provided.")
             return
