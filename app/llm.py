@@ -1,5 +1,9 @@
+import base64
+import io
+import json
 import math
-from typing import Dict, List, Optional, Union
+import os
+from typing import Dict, List, Literal, Optional, Union
 
 import tiktoken
 from openai import (
@@ -11,6 +15,7 @@ from openai import (
     RateLimitError,
 )
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from PIL import Image
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -29,7 +34,6 @@ from app.schema import (
     Message,
     ToolChoice,
 )
-
 
 REASONING_MODELS = ["o1", "o3-mini"]
 MULTIMODAL_MODELS = [
@@ -321,12 +325,17 @@ class LLM:
                             for item in message["content"]
                         ]
 
-                    # Add the image to content
+                    # Optimize the image before adding to content
+                    optimized_image = LLM.optimize_image_for_api(
+                        message["base64_image"]
+                    )
+
+                    # Add the optimized image to content
                     message["content"].append(
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{message['base64_image']}"
+                                "url": f"data:image/webp;base64,{optimized_image}"
                             },
                         }
                     )
@@ -350,6 +359,79 @@ class LLM:
                 raise ValueError(f"Invalid role: {msg['role']}")
 
         return formatted_messages
+
+    @staticmethod
+    def optimize_image_for_api(
+        base64_image: str, max_size: int = 2048, quality: int = 85
+    ) -> str:
+        """
+        Optimize image by converting to WebP format and resizing if necessary.
+
+        Args:
+            base64_image: Base64 encoded image string
+            max_size: Maximum dimension (width or height) in pixels
+            quality: WebP quality (0-100, higher = better quality but larger file)
+
+        Returns:
+            str: Optimized base64 encoded WebP image
+
+        Benefits:
+            - WebP typically 25-35% smaller than JPEG at similar quality
+            - Faster upload times and reduced bandwidth
+            - Smaller base64 strings in JSON payloads
+        """
+        try:
+            # Decode base64 image
+            image_data = base64.b64decode(base64_image)
+            image = Image.open(io.BytesIO(image_data))
+
+            # Convert to RGB if necessary (WebP doesn't support RGBA)
+            if image.mode in ("RGBA", "LA", "P"):
+                # Create white background for transparent images
+                background = Image.new("RGB", image.size, (255, 255, 255))
+                if image.mode == "P":
+                    image = image.convert("RGBA")
+                background.paste(
+                    image, mask=image.split()[-1] if image.mode == "RGBA" else None
+                )
+                image = background
+            elif image.mode != "RGB":
+                image = image.convert("RGB")
+
+            # Resize if image is too large
+            width, height = image.size
+            if width > max_size or height > max_size:
+                # Calculate new dimensions maintaining aspect ratio
+                ratio = min(max_size / width, max_size / height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.info(
+                    f"Resized image from {width}x{height} to {new_width}x{new_height}"
+                )
+
+            # Convert to WebP
+            output_buffer = io.BytesIO()
+            image.save(output_buffer, format="WEBP", quality=quality, optimize=True)
+            optimized_data = output_buffer.getvalue()
+
+            # Encode back to base64
+            optimized_base64 = base64.b64encode(optimized_data).decode("utf-8")
+
+            # Calculate size reduction
+            original_size = len(base64_image)
+            optimized_size = len(optimized_base64)
+            reduction = ((original_size - optimized_size) / original_size) * 100
+
+            logger.info(
+                f"Image optimization: {original_size} -> {optimized_size} bytes ({reduction:.1f}% reduction)"
+            )
+
+            return optimized_base64
+
+        except Exception as e:
+            logger.warning(f"Failed to optimize image: {e}. Using original image.")
+            return base64_image
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -537,9 +619,7 @@ class LLM:
             multimodal_content = (
                 [{"type": "text", "text": content}]
                 if isinstance(content, str)
-                else content
-                if isinstance(content, list)
-                else []
+                else content if isinstance(content, list) else []
             )
 
             # Add images to content

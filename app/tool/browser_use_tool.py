@@ -15,7 +15,6 @@ from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
-
 _BROWSER_DESCRIPTION = """\
 A powerful browser automation tool that allows interaction with web pages through various actions.
 * This tool provides commands for controlling a browser session, navigating web pages, and extracting information
@@ -508,7 +507,9 @@ Page content:
                 full_page=True, animations="disabled", type="jpeg", quality=100
             )
 
-            screenshot = base64.b64encode(screenshot).decode("utf-8")
+            # Convert to base64 and optimize with WebP
+            screenshot_base64 = base64.b64encode(screenshot).decode("utf-8")
+            optimized_screenshot = LLM.optimize_image_for_api(screenshot_base64)
 
             # Build the state info with all required fields
             state_info = {
@@ -533,7 +534,7 @@ Page content:
 
             return ToolResult(
                 output=json.dumps(state_info, indent=4, ensure_ascii=False),
-                base64_image=screenshot,
+                base64_image=optimized_screenshot,
             )
         except Exception as e:
             return ToolResult(error=f"Failed to get browser state: {str(e)}")
