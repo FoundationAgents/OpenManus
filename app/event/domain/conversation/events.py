@@ -1,10 +1,15 @@
-from app.event.base import BaseEvent
+"""Conversation domain events."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
 
+from app.event.core.base import BaseEvent
+
 
 class ConversationEvent(BaseEvent):
+    """Base class for all conversation-related events."""
+    
     def __init__(self, conversation_id: str, user_id: str, **kwargs):
         super().__init__(
             event_type=f"conversation.{self.__class__.__name__.lower().replace('event', '')}",
@@ -20,6 +25,8 @@ class ConversationEvent(BaseEvent):
 
 
 class ConversationCreatedEvent(ConversationEvent):
+    """对话创建事件"""
+    
     def __init__(self, conversation_id: str, user_id: str, title: Optional[str] = None, **kwargs):
         super().__init__(conversation_id=conversation_id, user_id=user_id, **kwargs)
         self.data.update({
@@ -29,6 +36,8 @@ class ConversationCreatedEvent(ConversationEvent):
 
 
 class ConversationClosedEvent(ConversationEvent):
+    """对话关闭事件"""
+    
     def __init__(self, conversation_id: str, user_id: str, reason: str = "user_closed", **kwargs):
         super().__init__(conversation_id=conversation_id, user_id=user_id, **kwargs)
         self.data.update({
@@ -38,6 +47,8 @@ class ConversationClosedEvent(ConversationEvent):
 
 
 class UserInputEvent(ConversationEvent):
+    """用户输入事件"""
+    
     def __init__(self, conversation_id: str, user_id: str, message: str,
                  message_id: Optional[str] = None, **kwargs):
         super().__init__(conversation_id=conversation_id, user_id=user_id, **kwargs)
@@ -49,6 +60,8 @@ class UserInputEvent(ConversationEvent):
 
 
 class InterruptEvent(ConversationEvent):
+    """中断事件"""
+    
     def __init__(self, conversation_id: str, user_id: str, reason: str = "user_interrupt",
                  interrupted_event_id: Optional[str] = None, **kwargs):
         super().__init__(conversation_id=conversation_id, user_id=user_id, **kwargs)
@@ -58,7 +71,10 @@ class InterruptEvent(ConversationEvent):
             "interrupt_time": datetime.now().isoformat(),
         })
 
+
 class AgentResponseEvent(ConversationEvent):
+    """智能体响应事件"""
+    
     def __init__(self, agent_name: str, agent_type: str, response: str,
                  conversation_id: str, user_id: Optional[str] = None, response_type: str = "text", **kwargs):
         # For conversation events, we need user_id, but for agent responses it might not be directly available
@@ -79,6 +95,8 @@ class AgentResponseEvent(ConversationEvent):
 
 
 class LLMStreamEvent(ConversationEvent):
+    """LLM流式输出事件"""
+    
     def __init__(self, agent_name: str, agent_type: str, content: str,
                  is_complete: bool = False, conversation_id: str = None,
                  user_id: Optional[str] = None, **kwargs):
@@ -97,6 +115,8 @@ class LLMStreamEvent(ConversationEvent):
 
 
 class ToolResultDisplayEvent(ConversationEvent):
+    """工具结果显示事件"""
+    
     def __init__(self, tool_name: str, result: str, conversation_id: str = None,
                  user_id: Optional[str] = None, truncated: bool = False, **kwargs):
         super().__init__(
@@ -111,12 +131,14 @@ class ToolResultDisplayEvent(ConversationEvent):
             "timestamp": datetime.now().isoformat(),
         })
 
+
 # ============================================================================
 # Event Factory Functions
 # ============================================================================
 
 def create_conversation_created_event(conversation_id: str, user_id: str,
                                     title: Optional[str] = None) -> ConversationCreatedEvent:
+    """创建对话创建事件"""
     return ConversationCreatedEvent(
         conversation_id=conversation_id,
         user_id=user_id,
@@ -127,6 +149,7 @@ def create_conversation_created_event(conversation_id: str, user_id: str,
 
 def create_user_input_event(conversation_id: str, user_id: str, message: str,
                            parent_event_id: Optional[str] = None) -> UserInputEvent:
+    """创建用户输入事件"""
     event = UserInputEvent(
         conversation_id=conversation_id,
         user_id=user_id,
@@ -140,6 +163,7 @@ def create_user_input_event(conversation_id: str, user_id: str, message: str,
 
 def create_interrupt_event(conversation_id: str, user_id: str,
                          interrupted_event_id: Optional[str] = None) -> InterruptEvent:
+    """创建中断事件"""
     return InterruptEvent(
         conversation_id=conversation_id,
         user_id=user_id,

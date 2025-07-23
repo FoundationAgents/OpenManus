@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List
 from dataclasses import dataclass
 
 from app.logger import logger
-from app.event.base import BaseEvent
+from app.event.core.base import BaseEvent
 
 
 @dataclass

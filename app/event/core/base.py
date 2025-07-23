@@ -5,11 +5,23 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type, Union
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field
 
 from app.logger import logger
-from app.event.types import EventStatus
+from .types import EventStatus
+
+
+@dataclass
+class EventContext:
+    """事件执行上下文，用于管理事件链和中断"""
+    root_event_id: str                    # 根事件ID
+    conversation_id: str                  # 对话ID
+    agent_id: str                        # 智能体ID
+    execution_chain: List[str]           # 事件执行链 ["event1", "event2", "event3"]
+    cancellation_token: asyncio.Event   # 取消令牌
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class BaseEvent(BaseModel):
@@ -27,7 +39,6 @@ class BaseEvent(BaseModel):
     # Event metadata
     source: Optional[str] = Field(None, description="Source component that generated the event")
     status: EventStatus = Field(default=EventStatus.PENDING, description="Current event status")
-    priority: int = Field(default=0, description="execution priority (higher = earlier)")
 
     # Event data
     data: Dict[str, Any] = Field(default_factory=dict, description="Event payload data")
@@ -59,6 +70,96 @@ class BaseEvent(BaseModel):
     def mark_cancelled(self) -> None:
         """Mark event as cancelled."""
         self.status = EventStatus.CANCELLED
+
+
+class ChainableEvent(BaseEvent):
+    """支持事件链和中断的扩展事件类
+
+    继承自 BaseEvent，添加了事件链管理和中断支持功能。
+    适用于需要支持级联事件和中断的场景。
+    """
+
+    # Event context for chain management and interruption
+    context: Optional[EventContext] = Field(None, description="Event execution context")
+
+    def create_child_event(self, event_type: str, data: Dict[str, Any], **kwargs) -> 'ChainableEvent':
+        """创建子事件，继承上下文
+
+        Args:
+            event_type: 子事件类型
+            data: 子事件数据
+            **kwargs: 其他事件属性
+
+        Returns:
+            ChainableEvent: 继承了上下文的子事件
+        """
+        child_event = ChainableEvent(
+            event_type=event_type,
+            data=data,
+            source=self.source,
+            **kwargs
+        )
+
+        if self.context:
+            # 继承父事件的上下文
+            child_event.context = EventContext(
+                root_event_id=self.context.root_event_id,
+                conversation_id=self.context.conversation_id,
+                agent_id=self.context.agent_id,
+                execution_chain=self.context.execution_chain + [self.event_id],
+                cancellation_token=self.context.cancellation_token,
+                metadata=self.context.metadata.copy()
+            )
+
+        return child_event
+
+    def is_cancelled(self) -> bool:
+        """检查事件是否被取消
+
+        Returns:
+            bool: 如果事件被取消返回True
+        """
+        return self.context and self.context.cancellation_token.is_set()
+
+    def get_conversation_id(self) -> Optional[str]:
+        """获取对话ID
+
+        Returns:
+            Optional[str]: 对话ID，如果没有上下文则返回None
+        """
+        if self.context:
+            return self.context.conversation_id
+        return self.data.get('conversation_id')
+
+    def get_agent_id(self) -> Optional[str]:
+        """获取智能体ID
+
+        Returns:
+            Optional[str]: 智能体ID，如果没有上下文则返回None
+        """
+        if self.context:
+            return self.context.agent_id
+        return self.data.get('agent_id')
+
+    def get_execution_chain(self) -> List[str]:
+        """获取事件执行链
+
+        Returns:
+            List[str]: 事件执行链
+        """
+        if self.context:
+            return self.context.execution_chain + [self.event_id]
+        return [self.event_id]
+
+    def get_root_event_id(self) -> str:
+        """获取根事件ID
+
+        Returns:
+            str: 根事件ID
+        """
+        if self.context:
+            return self.context.root_event_id
+        return self.event_id
 
 
 class BaseEventHandler(ABC, BaseModel):

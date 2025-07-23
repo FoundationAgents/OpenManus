@@ -12,6 +12,7 @@ class EventStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+
 class ToolExecutionStatus(str, Enum):
     """Tool execution status."""
     STARTED = "started"

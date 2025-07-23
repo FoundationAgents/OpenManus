@@ -1,7 +1,7 @@
 """Event handler registry system with decorator support.
 
 This module provides automatic handler registration, wildcard pattern matching,
-priority-based execution, and dependency resolution for event handlers.
+dependency resolution for event handlers.
 """
 
 import fnmatch

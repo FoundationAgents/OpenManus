@@ -1,5 +1,8 @@
-from app.event.base import BaseEvent
+"""Basic system events."""
+
 from typing import Optional, Dict, Any
+
+from app.event.core.base import BaseEvent
 
 
 class SystemEvent(BaseEvent):
@@ -20,7 +23,6 @@ class SystemErrorEvent(SystemEvent):
                  context: Optional[Dict[str, Any]] = None, conversation_id: Optional[str] = None, **kwargs):
         super().__init__(
             component=component,
-            priority=999,
             **kwargs
         )
         self.data.update({
