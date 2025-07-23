@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import List, Optional
+import uuid
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -8,6 +9,7 @@ from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
+from app.event.init import ensure_event_system_initialized, publish_agent_step_start
 
 
 class BaseAgent(BaseModel, ABC):
@@ -42,17 +44,34 @@ class BaseAgent(BaseModel, ABC):
 
     duplicate_threshold: int = 2
 
+    # Event system integration
+    conversation_id: Optional[str] = Field(default=None, description="Current conversation ID for event tracking")
+    enable_events: bool = Field(default=True, description="Whether to publish events during execution")
+
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"  # Allow extra fields for flexibility in subclasses
 
     @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
-        """Initialize agent with default settings if not provided."""
+        """Initialize agent with default settings and event system."""
         if self.llm is None or not isinstance(self.llm, LLM):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+
+        # Initialize system prompt if provided
+        if self.system_prompt:
+            self.memory.add_message(Message(role="system", content=self.system_prompt))
+
+        # Ensure event system is initialized if events are enabled
+        if self.enable_events:
+            ensure_event_system_initialized()
+
+        # Generate conversation ID if not provided
+        if self.conversation_id is None:
+            self.conversation_id = str(uuid.uuid4())
+
         return self
 
     @asynccontextmanager
@@ -138,7 +157,35 @@ class BaseAgent(BaseModel, ABC):
             ):
                 self.current_step += 1
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
+
+                # Publish step start event
+                if self.enable_events:
+                    try:
+                        await publish_agent_step_start(
+                            agent_name=self.name,
+                            agent_type=self.__class__.__name__,
+                            step_number=self.current_step,
+                            conversation_id=self.conversation_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to publish agent step start event: {e}")
+
                 step_result = await self.step()
+
+                # Publish step complete event
+                if self.enable_events:
+                    try:
+                        from app.event import create_agent_step_start_event, publish_event, AgentStepCompleteEvent
+                        complete_event = AgentStepCompleteEvent(
+                            agent_name=self.name,
+                            agent_type=self.__class__.__name__,
+                            step_number=self.current_step,
+                            result=step_result,
+                            conversation_id=self.conversation_id
+                        )
+                        await publish_event(complete_event)
+                    except Exception as e:
+                        logger.warning(f"Failed to publish agent step complete event: {e}")
 
                 # Check for stuck state
                 if self.is_stuck():
@@ -194,3 +241,46 @@ class BaseAgent(BaseModel, ABC):
     def messages(self, value: List[Message]):
         """Set the list of messages in the agent's memory."""
         self.memory.messages = value
+
+    # Event system integration methods
+
+    def set_conversation_id(self, conversation_id: str) -> None:
+        """Set the conversation ID for event tracking."""
+        self.conversation_id = conversation_id
+
+    def enable_event_publishing(self, enabled: bool = True) -> None:
+        """Enable or disable event publishing."""
+        self.enable_events = enabled
+        if enabled:
+            ensure_event_system_initialized()
+
+    async def publish_custom_event(self, event_type: str, data: dict) -> bool:
+        """Publish a custom agent event.
+
+        Args:
+            event_type: Type of the event (e.g., "agent.custom.thinking")
+            data: Event data dictionary
+
+        Returns:
+            bool: True if event was published successfully
+        """
+        if not self.enable_events:
+            return False
+
+        try:
+            from app.event import BaseEvent, publish_event
+
+            event = BaseEvent(
+                event_type=event_type,
+                data={
+                    "agent_name": self.name,
+                    "agent_type": self.__class__.__name__,
+                    "conversation_id": self.conversation_id,
+                    **data
+                },
+                source=self.name
+            )
+            return await publish_event(event)
+        except Exception as e:
+            logger.warning(f"Failed to publish custom event {event_type}: {e}")
+            return False
