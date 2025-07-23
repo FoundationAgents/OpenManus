@@ -6,7 +6,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 from app.event.registry import event_handler
-from app.event.events import TestEvent,TestAddEvent
+from app.event.events.test import TestEvent,TestAddEvent
 from app.event import publish_event
 from app.event.simple_bus import get_global_bus, publish_event
 from app.event.middleware import create_default_middleware_chain
