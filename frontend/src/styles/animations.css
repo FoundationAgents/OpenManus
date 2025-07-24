@@ -1,0 +1,85 @@
+@keyframes thinking {
+  0%,
+  60% {
+    transform: scale(1) rotate(0deg);
+  }
+  70% {
+    transform: scale(1.5) rotate(-8deg);
+  }
+  80% {
+    transform: scale(1.5) rotate(8deg);
+  }
+  90% {
+    transform: scale(1.5) rotate(-8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.thinking-animation {
+  animation: thinking 3s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes searching {
+  0% {
+    transform: translate(1px, -1.75px);
+  }
+  8.33% {
+    transform: translate(1.75px, -1px);
+  }
+  16.67% {
+    transform: translate(2px, 0);
+  }
+  25% {
+    transform: translate(1.75px, 1px);
+  }
+  33.33% {
+    transform: translate(1px, 1.75px);
+  }
+  41.67% {
+    transform: translate(0, 2px);
+  }
+  50% {
+    transform: translate(-1px, 1.75px);
+  }
+  58.33% {
+    transform: translate(-1.75px, 1px);
+  }
+  66.67% {
+    transform: translate(-2px, 0);
+  }
+  75% {
+    transform: translate(-1.75px, -1px);
+  }
+  83.33% {
+    transform: translate(-1px, -1.75px);
+  }
+  91.67% {
+    transform: translate(0, -2px);
+  }
+  100% {
+    transform: translate(1px, -1.75px);
+  }
+}
+
+.searching-animation {
+  animation: searching 1.5s linear infinite;
+  display: inline-block;
+  position: relative;
+}
+
+@keyframes spinning {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning-animation {
+  animation: spinning 2s linear infinite;
+  display: inline-block;
+}
