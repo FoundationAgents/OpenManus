@@ -8,6 +8,7 @@ from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
+from app.i18n import log_agent
 
 
 class BaseAgent(BaseModel, ABC):
@@ -137,7 +138,7 @@ class BaseAgent(BaseModel, ABC):
                 self.current_step < self.max_steps and self.state != AgentState.FINISHED
             ):
                 self.current_step += 1
-                logger.info(f"Executing step {self.current_step}/{self.max_steps}")
+                logger.info(log_agent("step_executing", current_step=self.current_step, max_steps=self.max_steps))
                 step_result = await self.step()
 
                 # Check for stuck state
@@ -149,7 +150,7 @@ class BaseAgent(BaseModel, ABC):
             if self.current_step >= self.max_steps:
                 self.current_step = 0
                 self.state = AgentState.IDLE
-                results.append(f"Terminated: Reached max steps ({self.max_steps})")
+                results.append(log_agent("max_steps_reached", max_steps=self.max_steps))
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
 

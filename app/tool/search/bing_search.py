@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 from app.logger import logger
 from app.tool.search.base import SearchItem, WebSearchEngine
+from app.i18n import log_tool
 
 
 ABSTRACT_MAX_LENGTH = 300
@@ -130,7 +131,7 @@ class BingSearchEngine(WebSearchEngine):
             next_url = BING_HOST_URL + next_btn["href"]
             return list_data, next_url
         except Exception as e:
-            logger.warning(f"Error parsing HTML: {e}")
+            logger.warning(log_tool("parsing_error", error=str(e)))
             return [], None
 
     def perform_search(

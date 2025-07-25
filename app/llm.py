@@ -29,6 +29,7 @@ from app.schema import (
     Message,
     ToolChoice,
 )
+from app.i18n import log_token, log_error
 
 
 REASONING_MODELS = ["o1", "o3-mini"]
@@ -241,9 +242,14 @@ class LLM:
         self.total_input_tokens += input_tokens
         self.total_completion_tokens += completion_tokens
         logger.info(
-            f"Token usage: Input={input_tokens}, Completion={completion_tokens}, "
-            f"Cumulative Input={self.total_input_tokens}, Cumulative Completion={self.total_completion_tokens}, "
-            f"Total={input_tokens + completion_tokens}, Cumulative Total={self.total_input_tokens + self.total_completion_tokens}"
+            log_token("usage",
+                input=input_tokens,
+                completion=completion_tokens,
+                cumulative_input=self.total_input_tokens,
+                cumulative_completion=self.total_completion_tokens,
+                total=input_tokens + completion_tokens,
+                cumulative_total=self.total_input_tokens + self.total_completion_tokens
+            )
         )
 
     def check_token_limit(self, input_tokens: int) -> bool:
@@ -468,11 +474,11 @@ class LLM:
         except OpenAIError as oe:
             logger.exception(f"OpenAI API error")
             if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
+                logger.error(log_error("authentication_failed"))
             elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
+                logger.error(log_error("rate_limit_exceeded"))
             elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
+                logger.error(log_error("api_error", error=str(oe)))
             raise
         except Exception:
             logger.exception(f"Unexpected error in ask")
@@ -750,17 +756,17 @@ class LLM:
             # Re-raise token limit errors without logging
             raise
         except ValueError as ve:
-            logger.error(f"Validation error in ask_tool: {ve}")
+            logger.error(log_error("validation_error", error=str(ve)))
             raise
         except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
+            logger.error(log_error("openai_api_error", error=str(oe)))
             if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
+                logger.error(log_error("authentication_failed"))
             elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
+                logger.error(log_error("rate_limit_exceeded"))
             elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
+                logger.error(log_error("api_error", error=str(oe)))
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in ask_tool: {e}")
+            logger.error(log_error("unexpected_error", error=str(e)))
             raise

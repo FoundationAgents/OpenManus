@@ -11,6 +11,7 @@ from app.llm import LLM
 from app.logger import logger
 from app.schema import AgentState, Message, ToolChoice
 from app.tool import PlanningTool
+from app.i18n import log_flow
 
 
 class PlanStepStatus(str, Enum):
@@ -135,7 +136,7 @@ class PlanningFlow(BaseFlow):
 
     async def _create_initial_plan(self, request: str) -> None:
         """Create an initial plan based on the request using the flow's LLM and PlanningTool."""
-        logger.info(f"Creating initial plan with ID: {self.active_plan_id}")
+        logger.info(log_flow("creating_plan", plan_id=self.active_plan_id))
 
         system_message_content = (
             "You are a planning assistant. Create a concise, actionable plan with clear steps. "
