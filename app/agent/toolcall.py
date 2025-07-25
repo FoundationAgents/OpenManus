@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from typing import Any, List, Optional, Union
 
 from pydantic import Field
@@ -218,9 +219,98 @@ class ToolCallAgent(ReActAgent):
             self.state = AgentState.FINISHED
 
     @staticmethod
-    def _should_finish_execution(**kwargs) -> bool:
+    def _should_finish_execution(self, name: str, result: Any, **kwargs) -> bool:
         """Determine if tool execution should finish the agent"""
+        # Only terminate if explicitly called and task is truly complete
+        if name.lower() not in ("terminate", "finish"):
+            return False
+
+        # Get the original user request
+        original_request = next(
+            (msg.content for msg in self.memory.messages if msg.role == "user"), None
+        )
+        if not original_request:
+            return True
+
+        # Ask LLM to evaluate if the task is truly complete
+        completion_check = self._evaluate_task_completion(original_request, result)
+        if not completion_check.get("is_complete", True):
+            # Add a reflection message to reconsider approach
+            reflection = completion_check.get(
+                "reflection", "Let's try a different approach to complete this task."
+            )
+            self.update_memory("system", reflection)
+            return False
+
         return True
+
+    async def _evaluate_task_completion(
+        self, original_request: str, result: str
+    ) -> dict:
+        """Evaluate if the task is truly complete based on the original request"""
+        # First summarize the recent conversation context
+        recent_messages = self.memory.messages[-10:]
+
+        # Get a summary of what's been done so far
+        try:
+            context_msgs = [
+                msg for msg in recent_messages if msg.content and hasattr(msg, "role")
+            ]
+            if context_msgs:
+                summary_prompt = f"""Summarize the key actions and findings from this conversation in 2-3 sentences.
+                Focus on what tools were used and what was discovered or accomplished."""
+
+                summary_response = await self.llm.ask(
+                    messages=context_msgs + [Message.user_message(summary_prompt)],
+                    system_msgs=[
+                        Message.system_message(
+                            "You create concise summaries of conversations."
+                        )
+                    ],
+                )
+                context_summary = summary_response.content
+            else:
+                context_summary = "No significant actions taken yet."
+        except Exception as e:
+            logger.error(f"Error summarizing context: {e}")
+            context_summary = "Context summarization failed."
+
+        # Now use the summary in the evaluation prompt
+        evaluation_prompt = f"""
+        Original request: {original_request}
+
+        What's been done so far: {context_summary}
+
+        Evaluate if this task is truly complete. Consider:
+        1. Have all parts of the request been addressed?
+        2. Was the execution thorough and comprehensive?
+        3. Are there alternative approaches that could yield better results?
+        4. Did we explore sufficiently or stop too early?
+
+        Return JSON: {{"is_complete": boolean, "reflection": "guidance if incomplete"}}
+        """
+
+        try:
+            response = await self.llm.ask(
+                messages=[Message.user_message(evaluation_prompt)],
+                system_msgs=[
+                    Message.system_message(
+                        "You are a critical evaluator determining if a task is truly complete."
+                    )
+                ],
+            )
+
+            # Extract JSON from response in case it's embedded in text
+            json_match = re.search(r"\{.*\}", response.content, re.DOTALL)
+            if json_match:
+                result_json = json.loads(json_match.group(0))
+                return result_json
+
+            # Default to completing if parsing fails
+            return {"is_complete": True}
+        except Exception as e:
+            logger.error(f"Error evaluating task completion: {e}")
+            return {"is_complete": True}  # Default to completing on error
 
     def _is_special_tool(self, name: str) -> bool:
         """Check if tool name is in special tools list"""
