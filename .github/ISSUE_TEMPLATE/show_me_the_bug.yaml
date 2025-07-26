@@ -1,44 +1,44 @@
-name: "🪲 Show me the Bug"
-description: Report a bug encountered while using OpenManus and seek assistance.
+name: "🪲 Mostre-me o Bug"
+description: Relate um bug encontrado ao usar o OpenManus e procure assistência.
 labels: bug
 body:
   - type: textarea
     id: bug-description
     attributes:
-      label: Bug Description
+      label: Descrição do Bug
       description: |
-        Clearly describe the bug you encountered
+        Descreva claramente o bug que você encontrou
     validations:
       required: true
   - type: textarea
     id: solve-method
     attributes:
-      label: Bug solved method
+      label: Método de resolução do Bug
       description: |
-        If resolved, explain the solution. Optionally, include a Pull Request URL.
-        If unresolved, provide additional details to aid investigation
+        Se resolvido, explique a solução. Opcionalmente, inclua uma URL de Pull Request.
+        Se não resolvido, forneça detalhes adicionais para ajudar na investigação
     validations:
       required: true
   - type: textarea
     id: environment-information
     attributes:
-      label: Environment information
+      label: Informações do Ambiente
       description: |
-        System: e.g., Ubuntu 22.04
-        Python: e.g., 3.12
-        OpenManus version: e.g., 0.1.0
+        Sistema: ex., Ubuntu 22.04
+        Python: ex., 3.12
+        Versão do OpenManus: ex., 0.1.0
       value: |
-        - System version:
-        - Python version:
-        - OpenManus version or branch:
-        - Installation method (e.g., `pip install -r requirements.txt` or `pip install -e .`):
+        - Versão do Sistema:
+        - Versão do Python:
+        - Versão ou branch do OpenManus:
+        - Método de instalação (ex., `pip install -r requirements.txt` ou `pip install -e .`):
     validations:
       required: true
   - type: textarea
     id: extra-information
     attributes:
-      label: Extra information
+      label: Informações Extras
       description: |
-        For example, attach screenshots or logs to help diagnose the issue
+        Por exemplo, anexe capturas de tela ou logs para ajudar a diagnosticar o problema
     validations:
       required: false

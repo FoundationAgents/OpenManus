@@ -1,7 +1,6 @@
 from contextlib import AsyncExitStack
 from typing import Dict, List, Optional
 
-from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 from mcp.types import ListToolsResult, TextContent
@@ -9,6 +8,7 @@ from mcp.types import ListToolsResult, TextContent
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.tool_collection import ToolCollection
+from mcp import ClientSession, StdioServerParameters
 
 
 class MCPClientTool(BaseTool):
@@ -106,8 +106,8 @@ class MCPClients(ToolCollection):
         # Create proper tool objects for each server tool
         for tool in response.tools:
             original_name = tool.name
+            # Always prefix with server_id to ensure uniqueness
             tool_name = f"mcp_{server_id}_{original_name}"
-            tool_name = self._sanitize_tool_name(tool_name)
 
             server_tool = MCPClientTool(
                 name=tool_name,
@@ -125,25 +125,6 @@ class MCPClients(ToolCollection):
             f"Connected to server {server_id} with tools: {[tool.name for tool in response.tools]}"
         )
 
-    def _sanitize_tool_name(self, name: str) -> str:
-        """Sanitize tool name to match MCPClientTool requirements."""
-        import re
-
-        # Replace invalid characters with underscores
-        sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
-
-        # Remove consecutive underscores
-        sanitized = re.sub(r"_+", "_", sanitized)
-
-        # Remove leading/trailing underscores
-        sanitized = sanitized.strip("_")
-
-        # Truncate to 64 characters if needed
-        if len(sanitized) > 64:
-            sanitized = sanitized[:64]
-
-        return sanitized
-
     async def list_tools(self) -> ListToolsResult:
         """List all available tools."""
         tools_result = ListToolsResult(tools=[])
@@ -155,6 +136,7 @@ class MCPClients(ToolCollection):
     async def disconnect(self, server_id: str = "") -> None:
         """Disconnect from a specific MCP server or all servers if no server_id provided."""
         if server_id:
+            logger.info(f"MCPClients.disconnect: Starting disconnection for server_id: {server_id}")
             if server_id in self.sessions:
                 try:
                     exit_stack = self.exit_stacks.get(server_id)
@@ -162,8 +144,11 @@ class MCPClients(ToolCollection):
                     # Close the exit stack which will handle session cleanup
                     if exit_stack:
                         try:
+                            logger.info(f"MCPClients.disconnect: About to call exit_stack.aclose() for server_id: {server_id}")
                             await exit_stack.aclose()
+                            logger.info(f"MCPClients.disconnect: exit_stack.aclose() completed for server_id: {server_id}")
                         except RuntimeError as e:
+                            logger.error(f"MCPClients.disconnect: Error during exit_stack.aclose() for server_id: {server_id}. Error: {e}")
                             if "cancel scope" in str(e).lower():
                                 logger.warning(
                                     f"Cancel scope error during disconnect from {server_id}, continuing with cleanup: {e}"
@@ -185,10 +170,13 @@ class MCPClients(ToolCollection):
                     logger.info(f"Disconnected from MCP server {server_id}")
                 except Exception as e:
                     logger.error(f"Error disconnecting from server {server_id}: {e}")
+            logger.info(f"MCPClients.disconnect: Finished disconnection for server_id: {server_id}")
         else:
+            logger.info("MCPClients.disconnect: Starting disconnection for ALL servers.")
             # Disconnect from all servers in a deterministic order
             for sid in sorted(list(self.sessions.keys())):
                 await self.disconnect(sid)
             self.tool_map = {}
             self.tools = tuple()
             logger.info("Disconnected from all MCP servers")
+            logger.info("MCPClients.disconnect: Finished disconnection for ALL servers.")

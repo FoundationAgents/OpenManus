@@ -103,3 +103,24 @@ server_reference = "app.mcp.server" # default server module reference
 # Your can add additional agents into run-flow workflow to solve different-type tasks.
 [runflow]
 use_data_analysis_agent = false     # The Data Analysi Agent to solve various data analysis tasks
+
+# Redis configuration for Event Bus and Checkpointing Cache (optional)
+[redis]
+host = "localhost"
+port = 6379
+db = 0
+# password = "your_redis_password" # Uncomment if your Redis server requires a password
+event_stream_max_len = 1000 # Approximate number of events to keep in a stream
+# checkpoint_ttl_seconds = 86400 # 1 day, for Redis-based checkpoint caching (if used)
+
+# PostgreSQL configuration for Workflow State and Checkpointing
+[postgresql]
+db_name = "openmanus_dev"
+user = "user"
+password = "password"
+host = "localhost"
+port = 5432
+# sslmode = "prefer" # prefer, require, disable
+# For async connections (asyncpg)
+# Example DSN: postgresql+asyncpg://user:password@host:port/db_name
+# db_url = "postgresql+asyncpg://user:password@localhost:5432/openmanus_dev"

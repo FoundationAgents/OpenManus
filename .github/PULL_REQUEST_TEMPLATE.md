@@ -1,17 +1,17 @@
-**Features**
-<!-- Describe the features or bug fixes in this PR. For bug fixes, link to the issue. -->
+**Funcionalidades**
+<!-- Descreva as funcionalidades ou correções de bugs neste PR. Para correções de bugs, vincule à issue. -->
 
-- Feature 1
-- Feature 2
+- Funcionalidade 1
+- Funcionalidade 2
 
-**Feature Docs**
-<!-- Provide RFC, tutorial, or use case links for significant updates. Optional for minor changes. -->
+**Documentação da Funcionalidade**
+<!-- Forneça links de RFC, tutorial ou caso de uso para atualizações significativas. Opcional para pequenas alterações. -->
 
-**Influence**
-<!-- Explain the impact of these changes for reviewer focus. -->
+**Impacto**
+<!-- Explique o impacto dessas alterações para o foco do revisor. -->
 
-**Result**
-<!-- Include screenshots or logs of unit tests or running results. -->
+**Resultado**
+<!-- Inclua capturas de tela ou logs de testes unitários ou resultados de execução. -->
 
-**Other**
-<!-- Additional notes about this PR. -->
+**Outro**
+<!-- Notas adicionais sobre este PR. -->
