@@ -1,4 +1,3 @@
-
 """
 Crawl4AI Web Crawler Tool for OpenManus
 
@@ -7,7 +6,7 @@ providing fast, precise, and AI-ready data extraction with clean Markdown genera
 """
 
 import asyncio
-from typing import Union, List
+from typing import List, Union
 from urllib.parse import urlparse
 
 from app.logger import logger
@@ -39,28 +38,28 @@ class Crawl4aiTool(BaseTool):
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "(required) List of URLs to crawl. Can be a single URL or multiple URLs.",
-                "minItems": 1
+                "minItems": 1,
             },
             "timeout": {
                 "type": "integer",
                 "description": "(optional) Timeout in seconds for each URL. Default is 30.",
                 "default": 30,
                 "minimum": 5,
-                "maximum": 120
+                "maximum": 120,
             },
             "bypass_cache": {
                 "type": "boolean",
                 "description": "(optional) Whether to bypass cache and fetch fresh content. Default is false.",
-                "default": False
+                "default": False,
             },
             "word_count_threshold": {
                 "type": "integer",
                 "description": "(optional) Minimum word count for content blocks. Default is 10.",
                 "default": 10,
-                "minimum": 1
-            }
+                "minimum": 1,
+            },
         },
-        "required": ["urls"]
+        "required": ["urls"],
     }
 
     async def execute(
@@ -101,7 +100,12 @@ class Crawl4aiTool(BaseTool):
 
         try:
             # Import crawl4ai components
-            from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+            from crawl4ai import (
+                AsyncWebCrawler,
+                BrowserConfig,
+                CacheMode,
+                CrawlerRunConfig,
+            )
 
             # Configure browser settings
             browser_config = BrowserConfig(
@@ -109,7 +113,7 @@ class Crawl4aiTool(BaseTool):
                 verbose=False,
                 browser_type="chromium",
                 ignore_https_errors=True,
-                java_script_enabled=True
+                java_script_enabled=True,
             )
 
             # Configure crawler settings
@@ -118,10 +122,10 @@ class Crawl4aiTool(BaseTool):
                 word_count_threshold=word_count_threshold,
                 process_iframes=True,
                 remove_overlay_elements=True,
-                excluded_tags=['script', 'style'],
+                excluded_tags=["script", "style"],
                 page_timeout=timeout * 1000,  # Convert to milliseconds
                 verbose=False,
-                wait_until="domcontentloaded"
+                wait_until="domcontentloaded",
             )
 
             results = []
@@ -143,54 +147,64 @@ class Crawl4aiTool(BaseTool):
                         if result.success:
                             # Count words in markdown
                             word_count = 0
-                            if hasattr(result, 'markdown') and result.markdown:
+                            if hasattr(result, "markdown") and result.markdown:
                                 word_count = len(result.markdown.split())
 
                             # Count links
                             links_count = 0
-                            if hasattr(result, 'links') and result.links:
-                                internal_links = result.links.get('internal', [])
-                                external_links = result.links.get('external', [])
+                            if hasattr(result, "links") and result.links:
+                                internal_links = result.links.get("internal", [])
+                                external_links = result.links.get("external", [])
                                 links_count = len(internal_links) + len(external_links)
 
                             # Count images
                             images_count = 0
-                            if hasattr(result, 'media') and result.media:
-                                images = result.media.get('images', [])
+                            if hasattr(result, "media") and result.media:
+                                images = result.media.get("images", [])
                                 images_count = len(images)
 
-                            results.append({
-                                'url': url,
-                                'success': True,
-                                'status_code': getattr(result, 'status_code', 200),
-                                'title': result.metadata.get('title') if result.metadata else None,
-                                'markdown': result.markdown if hasattr(result, 'markdown') else None,
-                                'word_count': word_count,
-                                'links_count': links_count,
-                                'images_count': images_count,
-                                'execution_time': execution_time
-                            })
+                            results.append(
+                                {
+                                    "url": url,
+                                    "success": True,
+                                    "status_code": getattr(result, "status_code", 200),
+                                    "title": result.metadata.get("title")
+                                    if result.metadata
+                                    else None,
+                                    "markdown": result.markdown
+                                    if hasattr(result, "markdown")
+                                    else None,
+                                    "word_count": word_count,
+                                    "links_count": links_count,
+                                    "images_count": images_count,
+                                    "execution_time": execution_time,
+                                }
+                            )
                             successful_count += 1
-                            logger.info(f"✅ Successfully crawled {url} in {execution_time:.2f}s")
+                            logger.info(
+                                f"✅ Successfully crawled {url} in {execution_time:.2f}s"
+                            )
 
                         else:
-                            results.append({
-                                'url': url,
-                                'success': False,
-                                'error_message': getattr(result, 'error_message', 'Unknown error'),
-                                'execution_time': execution_time
-                            })
+                            results.append(
+                                {
+                                    "url": url,
+                                    "success": False,
+                                    "error_message": getattr(
+                                        result, "error_message", "Unknown error"
+                                    ),
+                                    "execution_time": execution_time,
+                                }
+                            )
                             failed_count += 1
                             logger.warning(f"❌ Failed to crawl {url}")
 
                     except Exception as e:
                         error_msg = f"Error crawling {url}: {str(e)}"
                         logger.error(error_msg)
-                        results.append({
-                            'url': url,
-                            'success': False,
-                            'error_message': error_msg
-                        })
+                        results.append(
+                            {"url": url, "success": False, "error_message": error_msg}
+                        )
                         failed_count += 1
 
             # Format output
@@ -203,25 +217,31 @@ class Crawl4aiTool(BaseTool):
             for i, result in enumerate(results, 1):
                 output_lines.append(f"{i}. {result['url']}")
 
-                if result['success']:
-                    output_lines.append(f"   ✅ Status: Success (HTTP {result.get('status_code', 'N/A')})")
-                    if result.get('title'):
+                if result["success"]:
+                    output_lines.append(
+                        f"   ✅ Status: Success (HTTP {result.get('status_code', 'N/A')})"
+                    )
+                    if result.get("title"):
                         output_lines.append(f"   📄 Title: {result['title']}")
 
-                    if result.get('markdown'):
+                    if result.get("markdown"):
                         # Show first 300 characters of markdown content
-                        content_preview = result['markdown']
-                        if len(result['markdown']) > 300:
+                        content_preview = result["markdown"]
+                        if len(result["markdown"]) > 300:
                             content_preview += "..."
                         output_lines.append(f"   📝 Content: {content_preview}")
 
-                    output_lines.append(f"   📊 Stats: {result.get('word_count', 0)} words, {result.get('links_count', 0)} links, {result.get('images_count', 0)} images")
+                    output_lines.append(
+                        f"   📊 Stats: {result.get('word_count', 0)} words, {result.get('links_count', 0)} links, {result.get('images_count', 0)} images"
+                    )
 
-                    if result.get('execution_time'):
-                        output_lines.append(f"   ⏱️ Time: {result['execution_time']:.2f}s")
+                    if result.get("execution_time"):
+                        output_lines.append(
+                            f"   ⏱️ Time: {result['execution_time']:.2f}s"
+                        )
                 else:
                     output_lines.append(f"   ❌ Status: Failed")
-                    if result.get('error_message'):
+                    if result.get("error_message"):
                         output_lines.append(f"   🚫 Error: {result['error_message']}")
 
                 output_lines.append("")
@@ -241,9 +261,9 @@ class Crawl4aiTool(BaseTool):
         """Validate if a URL is properly formatted."""
         try:
             result = urlparse(url)
-            return all([result.scheme, result.netloc]) and result.scheme in ['http', 'https']
+            return all([result.scheme, result.netloc]) and result.scheme in [
+                "http",
+                "https",
+            ]
         except Exception:
             return False
-
-
-
