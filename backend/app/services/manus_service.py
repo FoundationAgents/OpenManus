@@ -5,7 +5,7 @@ OpenManus Backend Manus Service Layer
 import json
 import uuid
 from datetime import datetime
-from typing import Dict, Set
+from typing import Dict, List, Set
 
 from fastapi import WebSocket
 
@@ -20,7 +20,31 @@ class ManusService:
 
     def __init__(self):
         self.websocket_manager = ManusWebSocketManager()
+        # Add message history storage, store message list by session ID
+        self.message_history: Dict[str, List[dict]] = {}
         self._register_event_handlers()
+
+    def _store_message(self, session_id: str, message: dict):
+        """Store message to history"""
+        if session_id not in self.message_history:
+            self.message_history[session_id] = []
+        self.message_history[session_id].append(message)
+
+        # Limit message count per session to prevent unlimited memory growth
+        max_messages = 1000
+        if len(self.message_history[session_id]) > max_messages:
+            self.message_history[session_id] = self.message_history[session_id][
+                -max_messages:
+            ]
+
+    def get_message_history(self, session_id: str) -> List[dict]:
+        """Get message history for specified session"""
+        return self.message_history.get(session_id, [])
+
+    def clear_message_history(self, session_id: str):
+        """Clear message history for specified session"""
+        if session_id in self.message_history:
+            del self.message_history[session_id]
 
     def _register_event_handlers(self):
         """Register event handlers to listen for Manus agent events"""
@@ -48,6 +72,10 @@ class ManusService:
                             "data": getattr(event, "data", {}),
                             "timestamp": datetime.now().isoformat(),
                         }
+
+                        # Store message to history
+                        self._store_message(conversation_id, message)
+
                         await self.websocket_manager.send_to_session(
                             conversation_id, message
                         )
@@ -86,6 +114,10 @@ class ManusService:
                             },
                             "timestamp": datetime.now().isoformat(),
                         }
+
+                        # Store message to history
+                        self._store_message(conversation_id, message)
+
                         await self.websocket_manager.send_to_session(
                             conversation_id, message
                         )
@@ -113,6 +145,10 @@ class ManusService:
                             "data": getattr(event, "data", {}),
                             "timestamp": datetime.now().isoformat(),
                         }
+
+                        # Store message to history
+                        self._store_message(conversation_id, message)
+
                         await self.websocket_manager.send_to_session(
                             conversation_id, message
                         )
@@ -138,6 +174,10 @@ class ManusService:
                             "data": getattr(event, "data", {}),
                             "timestamp": datetime.now().isoformat(),
                         }
+
+                        # Store message to history
+                        self._store_message(conversation_id, message)
+
                         await self.websocket_manager.send_to_session(
                             conversation_id, message
                         )
@@ -211,7 +251,9 @@ class ManusWebSocketManager:
             {}
         )  # session_id -> set of connection_ids
 
-    async def connect(self, websocket: WebSocket, session_id: str) -> str:
+    async def connect(
+        self, websocket: WebSocket, session_id: str, history_messages: List[dict] = None
+    ) -> str:
         """Connect WebSocket and return connection ID"""
         await websocket.accept()
         connection_id = str(uuid.uuid4())
@@ -224,7 +266,51 @@ class ManusWebSocketManager:
         logger.info(
             f"Manus WebSocket connected: {connection_id} for session: {session_id}"
         )
+
+        # Push history messages
+        if history_messages:
+            await self._send_history_messages(websocket, session_id, history_messages)
+
         return connection_id
+
+    async def _send_history_messages(
+        self, websocket: WebSocket, session_id: str, history_messages: List[dict]
+    ):
+        """Send history messages to newly connected client"""
+        try:
+            if not history_messages:
+                logger.info(f"No history messages found for session {session_id}")
+                return
+
+            logger.info(
+                f"Sending {len(history_messages)} history messages to session {session_id}"
+            )
+
+            # Send original history messages directly, maintaining original message types
+            for idx, original_message in enumerate(history_messages):
+                try:
+                    await websocket.send_text(json.dumps(original_message))
+                except Exception as e:
+                    logger.error(
+                        f"Failed to send history message {idx} to {session_id}: {e}"
+                    )
+                    break
+
+            # Send completion indicator for history message push
+            completion_event = {
+                "type": "history_complete",
+                "session_id": session_id,
+                "total_messages": len(history_messages),
+                "timestamp": datetime.now().isoformat(),
+            }
+            await websocket.send_text(json.dumps(completion_event))
+
+            logger.info(f"History messages sent successfully to session {session_id}")
+
+        except Exception as e:
+            logger.error(
+                f"Failed to send history messages to session {session_id}: {e}"
+            )
 
     def disconnect(self, connection_id: str, session_id: str):
         """Disconnect WebSocket connection"""

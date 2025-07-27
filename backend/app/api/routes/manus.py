@@ -89,9 +89,11 @@ async def manus_stream_websocket(websocket: WebSocket, session_id: str):
     """Manus streaming data WebSocket interface, only for receiving real-time task processing data"""
     connection_id = None
     try:
+        history_messages = manus_service.get_message_history(session_id)
+
         # Connect WebSocket
         connection_id = await manus_service.websocket_manager.connect(
-            websocket, session_id
+            websocket, session_id, history_messages
         )
 
         # Check if session exists
