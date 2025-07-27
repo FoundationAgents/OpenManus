@@ -1,15 +1,45 @@
 import json
 import time
+from enum import Enum
 from typing import Dict, List, Optional, Union
 
 from pydantic import Field
 
 from app.agent.base import BaseAgent
-from app.flow.base import BaseFlow, PlanStepStatus
+from app.flow.base import BaseFlow
 from app.llm import LLM
 from app.logger import logger
 from app.schema import AgentState, Message, ToolChoice
 from app.tool import PlanningTool
+
+
+class PlanStepStatus(str, Enum):
+    """Enum class defining possible statuses of a plan step"""
+
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+
+    @classmethod
+    def get_all_statuses(cls) -> list[str]:
+        """Return a list of all possible step status values"""
+        return [status.value for status in cls]
+
+    @classmethod
+    def get_active_statuses(cls) -> list[str]:
+        """Return a list of values representing active statuses (not started or in progress)"""
+        return [cls.NOT_STARTED.value, cls.IN_PROGRESS.value]
+
+    @classmethod
+    def get_status_marks(cls) -> Dict[str, str]:
+        """Return a mapping of statuses to their marker symbols"""
+        return {
+            cls.COMPLETED.value: "[✓]",
+            cls.IN_PROGRESS.value: "[→]",
+            cls.BLOCKED.value: "[!]",
+            cls.NOT_STARTED.value: "[ ]",
+        }
 
 
 class PlanningFlow(BaseFlow):
@@ -107,12 +137,30 @@ class PlanningFlow(BaseFlow):
         """Create an initial plan based on the request using the flow's LLM and PlanningTool."""
         logger.info(f"Creating initial plan with ID: {self.active_plan_id}")
 
-        # Create a system message for plan creation
-        system_message = Message.system_message(
+        system_message_content = (
             "You are a planning assistant. Create a concise, actionable plan with clear steps. "
             "Focus on key milestones rather than detailed sub-steps. "
             "Optimize for clarity and efficiency."
         )
+        agents_description = []
+        for key in self.executor_keys:
+            if key in self.agents:
+                agents_description.append(
+                    {
+                        "name": key.upper(),
+                        "description": self.agents[key].description,
+                    }
+                )
+        if len(agents_description) > 1:
+            # Add description of agents to select
+            system_message_content += (
+                f"\nNow we have {agents_description} agents. "
+                f"The infomation of them are below: {json.dumps(agents_description)}\n"
+                "When creating steps in the planning tool, please specify the agent names using the format '[agent_name]'."
+            )
+
+        # Create a system message for plan creation
+        system_message = Message.system_message(system_message_content)
 
         # Create a user message with the request
         user_message = Message.user_message(
@@ -240,7 +288,7 @@ class PlanningFlow(BaseFlow):
         YOUR CURRENT TASK:
         You are now working on step {self.current_step_index}: "{step_text}"
 
-        Please execute this step using the appropriate tools. When you're done, provide a summary of what you accomplished.
+        Please only execute this current step using the appropriate tools. When you're done, provide a summary of what you accomplished.
         """
 
         # Use agent.run() to execute the step

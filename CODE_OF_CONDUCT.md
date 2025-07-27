@@ -130,7 +130,7 @@ minimizing disruptions. Let’s work together to build a supportive and welcomin
   provide context.
 - Keep discussions in public channels whenever possible to allow others to benefit from the conversation, unless the
   matter is sensitive or private.
-- Always adhere to [our standards](https://github.com/mannaandpoem/OpenManus/blob/main/CODE_OF_CONDUCT.md#our-standards)
+- Always adhere to [our standards](https://github.com/FoundationAgents/OpenManus/blob/main/CODE_OF_CONDUCT.md#our-standards)
   to ensure a welcoming and collaborative environment.
 - If you choose to mute a channel, consider setting up alerts for topics that still interest you to stay engaged. For
   Slack, Go to Settings → Notifications → My Keywords to add specific keywords that will notify you when mentioned. For
