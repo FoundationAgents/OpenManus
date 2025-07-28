@@ -1,11 +1,11 @@
-pydantic~=2.10.6
-openai~=1.66.3
+pydantic~=2.11.7
+openai~=1.97.1
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
 numpy
 datasets~=3.4.1
-fastapi~=0.115.11
+fastapi~=0.116.1
 tiktoken~=0.9.0
 
 html2text~=2024.2.26
@@ -20,7 +20,7 @@ baidusearch~=1.0.3
 duckduckgo_search~=7.5.3
 
 aiofiles~=24.1.0
-pydantic_core~=2.27.2
+pydantic_core~=2.37.2
 colorama~=0.4.6
 playwright~=1.51.0
 
