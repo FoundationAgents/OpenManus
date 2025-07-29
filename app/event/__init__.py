@@ -5,91 +5,52 @@ that abstracts the internal layered architecture.
 """
 
 # Core abstractions
-from app.event.core import (
-    BaseEvent,
-    BaseEventHandler,
-    BaseEventBus,
-    ChainableEvent,
-    EventContext,
-    EventStatus,
-    ToolExecutionStatus
+from app.event.core import BaseEvent, BaseEventBus, BaseEventHandler, EventContext
+
+# Event factory functions
+# Domain events
+from app.event.domain import (  # Agent events; Conversation events; Tool events; System events
+    AgentEvent,
+    AgentResponseEvent,
+    AgentStepCompleteEvent,
+    AgentStepStartEvent,
+    ConversationClosedEvent,
+    ConversationCreatedEvent,
+    ConversationEvent,
+    InterruptEvent,
+    LLMStreamEvent,
+    SystemErrorEvent,
+    SystemEvent,
+    ToolEvent,
+    ToolExecutionEvent,
+    ToolResultDisplayEvent,
+    ToolResultEvent,
+    UserInputEvent,
+    create_agent_step_start_event,
+    create_conversation_created_event,
+    create_interrupt_event,
+    create_system_error_event,
+    create_tool_execution_event,
+    create_user_input_event,
 )
 
 # Infrastructure components
 from app.event.infrastructure import (
+    BaseMiddleware,
+    ErrorIsolationMiddleware,
+    EventBus,
     EventHandlerRegistry,
     HandlerInfo,
-    event_handler,
-    get_global_registry,
-    BaseMiddleware,
+    LoggingMiddleware,
+    MetricsMiddleware,
     MiddlewareChain,
     MiddlewareContext,
-    LoggingMiddleware,
     RetryMiddleware,
-    ErrorIsolationMiddleware,
-    MetricsMiddleware,
+    WebSocketForwarderMiddleware,
+    bus,
     create_default_middleware_chain,
-    SimpleEventBus,
-    ChainableEventBus,
-    get_global_bus,
-    set_global_bus,
-    publish_event,
-    subscribe_handler,
-    unsubscribe_handler,
-    get_bus_stats
-)
-
-# Domain events
-from app.event.domain import (
-    # Agent events
-    AgentEvent,
-    AgentStepStartEvent,
-    AgentStepCompleteEvent,
-    ChainableAgentEvent,
-    ChainableAgentStepStartEvent,
-    ChainableAgentStepCompleteEvent,
-
-    # Conversation events
-    ConversationEvent,
-    ConversationCreatedEvent,
-    ConversationClosedEvent,
-    UserInputEvent,
-    InterruptEvent,
-    AgentResponseEvent,
-    LLMStreamEvent,
-    ToolResultDisplayEvent,
-
-    # Tool events
-    ToolEvent,
-    ToolExecutionEvent,
-    ToolResultEvent,
-    ChainableToolEvent,
-    ChainableToolExecutionRequestEvent,
-    ChainableToolExecutionCompletedEvent,
-
-    # System events
-    SystemEvent,
-    SystemErrorEvent,
-    ChainableSystemEvent,
-    ChainableLogWriteEvent,
-    ChainableMetricsUpdateEvent,
-    ChainableStreamEvent,
-    ChainableStreamStartEvent,
-    ChainableStreamChunkEvent,
-    ChainableStreamEndEvent,
-    ChainableStreamInterruptEvent
-)
-
-# Event factory functions
-from app.event.interfaces import (
-    create_agent_step_start_event,
-    create_chainable_agent_step_start_event,
-    create_conversation_created_event,
-    create_user_input_event,
-    create_interrupt_event,
-    create_tool_execution_event,
-    create_chainable_tool_execution_request_event,
-    create_system_error_event
+    event_handler,
+    get_global_registry,
 )
 
 __all__ = [
@@ -97,11 +58,7 @@ __all__ = [
     "BaseEvent",
     "BaseEventHandler",
     "BaseEventBus",
-    "ChainableEvent",
     "EventContext",
-    "EventStatus",
-    "ToolExecutionStatus",
-
     # Infrastructure components
     "EventHandlerRegistry",
     "HandlerInfo",
@@ -115,23 +72,13 @@ __all__ = [
     "ErrorIsolationMiddleware",
     "MetricsMiddleware",
     "create_default_middleware_chain",
-    "SimpleEventBus",
-    "ChainableEventBus",
-    "get_global_bus",
-    "set_global_bus",
-    "publish_event",
-    "subscribe_handler",
-    "unsubscribe_handler",
-    "get_bus_stats",
-
+    "WebSocketForwarderMiddleware",
+    "EventBus",
+    "bus",
     # Agent events
     "AgentEvent",
     "AgentStepStartEvent",
     "AgentStepCompleteEvent",
-    "ChainableAgentEvent",
-    "ChainableAgentStepStartEvent",
-    "ChainableAgentStepCompleteEvent",
-
     # Conversation events
     "ConversationEvent",
     "ConversationCreatedEvent",
@@ -141,34 +88,18 @@ __all__ = [
     "AgentResponseEvent",
     "LLMStreamEvent",
     "ToolResultDisplayEvent",
-
     # Tool events
     "ToolEvent",
     "ToolExecutionEvent",
     "ToolResultEvent",
-    "ChainableToolEvent",
-    "ChainableToolExecutionRequestEvent",
-    "ChainableToolExecutionCompletedEvent",
-
     # System events
     "SystemEvent",
     "SystemErrorEvent",
-    "ChainableSystemEvent",
-    "ChainableLogWriteEvent",
-    "ChainableMetricsUpdateEvent",
-    "ChainableStreamEvent",
-    "ChainableStreamStartEvent",
-    "ChainableStreamChunkEvent",
-    "ChainableStreamEndEvent",
-    "ChainableStreamInterruptEvent",
-
     # Event factory functions
     "create_agent_step_start_event",
-    "create_chainable_agent_step_start_event",
     "create_conversation_created_event",
     "create_user_input_event",
     "create_interrupt_event",
     "create_tool_execution_event",
-    "create_chainable_tool_execution_request_event",
     "create_system_error_event",
 ]

@@ -1,10 +1,9 @@
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
-import time
 
 from pydantic import BaseModel, Field
 
-from app.event.init import ensure_event_system_initialized
 from app.logger import logger
 
 
@@ -14,16 +13,18 @@ class BaseTool(ABC, BaseModel):
     parameters: Optional[dict] = None
 
     # Event system integration
-    enable_events: bool = Field(default=True, description="Whether to publish tool execution events")
-    conversation_id: Optional[str] = Field(default=None, description="Current conversation ID for event tracking")
+    enable_events: bool = Field(
+        default=True, description="Whether to publish tool execution events"
+    )
+    conversation_id: Optional[str] = Field(
+        default=None, description="Current conversation ID for event tracking"
+    )
 
     class Config:
         arbitrary_types_allowed = True
 
     async def __call__(self, **kwargs) -> Any:
         """Execute the tool with given parameters and publish events."""
-        if self.enable_events:
-            ensure_event_system_initialized()
 
         # Publish tool execution start event
         start_time = time.time()
@@ -36,7 +37,9 @@ class BaseTool(ABC, BaseModel):
 
             # Publish tool execution success event
             if self.enable_events:
-                await self._publish_tool_complete_event(kwargs, result, True, execution_time)
+                await self._publish_tool_complete_event(
+                    kwargs, result, True, execution_time
+                )
 
             return result
 
@@ -45,7 +48,9 @@ class BaseTool(ABC, BaseModel):
 
             # Publish tool execution failure event
             if self.enable_events:
-                await self._publish_tool_complete_event(kwargs, str(e), False, execution_time)
+                await self._publish_tool_complete_event(
+                    kwargs, str(e), False, execution_time
+                )
 
             raise
 
@@ -73,31 +78,34 @@ class BaseTool(ABC, BaseModel):
     def enable_event_publishing(self, enabled: bool = True) -> None:
         """Enable or disable event publishing."""
         self.enable_events = enabled
-        if enabled:
-            ensure_event_system_initialized()
 
     async def _publish_tool_start_event(self, parameters: Dict[str, Any]) -> bool:
         """Publish tool execution start event."""
         try:
-            from app.event import create_tool_execution_event, publish_event
+            from app.event import bus, create_tool_execution_event
 
             event = create_tool_execution_event(
                 tool_name=self.name,
                 tool_type=self.__class__.__name__,
                 status="started",
                 parameters=parameters,
-                conversation_id=self.conversation_id
+                conversation_id=self.conversation_id,
             )
-            return await publish_event(event)
+            return await bus.publish(event)
         except Exception as e:
             logger.warning(f"Failed to publish tool start event: {e}")
             return False
 
-    async def _publish_tool_complete_event(self, parameters: Dict[str, Any], result: Any,
-                                         success: bool, execution_time: float) -> bool:
+    async def _publish_tool_complete_event(
+        self,
+        parameters: Dict[str, Any],
+        result: Any,
+        success: bool,
+        execution_time: float,
+    ) -> bool:
         """Publish tool execution complete event."""
         try:
-            from app.event import BaseEvent, publish_event
+            from app.event import BaseEvent, bus
 
             event = BaseEvent(
                 event_type="tool.execution.complete",
@@ -108,11 +116,11 @@ class BaseTool(ABC, BaseModel):
                     "result": str(result) if result is not None else None,
                     "success": success,
                     "execution_time": execution_time,
-                    "conversation_id": self.conversation_id
+                    "conversation_id": self.conversation_id,
                 },
-                source=self.name
+                source=self.name,
             )
-            return await publish_event(event)
+            return await bus.publish(event)
         except Exception as e:
             logger.warning(f"Failed to publish tool complete event: {e}")
             return False
@@ -131,7 +139,7 @@ class BaseTool(ABC, BaseModel):
             return False
 
         try:
-            from app.event import BaseEvent, publish_event
+            from app.event import BaseEvent, bus
 
             event = BaseEvent(
                 event_type=event_type,
@@ -139,11 +147,11 @@ class BaseTool(ABC, BaseModel):
                     "tool_name": self.name,
                     "tool_type": self.__class__.__name__,
                     "conversation_id": self.conversation_id,
-                    **data
+                    **data,
                 },
-                source=self.name
+                source=self.name,
             )
-            return await publish_event(event)
+            return await bus.publish(event)
         except Exception as e:
             logger.warning(f"Failed to publish custom tool event {event_type}: {e}")
             return False

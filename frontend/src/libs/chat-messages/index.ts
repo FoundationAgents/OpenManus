@@ -2,7 +2,18 @@
 import { WebSocketAdapter } from '@/libs/websocket';
 import type { WebSocketState } from '@/libs/websocket';
 
-export type MessageType = 'agent.agentstepstart' | 'agent.agentstepcomplete';
+export type MessageType =
+  | 'agent.agentstepstart'
+  | 'agent.agentstepcomplete'
+  | 'agent.task_completed'
+  | 'agent.error'
+  | 'tool.toolexecution'
+  | 'tool.execution.complete'
+  | 'tool.execution.error'
+  | 'system.interrupt_acknowledged'
+  | 'system.user_input_required'
+  | 'system.user_input_received'
+  | 'conversation.agentresponse';
 
 export type Message<T = any> = {
   index?: number;
@@ -110,7 +121,6 @@ export class ManusMessageSocket<T extends WebSocketMessage = WebSocketMessage> {
     if (config.onError) {
       this.onError(config.onError);
     }
-    this.setupEventHandlers();
   }
 
   /**
@@ -128,10 +138,26 @@ export class ManusMessageSocket<T extends WebSocketMessage = WebSocketMessage> {
   }
 
   /**
+   * 获取底层WebSocket适配器
+   * 用于事件系统集成
+   */
+  getWebSocketAdapter(): WebSocketAdapter<T> {
+    return this.ws;
+  }
+
+  /**
    * 发送消息
    */
   send(message: string | object): void {
     this.ws.send(message);
+  }
+
+  /**
+   * 清空消息（重置消息索引）
+   */
+  clearMessages(): void {
+    this.messageIndex = 0;
+    console.log('🧹 MessageStream: 已重置消息索引');
   }
 
   // ==================== 事件监听器管理 ====================
@@ -186,7 +212,8 @@ export class ManusMessageSocket<T extends WebSocketMessage = WebSocketMessage> {
       // 检查是否为Manus agent_event类型消息
       if ('type' in rawMessage && rawMessage.type === 'agent_event') {
         const manusMessage = rawMessage as ManusMessage;
-        return {
+
+        const transformedMessage = {
           index: this.messageIndex++,
           role: 'assistant' as const,
           content: manusMessage.content || manusMessage.data || {},
@@ -194,6 +221,8 @@ export class ManusMessageSocket<T extends WebSocketMessage = WebSocketMessage> {
           type: manusMessage.event_type as any,
           step: manusMessage.step
         };
+
+        return transformedMessage;
       }
 
       return null;

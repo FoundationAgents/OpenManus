@@ -2,10 +2,11 @@ import { Image } from '@/components/ui/image';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, AlertCircle, Loader2 } from 'lucide-react';
 import { createSession } from '@/services/manus';
+import { useRecentTasks } from '@/hooks/use-tasks';
 
 export default function HomePage() {
   const [inputValue, setInputValue] = useState('');
@@ -13,6 +14,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+  const { addTask, refreshTasks } = useRecentTasks();
 
   // Handle message sending - create task and navigate
   const handleSubmit = async () => {
@@ -34,8 +36,25 @@ export default function HomePage() {
         return;
       }
 
+      // Add task to the task list
+      addTask({
+        id: response.session_id,
+        created_at: new Date().toISOString(),
+        request: content,
+        status: 'initializing',
+        progress: 0,
+      });
+
+      // Clear input
+      setInputValue('');
+
       // Navigate to task details page after successful creation
       navigate(`/tasks/${response.session_id}`);
+
+      // Refresh task list to get latest status
+      setTimeout(() => {
+        refreshTasks();
+      }, 1000);
     } catch (error) {
       console.error('Failed to create task:', error);
       setError('Failed to create task, please try again');
@@ -48,16 +67,16 @@ export default function HomePage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (canSend()) {
+      if (canSend) {
         handleSubmit();
       }
     }
   };
 
   // Check if message can be sent
-  const canSend = () => {
+  const canSend = useMemo(() => {
     return inputValue.trim().length > 0 && !isCreating;
-  };
+  }, [inputValue, isCreating]);
 
   // Handle error clearing
   const handleClearError = () => {
@@ -126,10 +145,10 @@ export default function HomePage() {
                   variant="ghost"
                   className="h-8 w-8 cursor-pointer rounded-xl"
                   onClick={handleSubmit}
-                  disabled={!canSend()}
+                  disabled={!canSend}
                   aria-label="Create task"
                 >
-                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className={`h-4 w-4 ${canSend() ? '' : 'text-gray-400'}`} />}
+                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className={`h-4 w-4 ${canSend ? '' : 'text-gray-400'}`} />}
                 </Button>
               </div>
             </div>

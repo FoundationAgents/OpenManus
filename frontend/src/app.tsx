@@ -1,23 +1,15 @@
 import { ConfirmDialog } from '@/components/block/confirm';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import { Home, List } from 'lucide-react';
+import { TaskItem } from '@/components/task-item';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from '@/components/ui/sidebar';
+import { Home, List, Plus, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { SidebarProvider } from './components/ui/sidebar';
 import { useRecentTasks } from './hooks/use-tasks';
 import { cn } from './libs/utils';
 import HomePage from './pages/home';
 import TaskDetailPage from './pages/task';
+import { Button } from './components/ui/button';
 
 const router = [
   {
@@ -35,14 +27,20 @@ const router = [
 ];
 
 function App() {
-  const { tasks, refreshTasks } = useRecentTasks();
-  const location = useLocation();
-
-  const currentTaskId = location.pathname.split('/').pop();
+  const { tasks, refreshTasks, isLoading, error } = useRecentTasks();
 
   useEffect(() => {
     refreshTasks();
   }, []);
+
+  // 定期刷新任务列表
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshTasks();
+    }, 30000); // 每30秒刷新一次
+
+    return () => clearInterval(interval);
+  }, [refreshTasks]);
 
   return (
     <SidebarProvider>
@@ -63,19 +61,32 @@ function App() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Recent Tasks</SidebarGroupLabel>
+              <div className="flex items-center justify-between px-2 py-1">
+                <SidebarGroupLabel>Recent Tasks</SidebarGroupLabel>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => refreshTasks()} disabled={isLoading} title="刷新任务列表">
+                    <RefreshCw className={cn('h-3 w-3', isLoading && 'animate-spin')} />
+                  </Button>
+                  <Link to="/" title="创建新任务">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {tasks.map(item => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton asChild>
-                        <Link to={`/tasks/${item.id}`} className={cn(currentTaskId === item.id && 'bg-muted')}>
-                          <span>{item.request}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
+                {error && <div className="px-2 py-1 text-xs text-red-500">{error}</div>}
+                {isLoading && tasks.length === 0 ? (
+                  <div className="text-muted-foreground px-2 py-4 text-center text-xs">加载中...</div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-muted-foreground px-2 py-4 text-center text-xs">暂无任务</div>
+                ) : (
+                  <div className="space-y-1">
+                    {tasks.map(task => (
+                      <TaskItem key={task.id} task={task} />
+                    ))}
+                  </div>
+                )}
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>

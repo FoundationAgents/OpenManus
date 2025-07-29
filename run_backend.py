@@ -1,31 +1,22 @@
-#!/usr/bin/env python3
-"""
-OpenManus Backend Startup Script
-"""
-
 import argparse
-import os
 import sys
+from pathlib import Path
 
 import uvicorn
 
 # Add project root directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from backend.app.main import app
+from backend.app.core.config import config
 
 
 def main():
     parser = argparse.ArgumentParser(description="Start OpenManus Backend service")
     parser.add_argument(
-        "--host",
-        type=str,
-        default="0.0.0.0",
-        help="Service listening address (default: 0.0.0.0)",
+        "--host", type=str, default=config.host, help="Service listening address"
     )
-    parser.add_argument(
-        "--port", type=int, default=8000, help="Service port (default: 8000)"
-    )
+    parser.add_argument("--port", type=int, default=config.port, help="Service port")
     parser.add_argument(
         "--reload", action="store_true", help="Enable hot reload (development mode)"
     )

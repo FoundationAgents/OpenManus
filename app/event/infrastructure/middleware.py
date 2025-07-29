@@ -291,7 +291,14 @@ class MiddlewareChain:
 
     def add_middleware(self, middleware: BaseMiddleware) -> None:
         """Add middleware to the chain."""
+        # 检查是否已存在同名中间件，避免重复添加
+        for existing_middleware in self.middlewares:
+            if existing_middleware.name == middleware.name:
+                logger.warning(f"Middleware '{middleware.name}' already exists in chain, skipping")
+                return
+
         self.middlewares.append(middleware)
+        logger.debug(f"Added middleware '{middleware.name}' to chain")
 
     def remove_middleware(self, name: str) -> bool:
         """Remove middleware by name."""
@@ -335,7 +342,7 @@ def create_default_middleware_chain(
     enable_retry: bool = True,
     enable_error_isolation: bool = True,
     enable_metrics: bool = True,
-    enable_Test: bool = True,
+    enable_Test: bool = False,
     max_retries: int = 3,
     retry_delay: float = 1.0,
     log_level: str = "INFO"

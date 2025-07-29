@@ -35,9 +35,7 @@ class Manus(ToolCallAgent):
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
             PythonExecute(),
-            BrowserUseTool(),
             StrReplaceEditor(),
-            AskHuman(),
             Terminate(),
             Crawl4aiTool(),
         )

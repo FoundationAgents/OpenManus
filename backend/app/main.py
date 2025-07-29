@@ -2,8 +2,6 @@
 OpenManus Backend Main Application
 """
 
-import asyncio
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -28,3 +26,10 @@ app.add_middleware(
 
 # Register routes
 app.include_router(manus_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    from backend.app.events import initialize_event_handlers
+
+    initialize_event_handlers()

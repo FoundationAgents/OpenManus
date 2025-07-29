@@ -5,8 +5,8 @@ dependency resolution for event handlers.
 """
 
 import fnmatch
-from typing import Callable, Dict, List, Optional, Set
 from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Optional, Set
 
 from app.logger import logger
 
@@ -44,7 +44,7 @@ class EventHandlerRegistry:
         depends_on: Optional[List[str]] = None,
         retry_count: int = 3,
         retry_delay: float = 1.0,
-        enabled: bool = True
+        enabled: bool = True,
     ) -> None:
         """Register an event handler with the registry.
 
@@ -65,7 +65,9 @@ class EventHandlerRegistry:
         # Validate dependencies
         for dep in depends_on:
             if dep not in self._handlers and dep != name:
-                logger.warning(f"Handler '{name}' depends on unregistered handler '{dep}'")
+                logger.warning(
+                    f"Handler '{name}' depends on unregistered handler '{dep}'"
+                )
 
         handler_info = HandlerInfo(
             name=name,
@@ -74,7 +76,7 @@ class EventHandlerRegistry:
             depends_on=depends_on,
             retry_count=retry_count,
             retry_delay=retry_delay,
-            enabled=enabled
+            enabled=enabled,
         )
 
         self._handlers[name] = handler_info
@@ -100,7 +102,9 @@ class EventHandlerRegistry:
             return True
         return False
 
-    def get_handlers_for_event(self, event_type: str) -> tuple[List[HandlerInfo], List[HandlerInfo]]:
+    def get_handlers_for_event(
+        self, event_type: str
+    ) -> tuple[List[HandlerInfo], List[HandlerInfo]]:
         """Get handlers that can process the given event type, split by dependency.
 
         Args:
@@ -114,7 +118,8 @@ class EventHandlerRegistry:
 
         # Find matching handlers
         matching_handlers = [
-            handler for handler in self._handlers.values()
+            handler
+            for handler in self._handlers.values()
             if handler.enabled and handler.matches_event(event_type)
         ]
 
@@ -202,7 +207,9 @@ class EventHandlerRegistry:
         for handler_deps in self._dependency_graph.values():
             handler_deps.discard(name)
 
-    def _resolve_execution_order(self, handlers: List[HandlerInfo]) -> List[HandlerInfo]:
+    def _resolve_execution_order(
+        self, handlers: List[HandlerInfo]
+    ) -> List[HandlerInfo]:
         """Resolve the execution order based on dependencies.
 
         Args:
@@ -229,7 +236,9 @@ class EventHandlerRegistry:
 
         def visit(name: str) -> None:
             if name in temp_visited:
-                logger.warning(f"Circular dependency detected involving handler '{name}'")
+                logger.warning(
+                    f"Circular dependency detected involving handler '{name}'"
+                )
                 return
             if name in visited:
                 return
@@ -280,7 +289,7 @@ def event_handler(
     retry_count: int = 3,
     retry_delay: float = 1.0,
     name: Optional[str] = None,
-    enabled: bool = True
+    enabled: bool = True,
 ):
     """Decorator for registering event handlers.
 
@@ -315,17 +324,17 @@ def event_handler(
             depends_on=depends_on,
             retry_count=retry_count,
             retry_delay=retry_delay,
-            enabled=enabled
+            enabled=enabled,
         )
 
         # Add metadata to the function
         func._event_handler_info = {
-            'name': handler_name,
-            'patterns': patterns,
-            'depends_on': depends_on,
-            'retry_count': retry_count,
-            'retry_delay': retry_delay,
-            'enabled': enabled
+            "name": handler_name,
+            "patterns": patterns,
+            "depends_on": depends_on,
+            "retry_count": retry_count,
+            "retry_delay": retry_delay,
+            "enabled": enabled,
         }
 
         return func

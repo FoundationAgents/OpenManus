@@ -1,5 +1,5 @@
-import { Markdown } from '@/components/block/markdown';
 import { Badge } from '@/components/ui/badge';
+import { ExpandableContent } from '@/components/features/chat/expandable-content';
 import type { Message } from '@/libs/chat-messages';
 import { cn } from '@/libs/utils';
 import '@/styles/animations.css';
@@ -19,25 +19,113 @@ const formatTime = (time: Date) => {
   });
 };
 
+// 根据消息类型确定最大显示长度
+const getMaxLengthForMessageType = (messageType: string | undefined): number => {
+  switch (messageType) {
+    case 'tool.toolexecution':
+    case 'tool.execution.complete':
+      // 工具执行消息通常比较长，设置较短的截断长度
+      return 300;
+    case 'conversation.agentresponse':
+      // AI回复消息可以显示更多内容
+      return 800;
+    case 'agent.agentstepstart':
+    case 'agent.agentstepcomplete':
+      // 步骤消息通常较短
+      return 200;
+    default:
+      // 默认长度
+      return 500;
+  }
+};
+
 const StepBadge = ({ message }: { message: Message }) => {
   const eventType = message.type || 'unknown';
   const step = message.step || message.content.step_number;
+  const toolName = message.content.tool_name;
 
-  if (eventType === 'agent.agentstepstart') {
-    return (
-      <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs')}>
-        <span className="thinking-animation">🤔</span>
-        <span>Step {step} Thinking...</span>
-      </Badge>
-    );
+  switch (eventType) {
+    case 'agent.agentstepstart':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs')}>
+          <span className="thinking-animation">🤔</span>
+          <span>Step {step} Thinking...</span>
+        </Badge>
+      );
+
+    case 'agent.agentstepcomplete':
+      return (
+        <Badge variant="outline" className={cn('text-muted-foreground cursor-pointer font-mono text-xs')}>
+          <span>✅</span>
+          <span>Step {step} Complete</span>
+        </Badge>
+      );
+
+    case 'tool.toolexecution':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-blue-50 text-blue-700')}>
+          <span>🔧</span>
+          <span>Tool: {toolName}</span>
+        </Badge>
+      );
+
+    case 'tool.execution.complete':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-green-50 text-green-700')}>
+          <span>✅</span>
+          <span>Tool {toolName} Complete</span>
+        </Badge>
+      );
+
+    case 'tool.execution.error':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-red-50 text-red-700')}>
+          <span>❌</span>
+          <span>Tool {toolName} Error</span>
+        </Badge>
+      );
+
+    case 'agent.task_completed':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-green-50 text-green-700')}>
+          <span>🎉</span>
+          <span>Task Completed</span>
+        </Badge>
+      );
+
+    case 'agent.error':
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-red-50 text-red-700')}>
+          <span>❌</span>
+          <span>Agent Error</span>
+        </Badge>
+      );
+
+    case 'conversation.agentresponse':
+      const responseType = message.content.response_type;
+      if (responseType === 'thought') {
+        return (
+          <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-purple-50 text-purple-700')}>
+            <span>💭</span>
+            <span>AI Thinking</span>
+          </Badge>
+        );
+      }
+      return (
+        <Badge variant="outline" className={cn('cursor-pointer font-mono text-xs bg-blue-50 text-blue-700')}>
+          <span>💬</span>
+          <span>AI Response</span>
+        </Badge>
+      );
+
+    default:
+      return (
+        <Badge variant="outline" className={cn('text-muted-foreground cursor-pointer font-mono text-xs')}>
+          <span>📝</span>
+          <span>{eventType}</span>
+        </Badge>
+      );
   }
-
-  return (
-    <Badge variant="outline" className={cn('text-muted-foreground cursor-pointer font-mono text-xs')}>
-      <span>🚀</span>
-      Step {step} Complete
-    </Badge>
-  );
 };
 
 const ChatMessage = ({ message, latest }: { message: Message; latest: boolean }) => {
@@ -45,6 +133,7 @@ const ChatMessage = ({ message, latest }: { message: Message; latest: boolean })
   const result = message.content.result;
   const startTime = message.createdAt;
 
+  // 只隐藏非最新的步骤开始消息，其他消息都显示
   const hidden = message.type === 'agent.agentstepstart' && !latest;
 
   if (hidden) return null;
@@ -70,9 +159,10 @@ const ChatMessage = ({ message, latest }: { message: Message; latest: boolean })
 
           {/* Result */}
           {result && (
-            <div className="flex flex-col gap-2 space-y-2">
-              <Markdown className="chat">{result}</Markdown>
-            </div>
+            <ExpandableContent
+              content={result}
+              maxLength={getMaxLengthForMessageType(message.type)}
+            />
           )}
         </div>
       </div>

@@ -3,24 +3,35 @@
 import asyncio
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, Union
 from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Type, Union
 
 from pydantic import BaseModel, Field
 
 from app.logger import logger
-from .types import EventStatus
+
+
+class EventStatus(str, Enum):
+    """Enumeration of possible event statuses."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
 class EventContext:
     """事件执行上下文，用于管理事件链和中断"""
-    root_event_id: str                    # 根事件ID
-    conversation_id: str                  # 对话ID
-    agent_id: str                        # 智能体ID
-    execution_chain: List[str]           # 事件执行链 ["event1", "event2", "event3"]
-    cancellation_token: asyncio.Event   # 取消令牌
+
+    root_event_id: str  # 根事件ID
+    conversation_id: str  # 对话ID
+    agent_id: str  # 智能体ID
+    execution_chain: List[str]  # 事件执行链 ["event1", "event2", "event3"]
+    cancellation_token: asyncio.Event  # 取消令牌
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -32,21 +43,35 @@ class BaseEvent(BaseModel):
     """
 
     # Core event properties
-    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique event identifier")
+    event_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()), description="Unique event identifier"
+    )
     event_type: str = Field(..., description="Type/name of the event")
-    timestamp: datetime = Field(default_factory=datetime.now, description="Event creation timestamp")
+    timestamp: datetime = Field(
+        default_factory=datetime.now, description="Event creation timestamp"
+    )
 
     # Event metadata
-    source: Optional[str] = Field(None, description="Source component that generated the event")
-    status: EventStatus = Field(default=EventStatus.PENDING, description="Current event status")
+    source: Optional[str] = Field(
+        None, description="Source component that generated the event"
+    )
+    status: EventStatus = Field(
+        default=EventStatus.PENDING, description="Current event status"
+    )
 
     # Event data
     data: Dict[str, Any] = Field(default_factory=dict, description="Event payload data")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional event metadata")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional event metadata"
+    )
 
     # Processing tracking
-    processed_by: List[str] = Field(default_factory=list, description="List of handlers that processed this event")
-    error_message: Optional[str] = Field(None, description="Error message if event processing failed")
+    processed_by: List[str] = Field(
+        default_factory=list, description="List of handlers that processed this event"
+    )
+    error_message: Optional[str] = Field(
+        None, description="Error message if event processing failed"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -82,7 +107,9 @@ class ChainableEvent(BaseEvent):
     # Event context for chain management and interruption
     context: Optional[EventContext] = Field(None, description="Event execution context")
 
-    def create_child_event(self, event_type: str, data: Dict[str, Any], **kwargs) -> 'ChainableEvent':
+    def create_child_event(
+        self, event_type: str, data: Dict[str, Any], **kwargs
+    ) -> "ChainableEvent":
         """创建子事件，继承上下文
 
         Args:
@@ -94,10 +121,7 @@ class ChainableEvent(BaseEvent):
             ChainableEvent: 继承了上下文的子事件
         """
         child_event = ChainableEvent(
-            event_type=event_type,
-            data=data,
-            source=self.source,
-            **kwargs
+            event_type=event_type, data=data, source=self.source, **kwargs
         )
 
         if self.context:
@@ -108,7 +132,7 @@ class ChainableEvent(BaseEvent):
                 agent_id=self.context.agent_id,
                 execution_chain=self.context.execution_chain + [self.event_id],
                 cancellation_token=self.context.cancellation_token,
-                metadata=self.context.metadata.copy()
+                metadata=self.context.metadata.copy(),
             )
 
         return child_event
@@ -129,7 +153,7 @@ class ChainableEvent(BaseEvent):
         """
         if self.context:
             return self.context.conversation_id
-        return self.data.get('conversation_id')
+        return self.data.get("conversation_id")
 
     def get_agent_id(self) -> Optional[str]:
         """获取智能体ID
@@ -139,7 +163,7 @@ class ChainableEvent(BaseEvent):
         """
         if self.context:
             return self.context.agent_id
-        return self.data.get('agent_id')
+        return self.data.get("agent_id")
 
     def get_execution_chain(self) -> List[str]:
         """获取事件执行链
@@ -177,7 +201,9 @@ class BaseEventHandler(ABC, BaseModel):
     enabled: bool = Field(default=True, description="Whether the handler is enabled")
 
     # Event filtering
-    supported_events: List[str] = Field(default_factory=list, description="List of event types this handler supports")
+    supported_events: List[str] = Field(
+        default_factory=list, description="List of event types this handler supports"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -230,14 +256,20 @@ class BaseEventHandler(ABC, BaseModel):
 
         try:
             event.mark_processing(self.name)
-            logger.debug(f"Handler '{self.name}' processing event {event.event_id} ({event.event_type})")
+            logger.debug(
+                f"Handler '{self.name}' processing event {event.event_id} ({event.event_type})"
+            )
 
             result = await self.handle(event)
 
             if result:
-                logger.debug(f"Handler '{self.name}' successfully processed event {event.event_id}")
+                logger.debug(
+                    f"Handler '{self.name}' successfully processed event {event.event_id}"
+                )
             else:
-                logger.warning(f"Handler '{self.name}' failed to process event {event.event_id}")
+                logger.warning(
+                    f"Handler '{self.name}' failed to process event {event.event_id}"
+                )
 
             return result
 
@@ -257,15 +289,25 @@ class BaseEventBus(ABC, BaseModel):
 
     # Bus configuration
     name: str = Field(default="EventBus", description="Name of the event bus")
-    max_concurrent_events: int = Field(default=10, description="Maximum concurrent event processing")
+    max_concurrent_events: int = Field(
+        default=10, description="Maximum concurrent event processing"
+    )
 
     # Handler management
-    handlers: Dict[str, BaseEventHandler] = Field(default_factory=dict, description="Registered event handlers")
+    handlers: Dict[str, BaseEventHandler] = Field(
+        default_factory=dict, description="Registered event handlers"
+    )
 
     # Processing state
-    active_events: Dict[str, BaseEvent] = Field(default_factory=dict, description="Currently processing events")
-    event_history: List[BaseEvent] = Field(default_factory=list, description="Event processing history")
-    max_history_size: int = Field(default=1000, description="Maximum number of events to keep in history")
+    active_events: Dict[str, BaseEvent] = Field(
+        default_factory=dict, description="Currently processing events"
+    )
+    event_history: List[BaseEvent] = Field(
+        default_factory=list, description="Event processing history"
+    )
+    max_history_size: int = Field(
+        default=1000, description="Maximum number of events to keep in history"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -328,7 +370,7 @@ class BaseEventBus(ABC, BaseModel):
 
         # Maintain history size limit
         if len(self.event_history) > self.max_history_size:
-            self.event_history = self.event_history[-self.max_history_size:]
+            self.event_history = self.event_history[-self.max_history_size :]
 
     def get_event_stats(self) -> Dict[str, Any]:
         """Get statistics about event processing.
