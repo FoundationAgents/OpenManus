@@ -8,12 +8,12 @@ export type MessageType =
   | 'agent.task_completed'
   | 'agent.error'
   | 'tool.toolexecution'
-  | 'tool.execution.complete'
-  | 'tool.execution.error'
+  | 'tool.toolresult'
   | 'system.interrupt_acknowledged'
   | 'system.user_input_required'
   | 'system.user_input_received'
-  | 'conversation.agentresponse';
+  | 'conversation.agentresponse'
+  | 'conversation.userinput';
 
 export type Message<T = any> = {
   index?: number;

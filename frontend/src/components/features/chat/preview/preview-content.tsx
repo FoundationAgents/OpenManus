@@ -1,22 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAsync } from '@/hooks/use-async';
 import type { Message } from '@/libs/chat-messages';
 import { getImageUrl } from '@/libs/image';
 import { cn } from '@/libs/utils';
-import {
-  ArrowRightIcon,
-  ChevronLeftIcon,
-  DownloadIcon,
-  FileIcon,
-  FolderIcon,
-  HashIcon,
-  HomeIcon,
-  LoaderIcon,
-  PackageIcon,
-  WrenchIcon,
-} from 'lucide-react';
+import { ChevronLeftIcon, DownloadIcon, FileIcon, FolderIcon, GlobeIcon, HomeIcon, LoaderIcon, PackageIcon } from 'lucide-react';
 import { useState } from 'react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { githubGist } from 'react-syntax-highlighter/dist/esm/styles/hljs';
@@ -26,116 +16,103 @@ export const PreviewContent = ({ messages }: { messages: Message[] }) => {
   const { data } = usePreviewData();
 
   if (data?.type === 'tool') {
-    const executionStart = messages.find(m => m.type === 'agent.agentstepstart' && m.content.id === data.toolId);
-    const executionComplete = messages.find(m => m.type === 'agent.agentstepcomplete' && m.content.id === data.toolId);
+    const executionStart = messages.find(m => m.type === 'tool.toolexecution' && m.content.execution_id === data.toolId);
+    const executionComplete = messages.find(m => m.type === 'tool.toolresult' && m.content.execution_id === data.toolId);
 
-    const name = executionStart?.content.name;
-    const args = executionStart?.content.args;
+    const name = executionStart?.content.tool_name;
+    const args = executionStart?.content.parameters;
     const result = executionComplete?.content.result;
     const toolId = data.toolId;
     const isExecuting = executionStart && !executionComplete;
 
     return (
-      <div className="space-y-4 p-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <WrenchIcon className="text-primary h-5 w-5" />
-                <CardTitle className="text-base">Tool Execution</CardTitle>
-              </div>
-              {isExecuting && (
-                <div className="flex items-center gap-1 text-amber-500">
-                  <LoaderIcon className="h-4 w-4 animate-spin" />
-                  <span className="text-xs font-medium">Running...</span>
-                </div>
-              )}
-            </div>
-            <CardDescription className="flex items-center gap-2">
-              <HashIcon className="h-3.5 w-3.5" />
-              <span>ID: {toolId}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="text-muted-foreground text-sm font-medium">Tool Name</div>
-              <Badge variant="outline" className="font-mono text-sm">
-                <PackageIcon className="mr-1 h-3.5 w-3.5" />
+      <div className="h-full flex-col overflow-auto">
+        <Popover>
+          <PopoverTrigger>
+            <Badge className="cursor-pointer font-mono text-xs">
+              <div className="flex items-center gap-1">
+                <PackageIcon className="h-3.5 w-3.5" />
                 {name}
-              </Badge>
+              </div>
+            </Badge>
+          </PopoverTrigger>
+          <PopoverContent className="w-full">
+            <code className="text-xs whitespace-nowrap">ID: {toolId}</code>
+          </PopoverContent>
+        </Popover>
+        <div className="flex-1 space-y-4 p-2">
+          {args && Object.keys(args).length > 0 && (
+            <div className="space-y-2">
+              <div className="text-muted-foreground text-sm font-medium">Parameters</div>
+              <div className="bg-muted/40 space-y-2 rounded-md p-3">
+                {Object.entries(args).map(([key, value]) => (
+                  <div key={key} className="flex flex-col gap-1">
+                    <div className="text-muted-foreground text-xs font-medium">{key}</div>
+                    <Badge variant="outline" className="font-mono break-all whitespace-normal">
+                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
 
-            {args && Object.keys(args).length > 0 && (
-              <div className="space-y-2">
-                <div className="text-muted-foreground text-sm font-medium">Parameters</div>
-                <div className="bg-muted/40 space-y-2 rounded-md border p-3">
-                  {Object.entries(args).map(([key, value]) => (
-                    <div key={key} className="flex flex-col gap-1">
-                      <div className="text-muted-foreground text-xs font-medium">{key}</div>
-                      <Badge variant="outline" className="font-mono break-all whitespace-normal">
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {result ? (
-              <div className="space-y-2">
-                <div className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
-                  <ArrowRightIcon className="h-3.5 w-3.5" />
-                  <span>Result</span>
-                </div>
-                <div
-                  className={cn(
-                    'bg-muted/40 text-foreground overflow-hidden rounded-md border',
-                    typeof result === 'string' && result.length > 1000 ? 'max-h-96' : '',
-                  )}
+          {result ? (
+            <div className="space-y-2">
+              <div className="text-muted-foreground text-sm font-medium">Result</div>
+              <div className={cn('bg-muted/40 text-foreground overflow-hidden rounded-md')}>
+                <SyntaxHighlighter
+                  language="json"
+                  showLineNumbers
+                  style={githubGist}
+                  customStyle={{
+                    color: 'inherit',
+                    backgroundColor: 'inherit',
+                    fontSize: '0.75rem',
+                    lineHeight: '1.5',
+                    margin: 0,
+                    borderRadius: 0,
+                    padding: '1rem 0.8rem',
+                  }}
                 >
-                  <SyntaxHighlighter
-                    language="json"
-                    showLineNumbers
-                    style={githubGist}
-                    customStyle={{
-                      color: 'inherit',
-                      backgroundColor: 'inherit',
-                      fontSize: '0.875rem',
-                      lineHeight: '1.5',
-                      margin: 0,
-                      borderRadius: 0,
-                    }}
-                  >
-                    {result}
-                  </SyntaxHighlighter>
+                  {result}
+                </SyntaxHighlighter>
+              </div>
+            </div>
+          ) : (
+            isExecuting && (
+              <div className="space-y-2">
+                <div className="text-muted-foreground text-sm font-medium">Result</div>
+                <div className="bg-muted/40 flex items-center justify-center rounded-md p-6">
+                  <div className="text-muted-foreground flex flex-col items-center gap-2">
+                    <LoaderIcon className="h-5 w-5 animate-spin" />
+                    <span className="text-xs">Processing...</span>
+                  </div>
                 </div>
               </div>
-            ) : (
-              isExecuting && (
-                <div className="space-y-2">
-                  <div className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
-                    <ArrowRightIcon className="h-3.5 w-3.5" />
-                    <span>Result</span>
-                  </div>
-                  <div className="bg-muted/20 flex items-center justify-center rounded-md border p-6">
-                    <div className="text-muted-foreground flex flex-col items-center gap-2">
-                      <LoaderIcon className="h-5 w-5 animate-spin" />
-                      <span className="text-sm">Processing...</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            )}
-          </CardContent>
-        </Card>
+            )
+          )}
+        </div>
       </div>
     );
   }
 
   if (data?.type === 'browser') {
     return (
-      <div className="relative w-full">
-        <img src={getImageUrl(data.screenshot)} alt="Manus's Computer Screen" className="h-auto w-full" />
+      <div className="h-full w-full overflow-hidden">
+        <div className="mb-2 block w-fit max-w-full">
+          <Badge className="max-w-full cursor-pointer font-mono text-xs">
+            <div className="flex items-center justify-start gap-1 overflow-hidden">
+              <GlobeIcon className="h-3.5 w-3.5" />
+              <span className="flex-1 truncate">{data.url}</span>
+            </div>
+          </Badge>
+        </div>
+        <div className="h-full rounded-2xl border p-1">
+          <div className="h-full w-full overflow-auto rounded-2xl">
+            <img src={getImageUrl(data.screenshot)} alt="Manus's Computer Screen" className="h-auto w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -396,7 +373,7 @@ const FileContent = ({ blob, path }: { blob: Blob; path: string }) => {
   }
 
   // For binary files or very large files, show a simplified view
-  if (content.length > 100000 || /[\x00-\x08\x0E-\x1F]/.test(content.substring(0, 1000))) {
+  if (content.length > 100000 || /[\x00-\x08\x0e-\x1f]/.test(content.substring(0, 1000))) {
     return (
       <div className="p-4 text-center">
         <p className="text-muted-foreground mb-2">File is too large or contains binary content</p>

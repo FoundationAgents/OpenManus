@@ -1,18 +1,8 @@
 """Basic tool events."""
 
-from enum import Enum
 from typing import Any, Dict, Optional
 
 from app.event.core.base import BaseEvent
-
-
-class ToolExecutionStatus(str, Enum):
-    """Tool execution status."""
-
-    STARTED = "started"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    TIMEOUT = "timeout"
 
 
 class ToolEvent(BaseEvent):
@@ -22,6 +12,7 @@ class ToolEvent(BaseEvent):
         self,
         tool_name: str,
         tool_type: str,
+        execution_id: str,
         conversation_id: Optional[str] = None,
         **kwargs,
     ):
@@ -30,6 +21,7 @@ class ToolEvent(BaseEvent):
             data={
                 "tool_name": tool_name,
                 "tool_type": tool_type,
+                "execution_id": execution_id,
             },
             **kwargs,
         )
@@ -44,14 +36,15 @@ class ToolExecutionEvent(ToolEvent):
         self,
         tool_name: str,
         tool_type: str,
-        status: ToolExecutionStatus,
+        execution_id: str,
         parameters: Dict[str, Any],
-        result: Any = None,
+        result: Optional[Any] = None,
         execution_time: Optional[float] = None,
         conversation_id: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(
+            execution_id=execution_id,
             tool_name=tool_name,
             tool_type=tool_type,
             conversation_id=conversation_id,
@@ -59,7 +52,6 @@ class ToolExecutionEvent(ToolEvent):
         )
         self.data.update(
             {
-                "status": status.value,
                 "parameters": parameters,
                 "result": str(result) if result is not None else None,
                 "execution_time": execution_time,
@@ -74,13 +66,15 @@ class ToolResultEvent(ToolEvent):
         self,
         tool_name: str,
         tool_type: str,
-        result: Any,
+        execution_id: str,
+        result: Optional[Any],
         success: bool = True,
         error_message: Optional[str] = None,
         conversation_id: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(
+            execution_id=execution_id,
             tool_name=tool_name,
             tool_type=tool_type,
             conversation_id=conversation_id,
@@ -88,6 +82,7 @@ class ToolResultEvent(ToolEvent):
         )
         self.data.update(
             {
+                "execution_id": execution_id,
                 "result": str(result) if result is not None else None,
                 "success": success,
                 "error_message": error_message,

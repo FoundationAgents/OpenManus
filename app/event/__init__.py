@@ -120,10 +120,7 @@ async def track_tool_events(event: BaseEvent):
 async def log_conversation_events(event: BaseEvent):
     """Log conversation events for session tracking."""
     conv_id = event.data.get("conversation_id", "unknown")
-    user_id = event.data.get("user_id", "unknown")
-    logger.info(
-        f"Conversation Event: {event.event_type} (conv: {conv_id}, user: {user_id})"
-    )
+    logger.info(f"Conversation Event: {event.event_type} (conv: {conv_id})")
     return True
 
 

@@ -4,9 +4,9 @@ import { ManusMessageSocket, type ManusMessage, type Message, type MessageType }
 import { EventSender } from '@/libs/event-sender';
 import { FrontendEventHandler, type BackendEvent } from '@/libs/event-handler';
 import { type WebSocketState } from '@/libs/websocket/types';
-import { useRecentTasks } from '@/hooks/use-tasks';
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ChatInput } from '@/components/features/chat/input';
 
 const useConversation = (taskId: string | undefined) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -163,8 +163,9 @@ const useConversation = (taskId: string | undefined) => {
     };
   }, [taskId]); // 只在taskId变化时重新执行
 
-  // 创建消息的辅助函数
-  const createMessageFromEvent = (event: BackendEvent): Message => {
+  const createAssistantMessageFromEvent = (event: BackendEvent): Message => {
+    if (event.event_type === 'tool.toolexecution') {
+    }
     return {
       index: Date.now() + Math.random(), // 使用时间戳+随机数确保唯一性
       role: 'assistant' as const,
@@ -178,6 +179,15 @@ const useConversation = (taskId: string | undefined) => {
       createdAt: new Date(),
       type: event.event_type as MessageType,
       step: event.data.step_number,
+    };
+  };
+
+  const createUserMessageFromEvent = (event: BackendEvent): Message => {
+    return {
+      index: Date.now() + Math.random(), // 使用时间戳+随机数确保唯一性
+      role: 'user' as const,
+      content: event.data.message,
+      type: 'conversation.userinput',
     };
   };
 
@@ -196,7 +206,7 @@ const useConversation = (taskId: string | undefined) => {
           console.log(`🚀 开始执行步骤 ${event.data.step_number}`);
 
           // 创建步骤开始消息
-          const startMessage = createMessageFromEvent(event);
+          const startMessage = createAssistantMessageFromEvent(event);
           setMessages(prev => [...prev, startMessage]);
           break;
 
@@ -206,7 +216,7 @@ const useConversation = (taskId: string | undefined) => {
           console.log(`✅ 步骤 ${currentStep} 完成`);
 
           // 创建步骤完成消息
-          const completeMessage = createMessageFromEvent(event);
+          const completeMessage = createAssistantMessageFromEvent(event);
           setMessages(prev => [...prev, completeMessage]);
 
           // 如果是最后一步或者智能体决定终止，则标记为完成
@@ -222,7 +232,7 @@ const useConversation = (taskId: string | undefined) => {
           console.log('🎉 任务完成');
 
           // 创建任务完成消息
-          const taskCompleteMessage = createMessageFromEvent(event);
+          const taskCompleteMessage = createAssistantMessageFromEvent(event);
           setMessages(prev => [...prev, taskCompleteMessage]);
           break;
 
@@ -232,7 +242,7 @@ const useConversation = (taskId: string | undefined) => {
           console.log('❌ 智能体执行出错');
 
           // 创建错误消息
-          const errorMessage = createMessageFromEvent(event);
+          const errorMessage = createAssistantMessageFromEvent(event);
           setMessages(prev => [...prev, errorMessage]);
           break;
       }
@@ -249,17 +259,17 @@ const useConversation = (taskId: string | undefined) => {
           console.log(`🔧 开始执行工具: ${event.data.tool_name}`);
 
           // 创建工具开始执行消息
-          const toolStartMessage = createMessageFromEvent(event);
+          const toolStartMessage = createAssistantMessageFromEvent(event);
           toolStartMessage.content.result = `🔧 开始执行工具: ${event.data.tool_name}`;
           setMessages(prev => [...prev, toolStartMessage]);
           break;
 
-        case 'tool.execution.complete':
+        case 'tool.toolresult':
           const toolName = currentTool || event.data.tool_name;
           console.log(`✅ 工具执行完成: ${toolName}`);
 
           // 创建工具完成消息
-          const toolCompleteMessage = createMessageFromEvent(event);
+          const toolCompleteMessage = createAssistantMessageFromEvent(event);
           toolCompleteMessage.content.result = event.data.result || `✅ 工具 ${toolName} 执行完成`;
           setMessages(prev => [...prev, toolCompleteMessage]);
 
@@ -273,17 +283,6 @@ const useConversation = (taskId: string | undefined) => {
           }
           setCurrentTool('');
           break;
-
-        case 'tool.execution.error':
-          setAgentStatus('idle');
-          setCurrentTool('');
-          console.log(`❌ 工具执行失败: ${currentTool}`);
-
-          // 创建工具错误消息
-          const toolErrorMessage = createMessageFromEvent(event);
-          toolErrorMessage.content.result = `❌ 工具执行失败: ${event.data.error || '未知错误'}`;
-          setMessages(prev => [...prev, toolErrorMessage]);
-          break;
       }
     });
 
@@ -292,9 +291,12 @@ const useConversation = (taskId: string | undefined) => {
       console.log('Conversation event:', event.event_type);
 
       switch (event.event_type) {
+        case 'conversation.userinput':
+          setMessages(prev => [...prev, createUserMessageFromEvent(event)]);
+          break;
         case 'conversation.agentresponse':
           // 创建智能体思考消息
-          const thoughtMessage = createMessageFromEvent(event);
+          const thoughtMessage = createAssistantMessageFromEvent(event);
           thoughtMessage.content.result = event.data.response; // AI的思考内容
           thoughtMessage.content.response_type = event.data.response_type; // thought
           setMessages(prev => [...prev, thoughtMessage]);
@@ -344,39 +346,20 @@ const useConversation = (taskId: string | undefined) => {
     });
   };
 
-  // 重置任务状态
-  const resetTaskState = () => {
-    setTaskStatus('idle');
-    setAgentStatus('idle');
-    setCurrentStep(0);
-    setCurrentTool('');
-    setWaitingForInput(false);
-    setInputPrompt('');
-    console.log('🔄 任务状态已重置');
-  };
-
   // 提供发送事件的方法
-  const sendUserInterrupt = () => {
+  const sendUserInterrupt = async () => {
     if (eventSenderRef.current && taskId) {
-      eventSenderRef.current.sendUserInterrupt(taskId, 'user_requested').catch(error => console.error('Failed to send user interrupt:', error));
+      await eventSenderRef.current.sendUserInterrupt(taskId, 'user_requested').catch(error => console.error('Failed to send user interrupt:', error));
     } else {
       console.warn('Cannot send interrupt: eventSender or taskId missing');
     }
   };
 
-  const sendUserInput = (message: string) => {
+  const sendUserInput = async (message: string) => {
     if (eventSenderRef.current && taskId) {
-      eventSenderRef.current.sendUserInput(taskId, message).catch(error => console.error('Failed to send user input:', error));
+      await eventSenderRef.current.sendUserInput(taskId, message).catch(error => console.error('Failed to send user input:', error));
     } else {
       console.warn('Cannot send input: eventSender or taskId missing');
-    }
-  };
-
-  const sendUIInteraction = (action: string, target: string, data: any = {}) => {
-    if (eventSenderRef.current && taskId) {
-      eventSenderRef.current.sendUIInteraction(taskId, action, target, data).catch(error => console.error('Failed to send UI interaction:', error));
-    } else {
-      console.warn('Cannot send UI interaction: eventSender or taskId missing');
     }
   };
 
@@ -393,8 +376,6 @@ const useConversation = (taskId: string | undefined) => {
     // 导出事件发送方法
     sendUserInterrupt,
     sendUserInput,
-    sendUIInteraction,
-    resetTaskState,
     eventSender: eventSenderRef.current,
     eventHandler: eventHandlerRef.current,
   };
@@ -402,122 +383,24 @@ const useConversation = (taskId: string | undefined) => {
 
 const TaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const {
-    messages,
-    taskStatus,
-    agentStatus,
-    currentStep,
-    currentTool,
-    waitingForInput,
-    inputPrompt,
-    sendUserInterrupt,
-    sendUserInput,
-    sendUIInteraction,
-    resetTaskState,
-  } = useConversation(taskId);
+  const { messages, waitingForInput, sendUserInterrupt, sendUserInput } = useConversation(taskId);
 
   return (
     <div className="flex h-full gap-2 p-4">
       {/* Left: Chat Messages */}
-      <div className="flex w-full flex-col overflow-auto">
-        {/* 任务状态栏 */}
-        <div className="mb-4 rounded-lg border bg-white p-3 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">任务状态</h3>
-            <div
-              className={`rounded-full px-2 py-1 text-xs font-medium ${
-                taskStatus === 'idle'
-                  ? 'bg-gray-100 text-gray-600'
-                  : taskStatus === 'running'
-                    ? 'bg-blue-100 text-blue-600'
-                    : taskStatus === 'paused'
-                      ? 'bg-yellow-100 text-yellow-600'
-                      : taskStatus === 'completed'
-                        ? 'bg-green-100 text-green-600'
-                        : taskStatus === 'error'
-                          ? 'bg-red-100 text-red-600'
-                          : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {taskStatus === 'idle'
-                ? '空闲'
-                : taskStatus === 'running'
-                  ? '运行中'
-                  : taskStatus === 'paused'
-                    ? '已暂停'
-                    : taskStatus === 'completed'
-                      ? '已完成'
-                      : taskStatus === 'error'
-                        ? '错误'
-                        : '未知'}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <div className="flex items-center space-x-1">
-              <span>{agentStatus === 'thinking' ? '🤔' : agentStatus === 'acting' ? '⚡' : agentStatus === 'waiting' ? '⏳' : '💤'}</span>
-              <span>
-                {agentStatus === 'thinking' ? '思考中' : agentStatus === 'acting' ? '执行中' : agentStatus === 'waiting' ? '等待输入' : '空闲'}
-              </span>
-            </div>
-
-            {currentStep > 0 && (
-              <div className="flex items-center space-x-1">
-                <span>📋</span>
-                <span>步骤: {currentStep}</span>
-              </div>
-            )}
-
-            {currentTool && (
-              <div className="flex items-center space-x-1">
-                <span>🔧</span>
-                <span>工具: {currentTool}</span>
-                <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
-              </div>
-            )}
-          </div>
-
-          {waitingForInput && inputPrompt && (
-            <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-sm">
-              <span className="font-medium text-yellow-800">等待输入: </span>
-              <span className="text-yellow-700">{inputPrompt}</span>
-            </div>
-          )}
-        </div>
-
-        {/* 控制按钮 */}
-        <div className="mb-4 flex gap-2 rounded bg-gray-100 p-2">
-          <button
-            onClick={() => sendUserInterrupt()}
-            disabled={taskStatus !== 'running'}
-            className={`rounded px-3 py-1 text-sm text-white ${
-              taskStatus === 'running' ? 'bg-red-500 hover:bg-red-600' : 'cursor-not-allowed bg-gray-400'
-            }`}
-          >
-            {taskStatus === 'running' ? '暂停任务' : '中断事件'}
-          </button>
-          <button onClick={() => sendUserInput('测试用户输入')} className="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600">
-            发送用户输入
-          </button>
-          <button
-            onClick={() => sendUIInteraction('click', 'test_button', { test: true })}
-            className="rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600"
-          >
-            UI交互事件
-          </button>
-
-          {(taskStatus === 'completed' || taskStatus === 'error') && (
-            <button onClick={resetTaskState} className="rounded bg-gray-500 px-3 py-1 text-sm text-white hover:bg-gray-600">
-              重置状态
-            </button>
-          )}
-        </div>
-
-        <ChatMessages messages={messages} />
+      <div className="flex h-full w-1/2 flex-col overflow-hidden">
+        <ChatMessages messages={messages} className="flex-1 overflow-auto" />
+        <ChatInput
+          status="idle"
+          onSubmit={value => sendUserInput(value.prompt)}
+          onTerminate={() => sendUserInterrupt()}
+          taskId={taskId}
+          className="p-4"
+        />
       </div>
 
       {/* Right: Terminal Preview */}
-      <ChatPreview taskId={taskId || ''} messages={messages} />
+      <ChatPreview taskId={taskId || ''} messages={messages} className="w-1/2" />
     </div>
   );
 };

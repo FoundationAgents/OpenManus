@@ -147,7 +147,18 @@ class BaseAgent(BaseModel, ABC):
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
         if request:
+            from app.event import UserInputEvent, bus
+
             self.update_memory("user", request)
+            try:
+                await bus.publish(
+                    UserInputEvent(
+                        conversation_id=self.conversation_id,
+                        message=request,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Failed to publish user input event: {e}")
 
         results: List[str] = []
         async with self.state_context(AgentState.RUNNING):

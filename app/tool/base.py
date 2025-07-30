@@ -1,4 +1,5 @@
 import time
+import uuid
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
@@ -28,8 +29,9 @@ class BaseTool(ABC, BaseModel):
 
         # Publish tool execution start event
         start_time = time.time()
+        execution_id = str(uuid.uuid4())
         if self.enable_events:
-            await self._publish_tool_start_event(kwargs)
+            await self._publish_tool_start_event(execution_id, kwargs)
 
         try:
             result = await self.execute(**kwargs)
@@ -38,7 +40,7 @@ class BaseTool(ABC, BaseModel):
             # Publish tool execution success event
             if self.enable_events:
                 await self._publish_tool_complete_event(
-                    kwargs, result, True, execution_time
+                    execution_id, kwargs, result, True, execution_time
                 )
 
             return result
@@ -49,7 +51,7 @@ class BaseTool(ABC, BaseModel):
             # Publish tool execution failure event
             if self.enable_events:
                 await self._publish_tool_complete_event(
-                    kwargs, str(e), False, execution_time
+                    execution_id, kwargs, str(e), False, execution_time
                 )
 
             raise
@@ -79,25 +81,32 @@ class BaseTool(ABC, BaseModel):
         """Enable or disable event publishing."""
         self.enable_events = enabled
 
-    async def _publish_tool_start_event(self, parameters: Dict[str, Any]) -> bool:
+    async def _publish_tool_start_event(
+        self, execution_id: str, parameters: Dict[str, Any]
+    ) -> bool:
         """Publish tool execution start event."""
         try:
             from app.event import ToolExecutionEvent, bus
 
-            event = ToolExecutionEvent(
-                tool_name=self.name,
-                tool_type=self.__class__.__name__,
-                status="started",
-                parameters=parameters,
-                conversation_id=self.conversation_id,
-            )
-            return await bus.publish(event)
+            try:
+                event = ToolExecutionEvent(
+                    tool_name=self.name,
+                    tool_type=self.__class__.__name__,
+                    execution_id=execution_id,
+                    parameters=parameters,
+                    conversation_id=self.conversation_id,
+                )
+                return await bus.publish(event)
+            except Exception as e:
+                logger.warning(f"Failed to publish tool start event: {e}")
+                return False
         except Exception as e:
             logger.warning(f"Failed to publish tool start event: {e}")
             return False
 
     async def _publish_tool_complete_event(
         self,
+        execution_id: str,
         parameters: Dict[str, Any],
         result: Any,
         success: bool,
@@ -107,20 +116,22 @@ class BaseTool(ABC, BaseModel):
         try:
             from app.event import ToolResultEvent, bus
 
-            event = ToolResultEvent(
-                event_type="tool.execution.complete",
-                data={
-                    "tool_name": self.name,
-                    "tool_type": self.__class__.__name__,
-                    "parameters": parameters,
-                    "result": str(result) if result is not None else None,
-                    "success": success,
-                    "execution_time": execution_time,
-                    "conversation_id": self.conversation_id,
-                },
-                source=self.name,
-            )
-            return await bus.publish(event)
+            try:
+                event = ToolResultEvent(
+                    tool_name=self.name,
+                    tool_type=self.__class__.__name__,
+                    execution_id=execution_id,
+                    parameters=parameters,
+                    result=result,
+                    success=success,
+                    execution_time=execution_time,
+                    conversation_id=self.conversation_id,
+                    source=self.name,
+                )
+                return await bus.publish(event)
+            except Exception as e:
+                logger.warning(f"Failed to publish tool complete event: {e}")
+                return False
         except Exception as e:
             logger.warning(f"Failed to publish tool complete event: {e}")
             return False
@@ -141,17 +152,21 @@ class BaseTool(ABC, BaseModel):
         try:
             from app.event import BaseEvent, bus
 
-            event = BaseEvent(
-                event_type=event_type,
-                data={
-                    "tool_name": self.name,
-                    "tool_type": self.__class__.__name__,
-                    "conversation_id": self.conversation_id,
-                    **data,
-                },
-                source=self.name,
-            )
-            return await bus.publish(event)
+            try:
+                event = BaseEvent(
+                    event_type=event_type,
+                    data={
+                        "tool_name": self.name,
+                        "tool_type": self.__class__.__name__,
+                        "conversation_id": self.conversation_id,
+                        **data,
+                    },
+                    source=self.name,
+                )
+                return await bus.publish(event)
+            except Exception as e:
+                logger.warning(f"Failed to publish custom tool event {event_type}: {e}")
+                return False
         except Exception as e:
             logger.warning(f"Failed to publish custom tool event {event_type}: {e}")
             return False
