@@ -1,25 +1,22 @@
-import httpx
 import argparse
+import asyncio
+import logging
+from typing import Optional
 
+import httpx
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
-from a2a.server.tasks import InMemoryTaskStore, InMemoryPushNotifier
-from a2a.types import (
-    AgentCapabilities,
-    AgentCard,
-    AgentSkill,
-)
+from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+from dotenv import load_dotenv
 
-from .agent_executor import ManusExecutor
-
-from .agent import A2AManus
 from app.tool.browser_use_tool import _BROWSER_DESCRIPTION
 from app.tool.str_replace_editor import _STR_REPLACE_EDITOR_DESCRIPTION
 from app.tool.terminate import _TERMINATE_DESCRIPTION
-import logging
-from dotenv import load_dotenv
-import asyncio
-from typing import Optional
+
+from .agent import A2AManus
+from .agent_executor import ManusExecutor
+
 
 load_dotenv()
 
