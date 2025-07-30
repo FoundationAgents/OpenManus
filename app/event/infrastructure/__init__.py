@@ -27,9 +27,6 @@ from .registry import (
     get_global_registry,
 )
 
-# WebSocket forwarder middleware
-from .websocket_forwarder import WebSocketForwarderMiddleware
-
 __all__ = [
     # Registry system
     "EventHandlerRegistry",
@@ -45,7 +42,6 @@ __all__ = [
     "ErrorIsolationMiddleware",
     "MetricsMiddleware",
     "create_default_middleware_chain",
-    "WebSocketForwarderMiddleware",
     # Bus implementations
     "bus",
     "EventBus",

@@ -82,9 +82,9 @@ class BaseTool(ABC, BaseModel):
     async def _publish_tool_start_event(self, parameters: Dict[str, Any]) -> bool:
         """Publish tool execution start event."""
         try:
-            from app.event import bus, create_tool_execution_event
+            from app.event import ToolExecutionEvent, bus
 
-            event = create_tool_execution_event(
+            event = ToolExecutionEvent(
                 tool_name=self.name,
                 tool_type=self.__class__.__name__,
                 status="started",
@@ -105,9 +105,9 @@ class BaseTool(ABC, BaseModel):
     ) -> bool:
         """Publish tool execution complete event."""
         try:
-            from app.event import BaseEvent, bus
+            from app.event import ToolResultEvent, bus
 
-            event = BaseEvent(
+            event = ToolResultEvent(
                 event_type="tool.execution.complete",
                 data={
                     "tool_name": self.name,

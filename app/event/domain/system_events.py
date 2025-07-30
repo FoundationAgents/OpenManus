@@ -38,19 +38,3 @@ class SystemErrorEvent(SystemEvent):
         )
         if conversation_id:
             self.conversation_id = conversation_id
-
-
-def create_system_error_event(
-    component: str,
-    error_type: str,
-    error_message: str,
-    conversation_id: Optional[str] = None,
-) -> SystemErrorEvent:
-    """创建系统错误事件"""
-    return SystemErrorEvent(
-        component=component,
-        error_type=error_type,
-        error_message=error_message,
-        conversation_id=conversation_id,
-        source=component,
-    )

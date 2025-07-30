@@ -93,21 +93,3 @@ class ToolResultEvent(ToolEvent):
                 "error_message": error_message,
             }
         )
-
-
-def create_tool_execution_event(
-    tool_name: str,
-    tool_type: str,
-    status: str,
-    parameters: Dict[str, Any],
-    conversation_id: Optional[str] = None,
-) -> ToolExecutionEvent:
-    """创建工具执行事件"""
-    return ToolExecutionEvent(
-        tool_name=tool_name,
-        tool_type=tool_type,
-        status=ToolExecutionStatus(status),
-        parameters=parameters,
-        conversation_id=conversation_id,
-        source="tool_system",
-    )

@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.event import create_agent_step_start_event
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -161,7 +160,9 @@ class BaseAgent(BaseModel, ABC):
                 # Publish step start event
                 if self.enable_events:
                     try:
-                        event = create_agent_step_start_event(
+                        from app.event import AgentStepStartEvent, bus
+
+                        event = AgentStepStartEvent(
                             agent_name=self.name,
                             agent_type=self.__class__.__name__,
                             step_number=self.current_step,

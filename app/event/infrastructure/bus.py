@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 from app.event.config import EventSystemConfig
 from app.event.core.base import BaseEvent, BaseEventBus
 from app.event.infrastructure.middleware import (
+    BaseMiddleware,
     MiddlewareChain,
     MiddlewareContext,
     create_default_middleware_chain,
@@ -217,6 +218,29 @@ class EventBus(BaseEventBus):
                         f"Event-level WebSocket forwarding failed for {event.event_type}: {e}"
                     )
                 break
+
+    def register_middleware(self, middleware: BaseMiddleware) -> bool:
+        """注册外部中间件到事件总线
+
+        这个方法允许外部模块注册自己的中间件，符合开闭原则
+
+        Args:
+            middleware: 要注册的中间件
+
+        Returns:
+            bool: 注册是否成功
+        """
+        try:
+            if hasattr(self, "middleware_chain") and self.middleware_chain:
+                self.middleware_chain.add_middleware(middleware)
+                logger.info(f"Middleware '{middleware.name}' registered to event bus")
+                return True
+            else:
+                logger.warning("Event bus does not have middleware chain")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to register middleware '{middleware.name}': {e}")
+            return False
 
 
 # Global bus instance management

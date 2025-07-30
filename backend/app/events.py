@@ -98,7 +98,6 @@ def _register_frontend_handlers():
                 "status": "processed",
                 "action": action,
                 "target": target,
-                "message": f"UI交互已处理: {action} on {target}",
             },
             source="backend",
         )
@@ -109,5 +108,24 @@ def _register_frontend_handlers():
     @event_handler(["frontend.*"])
     async def handle_generic_frontend_events(event: BaseEvent):
         """处理通用前端事件"""
-        logger.info(f"收到前端事件: {event.event_type}, data: {event.data}")
+        conversation_id = event.data.get("conversation_id")
+        event_type = event.event_type
+
+        logger.info(
+            f"收到通用前端事件: conversation_id={conversation_id}, event_type={event_type}"
+        )
+
+        # 发送响应事件到前端
+        response_event = BaseEvent(
+            event_type="system.frontend_event_processed",
+            data={
+                "conversation_id": conversation_id,
+                "status": "processed",
+                "original_event_type": event_type,
+                "message": f"前端事件已处理: {event_type}",
+            },
+            source="backend",
+        )
+
+        await bus.publish(response_event)
         return True
