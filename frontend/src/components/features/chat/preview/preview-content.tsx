@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/use-async';
 import type { Message } from '@/libs/chat-messages';
 import { getImageUrl } from '@/libs/image';
 import { cn } from '@/libs/utils';
-import { ChevronLeftIcon, DownloadIcon, FileIcon, FolderIcon, GlobeIcon, HomeIcon, LoaderIcon, PackageIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, DownloadIcon, FileIcon, FolderIcon, GlobeIcon, HomeIcon, LoaderIcon, PackageIcon } from 'lucide-react';
 import { useState } from 'react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { githubGist } from 'react-syntax-highlighter/dist/esm/styles/hljs';
@@ -60,24 +60,7 @@ export const PreviewContent = ({ messages }: { messages: Message[] }) => {
           {result ? (
             <div className="space-y-2">
               <div className="text-muted-foreground text-sm font-medium">Result</div>
-              <div className={cn('bg-muted/40 text-foreground overflow-hidden rounded-md')}>
-                <SyntaxHighlighter
-                  language="json"
-                  showLineNumbers
-                  style={githubGist}
-                  customStyle={{
-                    color: 'inherit',
-                    backgroundColor: 'inherit',
-                    fontSize: '0.75rem',
-                    lineHeight: '1.5',
-                    margin: 0,
-                    borderRadius: 0,
-                    padding: '1rem 0.8rem',
-                  }}
-                >
-                  {result}
-                </SyntaxHighlighter>
-              </div>
+              <ExpandableToolResult result={result} maxLines={10} maxLineLength={120} />
             </div>
           ) : (
             isExecuting && (
@@ -310,7 +293,7 @@ const WorkspacePreview = () => {
         <CardContent>
           <div className="overflow-hidden rounded-md border">
             {workspace instanceof Blob &&
-            (workspace.type.includes('image') || (data?.type === 'workspace' && data.path?.match(/\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i))) ? (
+              (workspace.type.includes('image') || (data?.type === 'workspace' && data.path?.match(/\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i))) ? (
               <img
                 src={URL.createObjectURL(workspace)}
                 alt={data?.type === 'workspace' ? data.path || 'File preview' : 'File preview'}
@@ -423,6 +406,121 @@ const NotPreview = () => {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="animate-pulse text-gray-500">Manus is not using the computer right now...</div>
+    </div>
+  );
+};
+
+// 可展开的工具结果显示组件
+const ExpandableToolResult = ({ result, maxLines = 20, maxLineLength = 120 }: {
+  result: string;
+  maxLines?: number;
+  maxLineLength?: number;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // 处理长行截断的函数
+  const processLongLines = (content: string, maxLength: number): string => {
+    return content.split('\n').map(line => {
+      if (line.length <= maxLength) {
+        return line;
+      }
+      // 对于过长的行，在合适的位置截断并添加换行
+      const chunks = [];
+      for (let i = 0; i < line.length; i += maxLength) {
+        chunks.push(line.substring(i, i + maxLength));
+      }
+      return chunks.join('\n');
+    }).join('\n');
+  };
+
+  // 按行分割内容
+  const lines = result.split('\n');
+
+  // 检查是否需要截断（行数超限或有长行）
+  const hasLongLines = lines.some(line => line.length > maxLineLength);
+  const needsTruncation = lines.length > maxLines || hasLongLines;
+
+  // 如果不需要截断，直接显示完整内容
+  if (!needsTruncation) {
+    return (
+      <div className={cn('bg-muted/40 text-foreground overflow-hidden rounded-md')}>
+        <SyntaxHighlighter
+          language="json"
+          showLineNumbers
+          style={githubGist}
+          customStyle={{
+            color: 'inherit',
+            backgroundColor: 'inherit',
+            fontSize: '0.75rem',
+            lineHeight: '1.5',
+            margin: 0,
+            borderRadius: 0,
+            padding: '1rem 0.8rem',
+            wordBreak: 'break-all',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {result}
+        </SyntaxHighlighter>
+      </div>
+    );
+  }
+
+  // 处理显示内容
+  let displayContent: string;
+  if (isExpanded) {
+    // 展开状态：处理长行但显示所有内容
+    displayContent = processLongLines(result, maxLineLength);
+  } else {
+    // 收起状态：限制行数并处理长行
+    const truncatedLines = lines.slice(0, maxLines);
+    const truncatedContent = truncatedLines.join('\n');
+    displayContent = processLongLines(truncatedContent, maxLineLength) + '\n...';
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className={cn('bg-muted/40 text-foreground overflow-hidden rounded-md')}>
+        <SyntaxHighlighter
+          language="json"
+          showLineNumbers
+          style={githubGist}
+          customStyle={{
+            color: 'inherit',
+            backgroundColor: 'inherit',
+            fontSize: '0.75rem',
+            lineHeight: '1.5',
+            margin: 0,
+            borderRadius: 0,
+            padding: '1rem 0.8rem',
+            wordBreak: 'break-all',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {displayContent}
+        </SyntaxHighlighter>
+      </div>
+
+      <div className="flex justify-start">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUpIcon className="h-3 w-3 mr-1" />
+              收起
+            </>
+          ) : (
+            <>
+              <ChevronDownIcon className="h-3 w-3 mr-1" />
+              展开查看更多 ({lines.length > maxLines ? `${lines.length - maxLines} 行` : '长行内容'})
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 };

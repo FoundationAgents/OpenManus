@@ -32,6 +32,7 @@ export const ChatPreview = ({ messages, taskId, className }: ChatPreviewProps) =
       </div>
       <div className="h-full flex-1 overflow-hidden">
         <PreviewContent messages={messages} />
+
       </div>
     </div>
   );

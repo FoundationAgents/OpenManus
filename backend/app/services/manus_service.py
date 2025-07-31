@@ -247,3 +247,126 @@ class ManusService:
         except Exception as e:
             logger.error(f"Session {session_id} processing error: {e}")
             session_manager.update_session(session_id, status="error", error=str(e))
+
+    async def continue_conversation(self, session_id: str, user_message: str):
+        """Continue conversation with existing agent"""
+        try:
+            # Get session data
+            session = session_manager.get_session(session_id)
+            if not session:
+                raise ValueError(f"Session {session_id} not found")
+
+            agent = session.get("agent")
+            if not agent:
+                raise ValueError(f"No agent found for session {session_id}")
+
+            # Update session status to running
+            session_manager.update_session(
+                session_id,
+                status="running",
+                current_step=agent.current_step,
+            )
+
+            # Reset agent state to allow continuation
+            from app.agent.base import AgentState
+            agent.state = AgentState.IDLE
+
+            # Add user message to agent memory
+            agent.update_memory("user", user_message)
+
+            # Continue agent execution
+            logger.info(f"Continuing conversation for session {session_id} with message: {user_message}")
+
+            # Import bus for event publishing
+            from app.event.infrastructure.bus import bus
+
+            # Run agent with the new input
+            result = ""
+            async with agent.state_context(AgentState.RUNNING):
+                while (
+                    agent.current_step < agent.max_steps and agent.state != AgentState.FINISHED
+                ):
+                    agent.current_step += 1
+                    logger.info(f"Executing step {agent.current_step}/{agent.max_steps}")
+
+                    # Publish step start event
+                    if agent.enable_events:
+                        try:
+                            from app.event import AgentStepStartEvent
+                            event = AgentStepStartEvent(
+                                agent_name=agent.name,
+                                agent_type=agent.__class__.__name__,
+                                step_number=agent.current_step,
+                                conversation_id=session_id,
+                            )
+                            await bus.publish(event)
+                        except Exception as e:
+                            logger.warning(f"Failed to publish agent step start event: {e}")
+
+                    # Execute agent thinking and action
+                    try:
+                        should_continue = await agent.think()
+                        if not should_continue:
+                            logger.info(f"Agent decided to stop at step {agent.current_step}")
+                            break
+
+                        if agent.tool_calls:
+                            tool_result = await agent.act()
+                            if tool_result:
+                                result = tool_result
+
+                        # Publish step complete event
+                        if agent.enable_events:
+                            try:
+                                from app.event import AgentStepCompleteEvent
+                                event = AgentStepCompleteEvent(
+                                    agent_name=agent.name,
+                                    agent_type=agent.__class__.__name__,
+                                    step_number=agent.current_step,
+                                    conversation_id=session_id,
+                                    result=result or "Step completed",
+                                )
+                                await bus.publish(event)
+                            except Exception as e:
+                                logger.warning(f"Failed to publish agent step complete event: {e}")
+
+                    except Exception as e:
+                        logger.error(f"Error in agent step {agent.current_step}: {e}")
+                        # Publish error event
+                        if agent.enable_events:
+                            try:
+                                from app.event import AgentErrorEvent
+                                event = AgentErrorEvent(
+                                    agent_name=agent.name,
+                                    agent_type=agent.__class__.__name__,
+                                    conversation_id=session_id,
+                                    error=str(e),
+                                )
+                                await bus.publish(event)
+                            except Exception as event_error:
+                                logger.warning(f"Failed to publish agent error event: {event_error}")
+                        break
+
+            # Get final result
+            if agent.memory.messages:
+                last_message = agent.memory.messages[-1]
+                if hasattr(last_message, "content") and last_message.content:
+                    result = last_message.content
+                elif hasattr(last_message, "tool_calls") and last_message.tool_calls:
+                    result = f"Executed {len(last_message.tool_calls)} tool calls"
+
+            # Update session status
+            final_status = "completed" if agent.state == AgentState.FINISHED else "running"
+            session_manager.update_session(
+                session_id,
+                status=final_status,
+                result=result,
+                current_step=agent.current_step,
+            )
+
+            logger.info(f"Conversation continuation completed for session {session_id}")
+
+        except Exception as e:
+            logger.error(f"Error continuing conversation for session {session_id}: {e}")
+            session_manager.update_session(session_id, status="error", error=str(e))
+            raise
