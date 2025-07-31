@@ -16,6 +16,17 @@ from .conversation_events import (
     UserInterruptEvent,
 )
 
+# FileSystem domain events
+from .filesystem_events import (
+    DirectoryCreatedEvent,
+    DirectoryDeletedEvent,
+    FileCreatedEvent,
+    FileDeletedEvent,
+    FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEvent,
+)
+
 # System domain events
 from .system_events import SystemErrorEvent, SystemEvent
 
@@ -41,4 +52,12 @@ __all__ = [
     # System events
     "SystemEvent",
     "SystemErrorEvent",
+    # FileSystem events
+    "FileSystemEvent",
+    "FileCreatedEvent",
+    "FileModifiedEvent",
+    "FileDeletedEvent",
+    "FileMovedEvent",
+    "DirectoryCreatedEvent",
+    "DirectoryDeletedEvent",
 ]

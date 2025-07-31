@@ -32,7 +32,15 @@ const useConversation = (taskId: string | undefined) => {
       onMessage: (message: Message) => {
         // MessageStream处理转换后的消息，用于UI显示
         console.log('📝 MessageStream received message:', message);
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          const newMessages = [...prev, message];
+          // 按时间戳排序消息，确保历史消息顺序正确
+          return newMessages.sort((a, b) => {
+            const timeA = a.createdAt?.getTime() || a.index || 0;
+            const timeB = b.createdAt?.getTime() || b.index || 0;
+            return timeA - timeB;
+          });
+        });
       },
     });
   }
@@ -67,6 +75,9 @@ const useConversation = (taskId: string | undefined) => {
         // 创建事件发送器和处理器
         eventSenderRef.current = new EventSender(wsAdapter);
         eventHandlerRef.current = new FrontendEventHandler();
+
+        // 设置全局事件处理器供其他组件使用
+        (window as any).eventHandler = eventHandlerRef.current;
 
         // 设置事件处理器
         setupEventHandlers(eventHandlerRef.current, taskId);

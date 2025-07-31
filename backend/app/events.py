@@ -65,8 +65,8 @@ def _register_frontend_handlers():
         )
 
         # 获取对应的session和智能体实例
-        from backend.app.core.session import session_manager
         from backend.app.api.routes.manus import get_manus_service
+        from backend.app.core.session import session_manager
 
         session = session_manager.get_session(conversation_id)
         if not session:
@@ -79,23 +79,15 @@ def _register_frontend_handlers():
             return False
 
         try:
-            # 发送用户输入接收确认事件到前端
-            response_event = BaseEvent(
-                event_type="conversation.userinput",
-                data={
-                    "conversation_id": conversation_id,
-                    "message": message,
-                },
-                source="backend",
-            )
-            await bus.publish(response_event)
-
             # 重新激活智能体并继续对话
+            # 用户消息会在 continue_conversation 方法中保存到历史记录
             manus_service = get_manus_service()
             await manus_service.continue_conversation(conversation_id, message)
 
         except Exception as e:
-            logger.error(f"Error processing user input for session {conversation_id}: {e}")
+            logger.error(
+                f"Error processing user input for session {conversation_id}: {e}"
+            )
             # 发送错误事件到前端
             error_event = BaseEvent(
                 event_type="system.error",

@@ -51,7 +51,20 @@ const ToolBadge = ({ toolName, executing, onClick }: { toolName: string; executi
 };
 
 const UserInputMessage = ({ message }: { message: Message }) => {
-  const content = typeof message.content === 'string' ? message.content : message.content?.input || message.content?.content || '';
+  // 提取用户消息内容，支持多种格式
+  let content = '';
+  if (typeof message.content === 'string') {
+    content = message.content;
+  } else if (message.content?.message) {
+    content = message.content.message;
+  } else if (message.content?.input) {
+    content = message.content.input;
+  } else if (message.content?.content) {
+    content = message.content.content;
+  } else {
+    content = JSON.stringify(message.content);
+  }
+
   const createdAt = message.createdAt;
 
   return (

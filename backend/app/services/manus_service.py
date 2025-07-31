@@ -2,16 +2,11 @@
 OpenManus Backend Manus Service Layer
 """
 
-import json
-import uuid
 from datetime import datetime
-from typing import Dict, List, Set
-
-from fastapi import WebSocket
+from typing import Dict, List
 
 from app.agent.manus import Manus
 from app.event.domain import AgentEvent, ConversationEvent, SystemEvent, ToolEvent
-from app.event.infrastructure.bus import get_global_bus
 from app.logger import logger
 from backend.app.core.session import session_manager
 from backend.app.services.manus_socket import ManusWebSocketManager
@@ -92,6 +87,15 @@ class ManusService:
                 logger.info(
                     f"Received conversation event: {event.event_type}, conversation_id: {getattr(event, 'conversation_id', None)}"
                 )
+
+                # Skip user input events from continue_conversation to avoid duplicate storage
+                # User input is already stored in continue_conversation method
+                if event.event_type == "conversation.userinput":
+                    logger.info(
+                        f"Skipping user input event storage - already handled by continue_conversation"
+                    )
+                    return True
+
                 # Only store to message history, WebSocket forwarding handled by middleware
                 conversation_id = getattr(event, "conversation_id", None)
                 if conversation_id:
@@ -215,10 +219,29 @@ class ManusService:
             agent.max_observe = max_observe
             agent.conversation_id = session_id  # Set conversation_id for event tracking
 
+            # Start filesystem watching for this session
+            from backend.app.services.filesystem_watcher import filesystem_watcher
+
+            filesystem_watcher.start_watching_session(session_id)
+
             # Set conversation_id for all tools to enable proper event tracking
             for tool in agent.available_tools.tools:
                 if hasattr(tool, "conversation_id"):
                     tool.conversation_id = session_id
+
+            # Store initial user message to history
+            initial_message_data = {
+                "type": "agent_event",
+                "event_type": "conversation.userinput",
+                "conversation_id": session_id,
+                "content": prompt,
+                "timestamp": datetime.now().isoformat(),
+                "data": {"message": prompt, "role": "user"},
+            }
+            self._store_message(session_id, initial_message_data)
+            logger.info(
+                f"💾 Stored initial user message to history for session {session_id}"
+            )
 
             # Run agent
             logger.info(f"Started processing session {session_id} request: {prompt}")
@@ -247,10 +270,21 @@ class ManusService:
         except Exception as e:
             logger.error(f"Session {session_id} processing error: {e}")
             session_manager.update_session(session_id, status="error", error=str(e))
+        finally:
+            # Stop filesystem watching when session ends
+            from backend.app.services.filesystem_watcher import filesystem_watcher
+
+            filesystem_watcher.stop_watching_session(session_id)
 
     async def continue_conversation(self, session_id: str, user_message: str):
         """Continue conversation with existing agent"""
         try:
+            # Ensure filesystem watching is active for this session
+            from backend.app.services.filesystem_watcher import filesystem_watcher
+
+            if session_id not in filesystem_watcher.get_watching_sessions():
+                filesystem_watcher.start_watching_session(session_id)
+
             # Get session data
             session = session_manager.get_session(session_id)
             if not session:
@@ -269,13 +303,44 @@ class ManusService:
 
             # Reset agent state to allow continuation
             from app.agent.base import AgentState
+
             agent.state = AgentState.IDLE
 
             # Add user message to agent memory
             agent.update_memory("user", user_message)
 
+            # Store user message to history
+            user_message_data = {
+                "type": "agent_event",
+                "event_type": "conversation.userinput",
+                "conversation_id": session_id,
+                "content": user_message,
+                "timestamp": datetime.now().isoformat(),
+                "data": {"message": user_message, "role": "user"},
+            }
+            self._store_message(session_id, user_message_data)
+            logger.info(f"💾 Stored user message to history for session {session_id}")
+
+            # Also publish user input event for real-time frontend display
+            from app.event import UserInputEvent, bus
+
+            try:
+                user_input_event = UserInputEvent(
+                    conversation_id=session_id, message=user_message
+                )
+                await bus.publish(user_input_event)
+                logger.info(
+                    f"📡 Published user input event for real-time display: {session_id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to publish user input event for real-time display: {e}"
+                )
+
             # Continue agent execution
-            logger.info(f"Continuing conversation for session {session_id} with message: {user_message}")
+            logger.info(
+                f"Continuing conversation for session {session_id} with message: {user_message}"
+            )
 
             # Import bus for event publishing
             from app.event.infrastructure.bus import bus
@@ -284,15 +349,19 @@ class ManusService:
             result = ""
             async with agent.state_context(AgentState.RUNNING):
                 while (
-                    agent.current_step < agent.max_steps and agent.state != AgentState.FINISHED
+                    agent.current_step < agent.max_steps
+                    and agent.state != AgentState.FINISHED
                 ):
                     agent.current_step += 1
-                    logger.info(f"Executing step {agent.current_step}/{agent.max_steps}")
+                    logger.info(
+                        f"Executing step {agent.current_step}/{agent.max_steps}"
+                    )
 
                     # Publish step start event
                     if agent.enable_events:
                         try:
                             from app.event import AgentStepStartEvent
+
                             event = AgentStepStartEvent(
                                 agent_name=agent.name,
                                 agent_type=agent.__class__.__name__,
@@ -301,13 +370,17 @@ class ManusService:
                             )
                             await bus.publish(event)
                         except Exception as e:
-                            logger.warning(f"Failed to publish agent step start event: {e}")
+                            logger.warning(
+                                f"Failed to publish agent step start event: {e}"
+                            )
 
                     # Execute agent thinking and action
                     try:
                         should_continue = await agent.think()
                         if not should_continue:
-                            logger.info(f"Agent decided to stop at step {agent.current_step}")
+                            logger.info(
+                                f"Agent decided to stop at step {agent.current_step}"
+                            )
                             break
 
                         if agent.tool_calls:
@@ -319,6 +392,7 @@ class ManusService:
                         if agent.enable_events:
                             try:
                                 from app.event import AgentStepCompleteEvent
+
                                 event = AgentStepCompleteEvent(
                                     agent_name=agent.name,
                                     agent_type=agent.__class__.__name__,
@@ -328,7 +402,9 @@ class ManusService:
                                 )
                                 await bus.publish(event)
                             except Exception as e:
-                                logger.warning(f"Failed to publish agent step complete event: {e}")
+                                logger.warning(
+                                    f"Failed to publish agent step complete event: {e}"
+                                )
 
                     except Exception as e:
                         logger.error(f"Error in agent step {agent.current_step}: {e}")
@@ -336,6 +412,7 @@ class ManusService:
                         if agent.enable_events:
                             try:
                                 from app.event import AgentErrorEvent
+
                                 event = AgentErrorEvent(
                                     agent_name=agent.name,
                                     agent_type=agent.__class__.__name__,
@@ -344,7 +421,9 @@ class ManusService:
                                 )
                                 await bus.publish(event)
                             except Exception as event_error:
-                                logger.warning(f"Failed to publish agent error event: {event_error}")
+                                logger.warning(
+                                    f"Failed to publish agent error event: {event_error}"
+                                )
                         break
 
             # Get final result
@@ -356,7 +435,9 @@ class ManusService:
                     result = f"Executed {len(last_message.tool_calls)} tool calls"
 
             # Update session status
-            final_status = "completed" if agent.state == AgentState.FINISHED else "running"
+            final_status = (
+                "completed" if agent.state == AgentState.FINISHED else "running"
+            )
             session_manager.update_session(
                 session_id,
                 status=final_status,

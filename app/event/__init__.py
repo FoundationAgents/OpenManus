@@ -9,7 +9,7 @@ from app.event.core import BaseEvent, BaseEventBus, BaseEventHandler, EventConte
 
 # Event factory functions
 # Domain events
-from app.event.domain import (  # Agent events; Conversation events; Tool events; System events
+from app.event.domain import (  # Agent events; Conversation events; Tool events; System events; FileSystem events; FileSystem events
     AgentEvent,
     AgentResponseEvent,
     AgentStepCompleteEvent,
@@ -17,6 +17,13 @@ from app.event.domain import (  # Agent events; Conversation events; Tool events
     ConversationClosedEvent,
     ConversationCreatedEvent,
     ConversationEvent,
+    DirectoryCreatedEvent,
+    DirectoryDeletedEvent,
+    FileCreatedEvent,
+    FileDeletedEvent,
+    FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEvent,
     SystemErrorEvent,
     SystemEvent,
     ToolEvent,
@@ -83,6 +90,14 @@ __all__ = [
     # System events
     "SystemEvent",
     "SystemErrorEvent",
+    # FileSystem events
+    "FileSystemEvent",
+    "FileCreatedEvent",
+    "FileModifiedEvent",
+    "FileDeletedEvent",
+    "FileMovedEvent",
+    "DirectoryCreatedEvent",
+    "DirectoryDeletedEvent",
     # Event factory functions
 ]
 

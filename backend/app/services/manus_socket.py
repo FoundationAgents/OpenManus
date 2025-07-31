@@ -193,7 +193,8 @@ class ManusWebSocketMiddleware(BaseMiddleware):
             "tool.*",  # 工具执行事件
             "conversation.*",  # 对话相关事件
             "stream.*",  # 流式输出事件
-            "system.*",
+            "system.*",  # 系统事件
+            "filesystem.*",  # 文件系统事件
         ]
 
         logger.info(

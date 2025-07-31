@@ -6,8 +6,8 @@ import { useAsync } from '@/hooks/use-async';
 import type { Message } from '@/libs/chat-messages';
 import { getImageUrl } from '@/libs/image';
 import { cn } from '@/libs/utils';
-import { ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, DownloadIcon, FileIcon, FolderIcon, GlobeIcon, HomeIcon, LoaderIcon, PackageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, DownloadIcon, FileIcon, FolderIcon, GlobeIcon, HomeIcon, LoaderIcon, PackageIcon, RefreshCwIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { githubGist } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { usePreviewData } from './store';
@@ -113,40 +113,64 @@ const WorkspacePreview = () => {
 
   const workspacePath = data?.type === 'workspace' ? data.path || '' : '';
 
-  const isShare = workspacePath.startsWith('/share');
+  // 从路径中提取session_id（第一个路径段）
+  const pathParts = workspacePath.split('/').filter(Boolean);
+  const sessionId = pathParts.length > 0 ? pathParts[0] : '';
+  const relativePath = pathParts.length > 1 ? pathParts.slice(1).join('/') : '';
 
   // Helper to check if we're in root directory
-  const isRootDirectory = !workspacePath || workspacePath.split('/').length <= 1;
+  const isRootDirectory = !relativePath;
 
   // Handle back button click - navigate to parent directory
   const handleBackClick = () => {
     if (isRootDirectory) return;
 
-    const pathParts = workspacePath.split('/');
-    pathParts.pop(); // Remove the last path segment
-    const parentPath = pathParts.join('/');
+    const currentPathParts = relativePath.split('/').filter(Boolean);
+    currentPathParts.pop(); // Remove the last path segment
+    const parentRelativePath = currentPathParts.join('/');
+    const newPath = sessionId + (parentRelativePath ? `/${parentRelativePath}` : '');
 
     setData({
       type: 'workspace',
-      path: parentPath,
+      path: newPath,
     });
   };
 
   const handleItemClick = (item: { name: string; type: 'file' | 'directory' }) => {
+    const newRelativePath = relativePath ? `${relativePath}/${item.name}` : item.name;
+    const newPath = sessionId + (newRelativePath ? `/${newRelativePath}` : '');
+
     setData({
       type: 'workspace',
-      path: `${workspacePath}/${item.name}`,
+      path: newPath,
     });
   };
 
   const handleDownload = async () => {
     if (data?.type !== 'workspace') return;
+
+    // 检查是否为空文件夹
+    if (Array.isArray(workspace) && workspace.length === 0) {
+      console.warn('Cannot download empty directory');
+      return;
+    }
+
+    // 检查是否为文件夹（如果workspace是数组，说明是文件夹）
+    const isDirectory = Array.isArray(workspace);
+
     setIsDownloading(true);
     try {
-      const downloadUrl = isShare ? `/api/share/download/${workspacePath}` : `/api/workspace/download/${workspacePath}`;
+      // 统一的下载URL，后端会根据路径类型处理
+      const downloadUrl = `/api/workspace/files?path=${encodeURIComponent(relativePath)}&download=true${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}`;
+
+      // 创建下载链接
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = workspacePath.split('/').pop() || 'workspace';
+
+      // 设置下载文件名
+      const fileName = relativePath.split('/').pop() || workspacePath.split('/').pop() || 'workspace';
+      a.download = isDirectory ? `${fileName}.zip` : fileName;
+
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -160,26 +184,104 @@ const WorkspacePreview = () => {
     }
   };
 
+  // 添加刷新计数器用于强制重新获取数据
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
   const { data: workspace, isLoading } = useAsync(
     async () => {
       if (data?.type !== 'workspace') return;
-      const workspaceRes = await fetch(isShare ? `/api/share/workspace/${workspacePath}` : `/api/workspace/${workspacePath}`);
-      if (!workspaceRes.ok) return;
-      if (workspaceRes.headers.get('content-type')?.includes('application/json')) {
-        return (await workspaceRes.json()) as {
-          name: string;
-          type: 'file' | 'directory';
-          size: number;
-          modifiedTime: string;
-        }[];
+
+      // 智能判断：根据路径是否有文件扩展名来决定处理方式
+      const hasFileExtension = relativePath && /\.[^/.]+$/.test(relativePath);
+
+      if (!hasFileExtension) {
+        // 没有文件扩展名，很可能是目录，先尝试浏览目录
+        try {
+          const browseUrl = `/api/workspace/browse?path=${encodeURIComponent(relativePath)}${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}`;
+          const browseRes = await fetch(browseUrl);
+          if (browseRes.ok) {
+            const browseData = await browseRes.json();
+            return browseData.files.map((file: any) => ({
+              name: file.name,
+              type: file.type,
+              size: file.size || 0,
+              modifiedTime: file.modified || '',
+              path: file.path
+            }));
+          } else if (browseRes.status === 400) {
+            // 400错误通常表示路径不是目录，跳过错误日志
+            console.debug('Path is not a directory, will try as file');
+          } else {
+            console.error('Error browsing directory:', browseRes.status, browseRes.statusText);
+          }
+        } catch (error) {
+          console.error('Error browsing directory:', error);
+        }
       }
-      return workspaceRes.blob();
+
+      // 有文件扩展名或目录浏览失败，尝试获取文件内容
+      try {
+        const fileUrl = `/api/workspace/files?path=${encodeURIComponent(relativePath)}${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}`;
+        const fileRes = await fetch(fileUrl);
+        if (fileRes.ok) {
+          return await fileRes.blob();
+        }
+      } catch (error) {
+        console.error('Error fetching file:', error);
+      }
+
+      return null;
     },
     [],
     {
-      deps: [workspacePath, data?.type],
+      deps: [workspacePath, relativePath, sessionId, data?.type, refreshCounter],
     },
   );
+
+  // 手动刷新函数
+  const handleRefresh = () => {
+    setRefreshCounter(prev => prev + 1);
+  };
+
+  // 监听文件系统事件进行实时更新
+  useEffect(() => {
+    if (data?.type !== 'workspace' || !sessionId) return;
+
+    // 从全局获取事件处理器（假设在父组件中已经设置）
+    const eventHandler = (window as any).eventHandler;
+    if (!eventHandler) return;
+
+    // 监听文件系统事件
+    const handleFileSystemEvent = (event: any) => {
+      console.log('📁 FileSystem event received:', event);
+
+      // 检查事件是否属于当前session
+      if (event.data?.session_id === sessionId) {
+        // 文件系统发生变化，刷新当前视图
+        setRefreshCounter(prev => prev + 1);
+        console.log('🔄 Refreshing workspace view due to filesystem change');
+      }
+    };
+
+    // 注册文件系统事件监听器
+    eventHandler.on('filesystem.*', handleFileSystemEvent);
+
+    // 清理函数
+    return () => {
+      eventHandler.off('filesystem.*', handleFileSystemEvent);
+    };
+  }, [data?.type, sessionId]);
+
+  // 备用的定时刷新机制 - 每30秒检查一次（降低频率）
+  useEffect(() => {
+    if (data?.type !== 'workspace' || !sessionId) return;
+
+    const interval = setInterval(() => {
+      setRefreshCounter(prev => prev + 1);
+    }, 30000); // 每30秒刷新一次作为备用
+
+    return () => clearInterval(interval);
+  }, [data?.type, sessionId]);
 
   if (isLoading) {
     return (
@@ -214,21 +316,37 @@ const WorkspacePreview = () => {
                     <ChevronLeftIcon className="h-4 w-4" />
                   </Button>
                 )}
-                <CardTitle className="text-base">Workspace: {data?.type === 'workspace' && data.path ? data.path : 'Root Directory'}</CardTitle>
+                <CardTitle className="text-base">Workspace: {relativePath || `Session ${sessionId}`}</CardTitle>
               </div>
-              <Button onClick={handleDownload} variant="outline" size="sm" disabled={isDownloading} title="Download current directory">
-                {isDownloading ? (
-                  <>
-                    <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <DownloadIcon className="mr-2 h-4 w-4" />
-                    Download
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleRefresh}
+                  variant="outline"
+                  size="sm"
+                  title="Refresh directory"
+                >
+                  <RefreshCwIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={handleDownload}
+                  variant="outline"
+                  size="sm"
+                  disabled={isDownloading || (Array.isArray(workspace) && workspace.length === 0)}
+                  title={Array.isArray(workspace) && workspace.length === 0 ? "Cannot download empty directory" : Array.isArray(workspace) ? "Download directory as ZIP" : "Download file"}
+                >
+                  {isDownloading ? (
+                    <>
+                      <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <DownloadIcon className="mr-2 h-4 w-4" />
+                      Download
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -273,7 +391,7 @@ const WorkspacePreview = () => {
                   <ChevronLeftIcon className="h-4 w-4" />
                 </Button>
               )}
-              <CardTitle className="text-base">File: {data?.type === 'workspace' ? data.path : ''}</CardTitle>
+              <CardTitle className="text-base">File: {relativePath || sessionId}</CardTitle>
             </div>
             <Button onClick={handleDownload} variant="outline" size="sm" disabled={isDownloading} title="Download file">
               {isDownloading ? (

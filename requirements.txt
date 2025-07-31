@@ -3,7 +3,7 @@ openai~=1.66.3
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
-numpy
+numpy~=2.3.2
 datasets~=3.4.1
 fastapi~=0.115.11
 tiktoken~=0.9.0
@@ -38,7 +38,10 @@ requests~=2.32.3
 beautifulsoup4~=4.13.3
 crawl4ai~=0.6.3
 
-aiohttp~=3.9.0
+aiohttp>=3.11.11
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+
+watchdog~=6.0.0
+uvicorn[standard]

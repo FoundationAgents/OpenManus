@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.routes.manus import router as manus_router
+from backend.app.api.routes.workspace import router as workspace_router
 from backend.app.core.config import config
 
 # Create FastAPI application
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # Register routes
 app.include_router(manus_router)
+app.include_router(workspace_router, prefix="/api")
 
 
 @app.on_event("startup")

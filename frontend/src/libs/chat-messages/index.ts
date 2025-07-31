@@ -213,9 +213,12 @@ export class ManusMessageSocket<T extends WebSocketMessage = WebSocketMessage> {
       if ('type' in rawMessage && rawMessage.type === 'agent_event') {
         const manusMessage = rawMessage as ManusMessage;
 
+        // 根据事件类型确定消息角色
+        const role = manusMessage.event_type === 'conversation.userinput' ? 'user' : 'assistant';
+
         const transformedMessage = {
           index: this.messageIndex++,
-          role: 'assistant' as const,
+          role: role as const,
           content: manusMessage.content || manusMessage.data || {},
           createdAt: manusMessage.timestamp ? new Date(manusMessage.timestamp) : new Date(),
           type: manusMessage.event_type as any,
