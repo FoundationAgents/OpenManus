@@ -1,19 +1,19 @@
 # Global LLM configuration
 [llm]
-model = "ep-20250620094521-tdv5v"       # The LLM model to use
-base_url = "https://ark.cn-beijing.volces.com/api/v3" # API endpoint URL
-api_key = "0f7502a9-c9a1-43c5-951a-7a2e39df15df"                   # Your API key
+model = ""       # The LLM model to use
+base_url = "" # API endpoint URL
+api_key = ""                   # Your API key
 max_tokens = 8192                          # Maximum number of tokens in the response
 
 [llm.vision]
-model = "ep-20250620094521-tdv5v"       # The LLM model to use
-base_url = "https://ark.cn-beijing.volces.com/api/v3" # API endpoint URL
-api_key = "0f7502a9-c9a1-43c5-951a-7a2e39df15df"                   # Your API key
+model = ""       # The LLM model to use
+base_url = "" # API endpoint URL
+api_key = ""                   # Your API key
 max_tokens = 8192
 
 # Daytona configuration
 [daytona]
-daytona_api_key = "dtn_20f1d7ba91a3852a85824943e968c5202b6abb8b6f144c06cf20ae6c6cbca7c3"
+daytona_api_key = ""
 #daytona_server_url = "https://app.daytona.io/api"
 #daytona_target = "us"                                   #Daytona is currently available in the following regions:United States (us)、Europe (eu)
 #sandbox_image_name = "whitezxj/sandbox:0.1.0"           #If you don't use this default image,sandbox tools may be useless
