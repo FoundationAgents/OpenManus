@@ -64,19 +64,42 @@ def _register_frontend_handlers():
             f"收到用户输入事件: conversation_id={conversation_id}, message={message}"
         )
 
-        # 发送响应事件到前端
-        response_event = BaseEvent(
-            event_type="system.input_received",
-            data={
-                "conversation_id": conversation_id,
-                "status": "received",
-                "message": f"已收到用户输入: {message}",
-                "original_input": message,
-            },
-            source="backend",
-        )
+        # 获取对应的session和智能体实例
+        from backend.app.api.routes.manus import get_manus_service
+        from backend.app.core.session import session_manager
 
-        await bus.publish(response_event)
+        session = session_manager.get_session(conversation_id)
+        if not session:
+            logger.warning(f"Session {conversation_id} not found")
+            return False
+
+        agent = session.get("agent")
+        if not agent:
+            logger.warning(f"No agent found for session {conversation_id}")
+            return False
+
+        try:
+            # 重新激活智能体并继续对话
+            # 用户消息会在 continue_conversation 方法中保存到历史记录
+            manus_service = get_manus_service()
+            await manus_service.continue_conversation(conversation_id, message)
+
+        except Exception as e:
+            logger.error(
+                f"Error processing user input for session {conversation_id}: {e}"
+            )
+            # 发送错误事件到前端
+            error_event = BaseEvent(
+                event_type="system.error",
+                data={
+                    "conversation_id": conversation_id,
+                    "error": f"处理用户输入时出错: {str(e)}",
+                },
+                source="backend",
+            )
+            await bus.publish(error_event)
+            return False
+
         return True
 
     @event_handler(["ui.interaction"])

@@ -32,7 +32,15 @@ const useConversation = (taskId: string | undefined) => {
       onMessage: (message: Message) => {
         // MessageStream处理转换后的消息，用于UI显示
         console.log('📝 MessageStream received message:', message);
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          const newMessages = [...prev, message];
+          // 按时间戳排序消息，确保历史消息顺序正确
+          return newMessages.sort((a, b) => {
+            const timeA = a.createdAt?.getTime() || a.index || 0;
+            const timeB = b.createdAt?.getTime() || b.index || 0;
+            return timeA - timeB;
+          });
+        });
       },
     });
   }
@@ -67,6 +75,9 @@ const useConversation = (taskId: string | undefined) => {
         // 创建事件发送器和处理器
         eventSenderRef.current = new EventSender(wsAdapter);
         eventHandlerRef.current = new FrontendEventHandler();
+
+        // 设置全局事件处理器供其他组件使用
+        (window as any).eventHandler = eventHandlerRef.current;
 
         // 设置事件处理器
         setupEventHandlers(eventHandlerRef.current, taskId);
@@ -292,7 +303,11 @@ const useConversation = (taskId: string | undefined) => {
 
       switch (event.event_type) {
         case 'conversation.userinput':
+          // 用户输入被接收，创建用户消息并重置状态为思考中
           setMessages(prev => [...prev, createUserMessageFromEvent(event)]);
+          setAgentStatus('thinking');
+          setTaskStatus('running');
+          console.log('📝 用户输入已接收，开始处理');
           break;
         case 'conversation.agentresponse':
           // 创建智能体思考消息
@@ -357,7 +372,16 @@ const useConversation = (taskId: string | undefined) => {
 
   const sendUserInput = async (message: string) => {
     if (eventSenderRef.current && taskId) {
-      await eventSenderRef.current.sendUserInput(taskId, message).catch(error => console.error('Failed to send user input:', error));
+      // 设置状态为思考中，表示正在处理用户输入
+      setAgentStatus('thinking');
+      setTaskStatus('running');
+
+      await eventSenderRef.current.sendUserInput(taskId, message).catch(error => {
+        console.error('Failed to send user input:', error);
+        // 如果发送失败，重置状态
+        setAgentStatus('idle');
+        setTaskStatus('completed');
+      });
     } else {
       console.warn('Cannot send input: eventSender or taskId missing');
     }
@@ -383,7 +407,16 @@ const useConversation = (taskId: string | undefined) => {
 
 const TaskDetailPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const { messages, waitingForInput, sendUserInterrupt, sendUserInput } = useConversation(taskId);
+  const { messages, taskStatus, agentStatus, sendUserInterrupt, sendUserInput } = useConversation(taskId);
+
+  // 计算输入框状态
+  const getInputStatus = () => {
+    if (agentStatus === 'thinking' || agentStatus === 'acting') {
+      return 'thinking';
+    }
+    // 允许在任何非思考状态下输入，包括完成状态（支持继续对话）
+    return 'idle';
+  };
 
   return (
     <div className="flex h-full gap-2 p-4">
@@ -391,7 +424,7 @@ const TaskDetailPage: React.FC = () => {
       <div className="flex h-full w-1/2 flex-col overflow-hidden">
         <ChatMessages messages={messages} className="flex-1 overflow-auto" />
         <ChatInput
-          status="idle"
+          status={getInputStatus()}
           onSubmit={value => sendUserInput(value.prompt)}
           onTerminate={() => sendUserInterrupt()}
           taskId={taskId}
