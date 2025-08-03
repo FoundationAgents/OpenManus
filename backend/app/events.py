@@ -1,0 +1,154 @@
+from app.logger import logger
+
+__all__ = ["initialize_event_handlers"]
+
+
+def initialize_event_handlers():
+    """
+    显式初始化所有事件处理器
+
+    这个函数确保所有事件处理器都被正确注册到事件系统中。
+    """
+
+    # 显式注册所有事件处理器
+    _register_frontend_handlers()
+
+    logger.info("事件处理器初始化完成")
+
+    # 可选：验证注册状态
+    try:
+        from app.event.infrastructure import get_global_registry
+
+        registry = get_global_registry()
+        handlers = registry.list_handlers()
+        logger.info(f"已注册 {len(handlers)} 个事件处理器")
+    except Exception as e:
+        logger.warning(f"无法验证事件处理器注册状态: {e}")
+
+
+def _register_frontend_handlers():
+    """注册前端事件处理器"""
+    from app.event import BaseEvent, bus, event_handler
+
+    @event_handler(["user.interrupt"])
+    async def handle_user_interrupt(event: BaseEvent):
+        """处理用户中断事件"""
+        conversation_id = event.data.get("conversation_id")
+        reason = event.data.get("reason", "user_interrupt")
+
+        logger.info(
+            f"收到用户中断事件: conversation_id={conversation_id}, reason={reason}"
+        )
+
+        # 发送响应事件到前端
+        response_event = BaseEvent(
+            event_type="system.interrupt_acknowledged",
+            data={
+                "conversation_id": conversation_id,
+                "status": "acknowledged",
+                "message": f"用户中断请求已处理: {reason}",
+            },
+            source="backend",
+        )
+
+        await bus.publish(response_event)
+        return True
+
+    @event_handler(["user.input"])
+    async def handle_user_input(event: BaseEvent):
+        """处理用户输入事件"""
+        conversation_id = event.data.get("conversation_id")
+        message = event.data.get("message")
+
+        logger.info(
+            f"收到用户输入事件: conversation_id={conversation_id}, message={message}"
+        )
+
+        # 获取对应的session和智能体实例
+        from backend.app.api.routes.manus import get_manus_service
+        from backend.app.core.session import session_manager
+
+        session = session_manager.get_session(conversation_id)
+        if not session:
+            logger.warning(f"Session {conversation_id} not found")
+            return False
+
+        agent = session.get("agent")
+        if not agent:
+            logger.warning(f"No agent found for session {conversation_id}")
+            return False
+
+        try:
+            # 重新激活智能体并继续对话
+            # 用户消息会在 continue_conversation 方法中保存到历史记录
+            manus_service = get_manus_service()
+            await manus_service.continue_conversation(conversation_id, message)
+
+        except Exception as e:
+            logger.error(
+                f"Error processing user input for session {conversation_id}: {e}"
+            )
+            # 发送错误事件到前端
+            error_event = BaseEvent(
+                event_type="system.error",
+                data={
+                    "conversation_id": conversation_id,
+                    "error": f"处理用户输入时出错: {str(e)}",
+                },
+                source="backend",
+            )
+            await bus.publish(error_event)
+            return False
+
+        return True
+
+    @event_handler(["ui.interaction"])
+    async def handle_ui_interaction(event: BaseEvent):
+        """处理UI交互事件"""
+        conversation_id = event.data.get("conversation_id")
+        action = event.data.get("action")
+        target = event.data.get("target")
+
+        logger.info(
+            f"收到UI交互事件: conversation_id={conversation_id}, action={action}, target={target}"
+        )
+
+        # 发送响应事件到前端
+        response_event = BaseEvent(
+            event_type="system.ui_interaction_processed",
+            data={
+                "conversation_id": conversation_id,
+                "status": "processed",
+                "action": action,
+                "target": target,
+            },
+            source="backend",
+        )
+
+        await bus.publish(response_event)
+        return True
+
+    @event_handler(["frontend.*"])
+    async def handle_generic_frontend_events(event: BaseEvent):
+        """处理通用前端事件"""
+        conversation_id = event.data.get("conversation_id")
+        event_type = event.event_type
+
+        logger.info(
+            f"收到通用前端事件: conversation_id={conversation_id}, event_type={event_type}"
+        )
+
+        # 发送响应事件到前端
+        response_event = BaseEvent(
+            event_type="system.frontend_event_processed",
+            data={
+                "conversation_id": conversation_id,
+                "status": "processed",
+                "original_event_type": event_type,
+                "message": f"前端事件已处理: {event_type}",
+            },
+            source="backend",
+        )
+
+        await bus.publish(response_event)
+        return True

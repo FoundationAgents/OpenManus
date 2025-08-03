@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Dict, List, Optional
+import pytz
 
 from pydantic import Field, model_validator
 
@@ -13,6 +15,7 @@ from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
+from app.tool.crawl4ai import Crawl4aiTool
 
 
 class Manus(ToolCallAgent):
@@ -21,7 +24,8 @@ class Manus(ToolCallAgent):
     name: str = "Manus"
     description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
 
-    system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
+    # Dynamic system prompt with current time - will be set in __init__
+    system_prompt: str = ""
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
@@ -34,10 +38,9 @@ class Manus(ToolCallAgent):
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
             PythonExecute(),
-            BrowserUseTool(),
             StrReplaceEditor(),
-            AskHuman(),
             Terminate(),
+            Crawl4aiTool(),
         )
     )
 
@@ -49,6 +52,28 @@ class Manus(ToolCallAgent):
         default_factory=dict
     )  # server_id -> url/command
     _initialized: bool = False
+
+    @staticmethod
+    def _generate_system_prompt() -> str:
+        """Generate system prompt with current Beijing time information."""
+        # Get current time in Beijing timezone
+        beijing_tz = pytz.timezone('Asia/Shanghai')
+        beijing_time = datetime.now(beijing_tz)
+
+        # Format time string
+        current_time_str = beijing_time.strftime("%Y-%m-%d %H:%M:%S %A")
+
+        return SYSTEM_PROMPT.format(
+            directory=config.workspace_root,
+            current_time=current_time_str,
+            timezone="北京时间 (UTC+8)"
+        )
+
+    def __init__(self, **kwargs):
+        """Initialize Manus with dynamic system prompt."""
+        # Generate dynamic system prompt with current time and add to kwargs
+        kwargs['system_prompt'] = self._generate_system_prompt()
+        super().__init__(**kwargs)
 
     @model_validator(mode="after")
     def initialize_helper(self) -> "Manus":

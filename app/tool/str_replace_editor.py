@@ -15,7 +15,6 @@ from app.tool.file_operators import (
     SandboxFileOperator,
 )
 
-
 Command = Literal[
     "view",
     "create",
@@ -34,12 +33,14 @@ TRUNCATED_MESSAGE: str = (
 )
 
 # Tool description
-_STR_REPLACE_EDITOR_DESCRIPTION = """Custom editing tool for viewing, creating and editing files
+_STR_REPLACE_EDITOR_DESCRIPTION = """Custom editing tool for viewing, creating and editing files with automatic session isolation
 * State is persistent across command calls and discussions with the user
+* Automatically isolates files by session - each conversation has its own workspace directory
 * If `path` is a file, `view` displays the result of applying `cat -n`. If `path` is a directory, `view` lists non-hidden files and directories up to 2 levels deep
 * The `create` command cannot be used if the specified `path` already exists as a file
 * If a `command` generates a long output, it will be truncated and marked with `<response clipped>`
 * The `undo_edit` command will revert the last edit made to the file at `path`
+* Use relative paths - they will be automatically resolved within your session's workspace directory
 
 Notes for using the `str_replace` command:
 * The `old_str` parameter should match EXACTLY one or more consecutive lines from the original file. Be mindful of whitespaces!
@@ -71,7 +72,7 @@ class StrReplaceEditor(BaseTool):
                 "type": "string",
             },
             "path": {
-                "description": "Absolute path to file or directory.",
+                "description": "Path to file or directory. Can be absolute or relative to session workspace.",
                 "type": "string",
             },
             "file_text": {
@@ -111,6 +112,27 @@ class StrReplaceEditor(BaseTool):
             else self._local_operator
         )
 
+    def _resolve_path(self, path: str, session_id: str | None = None) -> Path:
+        """Resolve path with session isolation support."""
+        path_obj = Path(path)
+
+        # If path is already absolute, return as-is
+        if path_obj.is_absolute():
+            return path_obj
+
+        # For relative paths, resolve within workspace
+        workspace_root = config.workspace_root
+
+        # If session_id is provided, use session-specific directory
+        if session_id:
+            session_workspace = workspace_root / session_id
+            # Ensure session directory exists
+            session_workspace.mkdir(parents=True, exist_ok=True)
+            return session_workspace / path_obj
+
+        # Default to workspace root for relative paths
+        return workspace_root / path_obj
+
     async def execute(
         self,
         *,
@@ -127,24 +149,27 @@ class StrReplaceEditor(BaseTool):
         # Get the appropriate file operator
         operator = self._get_operator()
 
+        # Resolve path with session isolation using conversation_id
+        resolved_path = self._resolve_path(path, self.conversation_id)
+
         # Validate path and command combination
-        await self.validate_path(command, Path(path), operator)
+        await self.validate_path(command, resolved_path, operator)
 
         # Execute the appropriate command
         if command == "view":
-            result = await self.view(path, view_range, operator)
+            result = await self.view(resolved_path, view_range, operator)
         elif command == "create":
             if file_text is None:
                 raise ToolError("Parameter `file_text` is required for command: create")
-            await operator.write_file(path, file_text)
-            self._file_history[path].append(file_text)
-            result = ToolResult(output=f"File created successfully at: {path}")
+            await operator.write_file(resolved_path, file_text)
+            self._file_history[resolved_path].append(file_text)
+            result = ToolResult(output=f"File created successfully at: {resolved_path}")
         elif command == "str_replace":
             if old_str is None:
                 raise ToolError(
                     "Parameter `old_str` is required for command: str_replace"
                 )
-            result = await self.str_replace(path, old_str, new_str, operator)
+            result = await self.str_replace(resolved_path, old_str, new_str, operator)
         elif command == "insert":
             if insert_line is None:
                 raise ToolError(
@@ -152,9 +177,9 @@ class StrReplaceEditor(BaseTool):
                 )
             if new_str is None:
                 raise ToolError("Parameter `new_str` is required for command: insert")
-            result = await self.insert(path, insert_line, new_str, operator)
+            result = await self.insert(resolved_path, insert_line, new_str, operator)
         elif command == "undo_edit":
-            result = await self.undo_edit(path, operator)
+            result = await self.undo_edit(resolved_path, operator)
         else:
             # This should be caught by type checking, but we include it for safety
             raise ToolError(
@@ -167,9 +192,9 @@ class StrReplaceEditor(BaseTool):
         self, command: str, path: Path, operator: FileOperator
     ) -> None:
         """Validate path and command combination based on execution environment."""
-        # Check if path is absolute
+        # Path should be absolute after resolution
         if not path.is_absolute():
-            raise ToolError(f"The path {path} is not an absolute path")
+            raise ToolError(f"The resolved path {path} is not an absolute path")
 
         # Only check if path exists for non-create commands
         if command != "create":

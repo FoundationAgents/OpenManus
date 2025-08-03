@@ -11,7 +11,6 @@ from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 
-
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
@@ -82,6 +81,22 @@ class ToolCallAgent(ReActAgent):
         logger.info(
             f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
         )
+
+        # 发布智能体响应事件，包含思考内容
+        try:
+            from app.event import AgentResponseEvent, bus
+
+            response_event = AgentResponseEvent(
+                agent_name=self.name,
+                agent_type=self.__class__.__name__,
+                response=content,
+                conversation_id=self.conversation_id,
+                response_type="thought",
+            )
+            await bus.publish(response_event)
+            logger.debug(f"Published agent response event with thought content")
+        except Exception as e:
+            logger.warning(f"Failed to publish agent response event: {e}")
         if tool_calls:
             logger.info(
                 f"🧰 Tools being prepared: {[call.function.name for call in tool_calls]}"

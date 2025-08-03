@@ -8,7 +8,7 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-
+from app.tool.crawl4ai import Crawl4aiTool
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ class BrowserAgent(ToolCallAgent):
 
     # Configure the available tools
     available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
+        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate(), Crawl4aiTool())
     )
 
     # Use Auto for tool choice to allow both tool usage and free-form responses

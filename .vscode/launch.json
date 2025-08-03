@@ -1,0 +1,34 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dev (Hot Reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_backend.py",
+      "args": ["--reload", "--log-level", "debug"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Prod",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_backend.py",
+      "args": ["--host", "0.0.0.0", "--port", "8000"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "justMyCode": false
+    }
+  ]
+}
