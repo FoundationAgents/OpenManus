@@ -1,4 +1,6 @@
 import json
+import shutil
+import sys
 import threading
 import tomllib
 from pathlib import Path
@@ -189,23 +191,50 @@ class Config:
             with self._lock:
                 if not self._initialized:
                     self._config = None
+                    self._user_config_file_path = self._ensure_user_config_exists()
                     self._load_initial_config()
                     self._initialized = True
 
     @staticmethod
-    def _get_config_path() -> Path:
-        root = PROJECT_ROOT
-        config_path = root / "config" / "config.toml"
-        if config_path.exists():
-            return config_path
-        example_path = root / "config" / "config.example.toml"
-        if example_path.exists():
-            return example_path
-        raise FileNotFoundError("No configuration file found in config directory")
+    def _ensure_user_config_exists() -> Path:
+        if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):  # Running in a PyInstaller bundle
+            # For bundled app, example config is in MEIPASS, user config in CWD
+            app_root_in_bundle = Path(sys._MEIPASS)
+            # Correct path for bundled data files added with --add-data
+            example_config_source = app_root_in_bundle / "config" / "config.example.toml"
+
+            user_config_dir = Path.cwd() / "config"
+            user_config_file = user_config_dir / "config.toml"
+        else:  # Running from source
+            project_root = Path(__file__).resolve().parent.parent  # PROJECT_ROOT
+            example_config_source = project_root / "config" / "config.example.toml"
+
+            # For source runs, config.toml is also in project's config dir
+            user_config_dir = project_root / "config"
+            user_config_file = user_config_dir / "config.toml"
+
+        if not user_config_file.exists():
+            if not example_config_source.exists():
+                # This is a critical error, as the bundled example should always exist.
+                # Or, if running from source, config.example.toml should be in the repo.
+                raise FileNotFoundError(
+                    f"Default configuration file '{example_config_source}' not found. Cannot create user config."
+                )
+
+            user_config_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                shutil.copy(example_config_source, user_config_file)
+                # Optional: Add a log or print statement here for user feedback
+                print(f"INFO: Default configuration file created at '{user_config_file}'")
+            except Exception as e:
+                # Handle cases like permission errors, disk full, etc.
+                raise IOError(f"Could not copy example config from '{example_config_source}' to '{user_config_file}': {e}")
+
+        return user_config_file
 
     def _load_config(self) -> dict:
-        config_path = self._get_config_path()
-        with config_path.open("rb") as f:
+        # self._user_config_file_path is set in __init__ by _ensure_user_config_exists
+        with self._user_config_file_path.open("rb") as f:
             return tomllib.load(f)
 
     def _load_initial_config(self):
