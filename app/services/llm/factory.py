@@ -94,7 +94,7 @@ class LLMProviderFactory:
         # Base parameters common to all providers
         base_params = {
             "provider_name": api_type,
-            "model_name": config.model,
+            "llm_model_name": config.model,
             "api_key": config.api_key,
             "max_tokens": config.max_tokens,
             "temperature": config.temperature,
@@ -135,7 +135,7 @@ class LLMProviderFactory:
         Raises:
             ProviderConfigurationError: If parameters are invalid
         """
-        required_fields = ["provider_name", "model_name", "api_key"]
+        required_fields = ["provider_name", "llm_model_name", "api_key"]
         
         for field in required_fields:
             if not params.get(field):
@@ -168,7 +168,7 @@ class LLMProviderFactory:
     def create_provider_from_name_and_config(
         self, 
         provider_name: str, 
-        model_name: str,
+        llm_model_name: str,
         api_key: str,
         **kwargs
     ) -> LLMProvider:
@@ -176,7 +176,7 @@ class LLMProviderFactory:
         
         Args:
             provider_name: Name of the provider
-            model_name: Model to use
+            llm_model_name: Model to use
             api_key: API key for authentication
             **kwargs: Additional provider-specific parameters
             
@@ -195,7 +195,7 @@ class LLMProviderFactory:
         # Prepare parameters
         params = {
             "provider_name": provider_name,
-            "model_name": model_name,
+            "llm_model_name": llm_model_name,
             "api_key": api_key,
             "max_tokens": kwargs.get("max_tokens", 4096),
             "temperature": kwargs.get("temperature", 1.0),

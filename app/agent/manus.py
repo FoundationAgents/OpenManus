@@ -9,7 +9,11 @@ from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
-from app.tool.browser_use_tool import BrowserUseTool
+# Conditional import for BrowserUseTool
+try:
+    from app.tool.browser_use_tool import BrowserUseTool
+except ImportError:
+    BrowserUseTool = None
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
@@ -34,7 +38,7 @@ class Manus(ToolCallAgent):
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
             PythonExecute(),
-            BrowserUseTool(),
+            *(([BrowserUseTool()] if BrowserUseTool is not None else [])),
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
@@ -145,7 +149,7 @@ class Manus(ToolCallAgent):
 
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
-        browser_in_use = any(
+        browser_in_use = BrowserUseTool is not None and any(
             tc.function.name == BrowserUseTool().name
             for msg in recent_messages
             if msg.tool_calls

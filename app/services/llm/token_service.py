@@ -4,7 +4,7 @@ import math
 from typing import Dict, List, Union
 
 import tiktoken
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.logger import logger
 
@@ -30,8 +30,7 @@ class TokenService(BaseModel):
     # Model to tokenizer mapping
     _tokenizers: Dict[str, tiktoken.Encoding] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def get_tokenizer(self, model_name: str) -> tiktoken.Encoding:
         """Get or create tokenizer for a model.

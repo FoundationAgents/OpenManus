@@ -7,7 +7,13 @@ from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
-from app.tool import BrowserUseTool, Terminate, ToolCollection
+from app.tool import Terminate, ToolCollection
+
+# Conditional import for BrowserUseTool
+try:
+    from app.tool import BrowserUseTool
+except ImportError:
+    BrowserUseTool = None
 
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
@@ -21,6 +27,9 @@ class BrowserContextHelper:
         self._current_base64_image: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
+        if BrowserUseTool is None:
+            logger.warning("BrowserUseTool not available (dependency missing)")
+            return None
         browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
             logger.warning("BrowserUseTool not found or doesn't have get_current_state")
@@ -74,6 +83,8 @@ class BrowserContextHelper:
         )
 
     async def cleanup_browser(self):
+        if BrowserUseTool is None:
+            return
         browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
         if browser_tool and hasattr(browser_tool, "cleanup"):
             await browser_tool.cleanup()
@@ -98,7 +109,9 @@ class BrowserAgent(ToolCallAgent):
 
     # Configure the available tools
     available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
+        default_factory=lambda: ToolCollection(
+            *(([BrowserUseTool()] if BrowserUseTool is not None else []) + [Terminate()])
+        )
     )
 
     # Use Auto for tool choice to allow both tool usage and free-form responses

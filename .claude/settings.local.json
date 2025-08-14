@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(mkdir:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(python -m pytest tests/services/llm/ -v)",
+      "Bash(python3 -m pytest tests/services/llm/ -v)",
+      "Bash(ls:*)",
+      "Bash(pip3 install:*)",
+      "Bash(pip install:*)",
+      "Bash(apt-get:*)",
+      "Bash(apt-get install:*)",
+      "Bash(python3:*)",
+      "Bash(dpkg:*)",
+      "Bash(find:*)",
+      "Bash(python:*)",
+      "Bash(source:*)"
     ],
     "deny": []
   }

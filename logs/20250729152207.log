@@ -1,0 +1,32 @@
+2025-07-29 15:22:08.174 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.180 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'custom' with model 'gpt-4'
+2025-07-29 15:22:08.193 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.200 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.208 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.368 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.369 | ERROR    | app.services.llm.service:ask:118 - Error in ask method: Unexpected error
+2025-07-29 15:22:08.376 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.384 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.391 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.399 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.406 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.415 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.422 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.422 | ERROR    | app.services.llm.service:count_tokens:251 - Error counting tokens: Token counting failed
+2025-07-29 15:22:08.432 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.439 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.440 | ERROR    | app.services.llm.service:count_message_tokens:269 - Error counting message tokens: Message counting failed
+2025-07-29 15:22:08.447 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.454 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.454 | ERROR    | app.services.llm.service:get_token_usage_summary:292 - Error getting token usage: Usage summary failed
+2025-07-29 15:22:08.461 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.468 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.469 | ERROR    | app.services.llm.service:supports_feature:309 - Error checking feature support: Feature check failed
+2025-07-29 15:22:08.482 | INFO     | app.services.llm.service:clear_provider_cache:329 - Provider cache cleared
+2025-07-29 15:22:08.495 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.495 | ERROR    | app.services.llm.service:ask:118 - Error in ask method: Original LLM error
+2025-07-29 15:22:08.503 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.504 | ERROR    | app.services.llm.service:ask_with_images:172 - Error in ask_with_images method: Image processing failed
+2025-07-29 15:22:08.511 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:22:08.511 | ERROR    | app.services.llm.service:ask_tool:232 - Error in ask_tool method: Tool processing failed
+2025-07-29 15:22:08.518 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'

@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.schema import Message
 
@@ -16,7 +16,7 @@ class LLMProvider(ABC, BaseModel):
     """
 
     provider_name: str
-    model_name: str
+    llm_model_name: str
     api_key: str
     base_url: Optional[str] = None
     max_tokens: int = 4096
@@ -27,8 +27,7 @@ class LLMProvider(ABC, BaseModel):
     total_completion_tokens: int = 0
     max_input_tokens: Optional[int] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @abstractmethod
     async def get_chat_completion(

@@ -1,0 +1,29 @@
+2025-07-29 12:28:38.853 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:38.859 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:38.867 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:38.875 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:38.876 | ERROR    | app.services.llm.service:ask:118 - Error in ask method: Unexpected error
+2025-07-29 12:28:38.892 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:38.905 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.007 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.022 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.025 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.036 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.036 | ERROR    | app.services.llm.service:count_tokens:251 - Error counting tokens: Token counting failed
+2025-07-29 12:28:39.060 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.067 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.067 | ERROR    | app.services.llm.service:count_message_tokens:269 - Error counting message tokens: Message counting failed
+2025-07-29 12:28:39.076 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.084 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.084 | ERROR    | app.services.llm.service:get_token_usage_summary:292 - Error getting token usage: Usage summary failed
+2025-07-29 12:28:39.098 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.103 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.104 | ERROR    | app.services.llm.service:supports_feature:309 - Error checking feature support: Feature check failed
+2025-07-29 12:28:39.120 | INFO     | app.services.llm.service:clear_provider_cache:329 - Provider cache cleared
+2025-07-29 12:28:39.303 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.303 | ERROR    | app.services.llm.service:ask:118 - Error in ask method: Original LLM error
+2025-07-29 12:28:39.309 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.309 | ERROR    | app.services.llm.service:ask_with_images:172 - Error in ask_with_images method: Image processing failed
+2025-07-29 12:28:39.323 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 12:28:39.323 | ERROR    | app.services.llm.service:ask_tool:232 - Error in ask_tool method: Tool processing failed
+2025-07-29 12:28:39.333 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'

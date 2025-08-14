@@ -53,7 +53,7 @@ class OpenAIProvider(LLMProvider):
             # Format messages
             formatted_messages = self.format_messages(
                 messages, 
-                supports_images=self.token_service.is_model_multimodal(self.model_name)
+                supports_images=self.token_service.is_model_multimodal(self.llm_model_name)
             )
 
             # Check token limits
@@ -69,14 +69,14 @@ class OpenAIProvider(LLMProvider):
 
             # Prepare parameters
             params = {
-                "model": self.model_name,
+                "model": self.llm_model_name,
                 "messages": formatted_messages,
                 "stream": stream,
                 **kwargs
             }
 
             # Handle reasoning vs regular models
-            if self.token_service.is_reasoning_model(self.model_name):
+            if self.token_service.is_reasoning_model(self.llm_model_name):
                 params["max_completion_tokens"] = self.max_tokens
             else:
                 params["max_tokens"] = self.max_tokens
@@ -145,12 +145,12 @@ class OpenAIProvider(LLMProvider):
             # Format messages
             formatted_messages = self.format_messages(
                 messages,
-                supports_images=self.token_service.is_model_multimodal(self.model_name)
+                supports_images=self.token_service.is_model_multimodal(self.llm_model_name)
             )
 
             # Calculate tokens including tools
             input_tokens = self.count_message_tokens(formatted_messages)
-            tools_tokens = self.token_service.count_tools_tokens(tools, self.model_name)
+            tools_tokens = self.token_service.count_tools_tokens(tools, self.llm_model_name)
             total_input_tokens = input_tokens + tools_tokens
 
             if not self.check_token_limit(total_input_tokens):
@@ -164,7 +164,7 @@ class OpenAIProvider(LLMProvider):
 
             # Prepare parameters
             params = {
-                "model": self.model_name,
+                "model": self.llm_model_name,
                 "messages": formatted_messages,
                 "tools": tools,
                 "tool_choice": tool_choice,
@@ -173,7 +173,7 @@ class OpenAIProvider(LLMProvider):
                 **kwargs
             }
 
-            if self.token_service.is_reasoning_model(self.model_name):
+            if self.token_service.is_reasoning_model(self.llm_model_name):
                 params["max_completion_tokens"] = self.max_tokens
             else:
                 params["max_tokens"] = self.max_tokens
@@ -316,16 +316,16 @@ class OpenAIProvider(LLMProvider):
 
     def count_tokens(self, text: str) -> int:
         """Count tokens using the token service."""
-        return self.token_service.count_text_tokens(text, self.model_name)
+        return self.token_service.count_text_tokens(text, self.llm_model_name)
 
     def count_message_tokens(self, messages: List[Dict]) -> int:
         """Count message tokens using the token service."""
-        return self.token_service.count_message_tokens(messages, self.model_name)
+        return self.token_service.count_message_tokens(messages, self.llm_model_name)
 
     def supports_feature(self, feature: str) -> bool:
         """Check if OpenAI provider supports a feature."""
         feature_support = {
-            "images": self.token_service.is_model_multimodal(self.model_name),
+            "images": self.token_service.is_model_multimodal(self.llm_model_name),
             "tools": True,  # All OpenAI models support tools
             "streaming": True,
         }
@@ -412,11 +412,11 @@ class BedrockProvider(LLMProvider):
 
     def count_tokens(self, text: str) -> int:
         """Count tokens for Bedrock models."""
-        return self.token_service.count_text_tokens(text, self.model_name)
+        return self.token_service.count_text_tokens(text, self.llm_model_name)
 
     def count_message_tokens(self, messages: List[Dict]) -> int:
         """Count message tokens for Bedrock models."""
-        return self.token_service.count_message_tokens(messages, self.model_name)
+        return self.token_service.count_message_tokens(messages, self.llm_model_name)
 
     def supports_feature(self, feature: str) -> bool:
         """Check Bedrock feature support."""

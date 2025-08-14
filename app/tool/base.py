@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class BaseTool(ABC, BaseModel):
@@ -9,8 +9,7 @@ class BaseTool(ABC, BaseModel):
     description: str
     parameters: Optional[dict] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     async def __call__(self, **kwargs) -> Any:
         """Execute the tool with given parameters."""
@@ -40,8 +39,7 @@ class ToolResult(BaseModel):
     base64_image: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __bool__(self):
         return any(getattr(self, field) for field in self.__fields__)

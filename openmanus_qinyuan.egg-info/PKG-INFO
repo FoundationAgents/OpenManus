@@ -1,0 +1,46 @@
+Metadata-Version: 2.4
+Name: openmanus-qinyuan
+Version: 0.1.0
+Requires-Python: >=3.12
+License-File: LICENSE
+Requires-Dist: fastapi~=0.115.11
+Requires-Dist: uvicorn~=0.34.0
+Requires-Dist: pydantic~=2.10.6
+Requires-Dist: pydantic_core~=2.27.2
+Requires-Dist: openai~=1.66.3
+Requires-Dist: tiktoken~=0.9.0
+Requires-Dist: tenacity~=9.0.0
+Requires-Dist: boto3~=1.37.18
+Requires-Dist: requests~=2.32.3
+Requires-Dist: beautifulsoup4~=4.13.3
+Requires-Dist: crawl4ai~=0.6.3
+Requires-Dist: browser-use~=0.1.40
+Requires-Dist: playwright~=1.51.0
+Requires-Dist: googlesearch-python~=1.3.0
+Requires-Dist: baidusearch~=1.0.3
+Requires-Dist: duckduckgo_search~=7.5.3
+Requires-Dist: numpy
+Requires-Dist: datasets~=3.4.1
+Requires-Dist: huggingface-hub~=0.29.2
+Requires-Dist: browsergym~=0.13.3
+Requires-Dist: gymnasium~=1.1.1
+Requires-Dist: Pillow
+Requires-Dist: html2text~=2024.2.26
+Requires-Dist: unidiff~=0.7.5
+Requires-Dist: aiofiles~=24.1.0
+Requires-Dist: pyyaml~=6.0.2
+Requires-Dist: docker~=7.1.0
+Requires-Dist: mcp~=1.5.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: tomli>=2.0.0
+Requires-Dist: loguru~=0.7.3
+Requires-Dist: colorama~=0.4.6
+Requires-Dist: setuptools~=75.8.0
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-mock; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python

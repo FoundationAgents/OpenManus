@@ -3,7 +3,7 @@
 from typing import Dict, List, Optional, Union
 
 from openai.types.chat import ChatCompletionMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.config import LLMSettings
 from app.logger import logger
@@ -25,8 +25,7 @@ class LLMService(BaseModel):
     factory: LLMProviderFactory
     _provider_instances: Dict[str, LLMProvider] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __init__(self, factory: LLMProviderFactory, **data):
         super().__init__(factory=factory, **data)
@@ -66,7 +65,7 @@ class LLMService(BaseModel):
         # Cache the instance
         self._provider_instances[config_name] = provider
         
-        logger.info(f"Created {provider.provider_name} provider for config '{config_name}' with model '{provider.model_name}'")
+        logger.info(f"Created {provider.provider_name} provider for config '{config_name}' with model '{provider.llm_model_name}'")
         
         return provider
 

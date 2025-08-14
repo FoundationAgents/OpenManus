@@ -4,7 +4,7 @@ import tomllib
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 def get_project_root() -> Path:
@@ -168,8 +168,7 @@ class AppConfig(BaseModel):
         None, description="Run flow configuration"
     )
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class Config:

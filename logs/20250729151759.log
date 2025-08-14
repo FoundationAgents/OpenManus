@@ -1,0 +1,2 @@
+2025-07-29 15:18:00.169 | INFO     | app.services.llm.service:get_provider:68 - Created openai provider for config 'default' with model 'gpt-4'
+2025-07-29 15:18:00.170 | ERROR    | app.services.llm.service:count_tokens:251 - Error counting tokens: Token counting failed
