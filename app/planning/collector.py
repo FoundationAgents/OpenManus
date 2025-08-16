@@ -12,15 +12,15 @@ from .models import Plan
 
 
 def extract_candidate_json(payload: str) -> str:
-    """Prefere conteúdo em fences; senão recorta o JSON mais externo e tolera prosa fora."""
+    """Prefer fenced content; otherwise slice the outermost JSON and tolerate trailing prose."""
     s = strip_markdown_fences(payload)
     s = trim_to_outermost_json(s)
     return s.strip()
 
 
 def parse_plan_payload(payload: str) -> Tuple[Plan, dict]:
-    """Extrai, repara, faz json.loads e valida no schema Plan.
-    Retorna (Plan, meta), onde meta contém notas dos reparos aplicados.
+    """Extract, repair, json.loads, and validate into Plan.
+    Returns (Plan, meta) where meta contains notes of applied repairs.
     """
     stop_total = metrics.timer()
     raw = extract_candidate_json(payload)
@@ -29,24 +29,24 @@ def parse_plan_payload(payload: str) -> Tuple[Plan, dict]:
     except Exception as e:
         metrics.inc("planning.repair_fail")
         raise JSONRepairFailed(
-            f"Falha ao reparar JSON: {e!s}",
-            hint="Verifique fences, vírgulas finais e balanceamento",
+            f"Failed to repair JSON: {e!s}",
+            hint="Check code fences, trailing commas, and brace balance",
         ) from e
     try:
         data = json.loads(repaired)
     except Exception as e:
         metrics.inc("planning.parse_fail")
         raise JSONParseError(
-            f"Falha ao fazer json.loads: {e!s}",
-            hint="Revise aspas, comentários e caracteres ilegais",
+            f"json.loads failed: {e!s}",
+            hint="Review quotes, comments, and illegal characters",
         ) from e
     try:
         plan = Plan.model_validate(data)
     except ValidationError as e:
         metrics.inc("planning.schema_fail")
         raise JSONSchemaError(
-            f"Falha de schema Plan: {e!s}",
-            hint="Campos extras são proibidos (extra='forbid')",
+            f"Plan schema failed: {e!s}",
+            hint="Extra fields are forbidden (extra='forbid')",
         ) from e
     metrics.inc("planning.ok")
     stop_total("planning.total")
@@ -54,7 +54,7 @@ def parse_plan_payload(payload: str) -> Tuple[Plan, dict]:
 
 
 def parse_with_retries(payload: str, max_retries: int = 2) -> Plan:
-    """Tenta parsear com até N retries determinísticos (pipeline idempotente)."""
+    """Try to parse with up to N deterministic retries (idempotent pipeline)."""
     last_err: Exception | None = None
     for _ in range(max_retries + 1):
         try:

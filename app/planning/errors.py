@@ -1,5 +1,5 @@
 class PlanningError(Exception):
-    """Erro base do pipeline de planejamento."""
+    """Base error for the planning pipeline."""
 
     hint: str | None = None
 
@@ -9,12 +9,12 @@ class PlanningError(Exception):
 
 
 class JSONParseError(PlanningError):
-    """Falha ao converter o texto (após reparos) para JSON."""
+    """Failed to json.loads the repaired text."""
 
 
 class JSONSchemaError(PlanningError):
-    """Falha de validação Pydantic do schema Plan/Step."""
+    """Schema validation failed for Plan/Step (Pydantic)."""
 
 
 class JSONRepairFailed(PlanningError):
-    """Reparo considerado inseguro ou impossível."""
+    """Repair considered unsafe or impossible."""

@@ -11,7 +11,7 @@ class Step(BaseModel):
     title: str
     description: str
     depends_on: List[str] = Field(default_factory=list)
-    tool: str  # ex.: "browser_use", "python", "code_interpreter"
+    tool: str  # e.g., "browser_use", "python", "code_interpreter"
     inputs: Dict[str, Any] = Field(default_factory=dict)
     expected_output: str
 

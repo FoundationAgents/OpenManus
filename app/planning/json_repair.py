@@ -4,20 +4,20 @@ import re
 
 
 def strip_markdown_fences(s: str) -> str:
-    """Se vier entre ```json ... ```, extrai o conteúdo interno."""
+    """If content is within ```json ... ```, extract the inner block."""
     m = re.search(r"```(?:json|JSON)?\s*(.*?)```", s, flags=re.DOTALL)
     return m.group(1) if m else s
 
 
 def trim_to_outermost_json(s: str) -> str:
-    """Recorta do primeiro '{' ao último '}', tolerando prosa fora."""
+    """Slice from first '{' to last '}', tolerating prose outside."""
     start = s.find("{")
     end = s.rfind("}")
     return s[start : end + 1] if (start != -1 and end != -1 and end > start) else s
 
 
 def normalize_unicode_quotes(s: str) -> str:
-    """Converte aspas unicode “smart” e semelhantes em ASCII."""
+    """Normalize smart/Unicode quotes to ASCII."""
     return (
         s.replace("“", '"')
         .replace("”", '"')
@@ -30,7 +30,7 @@ def normalize_unicode_quotes(s: str) -> str:
 
 
 def remove_json_comments(s: str) -> str:
-    """Remove // e /* */ fora de strings, de forma segura."""
+    """Remove // and /* */ outside strings safely."""
     out, i, n, in_str, esc = [], 0, len(s), False, False
     while i < n:
         ch = s[i]
@@ -66,7 +66,7 @@ def remove_json_comments(s: str) -> str:
 
 
 def remove_trailing_commas(s: str) -> str:
-    """Remove vírgulas finais antes de } ou ] respeitando strings."""
+    """Remove trailing commas before } or ] while respecting strings."""
     out = []
     stack = []
     i, n, in_str, esc = 0, len(s), False, False
@@ -90,7 +90,7 @@ def remove_trailing_commas(s: str) -> str:
         if ch in "{[":
             stack.append(ch)
         if ch == "," and i + 1 < n and s[i + 1] in "}]":
-            i += 1  # pula a vírgula antes de } ]
+            i += 1
             continue
         if ch in "}]":
             if stack:
@@ -101,7 +101,7 @@ def remove_trailing_commas(s: str) -> str:
 
 
 def escape_illegal_string_chars(s: str) -> str:
-    """Escapa quebras e tabs **apenas dentro de strings**."""
+    """Escape newlines/tabs only inside strings."""
     out = []
     i, n = 0, len(s)
     in_str = False
@@ -109,8 +109,7 @@ def escape_illegal_string_chars(s: str) -> str:
     while i < n:
         ch = s[i]
         if in_str:
-            # escape de quebras/tab dentro de strings
-            if ch == "\n" or ch == "\r":
+            if ch in ("\n", "\r"):
                 out.append("\\n")
                 i += 1
                 continue
@@ -137,7 +136,7 @@ def escape_illegal_string_chars(s: str) -> str:
 
 
 def balance_braces_brackets(s: str) -> str:
-    """Se faltar exatamente um '}' ou ']', completa conservadoramente."""
+    """If exactly one closing brace/bracket is missing, append it conservatively."""
     open_curly = s.count("{")
     close_curly = s.count("}")
     if open_curly == close_curly + 1 and not s.rstrip().endswith("}"):
@@ -150,16 +149,15 @@ def balance_braces_brackets(s: str) -> str:
 
 
 def sanity_checks(baseline: str, repaired: str) -> bool:
-    """Recusa reparos que removam >5% **após** passos estruturais seguros."""
+    """Reject repairs that remove more than 30% after safe structural passes."""
     return len(repaired) >= 0.70 * len(baseline)
 
 
 def repair_json(text: str) -> tuple[str, list[str]]:
-    """Aplica passes na ordem; retorna (texto_reparado, notas_de_passes).
-    - Baseline de sanidade é após remoção de fences e recorte externo.
+    """Apply passes in order; return (repaired_text, notes_of_passes).
+    Baseline for sanity is after removing fences and outermost slice.
     """
     notes = []
-    # 1) Passos estruturais seguros e baseline
     text1 = strip_markdown_fences(text)
     if text1 != text:
         notes.append("strip_markdown_fences")
@@ -170,7 +168,6 @@ def repair_json(text: str) -> tuple[str, list[str]]:
         text = text1
     baseline = text
 
-    # 2) Passos de normalização/limpeza
     for fn in (
         normalize_unicode_quotes,
         remove_json_comments,
