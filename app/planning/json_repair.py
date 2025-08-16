@@ -66,10 +66,11 @@ def remove_json_comments(s: str) -> str:
 
 
 def remove_trailing_commas(s: str) -> str:
-    """Remove trailing commas before } or ] while respecting strings."""
+    """Remove trailing commas before } or ] while respecting strings and **skipping whitespace**."""
     out = []
-    stack = []
-    i, n, in_str, esc = 0, len(s), False, False
+    i, n = 0, len(s)
+    in_str = False
+    esc = False
     while i < n:
         ch = s[i]
         if in_str:
@@ -87,14 +88,15 @@ def remove_trailing_commas(s: str) -> str:
             out.append(ch)
             i += 1
             continue
-        if ch in "{[":
-            stack.append(ch)
-        if ch == "," and i + 1 < n and s[i + 1] in "}]":
-            i += 1
-            continue
-        if ch in "}]":
-            if stack:
-                stack.pop()
+        if ch == ",":
+            # lookahead skipping whitespace
+            j = i + 1
+            while j < n and s[j] in " \t\r\n":
+                j += 1
+            if j < n and s[j] in "}]":
+                # drop the comma (do not advance j; let normal loop output the closer)
+                i += 1
+                continue
         out.append(ch)
         i += 1
     return "".join(out)

@@ -9,6 +9,7 @@ from app.agent.base import BaseAgent
 from app.flow.base import BaseFlow
 from app.llm import LLM
 from app.logger import logger
+from app.planning.integrations import parse_plan_text
 from app.schema import AgentState, Message, ToolChoice
 from app.tool import PlanningTool
 
@@ -183,7 +184,14 @@ class PlanningFlow(BaseFlow):
                     args = tool_call.function.arguments
                     if isinstance(args, str):
                         try:
-                            args = json.loads(args)
+                            # robust parse to Plan; then dump to dict (compat)
+                            _plan_obj = parse_plan_text(args, max_retries=2)
+                            args = _plan_obj.model_dump()
+                        except Exception:
+                            # fallback: strict parse (legacy behavior)
+                            import json as _json
+
+                            args = _json.loads(args)
                         except json.JSONDecodeError:
                             logger.error(f"Failed to parse tool arguments: {args}")
                             continue
