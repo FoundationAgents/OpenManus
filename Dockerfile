@@ -10,4 +10,12 @@ COPY . .
 
 RUN uv pip install --system -r requirements.txt
 
-CMD ["bash"]
+# Expose the API server port
+EXPOSE 8000
+
+# Set environment variables for production
+ENV PYTHONPATH=/app/OpenManus
+ENV PYTHONUNBUFFERED=1
+
+# Start the API server
+CMD ["python", "api_server.py"]
