@@ -122,6 +122,11 @@ async def execute_task(request: TaskRequest):
         
         logger.info("Task execution completed successfully")
         
+        # Reset agent state to IDLE for next execution
+        from app.schema import AgentState
+        agent.state = AgentState.IDLE
+        agent.current_step = 0
+        
         return TaskResponse(
             success=True,
             result=result,
@@ -132,6 +137,11 @@ async def execute_task(request: TaskRequest):
         error_msg = str(e)
         logger.error(f"Task execution failed: {error_msg}")
         logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Reset agent state even on error for next execution
+        from app.schema import AgentState
+        agent.state = AgentState.IDLE
+        agent.current_step = 0
         
         return TaskResponse(
             success=False,
