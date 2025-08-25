@@ -30,18 +30,14 @@ class Manus(ToolCallAgent):
     # MCP clients for remote tool access
     mcp_clients: MCPClients = Field(default_factory=MCPClients)
 
-    # Add general-purpose tools to the tool collection
+    # Add minimal tools for LINE bot agent
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
-            PythonExecute(),
-            BrowserUseTool(),
-            StrReplaceEditor(),
-            AskHuman(),
             Terminate(),
         )
     )
 
-    special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name, "mcp_linebot-mcp-server_send_line_message"])
+    special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name])
     browser_context_helper: Optional[BrowserContextHelper] = None
 
     # Track connected MCP servers
