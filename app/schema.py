@@ -166,6 +166,9 @@ class Memory(BaseModel):
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages :]
+        # Remove leading tool messages to prevent API errors
+        while self.messages and self.messages[0].role == "tool":
+            self.messages = self.messages[1:]
 
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
