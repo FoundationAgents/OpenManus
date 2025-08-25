@@ -18,12 +18,13 @@ from pydantic import BaseModel
 from app.agent.manus import Manus
 from app.logger import logger
 from app.config import config
+from app.session_manager import ManusSessionManager
 
 
 class TaskRequest(BaseModel):
     """Request model for task execution"""
     prompt: str
-    task_id: Optional[str] = None
+    user_id: str
 
 
 class TaskResponse(BaseModel):
@@ -31,7 +32,6 @@ class TaskResponse(BaseModel):
     success: bool
     result: Optional[str] = None
     error: Optional[str] = None
-    task_id: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -40,14 +40,14 @@ class HealthResponse(BaseModel):
     version: str = "1.0.0"
 
 
-# Global agent instance
-agent: Optional[Manus] = None
+# Global session manager
+session_manager: Optional[ManusSessionManager] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the lifecycle of the FastAPI application"""
-    global agent
+    global session_manager
     try:
         # Override config with environment variables
         if "OPENAI_API_KEY" in os.environ:
@@ -55,23 +55,28 @@ async def lifespan(app: FastAPI):
                 if llm_config.api_key == "OPENAI_API_KEY_PLACEHOLDER":
                     llm_config.api_key = os.environ["OPENAI_API_KEY"]
         
-        # Initialize the agent on startup
-        logger.info("Initializing OpenManus agent...")
-        agent = await Manus.create()
-        logger.info("OpenManus agent initialized successfully")
+        # Initialize the session manager on startup
+        logger.info("Initializing OpenManus session manager...")
+        session_manager = ManusSessionManager(
+            ttl_minutes=30,  # 30 minutes TTL
+            max_sessions=100,  # Max 100 concurrent sessions
+            cleanup_interval_minutes=5  # Cleanup every 5 minutes
+        )
+        await session_manager.start()
+        logger.info("OpenManus session manager initialized successfully")
         yield
     except Exception as e:
-        logger.error(f"Failed to initialize OpenManus agent: {e}")
+        logger.error(f"Failed to initialize OpenManus session manager: {e}")
         raise
     finally:
         # Cleanup on shutdown
-        if agent:
-            logger.info("Cleaning up OpenManus agent...")
+        if session_manager:
+            logger.info("Cleaning up OpenManus session manager...")
             try:
-                await agent.cleanup()
+                await session_manager.stop()
             except Exception as e:
-                logger.error(f"Error during agent cleanup: {e}")
-            logger.info("OpenManus agent cleanup completed")
+                logger.error(f"Error during session manager cleanup: {e}")
+            logger.info("OpenManus session manager cleanup completed")
 
 
 # Create FastAPI app with lifespan management
@@ -92,20 +97,20 @@ async def health_check():
 @app.post("/execute", response_model=TaskResponse)
 async def execute_task(request: TaskRequest):
     """
-    Execute a task using the OpenManus agent
+    Execute a task using a user-specific OpenManus agent
     
     Args:
-        request: Task request containing the prompt to execute
+        request: Task request containing the prompt and user_id
         
     Returns:
         TaskResponse with execution results
     """
-    global agent
+    global session_manager
     
-    if not agent:
+    if not session_manager:
         raise HTTPException(
             status_code=503, 
-            detail="OpenManus agent is not initialized"
+            detail="OpenManus session manager is not initialized"
         )
     
     if not request.prompt.strip():
@@ -113,60 +118,89 @@ async def execute_task(request: TaskRequest):
             status_code=400, 
             detail="Prompt cannot be empty"
         )
+        
+    if not request.user_id.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="User ID cannot be empty"
+        )
     
     try:
-        logger.info(f"Executing task: {request.prompt[:100]}...")
+        logger.info(f"Executing task for user {request.user_id}: {request.prompt[:100]}...")
         
-        # Execute the task using the agent
+        # Get user-specific agent from session manager
+        agent = await session_manager.get_agent(request.user_id)
+        
+        # Execute the task using the user's agent
         result = await agent.run(request.prompt)
         
-        logger.info("Task execution completed successfully")
+        logger.info(f"Task execution completed successfully for user {request.user_id}")
         
         # Reset agent state to IDLE for next execution
         from app.schema import AgentState
         agent.state = AgentState.IDLE
         agent.current_step = 0
         
+        # Update session last used time
+        session_manager.touch_session(request.user_id)
+        
         return TaskResponse(
             success=True,
-            result=result,
-            task_id=request.task_id
+            result=result
         )
         
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Task execution failed: {error_msg}")
+        logger.error(f"Task execution failed for user {request.user_id}: {error_msg}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        
-        # Reset agent state even on error for next execution
-        from app.schema import AgentState
-        agent.state = AgentState.IDLE
-        agent.current_step = 0
         
         return TaskResponse(
             success=False,
-            error=error_msg,
-            task_id=request.task_id
+            error=error_msg
         )
 
 
 @app.get("/status")
 async def get_status():
-    """Get the current status of the OpenManus agent"""
-    global agent
+    """Get the current status of the OpenManus session manager"""
+    global session_manager
     
-    if not agent:
+    if not session_manager:
         return {
             "status": "not_initialized",
-            "agent_available": False,
-            "connected_mcp_servers": {}
+            "session_manager_available": False,
+            "active_sessions": 0
         }
     
+    stats = session_manager.get_stats()
     return {
         "status": "ready",
-        "agent_available": True,
-        "connected_mcp_servers": dict(agent.connected_servers) if hasattr(agent, 'connected_servers') else {}
+        "session_manager_available": True,
+        **stats
     }
+
+
+@app.get("/sessions")
+async def get_sessions():
+    """Get detailed session information (for debugging)"""
+    global session_manager
+    
+    if not session_manager:
+        raise HTTPException(status_code=503, detail="Session manager not initialized")
+        
+    return session_manager.get_stats()
+
+
+@app.delete("/sessions/{user_id}")
+async def remove_user_session(user_id: str):
+    """Manually remove a user's session"""
+    global session_manager
+    
+    if not session_manager:
+        raise HTTPException(status_code=503, detail="Session manager not initialized")
+        
+    await session_manager.remove_session(user_id)
+    return {"success": True, "message": f"Session for user {user_id} removed"}
 
 
 if __name__ == "__main__":
