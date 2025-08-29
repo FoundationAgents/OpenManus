@@ -42,7 +42,7 @@ class Manus(ToolCallAgent):
         )
     )
 
-    special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name])
+    special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name, "mcp_linebot-mcp-server_send_line_message"])
     browser_context_helper: Optional[BrowserContextHelper] = None
 
     # Track connected MCP servers
