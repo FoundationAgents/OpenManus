@@ -160,6 +160,75 @@ async def execute_task(request: TaskRequest):
         )
 
 
+@app.post("/system-message", response_model=TaskResponse)
+async def send_system_message(request: TaskRequest):
+    """
+    Send a system-initiated message to a specific user
+    Uses the same flow as execute_task but logs it as a system message
+    
+    Args:
+        request: Task request containing the system message (prompt) and user_id
+        
+    Returns:
+        TaskResponse with execution results
+    """
+    global session_manager
+    
+    if not session_manager:
+        raise HTTPException(
+            status_code=503, 
+            detail="OpenManus session manager is not initialized"
+        )
+    
+    if not request.prompt.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="System message cannot be empty"
+        )
+        
+    if not request.user_id.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="User ID cannot be empty"
+        )
+    
+    try:
+        logger.info(f"[SYSTEM MESSAGE] Sending to user {request.user_id}: {request.prompt[:100]}...")
+        
+        # Get user-specific agent from session manager
+        agent = await session_manager.get_agent(request.user_id)
+        
+        # Execute the system message using the user's agent
+        # Note: Currently uses the same prompt processing as user messages
+        # This may produce unexpected behavior depending on the system prompt
+        result = await agent.run(request.prompt)
+        
+        logger.info(f"[SYSTEM MESSAGE] Successfully processed for user {request.user_id}")
+        
+        # Reset agent state to IDLE for next execution
+        from app.schema import AgentState
+        agent.state = AgentState.IDLE
+        agent.current_step = 0
+        
+        # Update session last used time
+        session_manager.touch_session(request.user_id)
+        
+        return TaskResponse(
+            success=True,
+            result=result
+        )
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"[SYSTEM MESSAGE] Failed for user {request.user_id}: {error_msg}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        return TaskResponse(
+            success=False,
+            error=error_msg
+        )
+
+
 @app.get("/status")
 async def get_status():
     """Get the current status of the OpenManus session manager"""

@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+import json
 
 from pydantic import Field, model_validator
 
@@ -7,6 +8,7 @@ from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.schema import ToolCall
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
@@ -20,6 +22,9 @@ class Manus(ToolCallAgent):
 
     name: str = "Manus"
     description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
+    
+    # User ID for LINE Bot integration
+    user_id: Optional[str] = None
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -55,7 +60,21 @@ class Manus(ToolCallAgent):
     @classmethod
     async def create(cls, **kwargs) -> "Manus":
         """Factory method to create and properly initialize a Manus instance."""
+        # Debug: Check if user_id is passed
+        user_id = kwargs.get('user_id')
+        if user_id:
+            logger.info(f"Creating Manus instance with user_id: {user_id}")
+        else:
+            logger.warning("Creating Manus instance without user_id")
+        
         instance = cls(**kwargs)
+        
+        # Debug: Verify user_id is stored
+        if hasattr(instance, 'user_id'):
+            logger.info(f"Manus instance user_id after creation: {instance.user_id}")
+        else:
+            logger.error("Manus instance does not have user_id attribute!")
+        
         await instance.initialize_mcp_servers()
         instance._initialized = True
         return instance
@@ -123,6 +142,33 @@ class Manus(ToolCallAgent):
         ]
         self.available_tools = ToolCollection(*base_tools)
         self.available_tools.add_tools(*self.mcp_clients.tools)
+
+    async def execute_tool(self, command: ToolCall) -> str:
+        """Execute a tool with automatic user_id injection for LINE Bot integration."""
+        # Check if this is a send_line_message tool call
+        if command and command.function and command.function.name:
+            tool_name = command.function.name
+            # Check for tools that need userId injection (with any server prefix)
+            if any(tool in tool_name for tool in ["send_line_message", "get_tasks", "create_task", "update_task", "delete_task"]):
+                logger.info(f"Processing {tool_name}, current user_id: {self.user_id}")
+                
+                if self.user_id:
+                    try:
+                        # Parse existing arguments
+                        args = json.loads(command.function.arguments or "{}")
+                        logger.info(f"Original arguments: {args}")
+                        
+                        # Always inject the correct user_id (LLM should never provide userId)
+                        args["userId"] = self.user_id
+                        command.function.arguments = json.dumps(args)
+                        logger.info(f"Auto-injected userId: {self.user_id} into {tool_name}")
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse arguments for {tool_name}")
+                else:
+                    logger.warning(f"No user_id available for {tool_name}")
+        
+        # Call parent's execute_tool
+        return await super().execute_tool(command)
 
     async def cleanup(self):
         """Clean up Manus agent resources."""

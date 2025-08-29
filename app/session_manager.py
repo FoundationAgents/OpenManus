@@ -129,8 +129,8 @@ class ManusSessionManager:
     async def _create_session_unsafe(self, user_id: str) -> None:
         """Create a new session (not thread-safe, use within lock)"""
         try:
-            # Create new Manus agent instance
-            agent = await Manus.create()
+            # Create new Manus agent instance with user-specific configuration
+            agent = await Manus.create(user_id=user_id)
             session = ManusSession(user_id, agent)
             
             self.sessions[user_id] = session
