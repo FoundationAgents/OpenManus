@@ -23,8 +23,9 @@ class Manus(ToolCallAgent):
     name: str = "Manus"
     description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
     
-    # User ID for LINE Bot integration
+    # User ID and Room ID for LINE Bot integration
     user_id: Optional[str] = None
+    room_id: Optional[str] = None
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -60,18 +61,19 @@ class Manus(ToolCallAgent):
     @classmethod
     async def create(cls, **kwargs) -> "Manus":
         """Factory method to create and properly initialize a Manus instance."""
-        # Debug: Check if user_id is passed
+        # Debug: Check if user_id and room_id are passed
         user_id = kwargs.get('user_id')
+        room_id = kwargs.get('room_id')
         if user_id:
-            logger.info(f"Creating Manus instance with user_id: {user_id}")
+            logger.info(f"Creating Manus instance with user_id: {user_id}, room_id: {room_id}")
         else:
             logger.warning("Creating Manus instance without user_id")
         
         instance = cls(**kwargs)
         
-        # Debug: Verify user_id is stored
+        # Debug: Verify user_id and room_id are stored
         if hasattr(instance, 'user_id'):
-            logger.info(f"Manus instance user_id after creation: {instance.user_id}")
+            logger.info(f"Manus instance user_id: {instance.user_id}, room_id: {instance.room_id}")
         else:
             logger.error("Manus instance does not have user_id attribute!")
         
@@ -148,9 +150,9 @@ class Manus(ToolCallAgent):
         # Check if this is a send_line_message tool call
         if command and command.function and command.function.name:
             tool_name = command.function.name
-            # Check for tools that need userId injection (with any server prefix)
-            if any(tool in tool_name for tool in ["send_line_message", "get_tasks", "create_task", "update_task", "delete_task"]):
-                logger.info(f"Processing {tool_name}, current user_id: {self.user_id}")
+            # Check for tools that need userId/room_id injection (with any server prefix)
+            if any(tool in tool_name for tool in ["send_line_message", "get_tasks", "create_task", "update_task", "delete_task", "search_memory", "append_memory"]):
+                logger.info(f"Processing {tool_name}, current user_id: {self.user_id}, room_id: {self.room_id}")
                 
                 if self.user_id:
                     try:
@@ -158,10 +160,13 @@ class Manus(ToolCallAgent):
                         args = json.loads(command.function.arguments or "{}")
                         logger.info(f"Original arguments: {args}")
                         
-                        # Always inject the correct user_id (LLM should never provide userId)
+                        # Always inject the correct user_id and room_id (LLM should never provide these)
                         args["userId"] = self.user_id
+                        if self.room_id:
+                            args["room_id"] = self.room_id
+                        
                         command.function.arguments = json.dumps(args)
-                        logger.info(f"Auto-injected userId: {self.user_id} into {tool_name}")
+                        logger.info(f"Auto-injected userId: {self.user_id}, room_id: {self.room_id} into {tool_name}")
                     except json.JSONDecodeError:
                         logger.error(f"Failed to parse arguments for {tool_name}")
                 else:

@@ -17,6 +17,8 @@ class MCPClientTool(BaseTool):
     session: Optional[ClientSession] = None
     server_id: str = ""  # Add server identifier
     original_name: str = ""
+    user_id: Optional[str] = None  # Store current user_id for context
+    room_id: Optional[str] = None  # Store current room_id for context
 
     async def execute(self, **kwargs) -> ToolResult:
         """Execute the tool by making a remote call to the MCP server."""
@@ -24,7 +26,15 @@ class MCPClientTool(BaseTool):
             return ToolResult(error="Not connected to MCP server")
 
         try:
-            logger.info(f"Executing tool: {self.original_name}")
+            # Auto-inject user_id and room_id if available and not already provided
+            if self.user_id and "userId" not in kwargs:
+                kwargs["userId"] = self.user_id
+            if self.room_id and "room_id" not in kwargs:
+                kwargs["room_id"] = self.room_id
+            
+            logger.info(f"Executing tool: {self.original_name} with auto-injected context")
+            logger.debug(f"Tool arguments: {kwargs}")
+            
             result = await self.session.call_tool(self.original_name, kwargs)
             content_str = ", ".join(
                 item.text for item in result.content if isinstance(item, TextContent)
@@ -143,6 +153,14 @@ class MCPClients(ToolCollection):
             sanitized = sanitized[:64]
 
         return sanitized
+
+    def set_context(self, user_id: Optional[str] = None, room_id: Optional[str] = None) -> None:
+        """Set user_id and room_id context for all MCP tools."""
+        for tool in self.tool_map.values():
+            if isinstance(tool, MCPClientTool):
+                tool.user_id = user_id
+                tool.room_id = room_id
+        logger.debug(f"Set MCP context: user_id={user_id}, room_id={room_id}")
 
     async def list_tools(self) -> ListToolsResult:
         """List all available tools."""

@@ -25,6 +25,7 @@ class TaskRequest(BaseModel):
     """Request model for task execution"""
     prompt: str
     user_id: str
+    room_id: Optional[str] = None
 
 
 class TaskResponse(BaseModel):
@@ -129,7 +130,7 @@ async def execute_task(request: TaskRequest):
         logger.info(f"Executing task for user {request.user_id}: {request.prompt[:100]}...")
         
         # Get user-specific agent from session manager
-        agent = await session_manager.get_agent(request.user_id)
+        agent = await session_manager.get_agent(request.user_id, request.room_id)
         
         # Execute the task using the user's agent
         result = await agent.run(request.prompt)
@@ -196,7 +197,7 @@ async def send_system_message(request: TaskRequest):
         logger.info(f"[SYSTEM MESSAGE] Sending to user {request.user_id}: {request.prompt[:100]}...")
         
         # Get user-specific agent from session manager
-        agent = await session_manager.get_agent(request.user_id)
+        agent = await session_manager.get_agent(request.user_id, request.room_id)
         
         # Execute the system message using the user's agent
         # Note: Currently uses the same prompt processing as user messages

@@ -96,7 +96,7 @@ class ManusSessionManager:
         session = self.sessions[user_id]
         return datetime.now() - session.last_used > self.ttl
     
-    async def get_agent(self, user_id: str) -> Manus:
+    async def get_agent(self, user_id: str, room_id: Optional[str] = None) -> Manus:
         """
         Get a Manus agent instance for the specified user
         
@@ -117,7 +117,7 @@ class ManusSessionManager:
                     await self._cleanup_oldest_sessions(1)
                 
                 # Create new session
-                await self._create_session_unsafe(user_id)
+                await self._create_session_unsafe(user_id, room_id)
             
             # Update last used time and return agent
             session = self.sessions[user_id]
@@ -126,11 +126,11 @@ class ManusSessionManager:
             logger.debug(f"Retrieved agent for user: {user_id}")
             return session.agent
     
-    async def _create_session_unsafe(self, user_id: str) -> None:
+    async def _create_session_unsafe(self, user_id: str, room_id: Optional[str] = None) -> None:
         """Create a new session (not thread-safe, use within lock)"""
         try:
             # Create new Manus agent instance with user-specific configuration
-            agent = await Manus.create(user_id=user_id)
+            agent = await Manus.create(user_id=user_id, room_id=room_id)
             session = ManusSession(user_id, agent)
             
             self.sessions[user_id] = session
