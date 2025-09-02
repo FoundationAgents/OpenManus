@@ -132,23 +132,24 @@ async def execute_task(request: TaskRequest):
         # Get user-specific agent from session manager
         agent = await session_manager.get_agent(request.user_id, request.room_id)
         
-        # Execute the task using the user's agent
-        result = await agent.run(request.prompt)
-        
-        logger.info(f"Task execution completed successfully for user {request.user_id}")
-        
-        # Reset agent state to IDLE for next execution
-        from app.schema import AgentState
-        agent.state = AgentState.IDLE
-        agent.current_step = 0
-        
-        # Update session last used time
-        session_manager.touch_session(request.user_id)
-        
-        return TaskResponse(
-            success=True,
-            result=result
-        )
+        try:
+            # Execute the task using the user's agent
+            result = await agent.run(request.prompt)
+            
+            logger.info(f"Task execution completed successfully for user {request.user_id}")
+            
+            # Update session last used time
+            session_manager.touch_session(request.user_id)
+            
+            return TaskResponse(
+                success=True,
+                result=result
+            )
+        finally:
+            # Always reset agent state to IDLE for next execution, regardless of success/failure
+            from app.schema import AgentState
+            agent.state = AgentState.IDLE
+            agent.current_step = 0
         
     except Exception as e:
         error_msg = str(e)
@@ -199,20 +200,21 @@ async def send_system_message(request: TaskRequest):
         # Get user-specific agent from session manager
         agent = await session_manager.get_agent(request.user_id, request.room_id)
         
-        # Execute the system message using the user's agent
-        # Note: Currently uses the same prompt processing as user messages
-        # This may produce unexpected behavior depending on the system prompt
-        result = await agent.run(request.prompt)
-        
-        logger.info(f"[SYSTEM MESSAGE] Successfully processed for user {request.user_id}")
-        
-        # Reset agent state to IDLE for next execution
-        from app.schema import AgentState
-        agent.state = AgentState.IDLE
-        agent.current_step = 0
-        
-        # Update session last used time
-        session_manager.touch_session(request.user_id)
+        try:
+            # Execute the system message using the user's agent
+            # Note: Currently uses the same prompt processing as user messages
+            # This may produce unexpected behavior depending on the system prompt
+            result = await agent.run(request.prompt)
+            
+            logger.info(f"[SYSTEM MESSAGE] Successfully processed for user {request.user_id}")
+            
+            # Update session last used time
+            session_manager.touch_session(request.user_id)
+        finally:
+            # Always reset agent state to IDLE for next execution, regardless of success/failure
+            from app.schema import AgentState
+            agent.state = AgentState.IDLE
+            agent.current_step = 0
         
         return TaskResponse(
             success=True,
