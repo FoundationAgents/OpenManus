@@ -426,6 +426,7 @@ class LLM:
             logger.info(f"Estimated completion tokens for streaming response: {completion_tokens}")
             self.total_completion_tokens += completion_tokens
 
+            self.show_llm_output(full_response)
             return full_response
 
         except TokenLimitExceeded:
@@ -449,7 +450,7 @@ class LLM:
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
+        stop=stop_after_attempt(2),
         retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),  # Don't retry TokenLimitExceeded
     )
     async def ask_with_images(
@@ -570,6 +571,8 @@ class LLM:
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
 
+            self.show_llm_output(full_response)
+
             return full_response
 
         except TokenLimitExceeded:
@@ -592,7 +595,7 @@ class LLM:
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
+        stop=stop_after_attempt(2),
         retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),  # Don't retry TokenLimitExceeded
     )
     async def ask_tool(
@@ -628,6 +631,7 @@ class LLM:
         """
         try:
             # Validate tool_choice
+            logger.info(f"tool_choice: {tool_choice}")
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
@@ -693,13 +697,16 @@ class LLM:
             # Update token counts
             self.update_token_count(response.usage.prompt_tokens, response.usage.completion_tokens)
 
-            return response.choices[0].message
+            llm_out_put = response.choices[0].message
+            self.show_llm_output(llm_out_put)
+
+            return llm_out_put
 
         except TokenLimitExceeded:
             # Re-raise token limit errors without logging
             raise
         except ValueError as ve:
-            logger.error(f"Validation error in ask_tool: {ve}")
+            logger.error(f"Validation error in ask_tool: {ve}, {ve.args}")
             raise
         except OpenAIError as oe:
             logger.error(f"OpenAI API error: {oe}, {oe.args}")
@@ -713,3 +720,7 @@ class LLM:
         except Exception as e:
             logger.error(f"Unexpected error in ask_tool: {e}")
             raise
+
+    def show_llm_output(self, response: str):
+        split_line = "**************** 注意大模型输出 ****************"
+        logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{response}\n\n{split_line}")

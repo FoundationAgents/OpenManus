@@ -11,6 +11,8 @@ max-complexity = 25
 
 ; exclude file
 exclude =
+    .venv,
+    app/prompt/*.py,
     .tox,
     .git,
     __pycache__,
