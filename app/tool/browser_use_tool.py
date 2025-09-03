@@ -8,12 +8,12 @@ from browser_use import Browser as BrowserUseBrowser
 from browser_use import BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
 from browser_use.dom.service import DomService
-from LLM.OpenManus.app.schema import ToolChoice
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from app.config import config
 from app.llm import LLM
+from app.schema import ToolChoice
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
 
