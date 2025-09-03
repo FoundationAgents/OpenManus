@@ -714,9 +714,9 @@ class LLM:
             params = {
                 "model": self.model,
                 "messages": messages,
-                "tools": tools,
-                "tool_choice": tool_choice,
-                "timeout": timeout,
+                # "tools": tools,
+                # "tool_choice": tool_choice.value,
+                # "timeout": timeout,
                 **kwargs,
             }
 
@@ -729,6 +729,7 @@ class LLM:
                 )
 
             params["stream"] = False  # Always use non-streaming for tool requests
+            logger.info(f"LLM request params: {params}")
             response: ChatCompletion = await self.client.chat.completions.create(
                 **params
             )
@@ -753,7 +754,7 @@ class LLM:
             logger.error(f"Validation error in ask_tool: {ve}")
             raise
         except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
+            logger.error(f"OpenAI API error: {oe}, {oe.args}")
             if isinstance(oe, AuthenticationError):
                 logger.error("Authentication failed. Check API key.")
             elif isinstance(oe, RateLimitError):

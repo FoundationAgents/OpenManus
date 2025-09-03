@@ -22,7 +22,7 @@ class ToolChoice(str, Enum):
 
     NONE = "none"
     AUTO = "auto"
-    REQUIRED = "required"
+    REQUIRED = "custom"
 
 
 TOOL_CHOICE_VALUES = tuple(choice.value for choice in ToolChoice)
