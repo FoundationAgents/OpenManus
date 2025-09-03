@@ -681,6 +681,7 @@ class LLM:
                 params["temperature"] = temperature if temperature is not None else self.temperature
 
             params["stream"] = False  # Always use non-streaming for tool requests
+            logger.info(f"LLM request params: {params}")
             response: ChatCompletion = await self.client.chat.completions.create(**params)
 
             # Check if response is valid

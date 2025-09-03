@@ -1,0 +1,22 @@
+[flake8]
+ignore =
+    ;W503 line break before binary operator
+    W503,
+    ;This behaviour may raise E203 whitespace before ':' warnings in style guide enforcement tools like Flake8.
+    ;Since E203 is not PEP 8 compliant, you should tell Flake8 to ignore these warnings.
+    E203,
+
+max-line-length = 120
+max-complexity = 25
+
+; exclude file
+exclude =
+    .tox,
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.pyc,
+    *.egg-info,
+    .cache,
+    .eggs

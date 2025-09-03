@@ -55,3 +55,35 @@ class TestLLM(unittest.IsolatedAsyncioTestCase):
                 # Handle 404 errors specifically
                 self.fail(f"API endpoint not found (404). Check base_url: {llm.base_url}")
             raise
+
+    async def test_ask_tool(self):
+        """Test ask_tool with valid input"""
+        # Test valid tool usage with user message last
+        messages = [
+            Message.system_message("You are a helpful assistant"),
+            Message.user_message("What's the weather today?"),
+        ]
+        tools = [{"type": "function", "function": {"name": "get_weather", "description": "Get weather"}}]
+
+        with patch("app.llm.AsyncOpenAI") as mock_client:
+            mock_response = AsyncMock()
+            mock_response.choices = [AsyncMock()]
+            mock_response.choices[0].message = AsyncMock()
+            mock_response.choices[0].message.content = "Test response"
+            mock_client.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
+
+            llm = LLM()
+            response = await llm.ask_tool(messages, tools=tools)
+            self.assertEqual(response.content, "Test response")
+
+    async def test_ask_tool_invalid_sequence(self):
+        """Test ask_tool with invalid message sequence"""
+        # Test invalid sequence with assistant message last
+        messages = [Message.system_message("You are a helpful assistant"), Message.assistant_message("How can I help?")]
+        tools = [{"type": "function", "function": {"name": "get_weather", "description": "Get weather"}}]
+
+        llm = LLM()
+        with self.assertRaises(ValueError) as context:
+            await llm.ask_tool(messages, tools=tools)
+
+        self.assertIn("last message must be from user", str(context.exception))
