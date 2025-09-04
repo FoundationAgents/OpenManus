@@ -40,6 +40,11 @@ class BaseAgent(BaseModel, ABC):
     max_steps: int = Field(default=10, description="Maximum steps before termination")
     current_step: int = Field(default=0, description="Current step in execution")
 
+    # Interrupt handling
+    interrupt_requested: bool = Field(default=False, description="Flag for interrupt request")
+    interrupt_message: Optional[str] = Field(default=None, description="Message to process after interrupt")
+    last_executed_tool: Optional[str] = Field(default=None, description="Name of last executed tool")
+
     duplicate_threshold: int = 2
 
     class Config:
@@ -140,6 +145,23 @@ class BaseAgent(BaseModel, ABC):
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 step_result = await self.step()
 
+                # Check for interrupt after step completion
+                if self.interrupt_requested:
+                    if self._should_allow_interrupt():
+                        logger.info(f"Processing additional user request at step {self.current_step}")
+                        self.update_memory("user", f"[追加要求] {self.interrupt_message}")
+                        self.interrupt_message = None
+                        self.interrupt_requested = False
+                        results.append(f"Step {self.current_step}: {step_result} [ADDITIONAL REQUEST - continuing with integrated response]")
+                        continue
+                    else:
+                        logger.info(f"Interrupt denied - terminal tool was executed")
+                        self.interrupt_requested = False
+                        self.interrupt_message = None
+                        self.state = AgentState.FINISHED
+                        results.append(f"Step {self.current_step}: {step_result} [INTERRUPTED - conversation ended]")
+                        break
+
                 # Check for stuck state
                 if self.is_stuck():
                     self.handle_stuck_state()
@@ -184,6 +206,20 @@ class BaseAgent(BaseModel, ABC):
         )
 
         return duplicate_count >= self.duplicate_threshold
+
+    def _should_allow_interrupt(self) -> bool:
+        """Check if interrupt should be allowed based on last executed tool"""
+        if not self.last_executed_tool:
+            return True
+            
+        # Check if last tool was a terminal/response tool
+        terminal_tools = getattr(self, 'special_tool_names', [])
+        if not terminal_tools:
+            return True
+            
+        # Don't allow interrupt if a terminal tool was just executed
+        is_terminal = any(tool_name in self.last_executed_tool for tool_name in terminal_tools)
+        return not is_terminal
 
     @property
     def messages(self) -> List[Message]:

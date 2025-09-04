@@ -143,6 +143,9 @@ class ToolCallAgent(ReActAgent):
             self._current_base64_image = None
 
             result = await self.execute_tool(command)
+            
+            # Record tool execution for interrupt handling
+            self.last_executed_tool = command.function.name
 
             if self.max_observe:
                 result = result[: self.max_observe]

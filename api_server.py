@@ -132,24 +132,53 @@ async def execute_task(request: TaskRequest):
         # Get user-specific agent from session manager
         agent = await session_manager.get_agent(request.user_id, request.room_id)
         
-        try:
-            # Execute the task using the user's agent
-            result = await agent.run(request.prompt)
+        # Check if agent is already running and handle interrupt
+        from app.schema import AgentState
+        if agent.state == AgentState.RUNNING:
+            logger.info(f"Agent for user {request.user_id} is already running, requesting interrupt")
             
-            logger.info(f"Task execution completed successfully for user {request.user_id}")
+            # Set interrupt request
+            agent.interrupt_requested = True
+            agent.interrupt_message = request.prompt
             
-            # Update session last used time
-            session_manager.touch_session(request.user_id)
+            # Wait for interrupt to be processed (max 20 seconds)
+            for i in range(200):
+                await asyncio.sleep(0.1)
+                if not agent.interrupt_requested:
+                    logger.info(f"Interrupt processed for user {request.user_id}")
+                    break
+            else:
+                logger.warning(f"Interrupt timeout for user {request.user_id} after 20 seconds")
+                # Reset interrupt flags on timeout
+                agent.interrupt_requested = False
+                agent.interrupt_message = None
             
             return TaskResponse(
                 success=True,
-                result=result
+                result="Message integrated into ongoing conversation"
             )
-        finally:
-            # Always reset agent state to IDLE for next execution, regardless of success/failure
-            from app.schema import AgentState
-            agent.state = AgentState.IDLE
-            agent.current_step = 0
+        else:
+            # Execute the task using the user's agent (only if not running)
+            try:
+                result = await agent.run(request.prompt)
+                
+                logger.info(f"Task execution completed successfully for user {request.user_id}")
+                
+                # Update session last used time
+                session_manager.touch_session(request.user_id)
+                
+                return TaskResponse(
+                    success=True,
+                    result=result
+                )
+            finally:
+                # Always reset agent state to IDLE for next execution, regardless of success/failure
+                from app.schema import AgentState
+                agent.state = AgentState.IDLE
+                agent.current_step = 0
+                # Clear interrupt flags in case of unexpected errors
+                agent.interrupt_requested = False
+                agent.interrupt_message = None
         
     except Exception as e:
         error_msg = str(e)

@@ -172,6 +172,10 @@ class Manus(ToolCallAgent):
                 else:
                     logger.warning(f"No user_id available for {tool_name}")
         
+        # Record the tool name for interrupt handling
+        if command and command.function and command.function.name:
+            self.last_executed_tool = command.function.name
+        
         # Call parent's execute_tool
         return await super().execute_tool(command)
 
