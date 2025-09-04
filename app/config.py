@@ -105,6 +105,25 @@ class SandboxSettings(BaseModel):
     )
 
 
+class DaytonaSettings(BaseModel):
+    daytona_api_key: str
+    daytona_server_url: Optional[str] = Field(
+        "https://app.daytona.io/api", description=""
+    )
+    daytona_target: Optional[str] = Field("us", description="enum ['eu', 'us']")
+    sandbox_image_name: Optional[str] = Field("whitezxj/sandbox:0.1.0", description="")
+    sandbox_entrypoint: Optional[str] = Field(
+        "/usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf",
+        description="",
+    )
+    # sandbox_id: Optional[str] = Field(
+    #     None, description="ID of the daytona sandbox to use, if any"
+    # )
+    VNC_password: Optional[str] = Field(
+        "123456", description="VNC password for the vnc service in sandbox"
+    )
+
+
 class MCPServerConfig(BaseModel):
     """Configuration for a single MCP server"""
 
@@ -166,6 +185,9 @@ class AppConfig(BaseModel):
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
     run_flow_config: Optional[RunflowSettings] = Field(
         None, description="Run flow configuration"
+    )
+    daytona_config: Optional[DaytonaSettings] = Field(
+        None, description="Daytona configuration"
     )
 
     class Config:
@@ -268,6 +290,11 @@ class Config:
             sandbox_settings = SandboxSettings(**sandbox_config)
         else:
             sandbox_settings = SandboxSettings()
+        daytona_config = raw_config.get("daytona", {})
+        if daytona_config:
+            daytona_settings = DaytonaSettings(**daytona_config)
+        else:
+            daytona_settings = DaytonaSettings()
 
         mcp_config = raw_config.get("mcp", {})
         mcp_settings = None
@@ -296,6 +323,7 @@ class Config:
             "search_config": search_settings,
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
+            "daytona_config": daytona_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -307,6 +335,10 @@ class Config:
     @property
     def sandbox(self) -> SandboxSettings:
         return self._config.sandbox
+
+    @property
+    def daytona(self) -> DaytonaSettings:
+        return self._config.daytona_config
 
     @property
     def browser_config(self) -> Optional[BrowserSettings]:
