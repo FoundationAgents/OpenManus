@@ -24,23 +24,41 @@ class _BashSession:
     _timeout: float = 120.0  # seconds
     _sentinel: str = "<<exit>>"
 
+    _is_windows: bool
+
     def __init__(self):
         self._started = False
         self._timed_out = False
+        self._is_windows = os.name == "nt"
+
+        # Set appropriate shell command based on OS
+        if self._is_windows:
+            self.command = "cmd.exe"
 
     async def start(self):
         if self._started:
             return
 
-        self._process = await asyncio.create_subprocess_shell(
-            self.command,
-            preexec_fn=os.setsid,
-            shell=True,
-            bufsize=0,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        if self._is_windows:
+            # Windows: Use cmd.exe without process group
+            self._process = await asyncio.create_subprocess_shell(
+                self.command,
+                shell=True,
+                bufsize=0,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            self._process = await asyncio.create_subprocess_shell(
+                self.command,
+                preexec_fn=os.setsid,
+                shell=True,
+                bufsize=0,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
         self._started = True
 
@@ -72,9 +90,15 @@ class _BashSession:
         assert self._process.stderr
 
         # send command to the process
-        self._process.stdin.write(
-            command.encode() + f"; echo '{self._sentinel}'\n".encode()
-        )
+        if self._is_windows:
+            self._process.stdin.write(
+                f"({command})".encode() + f" & echo '{self._sentinel}'\n".encode()
+            )
+        else:
+            self._process.stdin.write(
+                command.encode() + f"; echo '{self._sentinel}'\n".encode()
+            )
+
         await self._process.stdin.drain()
 
         # read output from the process, until the sentinel is found
