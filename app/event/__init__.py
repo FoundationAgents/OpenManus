@@ -1,0 +1,147 @@
+"""Event system package for OpenManus.
+
+This is the main entry point for the event system, providing a clean API
+that abstracts the internal layered architecture.
+"""
+
+# Core abstractions
+from app.event.core import BaseEvent, BaseEventBus, BaseEventHandler, EventContext
+
+# Event factory functions
+# Domain events
+from app.event.domain import (  # Agent events; Conversation events; Tool events; System events; FileSystem events; FileSystem events
+    AgentEvent,
+    AgentResponseEvent,
+    AgentStepCompleteEvent,
+    AgentStepStartEvent,
+    ConversationClosedEvent,
+    ConversationCreatedEvent,
+    ConversationEvent,
+    DirectoryCreatedEvent,
+    DirectoryDeletedEvent,
+    FileCreatedEvent,
+    FileDeletedEvent,
+    FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEvent,
+    SystemErrorEvent,
+    SystemEvent,
+    ToolEvent,
+    ToolExecutionEvent,
+    ToolResultEvent,
+    UserInputEvent,
+    UserInterruptEvent,
+)
+
+# Infrastructure components
+from app.event.infrastructure import (
+    BaseMiddleware,
+    ErrorIsolationMiddleware,
+    EventBus,
+    EventHandlerRegistry,
+    HandlerInfo,
+    LoggingMiddleware,
+    MetricsMiddleware,
+    MiddlewareChain,
+    MiddlewareContext,
+    RetryMiddleware,
+    bus,
+    create_default_middleware_chain,
+    event_handler,
+    get_global_registry,
+)
+
+__all__ = [
+    # Core abstractions
+    "BaseEvent",
+    "BaseEventHandler",
+    "BaseEventBus",
+    "EventContext",
+    # Infrastructure components
+    "EventHandlerRegistry",
+    "HandlerInfo",
+    "event_handler",
+    "get_global_registry",
+    "BaseMiddleware",
+    "MiddlewareChain",
+    "MiddlewareContext",
+    "LoggingMiddleware",
+    "RetryMiddleware",
+    "ErrorIsolationMiddleware",
+    "MetricsMiddleware",
+    "create_default_middleware_chain",
+    "EventBus",
+    "bus",
+    # Agent events
+    "AgentEvent",
+    "AgentStepStartEvent",
+    "AgentStepCompleteEvent",
+    # Conversation events
+    "ConversationEvent",
+    "ConversationCreatedEvent",
+    "ConversationClosedEvent",
+    "UserInputEvent",
+    "UserInterruptEvent",
+    "AgentResponseEvent",
+    # Tool events
+    "ToolEvent",
+    "ToolExecutionEvent",
+    "ToolResultEvent",
+    # System events
+    "SystemEvent",
+    "SystemErrorEvent",
+    # FileSystem events
+    "FileSystemEvent",
+    "FileCreatedEvent",
+    "FileModifiedEvent",
+    "FileDeletedEvent",
+    "FileMovedEvent",
+    "DirectoryCreatedEvent",
+    "DirectoryDeletedEvent",
+    # Event factory functions
+]
+
+from app.logger import logger
+
+
+# Global event handlers that can be registered automatically
+@event_handler("system.*", name="system_logger")
+async def log_system_events(event: BaseEvent):
+    """Log all system events for debugging and monitoring."""
+    component = event.data.get("component", "unknown")
+    logger.info(f"System Event: {event.event_type} from {component}")
+    return True
+
+
+@event_handler("agent.*", name="agent_monitor")
+async def monitor_agent_events(event: BaseEvent):
+    """Monitor agent events for performance tracking."""
+    agent_name = event.data.get("agent_name", "unknown")
+    step_number = event.data.get("step_number", "")
+    step_info = f" (step {step_number})" if step_number else ""
+    logger.info(f"Agent Event: {event.event_type} from '{agent_name}'{step_info}")
+    return True
+
+
+@event_handler("tool.*", name="tool_tracker")
+async def track_tool_events(event: BaseEvent):
+    """Track tool execution events."""
+    tool_name = event.data.get("tool_name", "unknown")
+    logger.info(f"Tool Event: {event.event_type} for tool '{tool_name}'")
+    return True
+
+
+@event_handler("conversation.*", name="conversation_logger")
+async def log_conversation_events(event: BaseEvent):
+    """Log conversation events for session tracking."""
+    conv_id = event.data.get("conversation_id", "unknown")
+    logger.info(f"Conversation Event: {event.event_type} (conv: {conv_id})")
+    return True
+
+
+@event_handler("*", name="global_metrics")
+async def collect_global_metrics(event: BaseEvent):
+    """Collect global metrics for all events."""
+    # This could be extended to send metrics to external systems
+    logger.debug(f"Event processed: {event.event_type} (id: {event.event_id})")
+    return True
