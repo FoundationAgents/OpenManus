@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 from typing import Generic, Optional, TypeVar
+import traceback
 
 from browser_use import Browser as BrowserUseBrowser
 from browser_use import BrowserConfig
@@ -255,13 +256,28 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         )
                     # Execute the web search and return results directly without browser navigation
                     search_response = await self.web_search_tool.execute(
-                        query=query, fetch_content=True, num_results=1
+                        query=query, fetch_content=True, num_results=5
                     )
+
                     # Navigate to the first search result
-                    first_search_result = search_response.results[0]
-                    url_to_navigate = first_search_result.url
+                    # first_search_result = search_response.results[0]
+
+                    valid_results = [
+                        r for r in search_response.results if getattr(r, "url", "").startswith("http")
+                    ]
+
+                    if not valid_results:
+                        return ToolResult(error="Web search returned no valid result URLs.")
+
+                    url_to_navigate = valid_results[0].url
+
+                    # url_to_navigate = first_search_result.url
 
                     page = await context.get_current_page()
+                    if not url_to_navigate or not url_to_navigate.startswith("http"):
+                        return ToolResult(error=f"Invalid URL returned from web search: {url_to_navigate}")
+
+
                     await page.goto(url_to_navigate)
                     await page.wait_for_load_state()
 
@@ -474,7 +490,8 @@ Page content:
                     return ToolResult(error=f"Unknown action: {action}")
 
             except Exception as e:
-                return ToolResult(error=f"Browser action '{action}' failed: {str(e)}")
+                return ToolResult(error=f"Browser action '{action}' failed: {str(e)}\nTraceback:\n{traceback.format_exc()}")
+                # return ToolResult(error=f"Browser action '{action}' failed: {str(e)}")
 
     async def get_current_state(
         self, context: Optional[BrowserContext] = None
