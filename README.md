@@ -2,7 +2,7 @@
   <img src="assets/logo.jpg" width="200"/>
 </p>
 
-English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
+English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md) | [Português (Brasil)](README_pt-br.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/FoundationAgents/OpenManus?style=social)](https://github.com/FoundationAgents/OpenManus/stargazers)
 &ensp;

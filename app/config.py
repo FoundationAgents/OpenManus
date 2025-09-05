@@ -1,6 +1,9 @@
 import json
 import threading
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -11,6 +14,11 @@ def get_project_root() -> Path:
     """Get the project root directory"""
     return Path(__file__).resolve().parent.parent
 
+
+class RedisConfig:
+    host = "localhost"
+    port = 6379
+    db = 0
 
 PROJECT_ROOT = get_project_root()
 WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
@@ -60,12 +68,6 @@ class SearchSettings(BaseModel):
     )
 
 
-class RunflowSettings(BaseModel):
-    use_data_analysis_agent: bool = Field(
-        default=False, description="Enable data analysis agent in run flow"
-    )
-
-
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -99,7 +101,7 @@ class SandboxSettings(BaseModel):
     work_dir: str = Field("/workspace", description="Container working directory")
     memory_limit: str = Field("512m", description="Memory limit")
     cpu_limit: float = Field(1.0, description="CPU limit")
-    timeout: int = Field(300, description="Default command timeout (seconds)")
+    timeout: int = Field(604800, description="Default command timeout (seconds) - 7 days")
     network_enabled: bool = Field(
         False, description="Whether network access is allowed"
     )
@@ -164,9 +166,6 @@ class AppConfig(BaseModel):
         None, description="Search configuration"
     )
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
-    run_flow_config: Optional[RunflowSettings] = Field(
-        None, description="Run flow configuration"
-    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -190,6 +189,7 @@ class Config:
                 if not self._initialized:
                     self._config = None
                     self._load_initial_config()
+                    self.redis = RedisConfig()  # Adiciona configuração mínima de Redis
                     self._initialized = True
 
     @staticmethod
@@ -278,11 +278,6 @@ class Config:
         else:
             mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
-        run_flow_config = raw_config.get("runflow")
-        if run_flow_config:
-            run_flow_settings = RunflowSettings(**run_flow_config)
-        else:
-            run_flow_settings = RunflowSettings()
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -295,7 +290,6 @@ class Config:
             "browser_config": browser_settings,
             "search_config": search_settings,
             "mcp_config": mcp_settings,
-            "run_flow_config": run_flow_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -320,11 +314,6 @@ class Config:
     def mcp_config(self) -> MCPSettings:
         """Get the MCP configuration"""
         return self._config.mcp_config
-
-    @property
-    def run_flow_config(self) -> RunflowSettings:
-        """Get the Run Flow configuration"""
-        return self._config.run_flow_config
 
     @property
     def workspace_root(self) -> Path:

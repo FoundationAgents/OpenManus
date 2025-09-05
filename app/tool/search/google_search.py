@@ -10,18 +10,18 @@ class GoogleSearchEngine(WebSearchEngine):
         self, query: str, num_results: int = 10, *args, **kwargs
     ) -> List[SearchItem]:
         """
-        Google search engine.
+        Mecanismo de busca do Google.
 
-        Returns results formatted according to SearchItem model.
+        Retorna resultados formatados de acordo com o modelo SearchItem.
         """
         raw_results = search(query, num_results=num_results, advanced=True)
 
         results = []
         for i, item in enumerate(raw_results):
             if isinstance(item, str):
-                # If it's just a URL
+                # Se for apenas uma URL
                 results.append(
-                    {"title": f"Google Result {i+1}", "url": item, "description": ""}
+                    {"title": f"Resultado do Google {i+1}", "url": item, "description": ""}
                 )
             else:
                 results.append(

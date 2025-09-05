@@ -1,75 +1,83 @@
-"""File operation interfaces and implementations for local and sandbox environments."""
+"""Interfaces e implementações de operações de arquivo para ambientes locais e sandbox."""
 
 import asyncio
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
-from app.config import SandboxSettings
+# Garantir que estes sejam importados apenas uma vez e corretamente
+from app.config import SandboxSettings, config # Garantir que 'config' seja importado
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
-
+from app.logger import logger # Garantir que logger seja importado
 
 PathLike = Union[str, Path]
 
 
 @runtime_checkable
 class FileOperator(Protocol):
-    """Interface for file operations in different environments."""
+    """Interface para operações de arquivo em diferentes ambientes."""
 
     async def read_file(self, path: PathLike) -> str:
-        """Read content from a file."""
+        """Lê o conteúdo de um arquivo."""
         ...
 
     async def write_file(self, path: PathLike, content: str) -> None:
-        """Write content to a file."""
+        """Escreve conteúdo em um arquivo."""
         ...
 
     async def is_directory(self, path: PathLike) -> bool:
-        """Check if path points to a directory."""
+        """Verifica se o caminho aponta para um diretório."""
         ...
 
     async def exists(self, path: PathLike) -> bool:
-        """Check if path exists."""
+        """Verifica se o caminho existe."""
         ...
 
     async def run_command(
         self, cmd: str, timeout: Optional[float] = 120.0
     ) -> Tuple[int, str, str]:
-        """Run a shell command and return (return_code, stdout, stderr)."""
+        """Executa um comando de shell e retorna (código_de_retorno, stdout, stderr)."""
         ...
+
+    async def get_sandbox_path(self, host_path: PathLike) -> str:
+        """Traduz um caminho do host para seu equivalente no sandbox, se aplicável."""
+        raise NotImplementedError
 
 
 class LocalFileOperator(FileOperator):
-    """File operations implementation for local filesystem."""
+    """Implementação de operações de arquivo para o sistema de arquivos local."""
 
     encoding: str = "utf-8"
 
     async def read_file(self, path: PathLike) -> str:
-        """Read content from a local file."""
+        """Lê o conteúdo de um arquivo local."""
         try:
-            return Path(path).read_text(encoding=self.encoding)
+            content = Path(path).read_text(encoding=self.encoding)
+            return content
         except Exception as e:
-            raise ToolError(f"Failed to read {path}: {str(e)}") from None
+            raise ToolError(f"Falha ao ler {path}: {str(e)}") from None
 
     async def write_file(self, path: PathLike, content: str) -> None:
-        """Write content to a local file."""
+        """Escreve conteúdo em um arquivo local."""
         try:
             Path(path).write_text(content, encoding=self.encoding)
         except Exception as e:
-            raise ToolError(f"Failed to write to {path}: {str(e)}") from None
+            raise ToolError(f"Falha ao escrever em {path}: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
-        """Check if path points to a directory."""
-        return Path(path).is_dir()
+        """Verifica se o caminho aponta para um diretório."""
+        result = Path(path).is_dir()
+        return result
 
     async def exists(self, path: PathLike) -> bool:
-        """Check if path exists."""
-        return Path(path).exists()
+        """Verifica se o caminho existe."""
+        result = Path(path).exists()
+        return result
 
     async def run_command(
         self, cmd: str, timeout: Optional[float] = 120.0
     ) -> Tuple[int, str, str]:
-        """Run a shell command locally."""
+        """Executa um comando de shell localmente."""
         process = await asyncio.create_subprocess_shell(
             cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
@@ -87,72 +95,110 @@ class LocalFileOperator(FileOperator):
             try:
                 process.kill()
             except ProcessLookupError:
-                pass
+                pass # Processo já encerrado
             raise TimeoutError(
-                f"Command '{cmd}' timed out after {timeout} seconds"
+                f"Comando '{cmd}' excedeu o tempo limite após {timeout} segundos"
             ) from exc
+        
+    async def get_sandbox_path(self, host_path: PathLike) -> str:
+        """Operador local não traduz para caminhos do sandbox, retorna o original."""
+        return str(host_path)
+
+    async def delete_file(self, path: PathLike) -> None:
+        """Deleta um arquivo local."""
+        try:
+            Path(path).unlink(missing_ok=True) # missing_ok=True para não dar erro se já não existir
+            logger.info(f"Arquivo local {path} deletado (ou já não existia).")
+        except Exception as e:
+            raise ToolError(f"Falha ao deletar arquivo local {path}: {str(e)}")
 
 
 class SandboxFileOperator(FileOperator):
-    """File operations implementation for sandbox environment."""
+    """Implementação de operações de arquivo para o ambiente sandbox."""
+
+    SANDBOX_WORKSPACE_PATH = "/workspace" # Workspace padrão do sandbox
 
     def __init__(self):
         self.sandbox_client = SANDBOX_CLIENT
+        self.host_workspace_root = Path(config.workspace_root).resolve()
+
+    def _translate_to_sandbox_path(self, host_path: PathLike) -> str:
+        """Traduz um caminho absoluto do host para seu caminho correspondente no sandbox."""
+        resolved_host_path = Path(host_path).resolve()
+        try:
+            relative_path = resolved_host_path.relative_to(self.host_workspace_root)
+        except ValueError as e:
+            raise ToolError(
+                f"O caminho '{host_path}' não está dentro do workspace do host configurado "
+                f"'{self.host_workspace_root}'. Não é possível traduzir para o caminho do sandbox."
+            ) from e
+        sandbox_path = Path(self.SANDBOX_WORKSPACE_PATH) / relative_path
+        return str(sandbox_path)
+
+    async def get_sandbox_path(self, host_path: PathLike) -> str:
+        """Método público para obter o caminho traduzido do sandbox."""
+        translated_path = self._translate_to_sandbox_path(host_path)
+        return translated_path
 
     async def _ensure_sandbox_initialized(self):
-        """Ensure sandbox is initialized."""
+        """Garante que o sandbox esteja inicializado."""
         if not self.sandbox_client.sandbox:
             await self.sandbox_client.create(config=SandboxSettings())
 
     async def read_file(self, path: PathLike) -> str:
-        """Read content from a file in sandbox."""
+        """Lê o conteúdo de um arquivo no sandbox."""
         await self._ensure_sandbox_initialized()
+        sandbox_path = self._translate_to_sandbox_path(path)
         try:
-            return await self.sandbox_client.read_file(str(path))
+            content = await self.sandbox_client.read_file(sandbox_path)
+            return content
         except Exception as e:
-            raise ToolError(f"Failed to read {path} in sandbox: {str(e)}") from None
+            raise ToolError(f"Falha ao ler {sandbox_path} no sandbox: {str(e)}") from None
 
     async def write_file(self, path: PathLike, content: str) -> None:
-        """Write content to a file in sandbox."""
+        """Escreve conteúdo em um arquivo no sandbox."""
         await self._ensure_sandbox_initialized()
+        sandbox_path = self._translate_to_sandbox_path(path)
         try:
-            await self.sandbox_client.write_file(str(path), content)
+            await self.sandbox_client.write_file(sandbox_path, content)
         except Exception as e:
-            raise ToolError(f"Failed to write to {path} in sandbox: {str(e)}") from None
+            raise ToolError(f"Falha ao escrever em {sandbox_path} no sandbox: {str(e)}") from None
 
     async def is_directory(self, path: PathLike) -> bool:
-        """Check if path points to a directory in sandbox."""
+        """Verifica se o caminho aponta para um diretório no sandbox."""
         await self._ensure_sandbox_initialized()
-        result = await self.sandbox_client.run_command(
-            f"test -d {path} && echo 'true' || echo 'false'"
-        )
-        return result.strip() == "true"
+        sandbox_path = self._translate_to_sandbox_path(path)
+        cmd_str = f"test -d {sandbox_path} && echo 'true' || echo 'false'"
+        result_str = await self.sandbox_client.run_command(cmd_str)
+        result_bool = result_str.strip().lower() == "true" # Garante comparação em minúsculas
+        return result_bool
 
     async def exists(self, path: PathLike) -> bool:
-        """Check if path exists in sandbox."""
+        """Verifica se o caminho existe no sandbox."""
         await self._ensure_sandbox_initialized()
-        result = await self.sandbox_client.run_command(
-            f"test -e {path} && echo 'true' || echo 'false'"
-        )
-        return result.strip() == "true"
+        sandbox_path = self._translate_to_sandbox_path(path)
+        cmd_str = f"test -e {sandbox_path} && echo 'true' || echo 'false'"
+        result_str = await self.sandbox_client.run_command(cmd_str)
+        result_bool = result_str.strip().lower() == "true" # Garante comparação em minúsculas
+        return result_bool
 
     async def run_command(
         self, cmd: str, timeout: Optional[float] = 120.0
     ) -> Tuple[int, str, str]:
-        """Run a command in sandbox environment."""
+        """Executa um comando no ambiente sandbox."""
         await self._ensure_sandbox_initialized()
         try:
             stdout = await self.sandbox_client.run_command(
                 cmd, timeout=int(timeout) if timeout else None
             )
             return (
-                0,  # Always return 0 since we don't have explicit return code from sandbox
+                0,
                 stdout,
-                "",  # No stderr capture in the current sandbox implementation
+                "", 
             )
         except TimeoutError as exc:
             raise TimeoutError(
-                f"Command '{cmd}' timed out after {timeout} seconds in sandbox"
+                f"Comando '{cmd}' excedeu o tempo limite após {timeout} segundos no sandbox"
             ) from exc
         except Exception as exc:
-            return 1, "", f"Error executing command in sandbox: {str(exc)}"
+            return 1, "", f"Erro ao executar comando no sandbox: {str(exc)}"

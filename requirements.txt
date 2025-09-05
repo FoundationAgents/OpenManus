@@ -40,3 +40,9 @@ crawl4ai~=0.6.3
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+psutil
+redis~=5.0.1
+sqlalchemy~=2.0.23
+asyncpg~=0.29.0 # Driver PostgreSQL assíncrono
+psycopg2-binary~=2.9.9 # Driver PostgreSQL síncrono (fallback ou para scripts)
+alembic~=1.13.0 # Para migrações de schema do BD
