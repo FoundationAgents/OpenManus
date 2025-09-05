@@ -282,9 +282,6 @@ class PlanningFlow(BaseFlow):
 
         # Create a prompt for the agent to execute the current step
         step_prompt = f"""
-        CURRENT PLAN STATUS:
-        {plan_status}
-
         YOUR CURRENT TASK:
         You are now working on step {self.current_step_index}: "{step_text}"
 
