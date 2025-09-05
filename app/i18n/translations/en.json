@@ -1,0 +1,135 @@
+{
+  "messages": {
+    "startup": "Starting OpenManus...",
+    "processing": "Processing your request...",
+    "completed": "Request processing completed.",
+    "interrupted": "Operation interrupted.",
+    "cleanup": "Cleaning up resources...",
+    "enter_prompt": "Enter your prompt: ",
+    "empty_prompt": "Empty prompt provided.",
+    "welcome": "Welcome to OpenManus!",
+    "goodbye": "Thank you for using OpenManus!"
+  },
+  "errors": {
+    "config_not_found": "Configuration file not found",
+    "invalid_config": "Invalid configuration: {error}",
+    "api_error": "API error: {error}",
+    "network_error": "Network error: {error}",
+    "file_not_found": "File not found: {file}",
+    "permission_denied": "Permission denied: {action}",
+    "timeout": "Operation timed out",
+    "unknown_error": "An unknown error occurred: {error}"
+  },
+  "tools": {
+    "browser": {
+      "name": "Browser Tool",
+      "description": "Automate web browser interactions",
+      "starting": "Starting browser...",
+      "closing": "Closing browser...",
+      "navigating": "Navigating to {url}...",
+      "clicking": "Clicking on element...",
+      "typing": "Typing text...",
+      "screenshot": "Taking screenshot..."
+    },
+    "file": {
+      "name": "File Tool",
+      "description": "File operations and management",
+      "reading": "Reading file: {file}",
+      "writing": "Writing file: {file}",
+      "creating": "Creating file: {file}",
+      "deleting": "Deleting file: {file}",
+      "copying": "Copying file: {source} to {destination}"
+    },
+    "python": {
+      "name": "Python Executor",
+      "description": "Execute Python code",
+      "executing": "Executing Python code...",
+      "completed": "Python execution completed",
+      "error": "Python execution error: {error}"
+    },
+    "bash": {
+      "name": "Bash Tool",
+      "description": "Execute bash commands",
+      "executing": "Executing command: {command}",
+      "completed": "Command execution completed",
+      "error": "Command execution error: {error}"
+    },
+    "search": {
+      "name": "Web Search",
+      "description": "Search the web for information",
+      "searching": "Searching for: {query}",
+      "results_found": "Found {count} results",
+      "no_results": "No results found for: {query}"
+    }
+  },
+  "agents": {
+    "manus": {
+      "name": "Manus Agent",
+      "description": "General-purpose AI agent",
+      "initializing": "Initializing Manus agent...",
+      "ready": "Manus agent is ready"
+    },
+    "data_analysis": {
+      "name": "Data Analysis Agent",
+      "description": "Specialized agent for data analysis tasks",
+      "initializing": "Initializing Data Analysis agent...",
+      "ready": "Data Analysis agent is ready"
+    },
+    "browser": {
+      "name": "Browser Agent",
+      "description": "Specialized agent for web automation",
+      "initializing": "Initializing Browser agent...",
+      "ready": "Browser agent is ready"
+    }
+  },
+  "status": {
+    "idle": "Idle",
+    "working": "Working",
+    "error": "Error",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "timeout": "Timeout"
+  },
+  "config": {
+    "loading": "Loading configuration...",
+    "loaded": "Configuration loaded successfully",
+    "error": "Error loading configuration: {error}",
+    "language_set": "Language set to: {language}",
+    "language_not_supported": "Language '{language}' is not supported. Using default language."
+  },
+  "logs": {
+    "agent": {
+      "thoughts": "✨ {agent_name}'s thoughts: {content}",
+      "tools_selected": "🛠️ {agent_name} selected {count} tools to use",
+      "tools_preparing": "🧰 Tools being prepared: {tool_names}",
+      "tool_arguments": "🔧 Tool arguments: {arguments}",
+      "tool_completed": "🎯 Tool '{tool_name}' completed its mission! Result: {result}",
+      "tool_activating": "🔧 Activating tool: '{tool_name}'...",
+      "task_completed": "🏁 Special tool '{tool_name}' has completed the task!",
+      "step_executing": "Executing step {current_step}/{max_steps}",
+      "max_steps_reached": "Terminated: Reached max steps ({max_steps})"
+    },
+    "errors": {
+      "token_limit": "🚨 Token limit error (from RetryError): {error}",
+      "tools_unavailable": "🤔 Hmm, {agent_name} tried to use tools when they weren't available!",
+      "thinking_error": "🚨 Oops! The {agent_name}'s thinking process hit a snag: {error}",
+      "validation_error": "Validation error in ask_tool: {error}",
+      "openai_api_error": "OpenAI API error: {error}",
+      "authentication_failed": "Authentication failed. Check API key.",
+      "rate_limit_exceeded": "Rate limit exceeded. Consider increasing retry attempts.",
+      "api_error": "API error: {error}",
+      "unexpected_error": "Unexpected error in ask_tool: {error}"
+    },
+    "tokens": {
+      "usage": "Token usage: Input={input}, Completion={completion}, Cumulative Input={cumulative_input}, Cumulative Completion={cumulative_completion}, Total={total}, Cumulative Total={cumulative_total}"
+    },
+    "tools": {
+      "data_visualization": "📈 data_visualization with {json_path} in: {tool_type}",
+      "web_search_failed": "Failed to fetch content from {url}: HTTP {status_code}",
+      "parsing_error": "Error parsing HTML: {error}"
+    },
+    "flow": {
+      "creating_plan": "Creating initial plan with ID: {plan_id}"
+    }
+  }
+}
