@@ -15,13 +15,15 @@ from app.tool.file_operators import (
     SandboxFileOperator,
 )
 
-
 Command = Literal[
     "view",
     "create",
+    "create_dir",
     "str_replace",
     "insert",
     "undo_edit",
+    "rename",
+    "delete",
 ]
 
 # Constants
@@ -38,6 +40,9 @@ _STR_REPLACE_EDITOR_DESCRIPTION = """Custom editing tool for viewing, creating a
 * State is persistent across command calls and discussions with the user
 * If `path` is a file, `view` displays the result of applying `cat -n`. If `path` is a directory, `view` lists non-hidden files and directories up to 2 levels deep
 * The `create` command cannot be used if the specified `path` already exists as a file
+* The `create_dir` command creates a directory at the specified path
+* The `rename` command moves or renames a file or directory
+* The `delete` command removes a file or empty directory
 * If a `command` generates a long output, it will be truncated and marked with `<response clipped>`
 * The `undo_edit` command will revert the last edit made to the file at `path`
 
@@ -65,9 +70,22 @@ class StrReplaceEditor(BaseTool):
     parameters: dict = {
         "type": "object",
         "properties": {
+            "new_path": {
+                "description": "New name or path for the file or directory when using the `rename` command.",
+                "type": "string",
+            },
             "command": {
-                "description": "The commands to run. Allowed options are: `view`, `create`, `str_replace`, `insert`, `undo_edit`.",
-                "enum": ["view", "create", "str_replace", "insert", "undo_edit"],
+                "description": "The command to run. Allowed options are: `view`, `create`, `create_dir`, `str_replace`, `insert`, `undo_edit`, `rename`, `delete`.",
+                "enum": [
+                    "view",
+                    "create",
+                    "create_dir",
+                    "str_replace",
+                    "insert",
+                    "undo_edit",
+                    "rename",
+                    "delete",
+                ],
                 "type": "string",
             },
             "path": {
@@ -139,6 +157,15 @@ class StrReplaceEditor(BaseTool):
             await operator.write_file(path, file_text)
             self._file_history[path].append(file_text)
             result = ToolResult(output=f"File created successfully at: {path}")
+        elif command == "create_dir":
+            if await operator.exists(path):
+                raise ToolError(
+                    f"Path already exists: {path}. Cannot create directory."
+                )
+            await operator.create_directory(path)
+            result = ToolResult(
+                output=f"\u2705 Directory successfully created in: {path}"
+            )
         elif command == "str_replace":
             if old_str is None:
                 raise ToolError(
@@ -153,6 +180,15 @@ class StrReplaceEditor(BaseTool):
             if new_str is None:
                 raise ToolError("Parameter `new_str` is required for command: insert")
             result = await self.insert(path, insert_line, new_str, operator)
+        elif command == "rename":
+            new_path = kwargs.get("new_path")
+            if not new_path:
+                raise ToolError("Parameter `new_path` is required for command: rename.")
+            await operator.rename(path, new_path)
+            result = ToolResult(output=f"✅ Renamed {path} to {new_path}")
+        elif command == "delete":
+            await operator.delete(path)
+            result = ToolResult(output=f"🗑️ Deleted {path}")
         elif command == "undo_edit":
             result = await self.undo_edit(path, operator)
         else:
@@ -172,7 +208,7 @@ class StrReplaceEditor(BaseTool):
             raise ToolError(f"The path {path} is not an absolute path")
 
         # Only check if path exists for non-create commands
-        if command != "create":
+        if command not in ("create", "create_dir"):
             if not await operator.exists(path):
                 raise ToolError(
                     f"The path {path} does not exist. Please provide a valid path."
@@ -180,17 +216,17 @@ class StrReplaceEditor(BaseTool):
 
             # Check if path is a directory
             is_dir = await operator.is_directory(path)
-            if is_dir and command != "view":
+            if is_dir and command != "view" and command != "delete":
                 raise ToolError(
                     f"The path {path} is a directory and only the `view` command can be used on directories"
                 )
 
         # Check if file exists for create command
-        elif command == "create":
+        elif command in ("create", "create_dir"):
             exists = await operator.exists(path)
             if exists:
                 raise ToolError(
-                    f"File already exists at: {path}. Cannot overwrite files using command `create`."
+                    f"Path already exists at: {path}. Cannot overwrite using `{command}`."
                 )
 
     async def view(
