@@ -1,10 +1,15 @@
 import json
-import threading
-import tomllib
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 
 def get_project_root() -> Path:
@@ -26,8 +31,8 @@ class LLMSettings(BaseModel):
         description="Maximum input tokens to use across all requests (None for unlimited)",
     )
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="Azure, Openai, or Ollama")
-    api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    api_type: str = Field(default="", description="Azure, Openai, or Ollama")
+    api_version: str = Field(default="", description="Azure Openai version if AzureOpenai")
 
 
 class ProxySettings(BaseModel):
@@ -60,12 +65,6 @@ class SearchSettings(BaseModel):
     )
 
 
-class RunflowSettings(BaseModel):
-    use_data_analysis_agent: bool = Field(
-        default=False, description="Enable data analysis agent in run flow"
-    )
-
-
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -89,6 +88,19 @@ class BrowserSettings(BaseModel):
     max_content_length: int = Field(
         2000, description="Maximum length for content retrieval operations"
     )
+
+    @field_validator("proxy", mode="before")
+    @classmethod
+    def validate_proxy(cls, v: Optional[Dict[str, Any]]) -> Optional[ProxySettings]:
+        if not v:
+            return None
+        if not isinstance(v, dict):
+            return v
+        if not v.get("server"):
+            return None
+        return ProxySettings(
+            **{k: v[k] for k in ["server", "username", "password"] if k in v and v[k]}
+        )
 
 
 class SandboxSettings(BaseModel):
@@ -152,189 +164,64 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP server config: {e}")
 
 
-class AppConfig(BaseModel):
-    llm: Dict[str, LLMSettings]
-    sandbox: Optional[SandboxSettings] = Field(
-        None, description="Sandbox configuration"
-    )
-    browser_config: Optional[BrowserSettings] = Field(
-        None, description="Browser configuration"
-    )
-    search_config: Optional[SearchSettings] = Field(
-        None, description="Search configuration"
-    )
-    mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
-    run_flow_config: Optional[RunflowSettings] = Field(
-        None, description="Run flow configuration"
+class Config(BaseSettings):
+    model_config = SettingsConfigDict(
+        toml_file=PROJECT_ROOT / "config" / "config.toml",
+        extra="ignore",
     )
 
-    class Config:
-        arbitrary_types_allowed = True
+    llm: Dict[str, LLMSettings] = Field(default_factory=dict)
+    sandbox: SandboxSettings = Field(default_factory=SandboxSettings)
+    browser_config: BrowserSettings = Field(default_factory=BrowserSettings, alias="browser")
+    search_config: SearchSettings = Field(default_factory=SearchSettings, alias="search")
+    mcp_config: MCPSettings = Field(default_factory=lambda: MCPSettings(servers=MCPSettings.load_server_config()),
+                                    alias="mcp")
+    workspace_root: str = str(WORKSPACE_ROOT)
+    root_path: str = str(PROJECT_ROOT)
+
+    @classmethod
+    def settings_customise_sources(
+            cls,
+            settings_cls: type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (TomlConfigSettingsSource(settings_cls),)
+
+    @model_validator(mode="before")
+    @classmethod
+    def process_llm_config(cls, values: dict) -> dict:
+        if "llm" in values:
+            llm_config = values["llm"]
+            if isinstance(llm_config, dict):
+                # Process base LLM configuration
+                base_config = {k: v for k, v in llm_config.items() if not isinstance(v, dict)}
+                if base_config:
+                    values["llm"] = {"default": base_config}
+
+                # Process additional LLM configurations (e.g., vision)
+                for key, value in llm_config.items():
+                    if isinstance(value, dict):
+                        if "llm" not in values:
+                            values["llm"] = {}
+                        values["llm"][key] = value
+        return values
+
+    @model_validator(mode="after")
+    def validate_llm_config(self) -> "Config":
+        if not self.llm:
+            raise ValueError("At least one LLM configuration must be provided")
+        if "default" not in self.llm:
+            raise ValueError("A default LLM configuration must be provided")
+        return self
 
 
-class Config:
-    _instance = None
-    _lock = threading.Lock()
-    _initialized = False
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self):
-        if not self._initialized:
-            with self._lock:
-                if not self._initialized:
-                    self._config = None
-                    self._load_initial_config()
-                    self._initialized = True
-
-    @staticmethod
-    def _get_config_path() -> Path:
-        root = PROJECT_ROOT
-        config_path = root / "config" / "config.toml"
-        if config_path.exists():
-            return config_path
-        example_path = root / "config" / "config.example.toml"
-        if example_path.exists():
-            return example_path
-        raise FileNotFoundError("No configuration file found in config directory")
-
-    def _load_config(self) -> dict:
-        config_path = self._get_config_path()
-        with config_path.open("rb") as f:
-            return tomllib.load(f)
-
-    def _load_initial_config(self):
-        raw_config = self._load_config()
-        base_llm = raw_config.get("llm", {})
-        llm_overrides = {
-            k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
-        }
-
-        default_settings = {
-            "model": base_llm.get("model"),
-            "base_url": base_llm.get("base_url"),
-            "api_key": base_llm.get("api_key"),
-            "max_tokens": base_llm.get("max_tokens", 4096),
-            "max_input_tokens": base_llm.get("max_input_tokens"),
-            "temperature": base_llm.get("temperature", 1.0),
-            "api_type": base_llm.get("api_type", ""),
-            "api_version": base_llm.get("api_version", ""),
-        }
-
-        # handle browser config.
-        browser_config = raw_config.get("browser", {})
-        browser_settings = None
-
-        if browser_config:
-            # handle proxy settings.
-            proxy_config = browser_config.get("proxy", {})
-            proxy_settings = None
-
-            if proxy_config and proxy_config.get("server"):
-                proxy_settings = ProxySettings(
-                    **{
-                        k: v
-                        for k, v in proxy_config.items()
-                        if k in ["server", "username", "password"] and v
-                    }
-                )
-
-            # filter valid browser config parameters.
-            valid_browser_params = {
-                k: v
-                for k, v in browser_config.items()
-                if k in BrowserSettings.__annotations__ and v is not None
-            }
-
-            # if there is proxy settings, add it to the parameters.
-            if proxy_settings:
-                valid_browser_params["proxy"] = proxy_settings
-
-            # only create BrowserSettings when there are valid parameters.
-            if valid_browser_params:
-                browser_settings = BrowserSettings(**valid_browser_params)
-
-        search_config = raw_config.get("search", {})
-        search_settings = None
-        if search_config:
-            search_settings = SearchSettings(**search_config)
-        sandbox_config = raw_config.get("sandbox", {})
-        if sandbox_config:
-            sandbox_settings = SandboxSettings(**sandbox_config)
-        else:
-            sandbox_settings = SandboxSettings()
-
-        mcp_config = raw_config.get("mcp", {})
-        mcp_settings = None
-        if mcp_config:
-            # Load server configurations from JSON
-            mcp_config["servers"] = MCPSettings.load_server_config()
-            mcp_settings = MCPSettings(**mcp_config)
-        else:
-            mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
-
-        run_flow_config = raw_config.get("runflow")
-        if run_flow_config:
-            run_flow_settings = RunflowSettings(**run_flow_config)
-        else:
-            run_flow_settings = RunflowSettings()
-        config_dict = {
-            "llm": {
-                "default": default_settings,
-                **{
-                    name: {**default_settings, **override_config}
-                    for name, override_config in llm_overrides.items()
-                },
-            },
-            "sandbox": sandbox_settings,
-            "browser_config": browser_settings,
-            "search_config": search_settings,
-            "mcp_config": mcp_settings,
-            "run_flow_config": run_flow_settings,
-        }
-
-        self._config = AppConfig(**config_dict)
-
-    @property
-    def llm(self) -> Dict[str, LLMSettings]:
-        return self._config.llm
-
-    @property
-    def sandbox(self) -> SandboxSettings:
-        return self._config.sandbox
-
-    @property
-    def browser_config(self) -> Optional[BrowserSettings]:
-        return self._config.browser_config
-
-    @property
-    def search_config(self) -> Optional[SearchSettings]:
-        return self._config.search_config
-
-    @property
-    def mcp_config(self) -> MCPSettings:
-        """Get the MCP configuration"""
-        return self._config.mcp_config
-
-    @property
-    def run_flow_config(self) -> RunflowSettings:
-        """Get the Run Flow configuration"""
-        return self._config.run_flow_config
-
-    @property
-    def workspace_root(self) -> Path:
-        """Get the workspace root directory"""
-        return WORKSPACE_ROOT
-
-    @property
-    def root_path(self) -> Path:
-        """Get the root path of the application"""
-        return PROJECT_ROOT
+@lru_cache
+def get_config() -> Config:
+    """Get the global configuration singleton"""
+    return Config()
 
 
-config = Config()
+config = get_config()
