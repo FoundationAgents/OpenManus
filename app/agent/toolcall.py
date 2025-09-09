@@ -40,7 +40,7 @@ class ToolCallAgent(ReActAgent):
         """Process current state and decide next actions using tools"""
         if self.next_step_prompt:
             user_msg = Message.user_message(self.next_step_prompt)
-            self.messages += [user_msg]
+            self.memory.add_message(user_msg)
 
         try:
             # Get response with tool options
@@ -79,6 +79,8 @@ class ToolCallAgent(ReActAgent):
 
         # Log response info
         logger.info(f"✨ {self.name}'s thoughts: {content}")
+        logger.info(f"🔍 Raw response type: {type(response)}")
+        logger.info(f"🔍 Raw response: {response}")
         logger.info(
             f"🛠️ {self.name} selected {len(tool_calls) if tool_calls else 0} tools to use"
         )

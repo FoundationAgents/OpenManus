@@ -7,7 +7,7 @@ from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
-from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT, SYSTEM_REPORT_PROMPT, SYSTEM_REPORT_NEXT_STEP
 from app.schema import ToolCall
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
@@ -26,6 +26,9 @@ class Manus(ToolCallAgent):
     # User ID and Room ID for LINE Bot integration
     user_id: Optional[str] = None
     room_id: Optional[str] = None
+    
+    # Flag for system report mode
+    is_system_report: bool = False
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -194,6 +197,11 @@ class Manus(ToolCallAgent):
             await self.initialize_mcp_servers()
             self._initialized = True
 
+        # Use system report prompts if in system report mode
+        if self.is_system_report:
+            self.system_prompt = SYSTEM_REPORT_PROMPT.format(directory=config.workspace_root)
+            # next_step_prompt should be set by the caller with report content
+        
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
         browser_in_use = any(

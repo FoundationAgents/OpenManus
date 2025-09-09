@@ -19,6 +19,7 @@ from app.agent.manus import Manus
 from app.logger import logger
 from app.config import config
 from app.session_manager import ManusSessionManager
+from app.prompt.manus import SYSTEM_REPORT_NEXT_STEP
 
 
 class TaskRequest(BaseModel):
@@ -141,14 +142,14 @@ async def execute_task(request: TaskRequest):
             agent.interrupt_requested = True
             agent.interrupt_message = request.prompt
             
-            # Wait for interrupt to be processed (max 20 seconds)
-            for i in range(200):
+            # Wait for interrupt to be processed (max 60 seconds)
+            for i in range(600):
                 await asyncio.sleep(0.1)
                 if not agent.interrupt_requested:
                     logger.info(f"Interrupt processed for user {request.user_id}")
                     break
             else:
-                logger.warning(f"Interrupt timeout for user {request.user_id} after 20 seconds")
+                logger.warning(f"Interrupt timeout for user {request.user_id} after 60 seconds")
                 # Reset interrupt flags on timeout
                 agent.interrupt_requested = False
                 agent.interrupt_message = None
@@ -194,11 +195,11 @@ async def execute_task(request: TaskRequest):
 @app.post("/system-message", response_model=TaskResponse)
 async def send_system_message(request: TaskRequest):
     """
-    Send a system-initiated message to a specific user
-    Uses the same flow as execute_task but logs it as a system message
+    Send a system-generated report about the care recipient to the family
+    Uses system report mode for appropriate messaging style
     
     Args:
-        request: Task request containing the system message (prompt) and user_id
+        request: Task request containing the report content (prompt) and user_id
         
     Returns:
         TaskResponse with execution results
@@ -224,26 +225,33 @@ async def send_system_message(request: TaskRequest):
         )
     
     try:
-        logger.info(f"[SYSTEM MESSAGE] Sending to user {request.user_id}: {request.prompt[:100]}...")
+        logger.info(f"[SYSTEM REPORT] Sending to family of user {request.user_id}: {request.prompt[:100]}...")
         
         # Get user-specific agent from session manager
         agent = await session_manager.get_agent(request.user_id, request.room_id)
         
+        # Enable system report mode for appropriate messaging
+        agent.is_system_report = True
+        
+        # Set the report-specific next step prompt with the report content
+        agent.next_step_prompt = SYSTEM_REPORT_NEXT_STEP.format(
+            report_content=request.prompt
+        )
+        
         try:
-            # Execute the system message using the user's agent
-            # Note: Currently uses the same prompt processing as user messages
-            # This may produce unexpected behavior depending on the system prompt
-            result = await agent.run(request.prompt)
+            # Execute the system report using the modified agent
+            result = await agent.run("")  # Empty string as initial request since prompt is in next_step_prompt
             
-            logger.info(f"[SYSTEM MESSAGE] Successfully processed for user {request.user_id}")
+            logger.info(f"[SYSTEM REPORT] Successfully sent to family of user {request.user_id}")
             
             # Update session last used time
             session_manager.touch_session(request.user_id)
         finally:
-            # Always reset agent state to IDLE for next execution, regardless of success/failure
+            # Always reset agent state and flags for next execution
             from app.schema import AgentState
             agent.state = AgentState.IDLE
             agent.current_step = 0
+            agent.is_system_report = False  # Reset system report mode
         
         return TaskResponse(
             success=True,
@@ -252,7 +260,7 @@ async def send_system_message(request: TaskRequest):
         
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"[SYSTEM MESSAGE] Failed for user {request.user_id}: {error_msg}")
+        logger.error(f"[SYSTEM REPORT] Failed for user {request.user_id}: {error_msg}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         
         return TaskResponse(
