@@ -200,3 +200,6 @@ cython_debug/
 
 # node
 node_modules
+
+./yh_rag/.env
+./yh_rag/output
