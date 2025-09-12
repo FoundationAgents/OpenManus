@@ -4,13 +4,24 @@ import time
 import uuid
 from datetime import datetime
 from typing import Dict, List, Literal, Optional
+import threading
 
 import boto3
 
 
-# Global variables to track the current tool use ID across function calls
-# Tmp solution
-CURRENT_TOOLUSE_ID = None
+# Thread-local storage to track the current tool use ID per thread
+# This fixes race conditions when multiple users access the same function simultaneously
+_thread_local = threading.local()
+
+
+def get_current_tooluse_id():
+    """Get the current tool use ID for this thread."""
+    return getattr(_thread_local, 'current_tooluse_id', None)
+
+
+def set_current_tooluse_id(value):
+    """Set the current tool use ID for this thread."""
+    _thread_local.current_tooluse_id = value
 
 
 # Class to handle OpenAI-style response formatting
@@ -111,8 +122,7 @@ class ChatCompletions:
                         ),
                     }
                     bedrock_message["content"].append({"toolUse": bedrock_tool_use})
-                    global CURRENT_TOOLUSE_ID
-                    CURRENT_TOOLUSE_ID = openai_tool_calls[0]["id"]
+                    set_current_tooluse_id(openai_tool_calls[0]["id"])
                 bedrock_messages.append(bedrock_message)
             elif message.get("role") == "tool":
                 bedrock_message = {
@@ -120,7 +130,7 @@ class ChatCompletions:
                     "content": [
                         {
                             "toolResult": {
-                                "toolUseId": CURRENT_TOOLUSE_ID,
+                                "toolUseId": get_current_tooluse_id(),
                                 "content": [{"text": message.get("content")}],
                             }
                         }
@@ -146,10 +156,9 @@ class ChatCompletions:
             for content_item in bedrock_response["output"]["message"]["content"]:
                 if content_item.get("toolUse"):
                     bedrock_tool_use = content_item["toolUse"]
-                    global CURRENT_TOOLUSE_ID
-                    CURRENT_TOOLUSE_ID = bedrock_tool_use["toolUseId"]
+                    set_current_tooluse_id(bedrock_tool_use["toolUseId"])
                     openai_tool_call = {
-                        "id": CURRENT_TOOLUSE_ID,
+                        "id": get_current_tooluse_id(),
                         "type": "function",
                         "function": {
                             "name": bedrock_tool_use["name"],
@@ -276,8 +285,7 @@ class ChatCompletions:
                     bedrock_response["output"]["message"]["content"].append(
                         {"toolUse": tool_use}
                     )
-                    global CURRENT_TOOLUSE_ID
-                    CURRENT_TOOLUSE_ID = bedrock_tool_use["toolUseId"]
+                    set_current_tooluse_id(bedrock_tool_use["toolUseId"])
                 if event.get("contentBlockDelta", {}).get("delta", {}).get("toolUse"):
                     bedrock_response_tool_input += event["contentBlockDelta"]["delta"][
                         "toolUse"
