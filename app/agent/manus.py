@@ -154,7 +154,7 @@ class Manus(ToolCallAgent):
         if command and command.function and command.function.name:
             tool_name = command.function.name
             # Check for tools that need userId/room_id injection (with any server prefix)
-            if any(tool in tool_name for tool in ["send_line_message", "get_tasks", "create_task", "update_task", "delete_task", "search_memory", "append_memory", "get_recent_summaries", "get_user_basic_info", "upsert_user_basic_info"]):
+            if any(tool in tool_name for tool in ["send_line_message", "get_tasks", "create_task", "update_task", "delete_task", "search_memory", "append_memory", "get_recent_summaries", "get_user_basic_info", "upsert_user_basic_info", "set_agent_schedule", "get_agent_schedule", "get_agent_status", "temporarily_disable_agent"]):
                 logger.info(f"Processing {tool_name}, current user_id: {self.user_id}, room_id: {self.room_id}")
                 
                 if self.user_id:
