@@ -183,6 +183,11 @@ class PlanningFlow(BaseFlow):
                     args = tool_call.function.arguments
                     if isinstance(args, str):
                         try:
+                           # Intercepting a valid JSON string
+                            start = args.find("{")
+                            end = args.rfind("}") + 1
+                            if start != -1 and end != -1:
+                                args = args[start:end]
                             args = json.loads(args)
                         except json.JSONDecodeError:
                             logger.error(f"Failed to parse tool arguments: {args}")
