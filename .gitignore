@@ -202,4 +202,5 @@ cython_debug/
 node_modules
 
 ./yh_rag/.env
-./yh_rag/output/*
+./yh_rag/cache
+./yh_rag/output
