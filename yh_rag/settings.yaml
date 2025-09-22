@@ -65,11 +65,11 @@ cache:
 
 reporting:
   type: file # or console, blob
-  base_dir: "output/${timestamp}/reports"
+  base_dir: "output/reports"
 
 storage:
   type: file # one of [blob, cosmosdb, file]
-  base_dir: "output/${timestamp}/artifacts"
+  base_dir: "output/artifacts"
 
 ## only turn this on if running `graphrag index` with custom settings
 ## we normally use `graphrag update` with the defaults
