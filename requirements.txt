@@ -65,6 +65,7 @@ Flask==3.1.2
 frozenlist==1.7.0
 fsspec==2024.12.0
 googlesearch-python==1.3.0
+graphrag==1.2.0
 greenlet==3.2.4
 gymnasium==1.1.1
 h11==0.16.0

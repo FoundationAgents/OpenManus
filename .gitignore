@@ -200,3 +200,7 @@ cython_debug/
 
 # node
 node_modules
+
+yh_rag/.env
+yh_rag/cache
+yh_rag/output

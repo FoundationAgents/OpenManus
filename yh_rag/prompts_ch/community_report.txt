@@ -1,0 +1,143 @@
+你是一名帮助人类分析师进行一般信息发现的AI助手。信息发现是识别和评估与某些实体（例如组织和个人）相关的相关信息的过程。
+
+# 目标
+撰写一份关于某个社区的综合报告，给定属于该社区的实体列表及其关系和可选的相关声明。该报告将用于向决策者提供与社区相关的信息及其潜在影响。报告内容包括社区关键实体的概述、法律合规性、技术能力、声誉和值得注意的声明。
+
+# 报告结构
+
+报告应包括以下部分：
+
+- 标题：代表其关键实体的社区名称 - 标题应简短但具体。尽可能在标题中包含代表性命名实体。
+- 摘要：社区整体结构的执行摘要，其实体之间的关系，以及与其实体相关的重要信息。
+- 影响严重性评分：一个介于0-10之间的浮动分数，表示社区内实体所带来的影响的严重性。影响是社区的重要性评分。
+- 评分解释：对影响严重性评分的单句解释。
+- 详细发现：关于社区的5-10个关键见解的列表。每个见解应有一个简短的摘要，后跟根据以下基础规则撰写的多段解释性文本。要全面。
+
+返回输出为格式良好的JSON格式字符串，格式如下：
+    {{
+        "title": <report_title>,
+        "summary": <executive_summary>,
+        "rating": <impact_severity_rating>,
+        "rating_explanation": <rating_explanation>,
+        "findings": [
+            {{
+                "summary":<insight_1_summary>,
+                "explanation": <insight_1_explanation>
+            }},
+            {{
+                "summary":<insight_2_summary>,
+                "explanation": <insight_2_explanation>
+            }}
+        ]
+    }}
+
+# 基础规则
+
+由数据支持的观点应列出其数据参考，如下所示：
+
+“这是一个由多个数据参考支持的示例句子 [数据：<数据集名称>（记录ID）；<数据集名称>（记录ID）]。”
+
+单个参考中列出的记录ID不应超过5个。相反，列出前5个最相关的记录ID，并添加“+more”以指示还有更多。
+
+例如：
+“X先生是Y公司的所有者，并且面临许多不当行为的指控 [数据：报告（1），实体（5, 7）；关系（23）；声明（7, 2, 34, 64, 46, +more）]。”
+
+其中1, 5, 7, 23, 2, 34, 46和64代表相关数据记录的ID（不是索引）。
+
+不要包含没有提供支持证据的信息。
+
+# 示例输入
+-----------
+文本：
+
+实体
+
+id,实体,描述
+5,VERDANT OASIS PLAZA,Verdant Oasis Plaza是Unity March的地点
+6,HARMONY ASSEMBLY,Harmony Assembly是一个在Verdant Oasis Plaza举行游行的组织
+
+关系
+
+id,源,目标,描述
+37,VERDANT OASIS PLAZA,UNITY MARCH,Verdant Oasis Plaza是Unity March的地点
+38,VERDANT OASIS PLAZA,HARMONY ASSEMBLY,Harmony Assembly在Verdant Oasis Plaza举行游行
+39,VERDANT OASIS PLAZA,UNITY MARCH,Unity March在Verdant Oasis Plaza举行
+40,VERDANT OASIS PLAZA,TRIBUNE SPOTLIGHT,Tribune Spotlight正在报道在Verdant Oasis Plaza举行的Unity March
+41,VERDANT OASIS PLAZA,BAILEY ASADI,Bailey Asadi在Verdant Oasis Plaza发表关于游行的演讲
+43,HARMONY ASSEMBLY,UNITY MARCH,Harmony Assembly正在组织Unity March
+
+输出：
+{{
+    "title": "Verdant Oasis Plaza和Unity March",
+    "summary": "社区围绕着Verdant Oasis Plaza展开，这是Unity March的地点。广场与Harmony Assembly、Unity March和Tribune Spotlight有关系，所有这些都与游行活动有关。",
+    "rating": 5.0,
+    "rating_explanation": "由于Unity March期间可能发生的动乱或冲突，影响严重性评分为中等。",
+    "findings": [
+        {{
+            "summary": "Verdant Oasis Plaza作为中心地点",
+            "explanation": "Verdant Oasis Plaza是该社区的中心实体，作为Unity March的地点。这个广场是所有其他实体的共同联系点，表明其在社区中的重要性。广场与游行的关联可能会导致公共秩序或冲突问题，具体取决于游行的性质及其引发的反应。[数据：实体（5），关系（37, 38, 39, 40, 41,+more）]"
+        }},
+        {{
+            "summary": "Harmony Assembly在社区中的角色",
+            "explanation": "Harmony Assembly是该社区的另一个关键实体，是在Verdant Oasis Plaza举行游行的组织者。Harmony Assembly及其游行的性质可能是潜在的威胁源，具体取决于他们的目标及其引发的反应。Harmony Assembly与广场之间的关系对于理解该社区的动态至关重要。[数据：实体（6），关系（38, 43）]"
+        }},
+        {{
+            "summary": "Unity March作为重要事件",
+            "explanation": "Unity March是一个在Verdant Oasis Plaza举行的重要事件。这个事件是社区动态的关键因素，具体取决于游行的性质及其引发的反应，可能是潜在的威胁源。游行与广场之间的关系对于理解该社区的动态至关重要。[数据：关系（39）]"
+        }},
+        {{
+            "summary": "Tribune Spotlight的角色",
+            "explanation": "Tribune Spotlight正在报道在Verdant Oasis Plaza举行的Unity March。这表明该事件引起了媒体的关注，可能会放大其对社区的影响。Tribune Spotlight的角色可能在塑造公众对事件及相关实体的看法方面具有重要意义。[数据：关系（40）]"
+        }}
+    ]
+}}
+
+# 真实数据
+
+使用以下文本作为你的答案。不要在答案中编造任何内容。
+
+文本：
+{input_text}
+
+报告应包括以下部分：
+
+- 标题：代表其关键实体的社区名称 - 标题应简短但具体。尽可能在标题中包含代表性命名实体。
+- 摘要：社区整体结构的执行摘要，其实体之间的关系，以及与其实体相关的重要信息。
+- 影响严重性评分：一个介于0-10之间的浮动分数，表示社区内实体所带来的影响的严重性。影响是社区的重要性评分。
+- 评分解释：对影响严重性评分的单句解释。
+- 详细发现：关于社区的5-10个关键见解的列表。每个见解应有一个简短的摘要，后跟根据以下基础规则撰写的多段解释性文本。要全面。
+
+返回输出为格式良好的JSON格式字符串，格式如下：
+    {{
+        "title": <report_title>,
+        "summary": <executive_summary>,
+        "rating": <impact_severity_rating>,
+        "rating_explanation": <rating_explanation>,
+        "findings": [
+            {{
+                "summary":<insight_1_summary>,
+                "explanation": <insight_1_explanation>
+            }},
+            {{
+                "summary":<insight_2_summary>,
+                "explanation": <insight_2_explanation>
+            }}
+        ]
+    }}
+
+# 基础规则
+
+由数据支持的观点应列出其数据参考，如下所示：
+
+“这是一个由多个数据参考支持的示例句子 [数据：<数据集名称>（记录ID）；<数据集名称>（记录ID）]。”
+
+单个参考中列出的记录ID不应超过5个。相反，列出前5个最相关的记录ID，并添加“+more”以指示还有更多。
+
+例如：
+“X先生是Y公司的所有者，并且面临许多不当行为的指控 [数据：报告（1），实体（5, 7）；关系（23）；声明（7, 2, 34, 64, 46, +more）]。”
+
+其中1, 5, 7, 23, 2, 34, 46和64代表相关数据记录的ID（不是索引）。
+
+不要包含没有提供支持证据的信息。
+
+输出：

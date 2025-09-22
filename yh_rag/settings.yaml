@@ -1,0 +1,134 @@
+### This config file contains required core defaults that must be set, along with a handful of common optional settings.
+### For a full list of available settings, see https://microsoft.github.io/graphrag/config/yaml/
+
+### LLM settings ###
+## There are a number of settings to tune the threading and token limits for LLM calls - check the docs.
+
+encoding_model: cl100k_base # this needs to be matched to your model!
+
+llm:
+  api_key: ${GRAPHRAG_API_KEY} # set this in the generated .env file
+  type: openai_chat # or azure_openai_chat
+  model: hunyuan-turbos-latest
+  model_supports_json: true # recommended if this is available for your model.
+  # audience: "https://cognitiveservices.azure.com/.default"
+  api_base: https://api.hunyuan.cloud.tencent.com/v1
+  # api_version: 2024-02-15-preview
+  # organization: <organization_id>
+  # deployment_name: <azure_model_deployment_name>
+
+parallelization:
+  stagger: 0.3
+  num_threads: 1
+
+async_mode: threaded # or asyncio
+
+embeddings:
+  async_mode: threaded # or asyncio
+  vector_store:
+    type: lancedb # one of [lancedb, azure_ai_search, cosmosdb]
+    db_uri: 'output/lancedb'
+    collection_name: default
+    overwrite: true
+  llm:
+    api_key: ${GRAPHRAG_API_KEY}
+    type: openai_embedding # or azure_openai_embedding
+    model: hunyuan-embedding
+    api_base: https://api.hunyuan.cloud.tencent.com/v1
+    # api_base: https://<instance>.openai.azure.com
+    # api_version: 2024-02-15-preview
+    # audience: "https://cognitiveservices.azure.com/.default"
+    # organization: <organization_id>
+    # deployment_name: <azure_model_deployment_name>
+
+### Input settings ###
+
+input:
+  type: file # or blob
+  file_type: text # or csv
+  base_dir: "/Users/haoyinyin-mb3/Desktop/p_git/obsidian_data/dan_think/投资"
+  file_encoding: utf-8
+  file_pattern: ".*\\.md$"
+
+chunks:
+  size: 1200
+  overlap: 100
+  group_by_columns: [id]
+
+### Storage settings ###
+## If blob storage is specified in the following four sections,
+## connection_string and container_name must be provided
+
+cache:
+  type: file # one of [blob, cosmosdb, file]
+  base_dir: "cache"
+
+reporting:
+  type: file # or console, blob
+  base_dir: "output/reports"
+
+storage:
+  type: file # one of [blob, cosmosdb, file]
+  base_dir: "output/artifacts"
+
+## only turn this on if running `graphrag index` with custom settings
+## we normally use `graphrag update` with the defaults
+update_index_storage:
+  # type: file # or blob
+  # base_dir: "update_output"
+
+### Workflow settings ###
+
+skip_workflows: []
+
+entity_extraction:
+  prompt: "prompts_ch/entity_extraction.txt"
+  entity_types: [PERSON,ORGANIZATION,TECHNOLOGY,CONCEPT,SKILL,PRODUCT,EVENT,STRATEGY]
+  max_gleanings: 1
+
+summarize_descriptions:
+  prompt: "prompts_ch/summarize_descriptions.txt"
+  max_length: 500
+
+claim_extraction:
+  enabled: false
+  prompt: "prompts_ch/claim_extraction.txt"
+  description: "任何可能与信息发现相关的声明或事实。"
+  max_gleanings: 1
+
+community_reports:
+  prompt: "prompts_ch/community_report.txt"
+  max_length: 2000
+  max_input_length: 8000
+
+cluster_graph:
+  max_cluster_size: 10
+
+embed_graph:
+  enabled: false # if true, will generate node2vec embeddings for nodes
+
+umap:
+  enabled: false # if true, will generate UMAP embeddings for nodes (embed_graph must also be enabled)
+
+snapshots:
+  graphml: false
+  embeddings: false
+  transient: false
+
+### Query settings ###
+## The prompt locations are required here, but each search method has a number of optional knobs that can be tuned.
+## See the config docs: https://microsoft.github.io/graphrag/config/yaml/#query
+
+local_search:
+  prompt: "prompts_ch/local_search_system_prompt.txt"
+
+global_search:
+  map_prompt: "prompts_ch/global_search_map_system_prompt.txt"
+  reduce_prompt: "prompts_ch/global_search_reduce_system_prompt.txt"
+  knowledge_prompt: "prompts_ch/global_search_knowledge_system_prompt.txt"
+
+drift_search:
+  prompt: "prompts_ch/drift_search_system_prompt.txt"
+
+basic_search:
+  prompt: "prompts_ch/basic_search_system_prompt.txt"
