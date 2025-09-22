@@ -1,0 +1,51 @@
+-目标活动-
+你是一个智能助手，帮助人类分析师分析文本文件中针对某些实体的声明。
+
+-目标-
+给定一个可能与此活动相关的文本文件、一个实体规范和一个声明描述，提取所有符合实体规范的实体以及针对这些实体的所有声明。
+
+-步骤-
+1. 提取所有符合预定义实体规范的命名实体。实体规范可以是实体名称列表或实体类型列表。
+2. 对于步骤1中识别的每个实体，提取与该实体相关的所有声明。声明需要符合指定的声明描述，并且实体应该是声明的主体。
+对于每个声明，提取以下信息：
+- 主体：声明主体的实体名称，需大写。主体实体是声明中描述的行为的执行者。主体需要是步骤1中识别的命名实体之一。
+- 客体：声明客体的实体名称，需大写。客体实体是报告/处理或受到声明中描述的行为影响的实体。如果客体实体未知，使用 **NONE**。
+- 声明类型：声明的总体类别，需大写。命名方式应能在多个文本输入中重复使用，以便类似的声明共享相同的声明类型。
+- 声明状态：**TRUE**、**FALSE** 或 **SUSPECTED**。TRUE 表示声明已确认，FALSE 表示声明被发现为假，SUSPECTED 表示声明未验证。
+- 声明描述：详细描述解释声明背后的理由，以及所有相关的证据和参考资料。
+- 声明日期：声明提出的时间段（start_date, end_date）。start_date 和 end_date 都应为 ISO-8601 格式。如果声明是在单一日期提出的，则将相同的日期设置为 start_date 和 end_date。如果日期未知，返回 **NONE**。
+- 声明来源文本：原始文本中与声明相关的**所有**引用列表。
+
+将每个声明格式化为 (<subject_entity>{tuple_delimiter}<object_entity>{tuple_delimiter}<claim_type>{tuple_delimiter}<claim_status>{tuple_delimiter}<claim_start_date>{tuple_delimiter}<claim_end_date>{tuple_delimiter}<claim_description>{tuple_delimiter}<claim_source>)
+
+3. 以英文返回步骤1和2中识别的所有声明的单一列表。使用 **{record_delimiter}** 作为列表分隔符。
+
+4. 完成后，输出 {completion_delimiter}
+
+-示例-
+示例1：
+实体规范：organization
+声明描述：与实体相关的红旗
+文本：根据2022/01/10的一篇文章，Company A因在参与Government Agency B发布的多个公开招标中串通投标而被罚款。该公司由Person C拥有，Person C在2015年被怀疑参与腐败活动。
+输出：
+
+(COMPANY A{tuple_delimiter}GOVERNMENT AGENCY B{tuple_delimiter}ANTI-COMPETITIVE PRACTICES{tuple_delimiter}TRUE{tuple_delimiter}2022-01-10T00:00:00{tuple_delimiter}2022-01-10T00:00:00{tuple_delimiter}Company A was found to engage in anti-competitive practices because it was fined for bid rigging in multiple public tenders published by Government Agency B according to an article published on 2022/01/10{tuple_delimiter}According to an article published on 2022/01/10, Company A was fined for bid rigging while participating in multiple public tenders published by Government Agency B.)
+{completion_delimiter}
+
+示例2：
+实体规范：Company A, Person C
+声明描述：与实体相关的红旗
+文本：根据2022/01/10的一篇文章，Company A因在参与Government Agency B发布的多个公开招标中串通投标而被罚款。该公司由Person C拥有，Person C在2015年被怀疑参与腐败活动。
+输出：
+
+(COMPANY A{tuple_delimiter}GOVERNMENT AGENCY B{tuple_delimiter}ANTI-COMPETITIVE PRACTICES{tuple_delimiter}TRUE{tuple_delimiter}2022-01-10T00:00:00{tuple_delimiter}2022-01-10T00:00:00{tuple_delimiter}Company A was found to engage in anti-competitive practices because it was fined for bid rigging in multiple public tenders published by Government Agency B according to an article published on 2022/01/10{tuple_delimiter}According to an article published on 2022/01/10, Company A was fined for bid rigging while participating in multiple public tenders published by Government Agency B.)
+{record_delimiter}
+(PERSON C{tuple_delimiter}NONE{tuple_delimiter}CORRUPTION{tuple_delimiter}SUSPECTED{tuple_delimiter}2015-01-01T00:00:00{tuple_delimiter}2015-12-30T00:00:00{tuple_delimiter}Person C was suspected of engaging in corruption activities in 2015{tuple_delimiter}The company is owned by Person C who was suspected of engaging in corruption activities in 2015)
+{completion_delimiter}
+
+-真实数据-
+使用以下输入回答。
+实体规范：{entity_specs}
+声明描述：{claim_description}
+文本：{input_text}
+输出：

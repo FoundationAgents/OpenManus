@@ -1,13 +1,9 @@
-import logging
-import sys
-
-
-logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler(sys.stderr)])
-
 import argparse
 import asyncio
 import atexit
 import json
+import logging
+import sys
 from inspect import Parameter, Signature
 from typing import Any, Dict, Optional
 
@@ -17,8 +13,11 @@ from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
 from app.tool.browser_use_tool import BrowserUseTool
+from app.tool.graphrag_query import GraphRAGQuery
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
+
+logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler(sys.stderr)])
 
 
 class MCPServer:
@@ -32,6 +31,7 @@ class MCPServer:
         self.tools["bash"] = Bash()
         self.tools["browser"] = BrowserUseTool()
         self.tools["editor"] = StrReplaceEditor()
+        self.tools["graphrag"] = GraphRAGQuery()
         self.tools["terminate"] = Terminate()
 
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
@@ -86,14 +86,10 @@ class MCPServer:
         if param_props:
             docstring += "\n\nParameters:\n"
             for param_name, param_details in param_props.items():
-                required_str = (
-                    "(required)" if param_name in required_params else "(optional)"
-                )
+                required_str = "(required)" if param_name in required_params else "(optional)"
                 param_type = param_details.get("type", "any")
                 param_desc = param_details.get("description", "")
-                docstring += (
-                    f"    {param_name} ({param_type}) {required_str}: {param_desc}\n"
-                )
+                docstring += f"    {param_name} ({param_type}) {required_str}: {param_desc}\n"
 
         return docstring
 

@@ -1,0 +1,157 @@
+-目标-
+    给定一个可能与此活动相关的文本文档和一个实体类型列表，从文本中识别出所有这些类型的实体以及所有已识别实体之间的关系。
+
+-步骤-
+1. 识别所有实体。对于每个识别出的实体，提取以下信息：
+    - entity_name: 实体名称，首字母大写
+    - entity_type: 以下类型之一：[{entity_types}]
+    - entity_description: 实体属性和活动的全面描述 将每个实体格式化为 ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
+
+2. 从步骤1中识别出的实体中，识别出所有明显相关的 (source_entity, target_entity) 对。 对于每对相关的实体，提取以下信息：
+    - source_entity: 在步骤1中识别出的源实体名称
+    - target_entity: 在步骤1中识别出的目标实体名称
+    - relationship_description: 解释为什么你认为源实体和目标实体彼此相关
+    - relationship_strength: 一个数值分数，表示源实体和目标实体之间关系的强度 将每个关系格式化为 ("relationship"{tuple_delimiter}<source_entity>{tuple_delimiter}<target_entity>{tuple_delimiter}<relationship_description>{tuple_delimiter}<relationship_strength>)
+
+3. 返回输出，使用 {record_delimiter} 作为列表分隔符，将步骤1和步骤2中识别出的所有实体和关系作为一个单一列表返回。
+
+4. 完成后，输出 {completion_delimiter}
+
+-要求-
+1. 所有识别出的实体，只能是Entity_types当中给出的实体类型；
+2. 不要识别出任何在text当中没有出现的实体；
+
+######################
+-示例-
+######################
+示例 1 (投资基础概念):
+Entity_types: PERSON, PRODUCT, CONCEPT, STRATEGY
+Text:
+巴菲特一直坚持价值投资理念，他认为投资者应该购买被低估的优质股票并长期持有。这种策略被称为买入并持有策略。
+######################
+输出:
+("entity"{tuple_delimiter}巴菲特{tuple_delimiter}PERSON{tuple_delimiter}巴菲特是著名的投资大师，坚持价值投资理念)
+{record_delimiter}
+("entity"{tuple_delimiter}价值投资{tuple_delimiter}CONCEPT{tuple_delimiter}价值投资是一种投资理念，强调购买被低估的优质资产)
+{record_delimiter}
+("entity"{tuple_delimiter}股票{tuple_delimiter}PRODUCT{tuple_delimiter}股票是一种投资产品，代表对公司的所有权)
+{record_delimiter}
+("entity"{tuple_delimiter}买入并持有策略{tuple_delimiter}STRATEGY{tuple_delimiter}买入并持有是一种长期投资策略，强调购买后长期持有)
+{record_delimiter}
+("relationship"{tuple_delimiter}巴菲特{tuple_delimiter}价值投资{tuple_delimiter}巴菲特一直坚持价值投资理念{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}价值投资{tuple_delimiter}买入并持有策略{tuple_delimiter}价值投资理念体现为买入并持有策略{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}买入并持有策略{tuple_delimiter}股票{tuple_delimiter}买入并持有策略主要应用于股票投资{tuple_delimiter}7)
+{completion_delimiter}
+
+######################
+示例 2 (AI工作应用):
+Entity_types: PERSON, ORGANIZATION, TECHNOLOGY, PRODUCT, SKILL, CONCEPT, STRATEGY
+Text:
+OpenAI的CEO山姆·奥特曼在最新访谈中提到，ChatGPT已经成为许多程序员提升编程效率的重要工具。他建议开发者学习提示工程技能，通过精心设计的提示词来更好地利用大语言模型。这种人机协作的工作模式正在改变软件开发行业。
+######################
+输出:
+("entity"{tuple_delimiter}OpenAI{tuple_delimiter}ORGANIZATION{tuple_delimiter}OpenAI是一家人工智能研究公司，开发了ChatGPT等AI产品)
+{record_delimiter}
+("entity"{tuple_delimiter}山姆·奥特曼{tuple_delimiter}PERSON{tuple_delimiter}山姆·奥特曼是OpenAI的CEO，AI行业的重要领导者)
+{record_delimiter}
+("entity"{tuple_delimiter}ChatGPT{tuple_delimiter}PRODUCT{tuple_delimiter}ChatGPT是OpenAI开发的大语言模型产品，能够协助编程工作)
+{record_delimiter}
+("entity"{tuple_delimiter}程序员{tuple_delimiter}PERSON{tuple_delimiter}程序员是从事软件开发的专业人员，使用ChatGPT提升工作效率)
+{record_delimiter}
+("entity"{tuple_delimiter}提示工程{tuple_delimiter}SKILL{tuple_delimiter}提示工程是设计和优化AI提示词的专业技能)
+{record_delimiter}
+("entity"{tuple_delimiter}大语言模型{tuple_delimiter}TECHNOLOGY{tuple_delimiter}大语言模型是一种AI技术，能够理解和生成自然语言)
+{record_delimiter}
+("entity"{tuple_delimiter}人机协作{tuple_delimiter}CONCEPT{tuple_delimiter}人机协作是人类与AI系统共同工作的新型工作模式)
+{record_delimiter}
+("entity"{tuple_delimiter}编程效率提升{tuple_delimiter}STRATEGY{tuple_delimiter}通过AI工具提升编程效率的工作策略)
+{record_delimiter}
+("relationship"{tuple_delimiter}山姆·奥特曼{tuple_delimiter}OpenAI{tuple_delimiter}山姆·奥特曼是OpenAI的CEO{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}OpenAI{tuple_delimiter}ChatGPT{tuple_delimiter}OpenAI开发了ChatGPT产品{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}程序员{tuple_delimiter}ChatGPT{tuple_delimiter}程序员使用ChatGPT提升编程效率{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}提示工程{tuple_delimiter}大语言模型{tuple_delimiter}提示工程技能用于更好地利用大语言模型{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}人机协作{tuple_delimiter}编程效率提升{tuple_delimiter}人机协作模式实现了编程效率的提升{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}ChatGPT{tuple_delimiter}大语言模型{tuple_delimiter}ChatGPT是大语言模型技术的具体产品实现{tuple_delimiter}9)
+{completion_delimiter}
+
+######################
+示例 3 (综合工作生活投资场景):
+Entity_types: PERSON, ORGANIZATION, TECHNOLOGY, PRODUCT, SKILL, CONCEPT, STRATEGY, EVENT
+Text:
+科技投资人李雷在参加2024年AI投资峰会时分享了他的投资心得。他提到，自从使用Notion进行个人知识管理后，工作效率提升了40%。李雷的投资组合中包括了多家AI公司的股票，如英伟达和微软，他采用定投策略来分散风险。同时，他每天坚持使用番茄工作法来管理时间，并通过冥想来保持工作生活平衡。李雷认为，在AI时代，持续学习能力和适应性思维是最重要的软技能，这也是他选择投资标的时重点考虑的因素。
+######################
+输出:
+("entity"{tuple_delimiter}李雷{tuple_delimiter}PERSON{tuple_delimiter}李雷是一位科技投资人，专注于AI领域投资，注重个人效率和工作生活平衡)
+{record_delimiter}
+("entity"{tuple_delimiter}2024年AI投资峰会{tuple_delimiter}EVENT{tuple_delimiter}2024年AI投资峰会是一个行业会议，投资人在此分享投资心得)
+{record_delimiter}
+("entity"{tuple_delimiter}Notion{tuple_delimiter}PRODUCT{tuple_delimiter}Notion是一款个人知识管理工具，能够提升工作效率)
+{record_delimiter}
+("entity"{tuple_delimiter}个人知识管理{tuple_delimiter}CONCEPT{tuple_delimiter}个人知识管理是一种组织和利用个人知识的方法论)
+{record_delimiter}
+("entity"{tuple_delimiter}英伟达{tuple_delimiter}ORGANIZATION{tuple_delimiter}英伟达是一家AI芯片公司，是李雷投资组合中的重要标的)
+{record_delimiter}
+("entity"{tuple_delimiter}微软{tuple_delimiter}ORGANIZATION{tuple_delimiter}微软是一家科技公司，在AI领域有重要布局，是投资标的之一)
+{record_delimiter}
+("entity"{tuple_delimiter}股票{tuple_delimiter}PRODUCT{tuple_delimiter}股票是投资产品，李雷投资组合包括AI公司股票)
+{record_delimiter}
+("entity"{tuple_delimiter}定投策略{tuple_delimiter}STRATEGY{tuple_delimiter}定投策略是一种投资方法，通过定期投资来分散风险)
+{record_delimiter}
+("entity"{tuple_delimiter}番茄工作法{tuple_delimiter}STRATEGY{tuple_delimiter}番茄工作法是一种时间管理技术，通过分段工作提升效率)
+{record_delimiter}
+("entity"{tuple_delimiter}冥想{tuple_delimiter}STRATEGY{tuple_delimiter}冥想是一种放松和专注的练习方法，有助于保持工作生活平衡)
+{record_delimiter}
+("entity"{tuple_delimiter}工作生活平衡{tuple_delimiter}CONCEPT{tuple_delimiter}工作生活平衡是一种生活理念，强调工作与个人生活的协调)
+{record_delimiter}
+("entity"{tuple_delimiter}持续学习能力{tuple_delimiter}SKILL{tuple_delimiter}持续学习能力是在快速变化环境中不断获取新知识的能力)
+{record_delimiter}
+("entity"{tuple_delimiter}适应性思维{tuple_delimiter}SKILL{tuple_delimiter}适应性思维是面对变化时灵活调整思路和方法的思维能力)
+{record_delimiter}
+("entity"{tuple_delimiter}AI时代{tuple_delimiter}CONCEPT{tuple_delimiter}AI时代是指人工智能技术广泛应用的时代背景)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}2024年AI投资峰会{tuple_delimiter}李雷参加了2024年AI投资峰会并分享投资心得{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}Notion{tuple_delimiter}李雷使用Notion进行个人知识管理{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}Notion{tuple_delimiter}个人知识管理{tuple_delimiter}Notion是实现个人知识管理的工具{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}英伟达{tuple_delimiter}李雷的投资组合包括英伟达股票{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}微软{tuple_delimiter}李雷的投资组合包括微软股票{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}定投策略{tuple_delimiter}李雷采用定投策略来分散投资风险{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}番茄工作法{tuple_delimiter}李雷每天使用番茄工作法管理时间{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}冥想{tuple_delimiter}李雷通过冥想保持工作生活平衡{tuple_delimiter}6)
+{record_delimiter}
+("relationship"{tuple_delimiter}冥想{tuple_delimiter}工作生活平衡{tuple_delimiter}冥想有助于实现工作生活平衡{tuple_delimiter}7)
+{record_delimiter}
+("relationship"{tuple_delimiter}持续学习能力{tuple_delimiter}AI时代{tuple_delimiter}持续学习能力是AI时代最重要的软技能{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}适应性思维{tuple_delimiter}AI时代{tuple_delimiter}适应性思维是AI时代最重要的软技能{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}持续学习能力{tuple_delimiter}李雷认为持续学习能力是选择投资标的的重要考虑因素{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}李雷{tuple_delimiter}适应性思维{tuple_delimiter}李雷认为适应性思维是选择投资标的的重要考虑因素{tuple_delimiter}8)
+{record_delimiter}
+("relationship"{tuple_delimiter}英伟达{tuple_delimiter}股票{tuple_delimiter}英伟达股票是李雷投资组合的组成部分{tuple_delimiter}9)
+{record_delimiter}
+("relationship"{tuple_delimiter}微软{tuple_delimiter}股票{tuple_delimiter}微软股票是李雷投资组合的组成部分{tuple_delimiter}9)
+{completion_delimiter}
+
+######################
+-真实数据-
+######################
+Entity_types: {entity_types}
+Text:
+{input_text}
+######################
+输出:
