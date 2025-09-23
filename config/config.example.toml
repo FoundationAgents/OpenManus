@@ -62,6 +62,8 @@ temperature = 0.0                          # Controls randomness for vision mode
 #wss_url = ""
 # Connect to a browser instance via CDP
 #cdp_url = ""
+# Browser window size configuration
+#window_size = { width = 1600, height = 900 }
 
 # Optional configuration, Proxy settings for the browser
 # [browser.proxy]
