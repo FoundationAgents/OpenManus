@@ -1,0 +1,32 @@
+# OpenManus API Server Configuration
+# This configuration is set up for integration with the LINE Bot system
+
+[llm]
+model = "gpt-5-2025-08-07"
+base_url = "https://api.openai.com/v1"
+api_key = "OPENAI_API_KEY_PLACEHOLDER"  # Will be overridden by environment variable
+api_type = "openai"
+max_completion_tokens = 2000
+temperature = 1.0
+
+# MCP (Model Context Protocol) configuration
+[mcp]
+server_reference = "app.mcp.server"
+
+# Sandbox configuration - disabled for API server mode
+[sandbox]
+use_sandbox = false
+
+# Browser configuration - minimal setup for web scraping
+[browser]
+headless = true
+disable_security = true
+
+# Search configuration
+[search]
+engine = "Google"
+fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+retry_delay = 60
+max_retries = 3
+lang = "en"
+country = "us"

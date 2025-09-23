@@ -31,7 +31,7 @@ from app.schema import (
 )
 
 
-REASONING_MODELS = ["o1", "o3-mini"]
+REASONING_MODELS = ["o1", "o3-mini", "gpt-5"]
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
     "gpt-4o",
@@ -190,7 +190,7 @@ class LLM:
             llm_config = llm_config or config.llm
             llm_config = llm_config.get(config_name, llm_config["default"])
             self.model = llm_config.model
-            self.max_tokens = llm_config.max_tokens
+            self.max_completion_tokens = llm_config.max_completion_tokens
             self.temperature = llm_config.temperature
             self.api_type = llm_config.api_type
             self.api_key = llm_config.api_key
@@ -409,9 +409,9 @@ class LLM:
             }
 
             if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
                 params["temperature"] = (
                     temperature if temperature is not None else self.temperature
                 )
@@ -581,9 +581,9 @@ class LLM:
 
             # Add model-specific parameters
             if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
                 params["temperature"] = (
                     temperature if temperature is not None else self.temperature
                 )
@@ -721,9 +721,9 @@ class LLM:
             }
 
             if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_completion_tokens"] = self.max_completion_tokens
                 params["temperature"] = (
                     temperature if temperature is not None else self.temperature
                 )

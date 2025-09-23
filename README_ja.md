@@ -106,7 +106,7 @@ cp config/config.example.toml config/config.toml
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # 実際のAPIキーに置き換えてください
-max_tokens = 4096
+max_completion_tokens = 4096
 temperature = 0.0
 
 # 特定のLLMモデル用のオプション設定

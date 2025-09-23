@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "linebot-mcp-server": {
+      "type": "sse",
+      "url": "http://linebot-mcp-server:3003/sse"
+    }
+  }
+}
