@@ -26,8 +26,13 @@ class LLMSettings(BaseModel):
         description="Maximum input tokens to use across all requests (None for unlimited)",
     )
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="Azure, Openai, or Ollama")
+    api_type: str = Field(..., description="Azure, Openai, Ollama or Bedrock")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    aws_access_key_id: str = Field(..., description="Aws access key id if Bedrock")
+    aws_secret_access_key: str = Field(
+        ..., description="Aws secret access key if Bedrock"
+    )
+    aws_region_name: str = Field(..., description="Aws region name if Bedrock")
 
 
 class ProxySettings(BaseModel):
@@ -246,6 +251,9 @@ class Config:
             "temperature": base_llm.get("temperature", 1.0),
             "api_type": base_llm.get("api_type", ""),
             "api_version": base_llm.get("api_version", ""),
+            "aws_access_key_id": base_llm.get("aws_access_key_id", ""),
+            "aws_secret_access_key": base_llm.get("aws_secret_access_key", ""),
+            "aws_region_name": base_llm.get("aws_region_name", ""),
         }
 
         # handle browser config.
