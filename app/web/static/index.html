@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenManus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --sidebar-bg: #f9fafb;
+            --main-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --input-bg: #ffffff;
+            --user-msg-bg: #dbeafe;
+            --user-msg-text: #1e40af;
+            --ai-msg-bg: #f3f4f6;
+            --ai-msg-text: #1f2937;
+            --button-hover: #f3f4f6;
+            --code-bg: #e5e7eb;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--sidebar-bg); }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sidebar-bg); }
+        .sidebar { background-color: var(--sidebar-bg); }
+        .main-content { background-color: var(--main-bg); color: var(--text-primary); }
+        .text-primary { color: var(--text-primary); }
+        .text-secondary { color: var(--text-secondary); }
+        .border-custom { border-color: var(--border-color); }
+        .input-bg { background-color: var(--input-bg); }
+        .user-message { background-color: var(--user-msg-bg); color: var(--user-msg-text); position: relative; }
+        .ai-message { background-color: var(--ai-msg-bg); color: var(--ai-msg-text); position: relative; }
+        .btn-hover:hover { background-color: var(--button-hover); }
+        .btn-active { background-color: var(--button-hover) !important; }
+        .user-message::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -8px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-left: 8px solid var(--user-msg-bg);
+        }
+        .ai-message-bubble::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: -8px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-right: 8px solid var(--ai-msg-bg);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin 2s linear infinite; }
+        .prose { line-height: 1.7; }
+        .prose pre { padding: 1rem; border-radius: 0.5rem; overflow-x: auto; background-color: var(--code-bg); }
+        .prose code { font-family: 'Courier New', Courier, monospace; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; }
+        .prose strong { font-weight: 600; }
+        .sidebar-item:hover .delete-btn { opacity: 1; }
+        .delete-btn { opacity: 0; transition: opacity 0.2s; }
+        .modal, .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="antialiased text-primary">
+    <div class="flex h-screen overflow-hidden">
+        <aside id="sidebar" class="sidebar w-64 flex-col flex-shrink-0 border-r border-custom transition-transform duration-300 ease-in-out flex fixed inset-y-0 left-0 z-30 md:relative md:z-auto md:translate-x-0 transform -translate-x-full">
+            <div class="flex items-center justify-between p-3 h-16 border-b border-custom flex-shrink-0">
+                <a href="#" class="flex items-center gap-2 font-semibold text-lg truncate">
+                    <i class="fa-solid fa-robot text-gray-500"></i>
+                    <span class="sidebar-text">OpenManus</span>
+                </a>
+                <button id="sidebar-toggle" class="p-2 rounded-md btn-hover text-secondary hidden md:block" title="Recolher menu">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                <a href="#" id="new-chat-btn" class="flex items-center gap-3 p-3 rounded-lg font-medium btn-hover" title="Iniciar um novo chat">
+                    <i class="fa-regular fa-pen-to-square text-lg w-6 text-center"></i>
+                    <span class="sidebar-text">Novo chat</span>
+                </a>
+                <div class="mt-4">
+                    <h2 class="px-3 text-xs font-semibold text-secondary uppercase tracking-wider sidebar-text">Recentes</h2>
+                    <div id="recent-chats-container" class="mt-2 space-y-1"></div>
+                </div>
+            </div>
+            <div class="border-t border-custom p-2 flex-shrink-0">
+                <a href="#" class="flex items-center gap-3 p-3 rounded-lg text-sm font-medium btn-hover">
+                    <img src="https://placehold.co/32x32/667eea/ffffff?text=U" alt="User Avatar" class="w-8 h-8 rounded-full">
+                    <span class="sidebar-text">Meu Plano</span>
+                </a>
+            </div>
+        </aside>
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="flex items-center justify-between p-4 flex-shrink-0 bg-main">
+                <div class="flex items-center gap-2">
+                    <button id="menu-toggle" class="p-2 rounded-md btn-hover md:hidden" title="Abrir menu"><i class="fa-solid fa-bars"></i></button>
+                    <div id="mode-switcher-container" class="bg-gray-200 p-1 rounded-lg flex items-center text-sm font-medium">
+                        <button id="chat-mode-btn" data-mode="chat" class="mode-btn px-3 py-1 rounded-md transition-colors">Chat Mode</button>
+                        <button id="agent-mode-btn" data-mode="agent" class="mode-btn px-3 py-1 rounded-md transition-colors">Agent Mode</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="p-2 rounded-md btn-hover text-secondary" title="Mais opções"><i class="fa-solid fa-ellipsis"></i></button>
+                </div>
+            </header>
+            <main class="main-content flex-1 flex relative overflow-hidden">
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-6 min-w-0"></div>
+                <button id="scroll-to-bottom" class="hidden absolute right-8 bottom-8 z-10 w-10 h-10 rounded-full border border-custom bg-white/70 backdrop-blur-sm text-secondary btn-hover"><i class="fa-solid fa-arrow-down"></i></button>
+            </main>
+            <div id="chat-input-container" class="p-4 md:p-6">
+                <div class="max-w-3xl mx-auto">
+                    <form id="chat-form" class="relative">
+                        <textarea id="chat-input" rows="1" class="w-full pl-12 pr-20 py-3 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 input-bg text-primary transition-all shadow-lg" placeholder="Pergunte alguma coisa..."></textarea>
+                        <div class="absolute left-4 top-1/2 -translate-y-1/2">
+                            <button type="button" id="attach-btn" class="p-2 rounded-full btn-hover text-secondary" title="Anexar ficheiro"><i class="fa-solid fa-paperclip"></i></button>
+                        </div>
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <button type="button" class="p-2 rounded-full btn-hover text-secondary" title="Usar microfone"><i class="fa-solid fa-microphone"></i></button>
+                            <button id="send-btn" type="submit" class="p-2 w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 text-gray-400 transition-colors" disabled title="Enviar mensagem"><i class="fa-solid fa-arrow-up"></i></button>
+                        </div>
+                    </form>
+                    <p class="text-xs text-center text-secondary mt-2">O OpenManus pode cometer erros. Por isso, lembre-se de conferir informações relevantes.</p>
+                </div>
+            </div>
+        </div>
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+    </div>
+    <div id="modals-container"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE = '/api';
+            const STORAGE_KEY = 'openmanus_state';
+            const DOM = {
+                body: document.body,
+                chatContainer: document.getElementById('chat-container'),
+                chatForm: document.getElementById('chat-form'),
+                chatInput: document.getElementById('chat-input'),
+                sendBtn: document.getElementById('send-btn'),
+                menuToggle: document.getElementById('menu-toggle'),
+                sidebar: document.getElementById('sidebar'),
+                sidebarBackdrop: document.getElementById('sidebar-backdrop'),
+                newChatButton: document.getElementById('new-chat-btn'),
+                recentChatsContainer: document.getElementById('recent-chats-container'),
+                scrollToBottomBtn: document.getElementById('scroll-to-bottom'),
+                chatModeBtn: document.getElementById('chat-mode-btn'),
+                agentModeBtn: document.getElementById('agent-mode-btn'),
+                modalsContainer: document.getElementById('modals-container')
+            };
+
+            const state = {
+                chats: [],
+                currentChatId: null,
+                currentMode: 'chat'
+            };
+
+            const app = {
+                async init() {
+                    this.loadState();
+                    this.bindEventListeners();
+                    sidebar.init();
+                    await this.syncChatsFromServer();
+                    if (!state.currentChatId && state.chats.length) {
+                        state.currentChatId = state.chats[0].id;
+                        this.saveState();
+                    }
+                    ui.renderSidebar();
+                    ui.renderCurrentChat();
+                    ui.updateForMode();
+                },
+                loadState() {
+                    try {
+                        const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                        state.currentChatId = savedState.currentChatId || null;
+                        state.currentMode = savedState.currentMode || 'chat';
+                    } catch (error) {
+                        console.error('Erro ao carregar preferências locais:', error);
+                        state.currentChatId = null;
+                        state.currentMode = 'chat';
+                    }
+                },
+                saveState() {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        currentChatId: state.currentChatId,
+                        currentMode: state.currentMode
+                    }));
+                },
+                bindEventListeners() {
+                    DOM.chatInput.addEventListener('input', handlers.handleInput);
+                    DOM.chatInput.addEventListener('keydown', handlers.handleKeydown);
+                    DOM.chatForm.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        handlers.handleFormSubmit(event);
+                    });
+                    DOM.newChatButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        handlers.startNewChat();
+                    });
+                    DOM.recentChatsContainer.addEventListener('click', (event) => {
+                        handlers.handleSidebarClick(event);
+                    });
+                    DOM.menuToggle.addEventListener('click', sidebar.openMobile);
+                    DOM.sidebarBackdrop.addEventListener('click', sidebar.closeMobile);
+                    DOM.chatContainer.addEventListener('scroll', handlers.handleScroll);
+                    DOM.scrollToBottomBtn.addEventListener('click', () => DOM.chatContainer.scrollTo({ top: DOM.chatContainer.scrollHeight, behavior: 'smooth' }));
+                    DOM.chatModeBtn.addEventListener('click', () => this.setMode('chat'));
+                    DOM.agentModeBtn.addEventListener('click', () => this.setMode('agent'));
+                },
+                async syncChatsFromServer() {
+                    try {
+                        const response = await fetch(`${API_BASE}/chats`);
+                        if (!response.ok) {
+                            throw new Error(`Erro ${response.status}`);
+                        }
+                        const data = await response.json();
+                        const refreshed = (Array.isArray(data) ? data : []).map((item) => ({
+                            id: item.chat_id,
+                            title: item.title || 'Nova conversa',
+                            messages: (item.messages || []).map((msg) => ({
+                                role: msg.role,
+                                content: msg.content,
+                                type: 'text'
+                            }))
+                        }));
+                        const hasCurrent = refreshed.some((chat) => chat.id === state.currentChatId);
+                        state.chats = refreshed;
+                        if (state.currentChatId && !hasCurrent) {
+                            state.currentChatId = state.chats.length ? state.chats[0].id : null;
+                        }
+                    } catch (error) {
+                        console.error('Não foi possível sincronizar os chats', error);
+                        if (!state.chats.length) {
+                            state.currentChatId = null;
+                        }
+                    } finally {
+                        this.saveState();
+                    }
+                },
+                async refreshChat(chatId) {
+                    try {
+                        const response = await fetch(`${API_BASE}/chats/${chatId}`);
+                        if (!response.ok) {
+                            return;
+                        }
+                        const data = await response.json();
+                        const normalized = {
+                            id: data.chat_id || chatId,
+                            title: data.title || 'Nova conversa',
+                            messages: (data.messages || []).map((msg) => ({
+                                role: msg.role,
+                                content: msg.content,
+                                type: 'text'
+                            }))
+                        };
+                        const index = state.chats.findIndex((chat) => chat.id === normalized.id);
+                        if (index >= 0) {
+                            state.chats[index] = normalized;
+                        } else {
+                            state.chats.push(normalized);
+                        }
+                        this.saveState();
+                    } catch (error) {
+                        console.error('Erro ao atualizar chat', error);
+                    }
+                },
+                async createChatRecord(titleSnippet = '') {
+                    const payload = titleSnippet ? { title: titleSnippet } : {};
+                    const response = await fetch(`${API_BASE}/chats`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Falha ao criar chat (${response.status})`);
+                    }
+                    const data = await response.json();
+                    const normalized = titleSnippet
+                        ? (titleSnippet.length > 30 ? `${titleSnippet.slice(0, 27)}...` : titleSnippet)
+                        : 'Nova conversa';
+                    const chatEntry = { id: data.chat_id, title: normalized || 'Nova conversa', messages: [] };
+                    state.chats.push(chatEntry);
+                    state.currentChatId = chatEntry.id;
+                    this.saveState();
+                    return chatEntry;
+                },
+                async createNewChat() {
+                    try {
+                        await this.createChatRecord();
+                        ui.renderSidebar();
+                        ui.renderCurrentChat();
+                    } catch (error) {
+                        console.error('Não foi possível criar um novo chat', error);
+                    }
+                },
+                setMode(mode) {
+                    if (state.currentMode === mode) return;
+                    state.currentMode = mode;
+                    this.saveState();
+                    ui.updateForMode();
+                    if (!state.currentChatId) {
+                        ui.renderCurrentChat();
+                    }
+                },
+                addMessage(chatId, role, content, type = 'text') {
+                    const chat = state.chats.find((item) => item.id === chatId);
+                    if (!chat) return null;
+                    const normalizedRole = role === 'ai' ? 'assistant' : role;
+                    const message = { role: normalizedRole, content, type };
+                    chat.messages.push(message);
+                    this.saveState();
+                    return chat.messages.length - 1;
+                },
+                updateMessage(chatId, index, updates) {
+                    const chat = state.chats.find((item) => item.id === chatId);
+                    if (!chat || !chat.messages[index]) return;
+                    chat.messages[index] = { ...chat.messages[index], ...updates };
+                    this.saveState();
+                }
+            };
+
+            const handlers = {
+                async handleFormSubmit(event) {
+                    const messageText = DOM.chatInput.value.trim();
+                    if (!messageText) return;
+                    DOM.sendBtn.disabled = true;
+                    let chatData = state.chats.find((chat) => chat.id === state.currentChatId) || null;
+                    try {
+                        if (!chatData) {
+                            chatData = await app.createChatRecord(messageText);
+                            ui.renderSidebar();
+                        } else if (!chatData.title || chatData.title === 'Nova conversa') {
+                            const snippet = messageText.length > 30 ? `${messageText.slice(0, 27)}...` : messageText;
+                            chatData.title = snippet || chatData.title;
+                            app.saveState();
+                            ui.renderSidebar();
+                        }
+                    } catch (error) {
+                        console.error('Falha ao iniciar chat', error);
+                        DOM.sendBtn.disabled = false;
+                        return;
+                    }
+
+                    app.addMessage(state.currentChatId, 'user', messageText);
+                    const aiIndex = app.addMessage(state.currentChatId, 'ai', '_Processando..._');
+                    ui.renderCurrentChat();
+                    await chat.fetchResponse(messageText, aiIndex);
+                    ui.resetInput();
+                    DOM.sendBtn.disabled = true;
+                    handlers.handleInput();
+                },
+                handleInput() {
+                    DOM.chatInput.style.height = 'auto';
+                    DOM.chatInput.style.height = `${DOM.chatInput.scrollHeight}px`;
+                    const enabled = DOM.chatInput.value.trim() !== '';
+                    DOM.sendBtn.disabled = !enabled;
+                    DOM.sendBtn.classList.toggle('bg-blue-500', enabled);
+                    DOM.sendBtn.classList.toggle('text-white', enabled);
+                    DOM.sendBtn.classList.toggle('bg-gray-200', !enabled);
+                    DOM.sendBtn.classList.toggle('text-gray-400', !enabled);
+                },
+                handleKeydown(event) {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        handlers.handleFormSubmit(event);
+                    }
+                },
+                async handleSidebarClick(event) {
+                    const chatItem = event.target.closest('[data-chat-id]');
+                    if (!chatItem) return;
+                    const id = chatItem.dataset.chatId;
+                    if (event.target.closest('.delete-btn')) {
+                        ui.showConfirmationModal({
+                            title: 'Apagar Chat',
+                            body: 'Tem certeza de que deseja apagar esta conversa? Esta ação não pode ser revertida.',
+                            confirmText: 'Apagar',
+                            onConfirm: () => { void chat.delete(id); }
+                        });
+                    } else {
+                        state.currentChatId = id;
+                        await app.refreshChat(id);
+                        if (window.innerWidth < 768) sidebar.closeMobile();
+                        ui.renderSidebar();
+                        ui.renderCurrentChat();
+                    }
+                },
+                handleScroll() {
+                    const isScrolledUp = DOM.chatContainer.scrollHeight - DOM.chatContainer.scrollTop > DOM.chatContainer.clientHeight + 150;
+                    DOM.scrollToBottomBtn.classList.toggle('hidden', !isScrolledUp);
+                },
+                async startNewChat() {
+                    if (window.innerWidth < 768) sidebar.closeMobile();
+                    state.currentChatId = null;
+                    await app.createNewChat();
+                },
+                async handleExamplePrompt(event) {
+                    const promptText = event.currentTarget.querySelector('p:first-child').textContent;
+                    DOM.chatInput.value = promptText;
+                    handlers.handleInput();
+                    await handlers.handleFormSubmit(new Event('submit', { cancelable: true }));
+                }
+            };
+
+            const chat = {
+                async fetchResponse(userInput, messageIndex) {
+                    const chatId = state.currentChatId;
+                    if (!chatId) return;
+                    try {
+                        const response = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: userInput })
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Erro ${response.status}`);
+                        }
+                        const data = await response.json();
+                        const normalizedMessages = (data.messages || []).map((msg) => ({
+                            role: msg.role,
+                            content: msg.content,
+                            type: 'text'
+                        }));
+                        if (normalizedMessages.length) {
+                            const lastMessage = normalizedMessages[normalizedMessages.length - 1];
+                            if (lastMessage.role === 'assistant') {
+                                const stepsText = (data.steps || []).map((step) => `• ${step}`).join('\n');
+                                if (stepsText) {
+                                    lastMessage.content = `${lastMessage.content}\n\n${stepsText}`.trim();
+                                }
+                            }
+                        }
+                        const chatData = state.chats.find((item) => item.id === chatId);
+                        if (chatData) {
+                            chatData.messages = normalizedMessages;
+                            if (data.title && chatData.title !== data.title) {
+                                chatData.title = data.title;
+                                ui.renderSidebar();
+                            }
+                        } else {
+                            state.chats.push({
+                                id: data.chat_id || chatId,
+                                title: data.title || 'Nova conversa',
+                                messages: normalizedMessages
+                            });
+                            ui.renderSidebar();
+                        }
+                    } catch (error) {
+                        console.error('Erro ao contactar o servidor', error);
+                        app.updateMessage(chatId, messageIndex, { content: 'Ocorreu um erro ao contactar o servidor.' });
+                    } finally {
+                        app.saveState();
+                        ui.renderCurrentChat();
+                    }
+                },
+                async delete(chatId) {
+                    const previousChats = state.chats.map((chat) => ({
+                        ...chat,
+                        messages: chat.messages.map((message) => ({ ...message }))
+                    }));
+                    const previousCurrent = state.currentChatId;
+
+                    try {
+                        const response = await fetch(`${API_BASE}/chats/${chatId}`, { method: 'DELETE' });
+                        if (!response.ok && response.status !== 404) {
+                            throw new Error(`Erro ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('Erro ao remover chat do servidor', error);
+                        state.chats = previousChats;
+                        state.currentChatId = previousCurrent;
+                        app.saveState();
+                        ui.renderSidebar();
+                        ui.renderCurrentChat();
+                        return;
+                    }
+
+                    state.chats = previousChats.filter((chat) => chat.id !== chatId);
+                    if (state.currentChatId === chatId) {
+                        state.currentChatId = state.chats.length ? state.chats[0].id : null;
+                    }
+                    app.saveState();
+                    ui.renderSidebar();
+                    ui.renderCurrentChat();
+                }
+            };
+
+            const ui = {
+                renderCurrentChat() {
+                    DOM.chatContainer.innerHTML = '';
+                    if (!state.currentChatId) {
+                        this.renderInitialView();
+                        return;
+                    }
+                    const chatData = state.chats.find((chat) => chat.id === state.currentChatId);
+                    if (!chatData || chatData.messages.length === 0) {
+                        this.renderInitialView();
+                        return;
+                    }
+                    let lastElement = null;
+                    chatData.messages.forEach((msg, index) => {
+                        if (msg.type === 'text') {
+                            lastElement = this.appendTextMessage(msg);
+                        } else if (msg.type === 'agent_task') {
+                            lastElement = this.appendAgentTaskMessage(msg, index);
+                        }
+                    });
+                    DOM.chatContainer.scrollTop = DOM.chatContainer.scrollHeight;
+                    return lastElement;
+                },
+                renderInitialView() {
+                    const isAgent = state.currentMode === 'agent';
+                    const title = isAgent ? 'Pronto para executar tarefas?' : 'Tudo pronto? Então vamos lá!';
+                    const prompts = isAgent ? [
+                        { title: 'Navegue para o site da Amazon', desc: 'e procure por livros de ficção científica.' },
+                        { title: 'Mostre o PDF', desc: 'no URL https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+                        { title: 'Analise este ficheiro', desc: 'e resuma os pontos principais.' },
+                        { title: 'Crie um novo ficheiro de código', desc: 'com uma função Python para calcular o fatorial.' }
+                    ] : [
+                        { title: 'Crie um poema', desc: 'sobre a beleza da tecnologia.' },
+                        { title: 'Me dê ideias', desc: 'para um projeto de fim de semana.' },
+                        { title: 'Escreva um código', desc: 'de uma função em Python que some dois números.' },
+                        { title: 'Explique o que é', desc: 'computação quântica em termos simples.' }
+                    ];
+                    const promptsHtml = prompts.map((prompt) => `
+                        <button class="example-prompt text-left p-4 border border-custom rounded-lg btn-hover">
+                            <p class="font-semibold text-primary">${prompt.title}</p>
+                            <p class="text-sm text-secondary">${prompt.desc}</p>
+                        </button>
+                    `).join('');
+                    DOM.chatContainer.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full pb-8 text-center">
+                            <div class="mb-8">
+                                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
+                                    <i class="fa-solid ${isAgent ? 'fa-bolt' : 'fa-star'} text-white text-2xl"></i>
+                                </div>
+                                <h1 class="text-2xl font-semibold text-primary">${title}</h1>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                                ${promptsHtml}
+                            </div>
+                        </div>
+                    `;
+                    DOM.chatContainer.querySelectorAll('.example-prompt').forEach((prompt) => {
+                        prompt.addEventListener('click', handlers.handleExamplePrompt);
+                    });
+                },
+                renderSidebar() {
+                    DOM.recentChatsContainer.innerHTML = '';
+                    if (!state.chats.length) {
+                        DOM.recentChatsContainer.innerHTML = '<div class="p-3 text-sm text-secondary sidebar-text">Nenhum chat recente...</div>';
+                        return;
+                    }
+                    state.chats.slice().reverse().forEach((chat) => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = `sidebar-item flex items-center justify-between p-3 rounded-lg text-sm btn-hover ${chat.id === state.currentChatId ? 'btn-active' : ''}`;
+                        item.dataset.chatId = chat.id;
+                        item.innerHTML = `
+                            <span class="truncate sidebar-text">${chat.title || 'Nova conversa'}</span>
+                            <button class="delete-btn sidebar-text text-secondary hover:text-red-500 p-1" title="Apagar chat"><i class="fa-solid fa-trash-can"></i></button>
+                        `;
+                        DOM.recentChatsContainer.appendChild(item);
+                    });
+                },
+                updateForMode() {
+                    [DOM.chatModeBtn, DOM.agentModeBtn].forEach((btn) => {
+                        const isActive = btn.dataset.mode === state.currentMode;
+                        btn.classList.toggle('bg-white', isActive);
+                        btn.classList.toggle('shadow-sm', isActive);
+                        btn.classList.toggle('text-secondary', !isActive);
+                        btn.classList.toggle('text-primary', isActive);
+                    });
+                    DOM.chatInput.placeholder = state.currentMode === 'agent'
+                        ? 'Dê uma tarefa ao agente...'
+                        : 'Pergunte alguma coisa...';
+                },
+                appendTextMessage(message) {
+                    const container = document.createElement('div');
+                    container.className = 'flex mb-6';
+                    if (message.role === 'user') {
+                        container.classList.add('justify-end');
+                        container.innerHTML = `<div class="user-message rounded-lg p-3 w-11/12 max-w-lg"><p>${message.content.replace(/\n/g, '<br>')}</p></div>`;
+                    } else {
+                        container.classList.add('justify-start', 'ai-message-container');
+                        container.innerHTML = `
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0 mr-3 mt-1"><i class="fa-solid fa-star text-white text-sm"></i></div>
+                            <div class="ai-message-bubble rounded-lg p-4 w-11/12 max-w-2xl border border-custom">
+                                <div class="flex justify-end mb-2"><button class="copy-btn p-2 rounded-lg btn-hover text-secondary text-xs flex items-center gap-2" title="Copiar texto"><i class="fa-regular fa-copy"></i>Copiar</button></div>
+                                <div class="prose max-w-none text-primary">${marked.parse(message.content || '')}</div>
+                            </div>
+                        `;
+                        const copyBtn = container.querySelector('.copy-btn');
+                        copyBtn.addEventListener('click', () => {
+                            const contentToCopy = container.querySelector('.prose').innerText;
+                            navigator.clipboard.writeText(contentToCopy).then(() => {
+                                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>Copiado!';
+                                setTimeout(() => { copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>Copiar'; }, 2000);
+                            }).catch((error) => {
+                                console.error('Não foi possível copiar', error);
+                            });
+                        });
+                    }
+                    DOM.chatContainer.appendChild(container);
+                    return container;
+                },
+                appendAgentTaskMessage(message, index) {
+                    const container = document.createElement('div');
+                    container.className = 'flex justify-start mb-6';
+                    container.innerHTML = `
+                        <div class="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center flex-shrink-0 mr-3 mt-1"><i class="fa-solid fa-desktop text-white text-sm"></i></div>
+                        <div class="rounded-lg p-3 w-11/12 max-w-lg border border-custom bg-ai-msg-bg">
+                            <p class="font-semibold text-primary">${message.content?.title || 'Tarefa do agente'}</p>
+                            <p class="text-sm text-secondary">${message.content?.status || ''}</p>
+                        </div>
+                    `;
+                    DOM.chatContainer.appendChild(container);
+                    return container;
+                },
+                resetInput() {
+                    DOM.chatInput.value = '';
+                    DOM.chatInput.style.height = 'auto';
+                },
+                showConfirmationModal({ title, body, confirmText = 'Confirmar', onConfirm }) {
+                    const modalId = `modal-${Date.now()}`;
+                    const modalHtml = `
+                        <div id="${modalId}" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 opacity-0 pointer-events-none">
+                            <div class="modal-content bg-main rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95">
+                                <h3 class="text-lg font-semibold text-primary">${title}</h3>
+                                <p class="mt-2 text-secondary">${body}</p>
+                                <div class="mt-6 flex justify-end gap-3">
+                                    <button class="modal-cancel-btn px-4 py-2 rounded-md text-sm font-medium btn-hover">Cancelar</button>
+                                    <button class="modal-confirm-btn px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">${confirmText}</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    DOM.modalsContainer.insertAdjacentHTML('beforeend', modalHtml);
+                    const modal = document.getElementById(modalId);
+                    const content = modal.querySelector('.modal-content');
+                    const confirmBtn = modal.querySelector('.modal-confirm-btn');
+                    const cancelBtn = modal.querySelector('.modal-cancel-btn');
+                    const closeModal = () => {
+                        modal.classList.add('opacity-0');
+                        content.classList.add('scale-95');
+                        setTimeout(() => modal.remove(), 300);
+                    };
+                    confirmBtn.onclick = () => {
+                        onConfirm?.();
+                        closeModal();
+                    };
+                    cancelBtn.onclick = closeModal;
+                    setTimeout(() => {
+                        modal.classList.remove('opacity-0', 'pointer-events-none');
+                        content.classList.remove('scale-95');
+                    }, 10);
+                }
+            };
+
+            const sidebar = {
+                init() {
+                    if (localStorage.getItem('sidebar_collapsed') === 'true') {
+                        DOM.sidebar.classList.replace('w-64', 'w-20');
+                        document.querySelectorAll('.sidebar-text').forEach((el) => el.classList.add('hidden'));
+                        DOM.sidebar.querySelector('#sidebar-toggle i').classList.replace('fa-chevron-left', 'fa-chevron-right');
+                    }
+                    const toggleBtn = DOM.sidebar.querySelector('#sidebar-toggle');
+                    toggleBtn.addEventListener('click', this.toggle);
+                },
+                toggle() {
+                    DOM.sidebar.classList.toggle('w-64');
+                    DOM.sidebar.classList.toggle('w-20');
+                    const isCollapsed = DOM.sidebar.classList.contains('w-20');
+                    localStorage.setItem('sidebar_collapsed', isCollapsed);
+                    document.querySelectorAll('.sidebar-text').forEach((el) => el.classList.toggle('hidden'));
+                    const icon = DOM.sidebar.querySelector('#sidebar-toggle i');
+                    icon.classList.toggle('fa-chevron-left', !isCollapsed);
+                    icon.classList.toggle('fa-chevron-right', isCollapsed);
+                },
+                openMobile() {
+                    DOM.sidebar.classList.remove('-translate-x-full');
+                    DOM.sidebarBackdrop.classList.remove('hidden');
+                },
+                closeMobile() {
+                    DOM.sidebar.classList.add('-translate-x-full');
+                    DOM.sidebarBackdrop.classList.add('hidden');
+                }
+            };
+
+            app.init();
+        });
+    </script>
+</body>
+</html>
