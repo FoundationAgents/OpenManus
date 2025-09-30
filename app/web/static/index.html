@@ -297,7 +297,7 @@
                 },
                 async createNewChat() {
                     try {
-                        await this.createChatRecord('Nova conversa');
+                        await this.createChatRecord();
                         ui.renderSidebar();
                         ui.renderCurrentChat();
                     } catch (error) {
