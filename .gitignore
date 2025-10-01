@@ -147,6 +147,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Configuration secrets
+config/config.toml
+config/mcp.json
+*.secret
+*.key
+*.pem
+ssl/
+
 # Spyder project settings
 .spyderproject
 .spyproject
