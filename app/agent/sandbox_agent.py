@@ -5,8 +5,26 @@ from pydantic import Field, model_validator
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
-from app.daytona.sandbox import create_sandbox, delete_sandbox
-from app.daytona.tool_base import SandboxToolsBase
+
+try:
+    from app.daytona.sandbox import create_sandbox, delete_sandbox
+    from app.daytona.tool_base import SandboxToolsBase
+
+    DAYTONA_AVAILABLE = True
+except ImportError:
+    DAYTONA_AVAILABLE = False
+
+    # Mock classes for when Daytona is not available
+    class SandboxToolsBase:
+        pass
+
+    def create_sandbox(*args, **kwargs):
+        raise RuntimeError("Daytona sandbox not available - install daytona package")
+
+    def delete_sandbox(*args, **kwargs):
+        pass
+
+
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
@@ -22,7 +40,9 @@ class SandboxManus(ToolCallAgent):
     """A versatile general-purpose agent with support for both local and MCP tools."""
 
     name: str = "SandboxManus"
-    description: str = "A versatile agent that can solve various tasks using multiple sandbox-tools including MCP-based tools"
+    description: str = (
+        "A versatile agent that can solve various tasks using multiple sandbox-tools including MCP-based tools"
+    )
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
@@ -220,4 +240,5 @@ class SandboxManus(ToolCallAgent):
         # Restore original prompt
         self.next_step_prompt = original_prompt
 
+        return result
         return result

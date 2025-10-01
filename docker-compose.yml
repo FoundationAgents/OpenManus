@@ -1,0 +1,136 @@
+# Docker Compose for OpenManus Production Deployment
+version: '3.8'
+
+services:
+  # Main OpenManus service
+  openmanus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openmanus-app
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - ENV_MODE=${ENV_MODE:-PRODUCTION}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-claude-3-7-sonnet-20250219}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.anthropic.com/v1/}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - USE_SANDBOX=${USE_SANDBOX:-false}
+      - SANDBOX_BACKEND=${SANDBOX_BACKEND:-docker}
+      - GITPOD_URL=${GITPOD_URL}
+      - GITPOD_TOKEN=${GITPOD_TOKEN}
+      - E2B_API_KEY=${E2B_API_KEY}
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./config:/app/OpenManus/config:ro
+      - openmanus-workspace:/app/OpenManus/workspace
+      - openmanus-logs:/app/OpenManus/logs
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker sandbox adapter
+    restart: unless-stopped
+    networks:
+      - openmanus-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # FastAPI service (optional)
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openmanus-fastapi
+    ports:
+      - "8080:8000"
+    environment:
+      - ENV_MODE=${ENV_MODE:-PRODUCTION}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./config:/app/OpenManus/config:ro
+      - openmanus-workspace:/app/OpenManus/workspace
+      - openmanus-logs:/app/OpenManus/logs
+    command: ["python", "fastapi_standalone.py"]
+    restart: unless-stopped
+    networks:
+      - openmanus-network
+    depends_on:
+      - openmanus
+
+  # Chainlit frontend (optional)
+  chainlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.chainlit
+    container_name: openmanus-chainlit
+    ports:
+      - "${CHAINLIT_PORT:-8001}:8001"
+    environment:
+      - ENV_MODE=${ENV_MODE:-PRODUCTION}
+      - OPENMANUS_API_URL=http://openmanus:8000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./config:/app/config:ro
+      - openmanus-logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - openmanus-network
+    depends_on:
+      - openmanus
+
+  # A2A Protocol Server (optional)
+  a2a-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openmanus-a2a
+    ports:
+      - "${A2A_PORT:-10000}:10000"
+    environment:
+      - ENV_MODE=${ENV_MODE:-PRODUCTION}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./config:/app/OpenManus/config:ro
+    command: ["python", "-m", "protocol.a2a.app.main", "--host", "0.0.0.0", "--port", "10000"]
+    restart: unless-stopped
+    networks:
+      - openmanus-network
+
+  # Nginx reverse proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: openmanus-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    restart: unless-stopped
+    networks:
+      - openmanus-network
+    depends_on:
+      - openmanus
+      - fastapi
+      - chainlit
+    profiles:
+      - production
+
+volumes:
+  openmanus-workspace:
+    driver: local
+  openmanus-logs:
+    driver: local
+
+networks:
+  openmanus-network:
+    driver: bridge
