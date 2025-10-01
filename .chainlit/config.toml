@@ -1,0 +1,99 @@
+[project]
+# Whether to enable telemetry (default: true). No personal data is collected.
+enable_telemetry = true
+
+# List of environment variables to be provided by each user to use the app.
+user_env = []
+
+# Duration (in seconds) during which the session is saved when the connection is lost
+session_timeout = 3600
+
+# Enable third parties caching (e.g LangChain cache)
+cache = false
+
+# Authorized origins
+allow_origins = ["*"]
+
+# Follow symlink for asset mount (see https://github.com/Chainlit/chainlit/issues/317)
+# follow_symlink = false
+
+[features]
+# Show the prompt playground
+prompt_playground = true
+
+# Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
+unsafe_allow_html = false
+
+# Process and display mathematical expressions. This can clash with "$" characters in messages.
+latex = true
+
+# Automatically tag threads when a user takes an action (useful for analytics)
+auto_tag_thread = true
+
+# Literal AI connection to easily debugging and improving your AI system
+[features.literalai]
+# The server URL used to connect to Literal AI.
+api_url = "https://cloud.getliteral.ai"
+# The public key of your LiteralAI project.
+# public_key = ""
+
+[UI]
+# Name of the app and chatbot.
+name = "OpenManus Assistant"
+
+# Show the readme while the thread is empty.
+show_readme_as_default = false
+
+# Description of the app and chatbot. This is used for HTML tags.
+description = "Multi-Agent AI Automation Framework"
+
+# Large size content are by default collapsed for a cleaner ui
+default_collapse_content = true
+
+# The default value for the expand messages settings.
+default_expand_messages = true
+
+# Hide the chain of thought details from the user in the UI.
+hide_cot = false
+
+# Link to your github repo. This will add a github button in the UI's header.
+github = "https://github.com/Copyxyzai/OpenManus"
+
+# Specify a CSS file that can be used to customize the user interface.
+# The CSS file can be served from the public directory or via an external link.
+# custom_css = "/public/test.css"
+
+# Specify a Javascript file that can be used to customize the user interface.
+# The Javascript file can be served from the public directory.
+# custom_js = "/public/test.js"
+
+# Specify a custom font url.
+# custom_font = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+
+# Specify a custom build directory for the UI.
+# This is useful when you want to customize the UI using React.
+# default_build_dir = "./chainlit/frontend/dist"
+
+# Override default MUI light theme. (Check theme.ts)
+[UI.theme]
+# primary_color = "#F80061"
+# background_color = "#FAFAFA"
+# text_color = "#212121"
+# paper_color = "#FFFFFF"
+# [UI.theme.header]
+# unsafe_allow_html = false
+# height = "60px"
+
+# Override default MUI dark theme. (Check theme.ts)
+[UI.theme.dark]
+# primary_color = "#FFFF80"
+# background_color = "#1E1E1E"
+# text_color = "#EEEEEE"
+# paper_color = "#262626"
+
+# [UI.theme.dark.header]
+# unsafe_allow_html = false
+# height = "60px"
+
+[meta]
+generated_by = "2.8.1"

@@ -95,6 +95,7 @@ class SandboxSettings(BaseModel):
     """Configuration for the execution sandbox"""
 
     use_sandbox: bool = Field(False, description="Whether to use the sandbox")
+    backend: str = Field("docker", description="Sandbox backend (docker, gitpod, e2b)")
     image: str = Field("python:3.12-slim", description="Base image")
     work_dir: str = Field("/workspace", description="Container working directory")
     memory_limit: str = Field("512m", description="Memory limit")
@@ -104,9 +105,22 @@ class SandboxSettings(BaseModel):
         False, description="Whether network access is allowed"
     )
 
+    # GitPod specific settings
+    gitpod_url: Optional[str] = Field(None, description="GitPod server URL")
+    gitpod_token: Optional[str] = Field(None, description="GitPod API token")
+
+    # E2B specific settings
+    e2b_api_key: Optional[str] = Field(None, description="E2B API key")
+    e2b_template: str = Field("base", description="E2B template name")
+
+    # Auto management settings
+    auto_cleanup: bool = Field(True, description="Automatically cleanup sandboxes")
+    max_sandboxes: int = Field(10, description="Maximum concurrent sandboxes")
+    idle_timeout: int = Field(3600, description="Idle timeout in seconds")
+
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = Field(None, description="Daytona API key")
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
