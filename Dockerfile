@@ -8,16 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv for faster package installation
-RUN pip install --no-cache-dir uv
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN uv pip install --system -r requirements.txt
+# Install Python dependencies directly with pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Final stage
 FROM python:3.12-slim
