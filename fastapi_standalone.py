@@ -454,6 +454,30 @@ async def get_status():
     }
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and load balancers."""
+    return {
+        "status": "healthy",
+        "service": "OpenManus FastAPI",
+        "version": "1.0.0",
+    }
+
+
+@app.get("/readiness")
+async def readiness_check():
+    """Readiness check endpoint to verify service is ready to accept traffic."""
+    try:
+        # Check if we can create a config instance
+        config = Config()
+        return {
+            "status": "ready",
+            "message": "Service is ready to accept requests",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service not ready: {str(e)}")
+
+
 if __name__ == "__main__":
     import argparse
 
