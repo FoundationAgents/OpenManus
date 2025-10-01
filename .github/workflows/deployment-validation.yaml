@@ -1,0 +1,66 @@
+name: Deployment Validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'requirements.txt'
+      - '.env.example'
+      - 'config/*.toml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'requirements.txt'
+      - '.env.example'
+      - 'config/*.toml'
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate TOML config files
+        run: |
+          python -c "import tomllib; [print(f'✅ {f} is valid') or tomllib.load(open(f, 'rb')) for f in ['config/config.example.toml']]"
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker compose config > /dev/null
+          echo "✅ docker-compose.yml is valid"
+
+      - name: Check .env.example
+        run: |
+          if [ ! -f .env.example ]; then
+            echo "❌ .env.example not found"
+            exit 1
+          fi
+          echo "✅ .env.example exists"
+
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile main.py run_mcp.py run_flow.py fastapi_standalone.py
+          echo "✅ Python files syntax is valid"
+
+      - name: Check deployment documentation
+        run: |
+          for doc in README.md DEPLOYMENT.md QUICKSTART.md; do
+            if [ ! -f $doc ]; then
+              echo "⚠️  $doc not found"
+            else
+              echo "✅ $doc exists"
+            fi
+          done

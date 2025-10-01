@@ -126,6 +126,27 @@ python main.py
 
 Then input your idea via terminal!
 
+For easy management, you can use the Makefile:
+
+```bash
+# Install and setup
+make install
+make setup
+
+# Run different modes
+make run              # Main agent
+make run-mcp          # MCP mode
+make run-flow         # Multi-agent flow
+make run-fastapi      # Web interface
+make run-chainlit     # Chainlit UI
+
+# Docker deployment
+make docker-build
+make docker-up
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
 For MCP tool version, you can run:
 ```bash
 python run_mcp.py
