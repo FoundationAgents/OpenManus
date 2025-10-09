@@ -1,8 +1,19 @@
 {
-    "mcpServers": {
-      "server1": {
-        "type": "sse",
-        "url": "http://localhost:8000/sse"
+  "mcpServers": {
+    "server1": {
+      "type": "sse",
+      "url": "http://localhost:8000/sse"
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {
+        "test": "test"
       }
     }
+  }
 }
