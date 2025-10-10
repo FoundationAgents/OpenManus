@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import Field, model_validator
 
 from app.agent.toolcall import ToolCallAgent
+from app.llm import MULTIMODAL_MODELS
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
@@ -62,12 +63,15 @@ class BrowserContextHelper:
             if pixels_below > 0:
                 content_below_info = f" ({pixels_below} pixels)"
 
+            supports_images = self.agent.llm.model in MULTIMODAL_MODELS
+
             if self._current_base64_image:
-                image_message = Message.user_message(
-                    content="Current browser screenshot:",
-                    base64_image=self._current_base64_image,
-                )
-                self.agent.memory.add_message(image_message)
+                if supports_images:
+                    image_message = Message.user_message(
+                        content="Current browser screenshot:",
+                        base64_image=self._current_base64_image,
+                    )
+                    self.agent.memory.add_message(image_message)
                 self._current_base64_image = None  # Consume the image after adding
 
         return NEXT_STEP_PROMPT.format(
