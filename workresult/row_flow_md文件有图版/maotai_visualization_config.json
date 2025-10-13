@@ -1,0 +1,26 @@
+[
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_revenue_profit_trend.csv",
+    "chartTitle": "茅台营收与利润趋势 (2018-2023)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_profitability_ratios.csv",
+    "chartTitle": "茅台盈利能力指标分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_financial_health.csv",
+    "chartTitle": "茅台财务健康指标"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_cashflow_analysis.csv",
+    "chartTitle": "茅台现金流分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_growth_rates.csv",
+    "chartTitle": "茅台成长能力指标"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_asset_structure.csv",
+    "chartTitle": "茅台资产结构分析"
+  }
+]

@@ -1,0 +1,393 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "Revenue_Growth",
+            "Year": 2020,
+            "Revenue_Growth": 11.1085098911,
+            "Net_Profit_Growth": 13.2977432662
+          },
+          {
+            "20001": "Revenue_Growth",
+            "Year": 2021,
+            "Revenue_Growth": 15.3181626633,
+            "Net_Profit_Growth": 12.358106661
+          },
+          {
+            "20001": "Revenue_Growth",
+            "Year": 2022,
+            "Revenue_Growth": 16.5265850539,
+            "Net_Profit_Growth": 19.557758292
+          },
+          {
+            "20001": "Revenue_Growth",
+            "Year": 2023,
+            "Revenue_Growth": 15.7898863191,
+            "Net_Profit_Growth": 17.2034438776
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Revenue_Growth",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "Net_Profit_Growth",
+            "Year": 2020,
+            "Revenue_Growth": 11.1085098911,
+            "Net_Profit_Growth": 13.2977432662
+          },
+          {
+            "20001": "Net_Profit_Growth",
+            "Year": 2021,
+            "Revenue_Growth": 15.3181626633,
+            "Net_Profit_Growth": 12.358106661
+          },
+          {
+            "20001": "Net_Profit_Growth",
+            "Year": 2022,
+            "Revenue_Growth": 16.5265850539,
+            "Net_Profit_Growth": 19.557758292
+          },
+          {
+            "20001": "Net_Profit_Growth",
+            "Year": 2023,
+            "Revenue_Growth": 15.7898863191,
+            "Net_Profit_Growth": 17.2034438776
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Net_Profit_Growth",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台营收与净利润增长率对比"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Net_Profit_Growth",
+      "value": 15.6042630242,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "value": 15.6042630242,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的平均值为15.6042630242"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Revenue_Growth",
+      "value": 14.68578598185,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "value": 14.68578598185,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的平均值为14.68578598185"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Net_Profit_Growth",
+      "value": 19.557758292,
+      "significant": 1,
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "20001": "Net_Profit_Growth",
+            "Year": 2022,
+            "Revenue_Growth": 16.5265850539,
+            "Net_Profit_Growth": 19.557758292
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2022
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 19.557758292,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的最大值位于2022，值为19.557758292"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Revenue_Growth",
+      "value": 16.5265850539,
+      "significant": 1,
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "20001": "Revenue_Growth",
+            "Year": 2022,
+            "Revenue_Growth": 16.5265850539,
+            "Net_Profit_Growth": 19.557758292
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2022
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 16.5265850539,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的最大值位于2022，值为16.5265850539"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Net_Profit_Growth",
+      "value": 12.358106661,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "20001": "Net_Profit_Growth",
+            "Year": 2021,
+            "Revenue_Growth": 15.3181626633,
+            "Net_Profit_Growth": 12.358106661
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 12.358106661,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的最小值位于2021，值为12.358106661"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Revenue_Growth",
+      "value": 11.1085098911,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Revenue_Growth",
+            "Year": 2020,
+            "Revenue_Growth": 11.1085098911,
+            "Net_Profit_Growth": 13.2977432662
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2020
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_Growth",
+            "fieldName": "Revenue_Growth"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2020,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 11.1085098911,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_Growth的最小值位于2020，值为11.1085098911"
+      }
+    }
+  ]
+}

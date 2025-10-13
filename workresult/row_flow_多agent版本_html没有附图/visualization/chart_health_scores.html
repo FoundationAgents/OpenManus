@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"bar","data":{"id":"data","values":[{"Category":"资产负债率","Score":20.64,"Score_Type":"比率%"},{"Category":"流动比率","Score":3.62,"Score_Type":"倍数"},{"Category":"现金比率","Score":2.28,"Score_Type":"倍数"},{"Category":"利息保障倍数","Score":105.42,"Score_Type":"倍数"},{"Category":"盈利能力稳定性","Score":0.7580194889,"Score_Type":"标准差%"}]},"xField":["Category"],"yField":"Score","axes":[{"orient":"bottom","type":"band","label":{"style":{}},"title":{"visible":false,"style":{}}},{"orient":"left","type":"linear","label":{"style":{}},"title":{"visible":false,"style":{}}}],"title":{"text":"茅台财务健康指标综合评分"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

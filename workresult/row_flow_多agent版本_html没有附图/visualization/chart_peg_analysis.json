@@ -1,0 +1,164 @@
+{
+  "type": "line",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "Year": 2019,
+        "PEG_Ratio": 2.1
+      },
+      {
+        "Year": 2020,
+        "PEG_Ratio": 1.8
+      },
+      {
+        "Year": 2021,
+        "PEG_Ratio": 1.5
+      },
+      {
+        "Year": 2022,
+        "PEG_Ratio": 1.2
+      },
+      {
+        "Year": 2023,
+        "PEG_Ratio": 1.5702165973
+      }
+    ]
+  },
+  "xField": "Year",
+  "yField": "PEG_Ratio",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台PEG比率分析"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PEG_Ratio",
+      "value": 1.6340433194600004,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 1.6340433194600004,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为1.6340433194600004"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PEG_Ratio",
+      "value": 2.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "Year": 2019,
+            "PEG_Ratio": 2.1
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 2.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于2019，值为2.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PEG_Ratio",
+      "value": 1.2,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "Year": 2022,
+            "PEG_Ratio": 1.2
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2022
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 1.2,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于2022，值为1.2"
+      }
+    }
+  ]
+}

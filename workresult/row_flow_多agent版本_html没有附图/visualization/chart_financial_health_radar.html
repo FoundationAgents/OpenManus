@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"radar","data":{"id":"data","values":[{"10001":"Score","10002":94.6,"Dimension":"偿债能力"},{"10001":"Max_Score","10002":100,"Dimension":"偿债能力"},{"10001":"Score","10002":90.5,"Dimension":"流动性"},{"10001":"Max_Score","10002":100,"Dimension":"流动性"},{"10001":"Score","10002":95.6,"Dimension":"现金流质量"},{"10001":"Max_Score","10002":100,"Dimension":"现金流质量"},{"10001":"Score","10002":92.4,"Dimension":"盈利能力稳定性"},{"10001":"Max_Score","10002":100,"Dimension":"盈利能力稳定性"},{"10001":"Score","10002":96.2,"Dimension":"财务杠杆"},{"10001":"Max_Score","10002":100,"Dimension":"财务杠杆"}]},"categoryField":"Dimension","valueField":"10002","seriesField":"10001","axes":[{"orient":"radius","zIndex":100,"domainLine":{"visible":false},"label":{"visible":true,"space":0,"style":{}},"grid":{"smooth":false,"style":{}}},{"orient":"angle","zIndex":50,"tick":{"visible":false},"domainLine":{"visible":false},"label":{"space":20},"grid":{"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台财务健康综合评估雷达图"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

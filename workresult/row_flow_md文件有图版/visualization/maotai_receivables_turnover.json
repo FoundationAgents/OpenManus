@@ -1,0 +1,418 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "应收账款周转率",
+            "年份": 2018,
+            "应收账款周转率": null,
+            "应收账款周转天数": null
+          },
+          {
+            "20001": "应收账款周转率",
+            "年份": 2019,
+            "应收账款周转率": 21.8721152071,
+            "应收账款周转天数": 16.6879150253
+          },
+          {
+            "20001": "应收账款周转率",
+            "年份": 2020,
+            "应收账款周转率": 20.9783772212,
+            "应收账款周转天数": 17.3988672314
+          },
+          {
+            "20001": "应收账款周转率",
+            "年份": 2021,
+            "应收账款周转率": 21.1058086286,
+            "应收账款周转天数": 17.2938173762
+          },
+          {
+            "20001": "应收账款周转率",
+            "年份": 2022,
+            "应收账款周转率": 21.5265178684,
+            "应收账款周转天数": 16.9558310466
+          },
+          {
+            "20001": "应收账款周转率",
+            "年份": 2023,
+            "应收账款周转率": 21.4634500799,
+            "应收账款周转天数": 17.0056537342
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "应收账款周转率",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2018,
+            "应收账款周转率": null,
+            "应收账款周转天数": null
+          },
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2019,
+            "应收账款周转率": 21.8721152071,
+            "应收账款周转天数": 16.6879150253
+          },
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2020,
+            "应收账款周转率": 20.9783772212,
+            "应收账款周转天数": 17.3988672314
+          },
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2021,
+            "应收账款周转率": 21.1058086286,
+            "应收账款周转天数": 17.2938173762
+          },
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2022,
+            "应收账款周转率": 21.5265178684,
+            "应收账款周转天数": 16.9558310466
+          },
+          {
+            "20001": "应收账款周转天数",
+            "年份": 2023,
+            "应收账款周转率": 21.4634500799,
+            "应收账款周转天数": 17.0056537342
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "应收账款周转天数",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台应收账款周转分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "应收账款周转天数",
+      "value": 14.223680735616666,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "value": 14.223680735616666,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的平均值为14.223680735616666"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "应收账款周转率",
+      "value": 17.824378167533332,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "value": 17.824378167533332,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的平均值为17.824378167533332"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "应收账款周转天数",
+      "value": 17.3988672314,
+      "significant": 1,
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "20001": "应收账款周转天数",
+            "年份": 2020,
+            "应收账款周转率": 20.9783772212,
+            "应收账款周转天数": 17.3988672314
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2020
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2020,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 17.3988672314,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的最大值位于2020，值为17.3988672314"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "应收账款周转率",
+      "value": 21.8721152071,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "20001": "应收账款周转率",
+            "年份": 2019,
+            "应收账款周转率": 21.8721152071,
+            "应收账款周转天数": 16.6879150253
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 21.8721152071,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的最大值位于2019，值为21.8721152071"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "应收账款周转天数",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "应收账款周转天数",
+            "年份": 2018,
+            "应收账款周转率": null,
+            "应收账款周转天数": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的最小值位于2018，值为0"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "应收账款周转率",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "应收账款周转率",
+            "年份": 2018,
+            "应收账款周转率": null,
+            "应收账款周转天数": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转率",
+            "fieldName": "应收账款周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "应收账款周转率的最小值位于2018，值为0"
+      }
+    }
+  ]
+}

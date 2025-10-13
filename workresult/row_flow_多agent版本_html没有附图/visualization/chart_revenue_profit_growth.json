@@ -1,0 +1,405 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "Revenue_亿",
+            "Year": 2019,
+            "Revenue_亿": 854.3,
+            "Net_Profit_亿": 412.1
+          },
+          {
+            "20001": "Revenue_亿",
+            "Year": 2020,
+            "Revenue_亿": 949.2,
+            "Net_Profit_亿": 466.9
+          },
+          {
+            "20001": "Revenue_亿",
+            "Year": 2021,
+            "Revenue_亿": 1094.6,
+            "Net_Profit_亿": 524.6
+          },
+          {
+            "20001": "Revenue_亿",
+            "Year": 2022,
+            "Revenue_亿": 1275.5,
+            "Net_Profit_亿": 627.2
+          },
+          {
+            "20001": "Revenue_亿",
+            "Year": 2023,
+            "Revenue_亿": 1476.9,
+            "Net_Profit_亿": 735.1
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Revenue_亿",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "Net_Profit_亿",
+            "Year": 2019,
+            "Revenue_亿": 854.3,
+            "Net_Profit_亿": 412.1
+          },
+          {
+            "20001": "Net_Profit_亿",
+            "Year": 2020,
+            "Revenue_亿": 949.2,
+            "Net_Profit_亿": 466.9
+          },
+          {
+            "20001": "Net_Profit_亿",
+            "Year": 2021,
+            "Revenue_亿": 1094.6,
+            "Net_Profit_亿": 524.6
+          },
+          {
+            "20001": "Net_Profit_亿",
+            "Year": 2022,
+            "Revenue_亿": 1275.5,
+            "Net_Profit_亿": 627.2
+          },
+          {
+            "20001": "Net_Profit_亿",
+            "Year": 2023,
+            "Revenue_亿": 1476.9,
+            "Net_Profit_亿": 735.1
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Net_Profit_亿",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台营收与净利润增长趋势 (2019-2023)"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Net_Profit_亿",
+      "value": 553.1800000000001,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "value": 553.1800000000001,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的平均值为553.1800000000001"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Revenue_亿",
+      "value": 1130.1,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "value": 1130.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的平均值为1130.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Net_Profit_亿",
+      "value": 735.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Net_Profit_亿",
+            "Year": 2023,
+            "Revenue_亿": 1476.9,
+            "Net_Profit_亿": 735.1
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 735.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的最大值位于2023，值为735.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Revenue_亿",
+      "value": 1476.9,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Revenue_亿",
+            "Year": 2023,
+            "Revenue_亿": 1476.9,
+            "Net_Profit_亿": 735.1
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 1476.9,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的最大值位于2023，值为1476.9"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Net_Profit_亿",
+      "value": 412.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Net_Profit_亿",
+            "Year": 2019,
+            "Revenue_亿": 854.3,
+            "Net_Profit_亿": 412.1
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 412.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的最小值位于2019，值为412.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Revenue_亿",
+      "value": 854.3,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Revenue_亿",
+            "Year": 2019,
+            "Revenue_亿": 854.3,
+            "Net_Profit_亿": 412.1
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Revenue_亿",
+            "fieldName": "Revenue_亿"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 854.3,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Revenue_亿的最小值位于2019，值为854.3"
+      }
+    }
+  ]
+}

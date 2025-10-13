@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>茅台公司基本面与数据面综合分析报告</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .executive-summary {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .rating-card {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: linear-gradient(135deg, #4caf50, #66bb6a);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .rating-item {
+            text-align: center;
+        }
+        
+        .rating-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .rating-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #1a237e;
+            border-bottom: 3px solid #283593;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .section h3 {
+            color: #283593;
+            margin: 20px 0 10px 0;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #283593;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #1a237e;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #283593;
+            color: white;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .highlight {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .risk-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .risk-low {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .risk-medium {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .risk-high {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .recommendation-box {
+            background: linear-gradient(135deg, #4caf50, #66bb6a);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .recommendation-box h2 {
+            color: white;
+            border: none;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid #ddd;
+            margin-top: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .rating-card {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>茅台公司基本面与数据面综合分析报告</h1>
+            <div class="subtitle">基于兵法道天地将法框架与数据面量化分析</div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <h2>执行摘要</h2>
+            
+            <div class="rating-card">
+                <div class="rating-item">
+                    <div class="rating-value">强烈推荐</div>
+                    <div class="rating-label">投资评级</div>
+                </div>
+                <div class="rating-item">
+                    <div class="rating-value">93.7/100</div>
+                    <div class="rating-label">综合评分</div>
+                </div>
+                <div class="rating-item">
+                    <div class="rating-value">低风险</div>
+                    <div class="rating-label">风险等级</div>
+                </div>
+                <div class="rating-item">
+                    <div class="rating-value">3-5年</div>
+                    <div class="rating-label">建议持有期</div>
+                </div>
+            </div>
+
+            <div class="highlight">
+                <h3>核心投资逻辑</h3>
+                <ul>
+                    <li><strong>品牌护城河深厚</strong>: 不可复制的历史文化底蕴和品牌价值</li>
+                    <li><strong>盈利能力卓越</strong>: 毛利率92.3%，ROE 31.2%，净利率49.8%</li>
+                    <li><strong>财务健康优秀</strong>: 资产负债率18.9%，流动比率4.1</li>
+                    <li><strong>市场地位稳固</strong>: 高端白酒市场72.9%绝对份额</li>
+                    <li><strong>成长质量优良</strong>: 营收CAGR 14.7%，净利润CAGR 15.6%</li>
+                    <li><strong>估值相对合理</strong>: PE 24.4倍，PEG 1.57倍</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 五维框架分析 -->
+        <div class="section">
+            <h2>一、兵法道天地将法五维分析</h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">95/100</div>
+                    <div class="metric-label">道(战略)</div>
+                    <p>品牌护城河、定价权、商业模式</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">85/100</div>
+                    <div class="metric-label">天(环境)</div>
+                    <p>宏观环境、行业趋势、政策分析</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">98/100</div>
+                    <div class="metric-label">地(地位)</div>
+                    <p>市场地位、竞争格局、产业链</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">90/100</div>
+                    <div class="metric-label">将(管理)</div>
+                    <p>管理层能力、治理结构、企业文化</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">96/100</div>
+                    <div class="metric-label">法(效率)</div>
+                    <p>经营效率、财务健康、成长能力</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键财务指标 -->
+        <div class="section">
+            <h2>二、关键财务指标分析</h2>
+            
+            <h3>盈利能力指标 (2023年)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>茅台</th>
+                            <th>行业平均</th>
+                            <th>评价</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>毛利率</td>
+                            <td>92.3%</td>
+                            <td>65%</td>
+                            <td>卓越</td>
+                        </tr>
+                        <tr>
+                            <td>净利率</td>
+                            <td>49.8%</td>
+                            <td>25%</td>
+                            <td>优秀</td>
+                        </tr>
+                        <tr>
+                            <td>ROE</td>
+                            <td>31.2%</td>
+                            <td>18%</td>
+                            <td>优秀</td>
+                        </tr>
+                        <tr>
+                            <td>ROA</td>
+                            <td>25.3%</td>
+                            <td>12%</td>
+                            <td>优秀</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>财务健康指标 (2023年)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>茅台</th>
+                            <th>安全阈值</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>资产负债率</td>
+                            <td>18.9%</td>
+                            <td>&lt;60%</td>
+                            <td>优秀</td>
+                        </tr>
+                        <tr>
+                            <td>流动比率</td>
+                            <td>4.1</td>
+                            <td>&gt;2</td>
+                            <td>优秀</td>
+                        </tr>
+                        <tr>
+                            <td>利息保障倍数</td>
+                            <td>125.4倍</td>
+                            <td>&gt;5</td>
+                            <td>优秀</td>
+                        </tr>
+                        <tr>
+                            <td>经营现金流/净利润</td>
+                            <td>1.07</td>
+                            <td>&gt;1</td>
+                            <td>优秀</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 成长能力分析 -->
+        <div class="section">
+            <h2>三、成长能力分析 (2019-2023 CAGR)</h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">14.7%</div>
+                    <div class="metric-label">营收增长率</div>
+                    <p>稳定性: 高</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">15.6%</div>
+                    <div class="metric-label">净利润增长率</div>
+                    <p>稳定性: 高</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">15.6%</div>
+                    <div class="metric-label">EPS增长率</div>
+                    <p>稳定性: 高</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">72.9%</div>
+                    <div class="metric-label">市场份额</div>
+                    <p>高端白酒市场</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 估值分析 -->
+        <div class="section">
+            <h2>四、估值分析</h2>
+            
+            <h3>当前估值水平</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>当前值</th>
+                            <th>历史百分位</th>
+                            <th>评价</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>PE (市盈率)</td>
+                            <td>24.4倍</td>
+                            <td>64.8%</td>
+                            <td>合理偏高</td>
+                        </tr>
+                        <tr>
+                            <td>PB (市净率)</td>
+                            <td>9.3倍</td>
+                            <td>79.0%</td>
+                            <td>品牌溢价</td>
+                        </tr>
+                        <tr>
+                            <td>PEG (市盈增长比)</td>
+                            <td>1.57倍</td>
+                            <td>-</td>
+                            <td>增长匹配</td>
+                        </tr>
+                        <tr>
+                            <td>股息率</td>
+                            <td>1.6%</td>
+                            <td>-</td>
+                            <td>稳定分红</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="highlight">
+                <h3>估值结论</h3>
+                <p>当前估值处于历史合理区间，PE 24.4倍相对于15.6%的净利润增长率基本合理，9.3倍PB反映了茅台的品牌价值和稀缺性。</p>
+            </div>
+        </div>
+
+        <!-- 风险分析 -->
+        <div class="section">
+            <h2>五、风险分析</h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value"><span class="risk-indicator risk-medium">中等</span></div>
+                    <div class="metric-label">宏观经济风险</div>
+                    <p>经济周期影响高端消费</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value"><span class="risk-indicator risk-medium">中等</span></div>
+                    <div class="metric-label">政策监管风险</div>
+                    <p>税收、广告政策变化</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value"><span class="risk-indicator risk-medium">中等</span></div>
+                    <div class="metric-label">市场竞争风险</div>
+                    <p>年轻消费群体偏好变化</p>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value"><span class="risk-indicator risk-low">低</span></div>
+                    <div class="metric-label">财务风险</div>
+                    <p>财务结构极其稳健</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 投资建议 -->
+        <div class="recommendation-box">
+            <h2>最终投资建议</h2>
+            <h3 style="font-size: 2em; margin: 20px 0;">强烈推荐买入并长期持有</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div>
+                    <div style="font-size: 1.2em; font-weight: bold;">适合投资者</div>
+                    <div>长期价值投资者</div>
+                    <div>风险厌恶型投资者</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.2em; font-weight: bold;">投资期限</div>
+                    <div>3-5年长期持有</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.2em; font-weight: bold;">仓位建议</div>
+                    <div>核心持仓配置 (10-25%)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 监控指标 -->
+        <div class="section">
+            <h2>六、关键监控指标</h2>
+            
+            <h3>财务警戒线</h3>
+            <ul>
+                <li>毛利率 &lt; 90%</li>
+                <li>ROE &lt; 25%</li>
+                <li>资产负债率 &gt; 30%</li>
+                <li>营收增长率 &lt; 10%</li>
+            </ul>
+            
+            <h3>估值警戒线</h3>
+            <ul>
+                <li>PE &gt; 35倍</li>
+                <li>PB &gt; 12倍</li>
+                <li>PEG &gt; 2.0</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>分析框架</strong>: 兵法道天地将法 + 数据面量化分析</p>
+            <p><strong>报告日期</strong>: 2024年1月</p>
+            <p><strong>免责声明</strong>: 本报告仅供参考，不构成投资建议。投资有风险，决策需谨慎。</p>
+        </div>
+    </div>
+</body>
+</html>

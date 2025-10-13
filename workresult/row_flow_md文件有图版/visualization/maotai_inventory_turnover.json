@@ -1,0 +1,418 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "存货周转率",
+            "年份": 2018,
+            "存货周转率": null,
+            "存货周转天数": null
+          },
+          {
+            "20001": "存货周转率",
+            "年份": 2019,
+            "存货周转率": 1.0175606032,
+            "存货周转天数": 358.700994185
+          },
+          {
+            "20001": "存货周转率",
+            "年份": 2020,
+            "存货周转率": 0.9951591063,
+            "存货周转天数": 366.7755213117
+          },
+          {
+            "20001": "存货周转率",
+            "年份": 2021,
+            "存货周转率": 0.9929845782,
+            "存货周转天数": 367.5787197759
+          },
+          {
+            "20001": "存货周转率",
+            "年份": 2022,
+            "存货周转率": 1.0391038697,
+            "存货周转天数": 351.2642101137
+          },
+          {
+            "20001": "存货周转率",
+            "年份": 2023,
+            "存货周转率": 1.0852908757,
+            "存货周转天数": 336.3153677748
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "存货周转率",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "存货周转天数",
+            "年份": 2018,
+            "存货周转率": null,
+            "存货周转天数": null
+          },
+          {
+            "20001": "存货周转天数",
+            "年份": 2019,
+            "存货周转率": 1.0175606032,
+            "存货周转天数": 358.700994185
+          },
+          {
+            "20001": "存货周转天数",
+            "年份": 2020,
+            "存货周转率": 0.9951591063,
+            "存货周转天数": 366.7755213117
+          },
+          {
+            "20001": "存货周转天数",
+            "年份": 2021,
+            "存货周转率": 0.9929845782,
+            "存货周转天数": 367.5787197759
+          },
+          {
+            "20001": "存货周转天数",
+            "年份": 2022,
+            "存货周转率": 1.0391038697,
+            "存货周转天数": 351.2642101137
+          },
+          {
+            "20001": "存货周转天数",
+            "年份": 2023,
+            "存货周转率": 1.0852908757,
+            "存货周转天数": 336.3153677748
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "存货周转天数",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台存货周转分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "存货周转天数",
+      "value": 296.7724688601833,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "value": 296.7724688601833,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的平均值为296.7724688601833"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "存货周转率",
+      "value": 0.8550165055166666,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "value": 0.8550165055166666,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的平均值为0.8550165055166666"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "存货周转天数",
+      "value": 367.5787197759,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "存货周转天数",
+            "年份": 2021,
+            "存货周转率": 0.9929845782,
+            "存货周转天数": 367.5787197759
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 367.5787197759,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的最大值位于2021，值为367.5787197759"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "存货周转率",
+      "value": 1.0852908757,
+      "significant": 1,
+      "data": [
+        {
+          "index": 5,
+          "dataItem": {
+            "20001": "存货周转率",
+            "年份": 2023,
+            "存货周转率": 1.0852908757,
+            "存货周转天数": 336.3153677748
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 1.0852908757,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的最大值位于2023，值为1.0852908757"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "存货周转天数",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "存货周转天数",
+            "年份": 2018,
+            "存货周转率": null,
+            "存货周转天数": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的最小值位于2018，值为0"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "存货周转率",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "存货周转率",
+            "年份": 2018,
+            "存货周转率": null,
+            "存货周转天数": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "存货周转率",
+            "fieldName": "存货周转率"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转率的最小值位于2018，值为0"
+      }
+    }
+  ]
+}

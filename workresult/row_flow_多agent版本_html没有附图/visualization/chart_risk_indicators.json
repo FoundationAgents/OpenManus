@@ -1,0 +1,405 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "Debt_to_Equity",
+            "Year": 2019,
+            "Debt_to_Equity": 0.287001287,
+            "Net_Profit_Margin": 48.2383237738
+          },
+          {
+            "20001": "Debt_to_Equity",
+            "Year": 2020,
+            "Debt_to_Equity": 0.2787723785,
+            "Net_Profit_Margin": 49.1887905605
+          },
+          {
+            "20001": "Debt_to_Equity",
+            "Year": 2021,
+            "Debt_to_Equity": 0.2578616352,
+            "Net_Profit_Margin": 47.9261830806
+          },
+          {
+            "20001": "Debt_to_Equity",
+            "Year": 2022,
+            "Debt_to_Equity": 0.2453300125,
+            "Net_Profit_Margin": 49.172873383
+          },
+          {
+            "20001": "Debt_to_Equity",
+            "Year": 2023,
+            "Debt_to_Equity": 0.2330456227,
+            "Net_Profit_Margin": 49.7731735392
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Debt_to_Equity",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "Net_Profit_Margin",
+            "Year": 2019,
+            "Debt_to_Equity": 0.287001287,
+            "Net_Profit_Margin": 48.2383237738
+          },
+          {
+            "20001": "Net_Profit_Margin",
+            "Year": 2020,
+            "Debt_to_Equity": 0.2787723785,
+            "Net_Profit_Margin": 49.1887905605
+          },
+          {
+            "20001": "Net_Profit_Margin",
+            "Year": 2021,
+            "Debt_to_Equity": 0.2578616352,
+            "Net_Profit_Margin": 47.9261830806
+          },
+          {
+            "20001": "Net_Profit_Margin",
+            "Year": 2022,
+            "Debt_to_Equity": 0.2453300125,
+            "Net_Profit_Margin": 49.172873383
+          },
+          {
+            "20001": "Net_Profit_Margin",
+            "Year": 2023,
+            "Debt_to_Equity": 0.2330456227,
+            "Net_Profit_Margin": 49.7731735392
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Net_Profit_Margin",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台财务风险指标趋势 (负债权益比与净利润率)"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Net_Profit_Margin",
+      "value": 48.85986886742,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "value": 48.85986886742,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的平均值为48.85986886742"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Debt_to_Equity",
+      "value": 0.26040218717999997,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "value": 0.26040218717999997,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的平均值为0.26040218717999997"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Net_Profit_Margin",
+      "value": 49.7731735392,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Net_Profit_Margin",
+            "Year": 2023,
+            "Debt_to_Equity": 0.2330456227,
+            "Net_Profit_Margin": 49.7731735392
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 49.7731735392,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的最大值位于2023，值为49.7731735392"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Debt_to_Equity",
+      "value": 0.287001287,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Debt_to_Equity",
+            "Year": 2019,
+            "Debt_to_Equity": 0.287001287,
+            "Net_Profit_Margin": 48.2383237738
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 0.287001287,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的最大值位于2019，值为0.287001287"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Net_Profit_Margin",
+      "value": 47.9261830806,
+      "significant": 1,
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "20001": "Net_Profit_Margin",
+            "Year": 2021,
+            "Debt_to_Equity": 0.2578616352,
+            "Net_Profit_Margin": 47.9261830806
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 47.9261830806,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的最小值位于2021，值为47.9261830806"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Debt_to_Equity",
+      "value": 0.2330456227,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Debt_to_Equity",
+            "Year": 2023,
+            "Debt_to_Equity": 0.2330456227,
+            "Net_Profit_Margin": 49.7731735392
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_to_Equity",
+            "fieldName": "Debt_to_Equity"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 0.2330456227,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_to_Equity的最小值位于2023，值为0.2330456227"
+      }
+    }
+  ]
+}

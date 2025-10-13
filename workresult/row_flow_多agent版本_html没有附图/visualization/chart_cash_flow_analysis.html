@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"common","series":[{"type":"bar","id":"mainSeries","data":{"id":"data_bar","values":[{"20001":"Operating_Cash_Flow_亿","Year":2019,"Operating_Cash_Flow_亿":450.2,"Free_Cash_Flow_亿":420.1},{"20001":"Operating_Cash_Flow_亿","Year":2020,"Operating_Cash_Flow_亿":520.8,"Free_Cash_Flow_亿":480.5},{"20001":"Operating_Cash_Flow_亿","Year":2021,"Operating_Cash_Flow_亿":580.3,"Free_Cash_Flow_亿":540.2},{"20001":"Operating_Cash_Flow_亿","Year":2022,"Operating_Cash_Flow_亿":680.5,"Free_Cash_Flow_亿":630.8},{"20001":"Operating_Cash_Flow_亿","Year":2023,"Operating_Cash_Flow_亿":790.2,"Free_Cash_Flow_亿":730.5}]},"dataIndex":0,"label":{"visible":true},"xField":"Year","yField":"Operating_Cash_Flow_亿","seriesField":20001,"bar":{"style":{}}},{"type":"line","id":"subSeries","dataIndex":0,"data":{"id":"data_line","values":[{"20001":"Free_Cash_Flow_亿","Year":2019,"Operating_Cash_Flow_亿":450.2,"Free_Cash_Flow_亿":420.1},{"20001":"Free_Cash_Flow_亿","Year":2020,"Operating_Cash_Flow_亿":520.8,"Free_Cash_Flow_亿":480.5},{"20001":"Free_Cash_Flow_亿","Year":2021,"Operating_Cash_Flow_亿":580.3,"Free_Cash_Flow_亿":540.2},{"20001":"Free_Cash_Flow_亿","Year":2022,"Operating_Cash_Flow_亿":680.5,"Free_Cash_Flow_亿":630.8},{"20001":"Free_Cash_Flow_亿","Year":2023,"Operating_Cash_Flow_亿":790.2,"Free_Cash_Flow_亿":730.5}]},"label":{"visible":true},"xField":"Year","yField":"Free_Cash_Flow_亿","seriesField":20001,"line":{"style":{}},"point":{"style":{}}}],"labelLayout":"region","axes":[{"id":"dimensionAxis","type":"band","orient":"bottom"},{"id":"measureAxisLeft","seriesId":"mainSeries","type":"linear","orient":"left","label":{"style":{}}},{"id":"measureAxisRight","seriesId":"subSeries","type":"linear","orient":"right","tick":{"visible":false},"grid":{"visible":false},"label":{"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台现金流质量分析 (经营现金流与自由现金流)"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

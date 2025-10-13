@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"line","data":{"id":"data","values":[{"10001":"市盈率(PE)","10002":35.2,"年份":2019},{"10001":"市净率(PB)","10002":11.2,"年份":2019},{"10001":"市销率(PS)","10002":15.8,"年份":2019},{"10001":"股息率(%)","10002":1.2,"年份":2019},{"10001":"市盈率(PE)","10002":42.8,"年份":2020},{"10001":"市净率(PB)","10002":13.4,"年份":2020},{"10001":"市销率(PS)","10002":18.2,"年份":2020},{"10001":"股息率(%)","10002":1.1,"年份":2020},{"10001":"市盈率(PE)","10002":38.5,"年份":2021},{"10001":"市净率(PB)","10002":11.9,"年份":2021},{"10001":"市销率(PS)","10002":16.5,"年份":2021},{"10001":"股息率(%)","10002":1.3,"年份":2021},{"10001":"市盈率(PE)","10002":32.1,"年份":2022},{"10001":"市净率(PB)","10002":10.2,"年份":2022},{"10001":"市销率(PS)","10002":14.3,"年份":2022},{"10001":"股息率(%)","10002":1.5,"年份":2022},{"10001":"市盈率(PE)","10002":28.7,"年份":2023},{"10001":"市净率(PB)","10002":9.5,"年份":2023},{"10001":"市销率(PS)","10002":12.9,"年份":2023},{"10001":"股息率(%)","10002":1.7,"年份":2023}]},"xField":"年份","yField":"10002","seriesField":"10001","axes":[{"orient":"bottom","type":"band","label":{"style":{}},"title":{"visible":false,"style":{}}},{"orient":"left","type":"linear","label":{"style":{}},"title":{"visible":false,"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台估值指标趋势分析"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

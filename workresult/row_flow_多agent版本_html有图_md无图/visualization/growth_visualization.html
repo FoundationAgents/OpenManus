@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"line","data":{"id":"data","values":[{"10001":"营收增长率(%)","10002":16,"20001":"营收增长率(%)","年份":2019},{"10001":"净利润增长率(%)","10002":17.1,"20001":"净利润增长率(%)","年份":2019},{"10001":"每股收益增长率(%)","10002":17.1,"20001":"每股收益增长率(%)","年份":2019},{"10001":"营收增长率(%)","10002":11.1,"20001":"营收增长率(%)","年份":2020},{"10001":"净利润增长率(%)","10002":13.3,"20001":"净利润增长率(%)","年份":2020},{"10001":"每股收益增长率(%)","10002":13.3,"20001":"每股收益增长率(%)","年份":2020},{"10001":"营收增长率(%)","10002":15.3,"20001":"营收增长率(%)","年份":2021},{"10001":"净利润增长率(%)","10002":12.4,"20001":"净利润增长率(%)","年份":2021},{"10001":"每股收益增长率(%)","10002":12.4,"20001":"每股收益增长率(%)","年份":2021},{"10001":"营收增长率(%)","10002":16.5,"20001":"营收增长率(%)","年份":2022},{"10001":"净利润增长率(%)","10002":19.6,"20001":"净利润增长率(%)","年份":2022},{"10001":"每股收益增长率(%)","10002":19.6,"20001":"每股收益增长率(%)","年份":2022},{"10001":"营收增长率(%)","10002":15.8,"20001":"营收增长率(%)","年份":2023},{"10001":"净利润增长率(%)","10002":19.2,"20001":"净利润增长率(%)","年份":2023},{"10001":"每股收益增长率(%)","10002":19.2,"20001":"每股收益增长率(%)","年份":2023}]},"xField":"年份","yField":"10002","seriesField":"20001","axes":[{"orient":"bottom","type":"band","label":{"style":{}},"title":{"visible":false,"style":{}}},{"orient":"left","type":"linear","label":{"style":{}},"title":{"visible":false,"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台成长能力指标分析"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

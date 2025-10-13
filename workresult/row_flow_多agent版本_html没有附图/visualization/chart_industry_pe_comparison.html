@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"bar","data":{"id":"data","values":[{"Company":"贵州茅台","PE_Ratio":35.2},{"Company":"五粮液","PE_Ratio":28.5},{"Company":"泸州老窖","PE_Ratio":32.1},{"Company":"洋河股份","PE_Ratio":25.8},{"Company":"山西汾酒","PE_Ratio":40.3}]},"xField":["Company"],"yField":"PE_Ratio","axes":[{"orient":"bottom","type":"band","label":{"style":{}},"title":{"visible":false,"style":{}}},{"orient":"left","type":"linear","label":{"style":{}},"title":{"visible":false,"style":{}}}],"title":{"text":"白酒行业市盈率对比"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+[
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_core_profitability_trend.csv",
+    "chartTitle": "茅台核心盈利能力指标趋势 (2018-2023)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_profit_margins_comparison.csv",
+    "chartTitle": "茅台各类利润率对比分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_expense_ratios_analysis.csv",
+    "chartTitle": "茅台费用率控制分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_roe_roa_comparison.csv",
+    "chartTitle": "茅台ROE与ROA对比分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_profitability_radar.csv",
+    "chartTitle": "茅台盈利能力指标雷达图 (2023年)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_profitability_changes.csv",
+    "chartTitle": "茅台盈利能力指标年度变化率"
+  }
+]

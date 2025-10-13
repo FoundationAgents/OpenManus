@@ -1,0 +1,202 @@
+{
+  "type": "line",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "年份": 2018,
+        "现金周转周期(天)": null
+      },
+      {
+        "年份": 2019,
+        "现金周转周期(天)": 375.3889092103
+      },
+      {
+        "年份": 2020,
+        "现金周转周期(天)": 384.174388543
+      },
+      {
+        "年份": 2021,
+        "现金周转周期(天)": 384.8725371521
+      },
+      {
+        "年份": 2022,
+        "现金周转周期(天)": 368.2200411603
+      },
+      {
+        "年份": 2023,
+        "现金周转周期(天)": 353.321021509
+      }
+    ]
+  },
+  "xField": "年份",
+  "yField": "现金周转周期(天)",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台现金周转周期分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "年份": 2018,
+            "现金周转周期(天)": null
+          }
+        }
+      ],
+      "fieldId": "现金周转周期(天)",
+      "value": 0,
+      "significant": 4.612331619945247,
+      "seriesName": "vmind_default_series",
+      "name": "lof",
+      "textContent": {
+        "content": "${b}上显著异常,值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": "现金周转周期(天)"
+          }
+        },
+        "plainText": "2018上显著异常,值为0"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "现金周转周期(天)",
+      "value": 310.9961495957834,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 310.9961495957834,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为310.9961495957834"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "现金周转周期(天)",
+      "value": 384.8725371521,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "年份": 2021,
+            "现金周转周期(天)": 384.8725371521
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 384.8725371521,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于2021，值为384.8725371521"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "现金周转周期(天)",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "年份": 2018,
+            "现金周转周期(天)": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于2018，值为0"
+      }
+    }
+  ]
+}

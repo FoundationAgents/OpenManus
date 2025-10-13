@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"common","series":[{"type":"bar","id":"mainSeries","data":{"id":"data_bar","values":[{"20001":"Debt_Ratio","Year":2019,"Debt_Ratio":22.3,"Current_Ratio":3.2},{"20001":"Debt_Ratio","Year":2020,"Debt_Ratio":21.8,"Current_Ratio":3.4},{"20001":"Debt_Ratio","Year":2021,"Debt_Ratio":20.5,"Current_Ratio":3.6},{"20001":"Debt_Ratio","Year":2022,"Debt_Ratio":19.7,"Current_Ratio":3.8},{"20001":"Debt_Ratio","Year":2023,"Debt_Ratio":18.9,"Current_Ratio":4.1}]},"dataIndex":0,"label":{"visible":true},"xField":"Year","yField":"Debt_Ratio","seriesField":20001,"bar":{"style":{}}},{"type":"line","id":"subSeries","dataIndex":0,"data":{"id":"data_line","values":[{"20001":"Current_Ratio","Year":2019,"Debt_Ratio":22.3,"Current_Ratio":3.2},{"20001":"Current_Ratio","Year":2020,"Debt_Ratio":21.8,"Current_Ratio":3.4},{"20001":"Current_Ratio","Year":2021,"Debt_Ratio":20.5,"Current_Ratio":3.6},{"20001":"Current_Ratio","Year":2022,"Debt_Ratio":19.7,"Current_Ratio":3.8},{"20001":"Current_Ratio","Year":2023,"Debt_Ratio":18.9,"Current_Ratio":4.1}]},"label":{"visible":true},"xField":"Year","yField":"Current_Ratio","seriesField":20001,"line":{"style":{}},"point":{"style":{}}}],"labelLayout":"region","axes":[{"id":"dimensionAxis","type":"band","orient":"bottom"},{"id":"measureAxisLeft","seriesId":"mainSeries","type":"linear","orient":"left","label":{"style":{}}},{"id":"measureAxisRight","seriesId":"subSeries","type":"linear","orient":"right","tick":{"visible":false},"grid":{"visible":false},"label":{"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台偿债能力指标趋势 (资产负债率与流动比率)"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+{
+  "type": "line",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "年份": 2018,
+        "营运资金周转率": 21.7227138643
+      },
+      {
+        "年份": 2019,
+        "营运资金周转率": 24.3424657534
+      },
+      {
+        "年份": 2020,
+        "营运资金周转率": 25.3860103627
+      },
+      {
+        "年份": 2021,
+        "营运资金周转率": 24.9339407745
+      },
+      {
+        "年份": 2022,
+        "营运资金周转率": 28.5346756152
+      },
+      {
+        "年份": 2023,
+        "营运资金周转率": 34.5070093458
+      }
+    ]
+  },
+  "xField": "年份",
+  "yField": "营运资金周转率",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台营运资金效率分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "type": "overall_trend",
+      "fieldId": "营运资金周转率",
+      "value": "increasing",
+      "significant": 0.9758294528254547,
+      "info": {
+        "length": 3,
+        "overall": {
+          "coordinates": [
+            {
+              "年份": 2018,
+              "营运资金周转率": 21.7227138643
+            },
+            {
+              "年份": 2023,
+              "营运资金周转率": 34.5070093458
+            }
+          ],
+          "start": 0,
+          "end": 5,
+          "change": 0.5885220217585352,
+          "startValue": 21.7227138643,
+          "endValue": 34.5070093458,
+          "startDimValue": 2018,
+          "endDimValue": 2023
+        },
+        "start": 0,
+        "end": 2,
+        "maxTrend": 1,
+        "change": 0.16863898872324645,
+        "startDimValue": 2018,
+        "endDimValue": 2020,
+        "startValue": 21.7227138643,
+        "endValue": 25.3860103627
+      },
+      "data": [],
+      "name": "overallTrending",
+      "textContent": {
+        "content": "数据整体呈${a}趋势，整体增长了${d}。其中在${b}至${c}间连续${a}。",
+        "variables": {
+          "a": {
+            "value": "上升",
+            "fieldName": null,
+            "icon": "ascendTrend"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 2020,
+            "fieldName": "年份"
+          },
+          "d": {
+            "formatValue": "58.9%",
+            "value": 0.5885220217585352,
+            "valueType": "ascendTrend",
+            "fieldName": null
+          }
+        },
+        "plainText": "数据整体呈上升趋势，整体增长了58.9%。其中在2018至2020间连续上升。"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "营运资金周转率",
+      "value": 26.571135952649996,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 26.571135952649996,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为26.571135952649996"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "营运资金周转率",
+      "value": 34.5070093458,
+      "significant": 1,
+      "data": [
+        {
+          "index": 5,
+          "dataItem": {
+            "年份": 2023,
+            "营运资金周转率": 34.5070093458
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 34.5070093458,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于2023，值为34.5070093458"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "营运资金周转率",
+      "value": 21.7227138643,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "年份": 2018,
+            "营运资金周转率": 21.7227138643
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 21.7227138643,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于2018，值为21.7227138643"
+      }
+    }
+  ]
+}

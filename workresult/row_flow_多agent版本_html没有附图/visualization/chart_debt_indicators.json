@@ -1,0 +1,405 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "Debt_Ratio",
+            "Year": 2019,
+            "Debt_Ratio": 22.3,
+            "Current_Ratio": 3.2
+          },
+          {
+            "20001": "Debt_Ratio",
+            "Year": 2020,
+            "Debt_Ratio": 21.8,
+            "Current_Ratio": 3.4
+          },
+          {
+            "20001": "Debt_Ratio",
+            "Year": 2021,
+            "Debt_Ratio": 20.5,
+            "Current_Ratio": 3.6
+          },
+          {
+            "20001": "Debt_Ratio",
+            "Year": 2022,
+            "Debt_Ratio": 19.7,
+            "Current_Ratio": 3.8
+          },
+          {
+            "20001": "Debt_Ratio",
+            "Year": 2023,
+            "Debt_Ratio": 18.9,
+            "Current_Ratio": 4.1
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Debt_Ratio",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "Current_Ratio",
+            "Year": 2019,
+            "Debt_Ratio": 22.3,
+            "Current_Ratio": 3.2
+          },
+          {
+            "20001": "Current_Ratio",
+            "Year": 2020,
+            "Debt_Ratio": 21.8,
+            "Current_Ratio": 3.4
+          },
+          {
+            "20001": "Current_Ratio",
+            "Year": 2021,
+            "Debt_Ratio": 20.5,
+            "Current_Ratio": 3.6
+          },
+          {
+            "20001": "Current_Ratio",
+            "Year": 2022,
+            "Debt_Ratio": 19.7,
+            "Current_Ratio": 3.8
+          },
+          {
+            "20001": "Current_Ratio",
+            "Year": 2023,
+            "Debt_Ratio": 18.9,
+            "Current_Ratio": 4.1
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "Current_Ratio",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台偿债能力指标趋势 (资产负债率与流动比率)"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Current_Ratio",
+      "value": 3.62,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "value": 3.62,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的平均值为3.62"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Debt_Ratio",
+      "value": 20.639999999999997,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "value": 20.639999999999997,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的平均值为20.639999999999997"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Current_Ratio",
+      "value": 4.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Current_Ratio",
+            "Year": 2023,
+            "Debt_Ratio": 18.9,
+            "Current_Ratio": 4.1
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 4.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的最大值位于2023，值为4.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Debt_Ratio",
+      "value": 22.3,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Debt_Ratio",
+            "Year": 2019,
+            "Debt_Ratio": 22.3,
+            "Current_Ratio": 3.2
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 22.3,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的最大值位于2019，值为22.3"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Current_Ratio",
+      "value": 3.2,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Current_Ratio",
+            "Year": 2019,
+            "Debt_Ratio": 22.3,
+            "Current_Ratio": 3.2
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 3.2,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的最小值位于2019，值为3.2"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Debt_Ratio",
+      "value": 18.9,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "Debt_Ratio",
+            "Year": 2023,
+            "Debt_Ratio": 18.9,
+            "Current_Ratio": 4.1
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Debt_Ratio",
+            "fieldName": "Debt_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 18.9,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Debt_Ratio的最小值位于2023，值为18.9"
+      }
+    }
+  ]
+}

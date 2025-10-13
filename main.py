@@ -35,12 +35,18 @@ def load_prompt_from_file(file_path: str) -> str:
 
 async def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Run Manus agent with a prompt")
+    parser = argparse.ArgumentParser(description="Run Manus agent with a prompt template and variable substitution")
     parser.add_argument(
         "--prompt",
         type=str,
         required=False,
         help="Input prompt for the agent. Use 'file:path/to/file' to load prompt from a file.",
+    )
+    parser.add_argument(
+        "--variables",
+        type=str,
+        required=False,
+        help="Comma-separated list of variables to replace 'xx' in the prompt template.",
     )
     args = parser.parse_args()
 
@@ -53,16 +59,43 @@ async def main():
             logger.warning("Empty prompt provided.")
             return
 
+        # Get variables list
+        variables_input = (
+            args.variables if args.variables else input("Enter comma-separated variables (or press Enter to skip): ")
+        )
+
         # Check if prompt starts with 'file:' prefix
         if prompt_input.startswith("file:"):
             file_path = prompt_input[5:]  # Remove 'file:' prefix
-            prompt = load_prompt_from_file(file_path)
+            prompt_template = load_prompt_from_file(file_path)
         else:
-            prompt = prompt_input
+            prompt_template = prompt_input
 
-        logger.warning("Processing your request...")
-        await agent.run(prompt)
-        logger.info("Request processing completed.")
+        # If variables are provided, process them in a loop
+        if variables_input.strip():
+            variables = [var.strip() for var in variables_input.split(",") if var.strip()]
+            logger.info(f"Processing {len(variables)} variables: {variables}")
+
+            for i, variable in enumerate(variables, 1):
+                logger.info(f"Processing variable {i}/{len(variables)}: '{variable}'")
+
+                # Replace 'xx' with the current variable
+                current_prompt = prompt_template.replace("xxx", variable)
+
+                logger.warning(f"Processing request for variable '{variable}'...")
+                await agent.run(current_prompt)
+                logger.info(f"Request processing completed for variable '{variable}'.")
+
+                # Add a small delay between requests if there are multiple variables
+                if i < len(variables):
+                    logger.info("Waiting before next request...")
+                    await asyncio.sleep(1)
+        else:
+            # No variables provided, run the prompt as-is
+            logger.warning("Processing your request...")
+            await agent.run(prompt_template)
+            logger.info("Request processing completed.")
+
     except KeyboardInterrupt:
         logger.warning("Operation interrupted.")
     except Exception as e:

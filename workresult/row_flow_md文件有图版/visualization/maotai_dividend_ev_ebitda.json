@@ -1,0 +1,418 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "股息率(%)",
+            "年份": 2018,
+            "股息率(%)": 2.1558059775,
+            "EV/EBITDA": 21.6275466729
+          },
+          {
+            "20001": "股息率(%)",
+            "年份": 2019,
+            "股息率(%)": 1.4265438937,
+            "EV/EBITDA": 32.4605455108
+          },
+          {
+            "20001": "股息率(%)",
+            "年份": 2020,
+            "股息率(%)": 1.0621019108,
+            "EV/EBITDA": 43.4663463417
+          },
+          {
+            "20001": "股息率(%)",
+            "年份": 2021,
+            "股息率(%)": 1.0441878981,
+            "EV/EBITDA": 44.2427828145
+          },
+          {
+            "20001": "股息率(%)",
+            "年份": 2022,
+            "股息率(%)": 1.3871196037,
+            "EV/EBITDA": 33.47124794
+          },
+          {
+            "20001": "股息率(%)",
+            "年份": 2023,
+            "股息率(%)": 1.749953166,
+            "EV/EBITDA": 26.7207109756
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "股息率(%)",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2018,
+            "股息率(%)": 2.1558059775,
+            "EV/EBITDA": 21.6275466729
+          },
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2019,
+            "股息率(%)": 1.4265438937,
+            "EV/EBITDA": 32.4605455108
+          },
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2020,
+            "股息率(%)": 1.0621019108,
+            "EV/EBITDA": 43.4663463417
+          },
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2021,
+            "股息率(%)": 1.0441878981,
+            "EV/EBITDA": 44.2427828145
+          },
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2022,
+            "股息率(%)": 1.3871196037,
+            "EV/EBITDA": 33.47124794
+          },
+          {
+            "20001": "EV/EBITDA",
+            "年份": 2023,
+            "股息率(%)": 1.749953166,
+            "EV/EBITDA": 26.7207109756
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "EV/EBITDA",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台股息率与EV/EBITDA分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "EV/EBITDA",
+      "value": 33.66486337591667,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "value": 33.66486337591667,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的平均值为33.66486337591667"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "股息率(%)",
+      "value": 1.470952074966667,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "value": 1.470952074966667,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的平均值为1.470952074966667"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "EV/EBITDA",
+      "value": 44.2427828145,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "EV/EBITDA",
+            "年份": 2021,
+            "股息率(%)": 1.0441878981,
+            "EV/EBITDA": 44.2427828145
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 44.2427828145,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的最大值位于2021，值为44.2427828145"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "股息率(%)",
+      "value": 2.1558059775,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "股息率(%)",
+            "年份": 2018,
+            "股息率(%)": 2.1558059775,
+            "EV/EBITDA": 21.6275466729
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 2.1558059775,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的最大值位于2018，值为2.1558059775"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "EV/EBITDA",
+      "value": 21.6275466729,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "EV/EBITDA",
+            "年份": 2018,
+            "股息率(%)": 2.1558059775,
+            "EV/EBITDA": 21.6275466729
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 21.6275466729,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的最小值位于2018，值为21.6275466729"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "股息率(%)",
+      "value": 1.0441878981,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "股息率(%)",
+            "年份": 2021,
+            "股息率(%)": 1.0441878981,
+            "EV/EBITDA": 44.2427828145
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "股息率(%)",
+            "fieldName": "股息率(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 1.0441878981,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "股息率(%)的最小值位于2021，值为1.0441878981"
+      }
+    }
+  ]
+}

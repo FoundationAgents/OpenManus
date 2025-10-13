@@ -1,0 +1,161 @@
+{
+  "type": "bar",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "Metric": "营业收入",
+        "CAGR": 14.7,
+        "Type": "营收类"
+      },
+      {
+        "Metric": "净利润",
+        "CAGR": 15.6,
+        "Type": "利润类"
+      },
+      {
+        "Metric": "每股收益",
+        "CAGR": 15.6,
+        "Type": "股东回报类"
+      }
+    ]
+  },
+  "xField": [
+    "Metric"
+  ],
+  "yField": "CAGR",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台复合增长率分析 (2019-2023)"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "CAGR",
+      "value": 15.299999999999999,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 15.299999999999999,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为15.299999999999999"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "CAGR",
+      "value": 15.6,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "Metric": "净利润",
+            "CAGR": 15.6,
+            "Type": "利润类"
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "dimValue": "净利润"
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "净利润",
+            "fieldName": "Metric"
+          },
+          "c": {
+            "value": 15.6,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于净利润，值为15.6"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "CAGR",
+      "value": 14.7,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "Metric": "营业收入",
+            "CAGR": 14.7,
+            "Type": "营收类"
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "dimValue": "营业收入"
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "营业收入",
+            "fieldName": "Metric"
+          },
+          "c": {
+            "value": 14.7,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于营业收入，值为14.7"
+      }
+    }
+  ]
+}

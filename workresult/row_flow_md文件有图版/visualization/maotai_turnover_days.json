@@ -1,0 +1,361 @@
+{
+  "type": "line",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "10001": "存货周转天数",
+        "10002": null,
+        "年份": 2018
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": null,
+        "年份": 2018
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": null,
+        "年份": 2018
+      },
+      {
+        "10001": "存货周转天数",
+        "10002": 358.700994185,
+        "年份": 2019
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": 16.6879150253,
+        "年份": 2019
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": 375.3889092103,
+        "年份": 2019
+      },
+      {
+        "10001": "存货周转天数",
+        "10002": 366.7755213117,
+        "年份": 2020
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": 17.3988672314,
+        "年份": 2020
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": 384.174388543,
+        "年份": 2020
+      },
+      {
+        "10001": "存货周转天数",
+        "10002": 367.5787197759,
+        "年份": 2021
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": 17.2938173762,
+        "年份": 2021
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": 384.8725371521,
+        "年份": 2021
+      },
+      {
+        "10001": "存货周转天数",
+        "10002": 351.2642101137,
+        "年份": 2022
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": 16.9558310466,
+        "年份": 2022
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": 368.2200411603,
+        "年份": 2022
+      },
+      {
+        "10001": "存货周转天数",
+        "10002": 336.3153677748,
+        "年份": 2023
+      },
+      {
+        "10001": "应收账款周转天数",
+        "10002": 17.0056537342,
+        "年份": 2023
+      },
+      {
+        "10001": "现金周转周期(天)",
+        "10002": 353.321021509,
+        "年份": 2023
+      }
+    ]
+  },
+  "xField": "年份",
+  "yField": "10002",
+  "seriesField": "10001",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台周转天数趋势分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "type": "correlation",
+      "fieldId": "10002",
+      "seriesName": [
+        "存货周转天数",
+        "现金周转周期(天)"
+      ],
+      "significant": 1,
+      "info": {
+        "correlationType": "positive"
+      },
+      "data": [],
+      "name": "spearman",
+      "textContent": {
+        "content": "${a}和${b}呈${c}相关",
+        "variables": {
+          "a": {
+            "value": "存货周转天数",
+            "fieldName": "10001"
+          },
+          "b": {
+            "value": "现金周转周期(天)",
+            "fieldName": "10001"
+          },
+          "c": {
+            "value": "正",
+            "fieldName": null
+          }
+        },
+        "plainText": "存货周转天数和现金周转周期(天)呈正相关"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "10001": "存货周转天数",
+            "10002": null,
+            "年份": 2018
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 0,
+      "significant": 4.43384169741865,
+      "seriesName": "存货周转天数",
+      "name": "lof",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "存货周转天数",
+            "fieldName": "10001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "存货周转天数在2018上显著异常，值为0"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "10001": "现金周转周期(天)",
+            "10002": null,
+            "年份": 2018
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 0,
+      "significant": 4.612331619945247,
+      "seriesName": "现金周转周期(天)",
+      "name": "lof",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "现金周转周期(天)",
+            "fieldName": "10001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "现金周转周期(天)在2018上显著异常，值为0"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "10001": "应收账款周转天数",
+            "10002": null,
+            "年份": 2018
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 0,
+      "significant": 9.767145777709608,
+      "seriesName": "应收账款周转天数",
+      "name": "lof",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "应收账款周转天数",
+            "fieldName": "10001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "应收账款周转天数在2018上显著异常，值为0"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "10002",
+      "value": 207.33076639719445,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 207.33076639719445,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为207.33076639719445"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "10002",
+      "value": 384.8725371521,
+      "significant": 1,
+      "data": [
+        {
+          "index": 11,
+          "dataItem": {
+            "10001": "现金周转周期(天)",
+            "10002": 384.8725371521,
+            "年份": 2021
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 384.8725371521,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于2021，值为384.8725371521"
+      }
+    }
+  ]
+}

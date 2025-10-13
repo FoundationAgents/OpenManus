@@ -1,0 +1,314 @@
+{
+  "type": "scatter",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "年份": 2018,
+        "股价(元)": 650,
+        "EPS(元)": 28.025477707
+      },
+      {
+        "年份": 2019,
+        "股价(元)": 1150,
+        "EPS(元)": 32.8105095541
+      },
+      {
+        "年份": 2020,
+        "股价(元)": 1750,
+        "EPS(元)": 37.173566879
+      },
+      {
+        "年份": 2021,
+        "股价(元)": 2000,
+        "EPS(元)": 41.7675159236
+      },
+      {
+        "年份": 2022,
+        "股价(元)": 1800,
+        "EPS(元)": 49.9363057325
+      },
+      {
+        "年份": 2023,
+        "股价(元)": 1700,
+        "EPS(元)": 59.4984076433
+      }
+    ]
+  },
+  "xField": "EPS(元)",
+  "yField": "股价(元)",
+  "sizeField": "股价(元)",
+  "size": {
+    "type": "linear"
+  },
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台股价与EPS关系分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 5,
+          "dataItem": {
+            "年份": 2023,
+            "股价(元)": 1700,
+            "EPS(元)": 59.4984076433
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        59.4984076433,
+        1700
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 59.4984076433,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 1700,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(59.4984076433, 1700)上显著异常"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "年份": 2022,
+            "股价(元)": 1800,
+            "EPS(元)": 49.9363057325
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        49.9363057325,
+        1800
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 49.9363057325,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 1800,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(49.9363057325, 1800)上显著异常"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "年份": 2021,
+            "股价(元)": 2000,
+            "EPS(元)": 41.7675159236
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        41.7675159236,
+        2000
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 41.7675159236,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 2000,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(41.7675159236, 2000)上显著异常"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 2,
+          "dataItem": {
+            "年份": 2020,
+            "股价(元)": 1750,
+            "EPS(元)": 37.173566879
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        37.173566879,
+        1750
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 37.173566879,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 1750,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(37.173566879, 1750)上显著异常"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "年份": 2019,
+            "股价(元)": 1150,
+            "EPS(元)": 32.8105095541
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        32.8105095541,
+        1150
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 32.8105095541,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 1150,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(32.8105095541, 1150)上显著异常"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "年份": 2018,
+            "股价(元)": 650,
+            "EPS(元)": 28.025477707
+          }
+        }
+      ],
+      "fieldId": [
+        "EPS(元)",
+        "股价(元)"
+      ],
+      "value": [
+        28.025477707,
+        650
+      ],
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "dbscan",
+      "textContent": {
+        "content": "(${b}, ${c})上显著异常",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 28.025477707,
+            "fieldName": "EPS(元)"
+          },
+          "c": {
+            "isDimValue": true,
+            "value": 650,
+            "fieldName": "股价(元)"
+          }
+        },
+        "plainText": "(28.025477707, 650)上显著异常"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_pe_pb_trend.csv",
+    "chartTitle": "茅台PE与PB估值趋势分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_ps_peg_valuation.csv",
+    "chartTitle": "茅台PS与PEG估值分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_dividend_ev_ebitda.csv",
+    "chartTitle": "茅台股息率与EV/EBITDA分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_price_eps.csv",
+    "chartTitle": "茅台股价与EPS关系分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_valuation_radar.csv",
+    "chartTitle": "茅台估值指标雷达图 (2023年)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_historical_comparison.csv",
+    "chartTitle": "茅台估值历史对比分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_valuation_risk.csv",
+    "chartTitle": "茅台估值风险分析"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/maotai_industry_comparison.csv",
+    "chartTitle": "茅台与行业估值对比分析"
+  }
+]

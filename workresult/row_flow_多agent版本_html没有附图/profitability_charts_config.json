@@ -1,0 +1,22 @@
+[
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/chart_revenue_profit_trend.csv",
+    "chartTitle": "茅台营收与净利润增长趋势 (2019-2023)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/chart_profitability_metrics.csv",
+    "chartTitle": "茅台盈利能力指标趋势 (毛利率与ROE)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/chart_growth_comparison.csv",
+    "chartTitle": "茅台营收与净利润增长率对比"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/chart_industry_profitability.csv",
+    "chartTitle": "白酒行业盈利能力对比 (营收与净利润增长率)"
+  },
+  {
+    "csvFilePath": "/Users/haoyinyin-mb3/Desktop/git/OpenManus/workspace/chart_profitability_stability.csv",
+    "chartTitle": "茅台盈利能力稳定性分析"
+  }
+]

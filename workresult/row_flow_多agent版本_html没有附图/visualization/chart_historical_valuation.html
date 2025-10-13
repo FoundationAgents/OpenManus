@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VChart Demo</title>
+    <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
+</head>
+<body>
+    <div id="chart-container" style="width: 100%; height: 100%;"></div>
+    <script>
+      // parse spec with function
+      function parseSpec(stringSpec) {
+        return JSON.parse(stringSpec, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('__FUNCTION__')) {
+            const funcBody = v.slice(12); // 移除标记
+            try {
+              return new Function('return (' + funcBody + ')')();
+            } catch(e) {
+              console.error('函数解析失败:', e);
+              return () => {};
+            }
+          }
+          return v;
+        });
+      }
+      const spec = parseSpec(`{"type":"common","series":[{"type":"bar","id":"mainSeries","data":{"id":"data_bar","values":[{"20001":"PE_Ratio","Year":2019,"PE_Ratio":45.2,"PB_Ratio":12.5},{"20001":"PE_Ratio","Year":2020,"PE_Ratio":42.8,"PB_Ratio":11.8},{"20001":"PE_Ratio","Year":2021,"PE_Ratio":38.5,"PB_Ratio":11.2},{"20001":"PE_Ratio","Year":2022,"PE_Ratio":35.2,"PB_Ratio":10.8},{"20001":"PE_Ratio","Year":2023,"PE_Ratio":24.4444444444,"PB_Ratio":9.3362756748}]},"dataIndex":0,"label":{"visible":true},"xField":"Year","yField":"PE_Ratio","seriesField":20001,"bar":{"style":{}}},{"type":"line","id":"subSeries","dataIndex":0,"data":{"id":"data_line","values":[{"20001":"PB_Ratio","Year":2019,"PE_Ratio":45.2,"PB_Ratio":12.5},{"20001":"PB_Ratio","Year":2020,"PE_Ratio":42.8,"PB_Ratio":11.8},{"20001":"PB_Ratio","Year":2021,"PE_Ratio":38.5,"PB_Ratio":11.2},{"20001":"PB_Ratio","Year":2022,"PE_Ratio":35.2,"PB_Ratio":10.8},{"20001":"PB_Ratio","Year":2023,"PE_Ratio":24.4444444444,"PB_Ratio":9.3362756748}]},"label":{"visible":true},"xField":"Year","yField":"PB_Ratio","seriesField":20001,"line":{"style":{}},"point":{"style":{}}}],"labelLayout":"region","axes":[{"id":"dimensionAxis","type":"band","orient":"bottom"},{"id":"measureAxisLeft","seriesId":"mainSeries","type":"linear","orient":"left","label":{"style":{}}},{"id":"measureAxisRight","seriesId":"subSeries","type":"linear","orient":"right","tick":{"visible":false},"grid":{"visible":false},"label":{"style":{}}}],"legends":[{"orient":"right","type":"discrete","item":{"visible":true,"background":{"style":{}},"label":{"style":{}},"shape":{"style":{}}}}],"title":{"text":"茅台历史估值趋势 (市盈率与市净率)"}}`);
+      const chart = new VChart.VChart(spec, {
+          dom: 'chart-container'
+      });
+      chart.renderSync();
+    </script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "PE_Ratio",
+            "Year": 2019,
+            "PE_Ratio": 45.2,
+            "PB_Ratio": 12.5
+          },
+          {
+            "20001": "PE_Ratio",
+            "Year": 2020,
+            "PE_Ratio": 42.8,
+            "PB_Ratio": 11.8
+          },
+          {
+            "20001": "PE_Ratio",
+            "Year": 2021,
+            "PE_Ratio": 38.5,
+            "PB_Ratio": 11.2
+          },
+          {
+            "20001": "PE_Ratio",
+            "Year": 2022,
+            "PE_Ratio": 35.2,
+            "PB_Ratio": 10.8
+          },
+          {
+            "20001": "PE_Ratio",
+            "Year": 2023,
+            "PE_Ratio": 24.4444444444,
+            "PB_Ratio": 9.3362756748
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "PE_Ratio",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "PB_Ratio",
+            "Year": 2019,
+            "PE_Ratio": 45.2,
+            "PB_Ratio": 12.5
+          },
+          {
+            "20001": "PB_Ratio",
+            "Year": 2020,
+            "PE_Ratio": 42.8,
+            "PB_Ratio": 11.8
+          },
+          {
+            "20001": "PB_Ratio",
+            "Year": 2021,
+            "PE_Ratio": 38.5,
+            "PB_Ratio": 11.2
+          },
+          {
+            "20001": "PB_Ratio",
+            "Year": 2022,
+            "PE_Ratio": 35.2,
+            "PB_Ratio": 10.8
+          },
+          {
+            "20001": "PB_Ratio",
+            "Year": 2023,
+            "PE_Ratio": 24.4444444444,
+            "PB_Ratio": 9.3362756748
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Year",
+      "yField": "PB_Ratio",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台历史估值趋势 (市盈率与市净率)"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PB_Ratio",
+      "value": 11.127255134959999,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "value": 11.127255134959999,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的平均值为11.127255134959999"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PE_Ratio",
+      "value": 37.22888888888,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "value": 37.22888888888,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的平均值为37.22888888888"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PB_Ratio",
+      "value": 12.5,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "PB_Ratio",
+            "Year": 2019,
+            "PE_Ratio": 45.2,
+            "PB_Ratio": 12.5
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 12.5,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的最大值位于2019，值为12.5"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PE_Ratio",
+      "value": 45.2,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "PE_Ratio",
+            "Year": 2019,
+            "PE_Ratio": 45.2,
+            "PB_Ratio": 12.5
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 45.2,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的最大值位于2019，值为45.2"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PB_Ratio",
+      "value": 9.3362756748,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "PB_Ratio",
+            "Year": 2023,
+            "PE_Ratio": 24.4444444444,
+            "PB_Ratio": 9.3362756748
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 9.3362756748,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的最小值位于2023，值为9.3362756748"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PE_Ratio",
+      "value": 24.4444444444,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "20001": "PE_Ratio",
+            "Year": 2023,
+            "PE_Ratio": 24.4444444444,
+            "PB_Ratio": 9.3362756748
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PE_Ratio",
+            "fieldName": "PE_Ratio"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "Year"
+          },
+          "c": {
+            "value": 24.4444444444,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PE_Ratio的最小值位于2023，值为24.4444444444"
+      }
+    }
+  ]
+}

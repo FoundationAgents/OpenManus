@@ -1,0 +1,197 @@
+{
+  "type": "bar",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "Company": "贵州茅台",
+        "PB_Ratio": 10.8
+      },
+      {
+        "Company": "五粮液",
+        "PB_Ratio": 6.2
+      },
+      {
+        "Company": "泸州老窖",
+        "PB_Ratio": 8.5
+      },
+      {
+        "Company": "洋河股份",
+        "PB_Ratio": 5.9
+      },
+      {
+        "Company": "山西汾酒",
+        "PB_Ratio": 12.1
+      }
+    ]
+  },
+  "xField": [
+    "Company"
+  ],
+  "yField": "PB_Ratio",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "title": {
+    "text": "白酒行业市净率对比"
+  },
+  "insights": [
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "Company": "山西汾酒",
+            "PB_Ratio": 12.1
+          }
+        }
+      ],
+      "fieldId": "PB_Ratio",
+      "value": 12.1,
+      "significant": 1,
+      "seriesName": "vmind_default_series",
+      "name": "pageHinkley",
+      "textContent": {
+        "content": "${b}上显著异常,值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "山西汾酒",
+            "fieldName": "Company"
+          },
+          "c": {
+            "value": 12.1,
+            "isMeasure": true,
+            "fieldName": "PB_Ratio"
+          }
+        },
+        "plainText": "山西汾酒上显著异常,值为12.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PB_Ratio",
+      "value": 8.7,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 8.7,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为8.7"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PB_Ratio",
+      "value": 12.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 4,
+          "dataItem": {
+            "Company": "山西汾酒",
+            "PB_Ratio": 12.1
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "dimValue": "山西汾酒"
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "山西汾酒",
+            "fieldName": "Company"
+          },
+          "c": {
+            "value": 12.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于山西汾酒，值为12.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PB_Ratio",
+      "value": 5.9,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "Company": "洋河股份",
+            "PB_Ratio": 5.9
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "dimValue": "洋河股份"
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "洋河股份",
+            "fieldName": "Company"
+          },
+          "c": {
+            "value": 5.9,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于洋河股份，值为5.9"
+      }
+    }
+  ]
+}

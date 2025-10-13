@@ -1,0 +1,107 @@
+{
+  "type": "pie",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "10001": "Revenue_Growth_Rate",
+        "10002": 11.1085098911,
+        "20001": "Revenue_Growth_Rate",
+        "Year": 2020
+      },
+      {
+        "10001": "Net_Profit_Growth_Rate",
+        "10002": 13.2977432662,
+        "20001": "Net_Profit_Growth_Rate",
+        "Year": 2020
+      },
+      {
+        "10001": "EPS_Growth_Rate",
+        "10002": 13.4146341463,
+        "20001": "EPS_Growth_Rate",
+        "Year": 2020
+      },
+      {
+        "10001": "Revenue_Growth_Rate",
+        "10002": 15.3181626633,
+        "20001": "Revenue_Growth_Rate",
+        "Year": 2021
+      },
+      {
+        "10001": "Net_Profit_Growth_Rate",
+        "10002": 12.358106661,
+        "20001": "Net_Profit_Growth_Rate",
+        "Year": 2021
+      },
+      {
+        "10001": "EPS_Growth_Rate",
+        "10002": 12.3655913978,
+        "20001": "EPS_Growth_Rate",
+        "Year": 2021
+      },
+      {
+        "10001": "Revenue_Growth_Rate",
+        "10002": 16.5265850539,
+        "20001": "Revenue_Growth_Rate",
+        "Year": 2022
+      },
+      {
+        "10001": "Net_Profit_Growth_Rate",
+        "10002": 19.557758292,
+        "20001": "Net_Profit_Growth_Rate",
+        "Year": 2022
+      },
+      {
+        "10001": "EPS_Growth_Rate",
+        "10002": 19.3779904306,
+        "20001": "EPS_Growth_Rate",
+        "Year": 2022
+      },
+      {
+        "10001": "Revenue_Growth_Rate",
+        "10002": 15.7898863191,
+        "20001": "Revenue_Growth_Rate",
+        "Year": 2023
+      },
+      {
+        "10001": "Net_Profit_Growth_Rate",
+        "10002": 17.2034438776,
+        "20001": "Net_Profit_Growth_Rate",
+        "Year": 2023
+      },
+      {
+        "10001": "EPS_Growth_Rate",
+        "10002": 17.2344689379,
+        "20001": "EPS_Growth_Rate",
+        "Year": 2023
+      }
+    ]
+  },
+  "valueField": "10002",
+  "categoryField": "20001",
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "label": {
+    "visible": true
+  },
+  "title": {
+    "text": "茅台各项增长率对比分析"
+  },
+  "insights": []
+}

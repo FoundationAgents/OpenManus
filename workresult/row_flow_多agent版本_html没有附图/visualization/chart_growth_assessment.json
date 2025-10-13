@@ -1,0 +1,107 @@
+{
+  "type": "radar",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "10001": "Score",
+        "10002": 45.4,
+        "Dimension": "成长速度"
+      },
+      {
+        "10001": "Max_Score",
+        "10002": 100,
+        "Dimension": "成长速度"
+      },
+      {
+        "10001": "Score",
+        "10002": 97.1,
+        "Dimension": "成长稳定性"
+      },
+      {
+        "10001": "Max_Score",
+        "10002": 100,
+        "Dimension": "成长稳定性"
+      },
+      {
+        "10001": "Score",
+        "10002": 65.3,
+        "Dimension": "成长质量"
+      },
+      {
+        "10001": "Max_Score",
+        "10002": 100,
+        "Dimension": "成长质量"
+      },
+      {
+        "10001": "Score",
+        "10002": 73.1,
+        "Dimension": "行业相对表现"
+      },
+      {
+        "10001": "Max_Score",
+        "10002": 100,
+        "Dimension": "行业相对表现"
+      }
+    ]
+  },
+  "categoryField": "Dimension",
+  "valueField": "10002",
+  "seriesField": "10001",
+  "axes": [
+    {
+      "orient": "radius",
+      "zIndex": 100,
+      "domainLine": {
+        "visible": false
+      },
+      "label": {
+        "visible": true,
+        "space": 0,
+        "style": {}
+      },
+      "grid": {
+        "smooth": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "angle",
+      "zIndex": 50,
+      "tick": {
+        "visible": false
+      },
+      "domainLine": {
+        "visible": false
+      },
+      "label": {
+        "space": 20
+      },
+      "grid": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台成长能力综合评估"
+  },
+  "insights": []
+}

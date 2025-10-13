@@ -1,0 +1,418 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "ROE(%)",
+            "年份": 2018,
+            "ROE(%)": 27.8878149263,
+            "ROA(%)": 22.1900018912
+          },
+          {
+            "20001": "ROE(%)",
+            "年份": 2019,
+            "ROE(%)": 28.3035714286,
+            "ROA(%)": 22.4638866176
+          },
+          {
+            "20001": "ROE(%)",
+            "年份": 2020,
+            "ROE(%)": 27.4340443034,
+            "ROA(%)": 21.8719257975
+          },
+          {
+            "20001": "ROE(%)",
+            "年份": 2021,
+            "ROE(%)": 26.6632782719,
+            "ROA(%)": 21.3529794855
+          },
+          {
+            "20001": "ROE(%)",
+            "年份": 2022,
+            "ROE(%)": 27.398217718,
+            "ROA(%)": 22.0387223725
+          },
+          {
+            "20001": "ROE(%)",
+            "年份": 2023,
+            "ROE(%)": 28.0496959688,
+            "ROA(%)": 22.6564394858
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "ROE(%)",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "ROA(%)",
+            "年份": 2018,
+            "ROE(%)": 27.8878149263,
+            "ROA(%)": 22.1900018912
+          },
+          {
+            "20001": "ROA(%)",
+            "年份": 2019,
+            "ROE(%)": 28.3035714286,
+            "ROA(%)": 22.4638866176
+          },
+          {
+            "20001": "ROA(%)",
+            "年份": 2020,
+            "ROE(%)": 27.4340443034,
+            "ROA(%)": 21.8719257975
+          },
+          {
+            "20001": "ROA(%)",
+            "年份": 2021,
+            "ROE(%)": 26.6632782719,
+            "ROA(%)": 21.3529794855
+          },
+          {
+            "20001": "ROA(%)",
+            "年份": 2022,
+            "ROE(%)": 27.398217718,
+            "ROA(%)": 22.0387223725
+          },
+          {
+            "20001": "ROA(%)",
+            "年份": 2023,
+            "ROE(%)": 28.0496959688,
+            "ROA(%)": 22.6564394858
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "ROA(%)",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台ROE与ROA对比分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "ROA(%)",
+      "value": 22.09565927501667,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "value": 22.09565927501667,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的平均值为22.09565927501667"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "ROE(%)",
+      "value": 27.622770436166665,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "value": 27.622770436166665,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的平均值为27.622770436166665"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "ROA(%)",
+      "value": 22.6564394858,
+      "significant": 1,
+      "data": [
+        {
+          "index": 5,
+          "dataItem": {
+            "20001": "ROA(%)",
+            "年份": 2023,
+            "ROE(%)": 28.0496959688,
+            "ROA(%)": 22.6564394858
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2023
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2023,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 22.6564394858,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的最大值位于2023，值为22.6564394858"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "ROE(%)",
+      "value": 28.3035714286,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "20001": "ROE(%)",
+            "年份": 2019,
+            "ROE(%)": 28.3035714286,
+            "ROA(%)": 22.4638866176
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2019
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2019,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 28.3035714286,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的最大值位于2019，值为28.3035714286"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "ROA(%)",
+      "value": 21.3529794855,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "ROA(%)",
+            "年份": 2021,
+            "ROE(%)": 26.6632782719,
+            "ROA(%)": 21.3529794855
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 21.3529794855,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的最小值位于2021，值为21.3529794855"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "ROE(%)",
+      "value": 26.6632782719,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "ROE(%)",
+            "年份": 2021,
+            "ROE(%)": 26.6632782719,
+            "ROA(%)": 21.3529794855
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "ROE(%)",
+            "fieldName": "ROE(%)"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 26.6632782719,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "ROE(%)的最小值位于2021，值为26.6632782719"
+      }
+    }
+  ]
+}

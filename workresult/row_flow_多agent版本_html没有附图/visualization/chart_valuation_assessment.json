@@ -1,0 +1,41 @@
+{
+  "type": "rangeColumn",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "Dimension": "估值水平",
+        "Score": 28.1,
+        "Max_Score": 100
+      },
+      {
+        "Dimension": "增长匹配度",
+        "Score": 71.5,
+        "Max_Score": 100
+      },
+      {
+        "Dimension": "股息回报",
+        "Score": 80,
+        "Max_Score": 100
+      },
+      {
+        "Dimension": "历史合理性",
+        "Score": 73.8,
+        "Max_Score": 100
+      }
+    ]
+  },
+  "yField": "Dimension",
+  "xField": [
+    "Score",
+    "Max_Score"
+  ],
+  "direction": "horizontal",
+  "label": {
+    "visible": true
+  },
+  "title": {
+    "text": "茅台估值综合评估"
+  },
+  "insights": []
+}

@@ -1,0 +1,333 @@
+{
+  "type": "bar",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "10001": "茅台",
+        "10002": 28.57,
+        "20001": "茅台",
+        "指标": "PE"
+      },
+      {
+        "10001": "行业平均",
+        "10002": 30,
+        "20001": "行业平均",
+        "指标": "PE"
+      },
+      {
+        "10001": "五粮液",
+        "10002": 25,
+        "20001": "五粮液",
+        "指标": "PE"
+      },
+      {
+        "10001": "洋河股份",
+        "10002": 20,
+        "20001": "洋河股份",
+        "指标": "PE"
+      },
+      {
+        "10001": "茅台",
+        "10002": 8.01,
+        "20001": "茅台",
+        "指标": "PB"
+      },
+      {
+        "10001": "行业平均",
+        "10002": 8,
+        "20001": "行业平均",
+        "指标": "PB"
+      },
+      {
+        "10001": "五粮液",
+        "10002": 6.5,
+        "20001": "五粮液",
+        "指标": "PB"
+      },
+      {
+        "10001": "洋河股份",
+        "10002": 4,
+        "20001": "洋河股份",
+        "指标": "PB"
+      },
+      {
+        "10001": "茅台",
+        "10002": 14.46,
+        "20001": "茅台",
+        "指标": "PS"
+      },
+      {
+        "10001": "行业平均",
+        "10002": 12,
+        "20001": "行业平均",
+        "指标": "PS"
+      },
+      {
+        "10001": "五粮液",
+        "10002": 10,
+        "20001": "五粮液",
+        "指标": "PS"
+      },
+      {
+        "10001": "洋河股份",
+        "10002": 8,
+        "20001": "洋河股份",
+        "指标": "PS"
+      },
+      {
+        "10001": "茅台",
+        "10002": 1.75,
+        "20001": "茅台",
+        "指标": "股息率(%)"
+      },
+      {
+        "10001": "行业平均",
+        "10002": 1.5,
+        "20001": "行业平均",
+        "指标": "股息率(%)"
+      },
+      {
+        "10001": "五粮液",
+        "10002": 1.8,
+        "20001": "五粮液",
+        "指标": "股息率(%)"
+      },
+      {
+        "10001": "洋河股份",
+        "10002": 2,
+        "20001": "洋河股份",
+        "指标": "股息率(%)"
+      }
+    ]
+  },
+  "xField": [
+    "指标",
+    "20001"
+  ],
+  "yField": "10002",
+  "seriesField": "20001",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台与行业估值对比分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "type": "volatility",
+      "fieldId": "10002",
+      "value": 0.8023767424107103,
+      "significant": 0.8023767424107103,
+      "seriesName": "五粮液",
+      "info": {
+        "cv": 0.8023767424107103
+      },
+      "data": [],
+      "name": "volatility",
+      "textContent": {
+        "content": "${a}呈周期性波动",
+        "variables": {
+          "a": {
+            "value": "五粮液",
+            "fieldName": "20001"
+          }
+        },
+        "plainText": "五粮液呈周期性波动"
+      }
+    },
+    {
+      "type": "volatility",
+      "fieldId": "10002",
+      "value": 0.8212352726138845,
+      "significant": 0.8212352726138845,
+      "seriesName": "行业平均",
+      "info": {
+        "cv": 0.8212352726138845
+      },
+      "data": [],
+      "name": "volatility",
+      "textContent": {
+        "content": "${a}呈周期性波动",
+        "variables": {
+          "a": {
+            "value": "行业平均",
+            "fieldName": "20001"
+          }
+        },
+        "plainText": "行业平均呈周期性波动"
+      }
+    },
+    {
+      "type": "volatility",
+      "fieldId": "10002",
+      "value": 0.8214258849275847,
+      "significant": 0.8214258849275847,
+      "seriesName": "洋河股份",
+      "info": {
+        "cv": 0.8214258849275847
+      },
+      "data": [],
+      "name": "volatility",
+      "textContent": {
+        "content": "${a}呈周期性波动",
+        "variables": {
+          "a": {
+            "value": "洋河股份",
+            "fieldName": "20001"
+          }
+        },
+        "plainText": "洋河股份呈周期性波动"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "10002",
+      "value": 11.349375,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 11.349375,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为11.349375"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "10002",
+      "value": 30,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "10001": "行业平均",
+            "10002": 30,
+            "20001": "行业平均",
+            "指标": "PE"
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": "PE"
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "PE",
+            "fieldName": "指标"
+          },
+          "c": {
+            "value": 30,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于PE，值为30"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "10002",
+      "value": 1.5,
+      "significant": 1,
+      "data": [
+        {
+          "index": 13,
+          "dataItem": {
+            "10001": "行业平均",
+            "10002": 1.5,
+            "20001": "行业平均",
+            "指标": "股息率(%)"
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": "股息率(%)"
+      },
+      "textContent": {
+        "content": "最小值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": "股息率(%)",
+            "fieldName": "指标"
+          },
+          "c": {
+            "value": 1.5,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最小值位于股息率(%)，值为1.5"
+      }
+    }
+  ]
+}

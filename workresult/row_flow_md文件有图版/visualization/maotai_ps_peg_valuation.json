@@ -1,0 +1,418 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "PS",
+            "年份": 2018,
+            "PS": 11.0863661054,
+            "PEG": null
+          },
+          {
+            "20001": "PS",
+            "年份": 2019,
+            "PS": 16.2566122679,
+            "PEG": 2.0528303349
+          },
+          {
+            "20001": "PS",
+            "年份": 2020,
+            "PS": 22.4308602919,
+            "PEG": 3.5401842874
+          },
+          {
+            "20001": "PS",
+            "年份": 2021,
+            "PS": 22.949022474,
+            "PEG": 3.8747118379
+          },
+          {
+            "20001": "PS",
+            "年份": 2022,
+            "PS": 17.7248137985,
+            "PEG": 1.8430495883
+          },
+          {
+            "20001": "PS",
+            "年份": 2023,
+            "PS": 14.4573092288,
+            "PEG": 1.4921298579
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "PS",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "PEG",
+            "年份": 2018,
+            "PS": 11.0863661054,
+            "PEG": null
+          },
+          {
+            "20001": "PEG",
+            "年份": 2019,
+            "PS": 16.2566122679,
+            "PEG": 2.0528303349
+          },
+          {
+            "20001": "PEG",
+            "年份": 2020,
+            "PS": 22.4308602919,
+            "PEG": 3.5401842874
+          },
+          {
+            "20001": "PEG",
+            "年份": 2021,
+            "PS": 22.949022474,
+            "PEG": 3.8747118379
+          },
+          {
+            "20001": "PEG",
+            "年份": 2022,
+            "PS": 17.7248137985,
+            "PEG": 1.8430495883
+          },
+          {
+            "20001": "PEG",
+            "年份": 2023,
+            "PS": 14.4573092288,
+            "PEG": 1.4921298579
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "年份",
+      "yField": "PEG",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台PS与PEG估值分析"
+  },
+  "animation": false,
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PEG",
+      "value": 2.1338176510666664,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "value": 2.1338176510666664,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的平均值为2.1338176510666664"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "PS",
+      "value": 17.48416402775,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "value": 17.48416402775,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的平均值为17.48416402775"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PEG",
+      "value": 3.8747118379,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "PEG",
+            "年份": 2021,
+            "PS": 22.949022474,
+            "PEG": 3.8747118379
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 3.8747118379,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的最大值位于2021，值为3.8747118379"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "PS",
+      "value": 22.949022474,
+      "significant": 1,
+      "data": [
+        {
+          "index": 3,
+          "dataItem": {
+            "20001": "PS",
+            "年份": 2021,
+            "PS": 22.949022474,
+            "PEG": 3.8747118379
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": 2021
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 22.949022474,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的最大值位于2021，值为22.949022474"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PEG",
+      "value": 0,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "PEG",
+            "年份": 2018,
+            "PS": 11.0863661054,
+            "PEG": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 0,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的最小值位于2018，值为0"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "PS",
+      "value": 11.0863661054,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "PS",
+            "年份": 2018,
+            "PS": 11.0863661054,
+            "PEG": null
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": 2018
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "PS",
+            "fieldName": "PS"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2018,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 11.0863661054,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "PS的最小值位于2018，值为11.0863661054"
+      }
+    }
+  ]
+}

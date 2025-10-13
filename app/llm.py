@@ -1,3 +1,4 @@
+import json
 import math
 from typing import Dict, List, Optional, Union
 
@@ -405,7 +406,7 @@ class LLM:
 
             # Streaming request, For streaming, update estimated token count before making the request
             self.update_token_count(input_tokens)
-            logger.info(f"LLM request latest message: {messages[-1]}")
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
             response = await self.client.chat.completions.create(**params, stream=True)
 
             collected_messages = []
@@ -557,7 +558,7 @@ class LLM:
 
             # Handle streaming request
             self.update_token_count(input_tokens)
-            logger.info(f"LLM request latest message: {messages[-1]}")
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
             response = await self.client.chat.completions.create(**params)
 
             collected_messages = []
@@ -686,7 +687,7 @@ class LLM:
                 params["temperature"] = temperature if temperature is not None else self.temperature
 
             params["stream"] = False  # Always use non-streaming for tool requests
-            logger.info(f"LLM request latest message: {messages[-1]}")
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
             response: ChatCompletion = await self.client.chat.completions.create(**params)
 
             # Check if response is valid
@@ -722,6 +723,53 @@ class LLM:
             logger.error(f"Unexpected error in ask_tool: {e}")
             raise
 
-    def show_llm_output(self, response: str):
+    def show_llm_output(self, response: Union[str, ChatCompletionMessage]):
+        """
+        Display LLM output in a formatted way.
+
+        Args:
+            response: Either a string response or ChatCompletionMessage object
+        """
         split_line = "**************** 注意大模型输出 ****************"
-        logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{response}\n\n{split_line}")
+
+        if isinstance(response, ChatCompletionMessage):
+            # Convert ChatCompletionMessage to a clean dictionary for JSON output
+            response_dict = {
+                "content": response.content,
+                "role": response.role,
+                "refusal": response.refusal,
+                "tool_calls": [],
+            }
+
+            # Process tool calls if they exist
+            if response.tool_calls:
+                for tool_call in response.tool_calls:
+                    tool_dict = {
+                        "id": tool_call.id,
+                        "type": tool_call.type,
+                        "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments},
+                    }
+                    # Try to parse arguments as JSON for better readability
+                    try:
+                        parsed_args = json.loads(tool_call.function.arguments)
+                        tool_dict["function"]["arguments_parsed"] = parsed_args
+                    except (json.JSONDecodeError, TypeError):
+                        # Keep original arguments if parsing fails
+                        pass
+
+                    response_dict["tool_calls"].append(tool_dict)
+
+            # Remove empty fields for cleaner output
+            response_dict = {k: v for k, v in response_dict.items() if v is not None and v != []}
+
+            # Format as pretty JSON
+            formatted_response = json.dumps(response_dict, ensure_ascii=False, indent=2)
+            logger.info(f"{self.model} 的回答 (JSON格式): \n\n{split_line}\n\n{formatted_response}\n\n{split_line}")
+
+        elif isinstance(response, str):
+            # Handle string responses as before
+            logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{response}\n\n{split_line}")
+
+        else:
+            # Handle other types by converting to string
+            logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{str(response)}\n\n{split_line}")

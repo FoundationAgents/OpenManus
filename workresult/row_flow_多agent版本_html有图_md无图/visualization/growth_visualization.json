@@ -1,0 +1,364 @@
+{
+  "type": "line",
+  "data": {
+    "id": "data",
+    "values": [
+      {
+        "10001": "营收增长率(%)",
+        "10002": 16,
+        "20001": "营收增长率(%)",
+        "年份": 2019
+      },
+      {
+        "10001": "净利润增长率(%)",
+        "10002": 17.1,
+        "20001": "净利润增长率(%)",
+        "年份": 2019
+      },
+      {
+        "10001": "每股收益增长率(%)",
+        "10002": 17.1,
+        "20001": "每股收益增长率(%)",
+        "年份": 2019
+      },
+      {
+        "10001": "营收增长率(%)",
+        "10002": 11.1,
+        "20001": "营收增长率(%)",
+        "年份": 2020
+      },
+      {
+        "10001": "净利润增长率(%)",
+        "10002": 13.3,
+        "20001": "净利润增长率(%)",
+        "年份": 2020
+      },
+      {
+        "10001": "每股收益增长率(%)",
+        "10002": 13.3,
+        "20001": "每股收益增长率(%)",
+        "年份": 2020
+      },
+      {
+        "10001": "营收增长率(%)",
+        "10002": 15.3,
+        "20001": "营收增长率(%)",
+        "年份": 2021
+      },
+      {
+        "10001": "净利润增长率(%)",
+        "10002": 12.4,
+        "20001": "净利润增长率(%)",
+        "年份": 2021
+      },
+      {
+        "10001": "每股收益增长率(%)",
+        "10002": 12.4,
+        "20001": "每股收益增长率(%)",
+        "年份": 2021
+      },
+      {
+        "10001": "营收增长率(%)",
+        "10002": 16.5,
+        "20001": "营收增长率(%)",
+        "年份": 2022
+      },
+      {
+        "10001": "净利润增长率(%)",
+        "10002": 19.6,
+        "20001": "净利润增长率(%)",
+        "年份": 2022
+      },
+      {
+        "10001": "每股收益增长率(%)",
+        "10002": 19.6,
+        "20001": "每股收益增长率(%)",
+        "年份": 2022
+      },
+      {
+        "10001": "营收增长率(%)",
+        "10002": 15.8,
+        "20001": "营收增长率(%)",
+        "年份": 2023
+      },
+      {
+        "10001": "净利润增长率(%)",
+        "10002": 19.2,
+        "20001": "净利润增长率(%)",
+        "年份": 2023
+      },
+      {
+        "10001": "每股收益增长率(%)",
+        "10002": 19.2,
+        "20001": "每股收益增长率(%)",
+        "年份": 2023
+      }
+    ]
+  },
+  "xField": "年份",
+  "yField": "10002",
+  "seriesField": "20001",
+  "axes": [
+    {
+      "orient": "bottom",
+      "type": "band",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    },
+    {
+      "orient": "left",
+      "type": "linear",
+      "label": {
+        "style": {}
+      },
+      "title": {
+        "visible": false,
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台成长能力指标分析"
+  },
+  "insights": [
+    {
+      "type": "correlation",
+      "fieldId": "10002",
+      "seriesName": [
+        "净利润增长率(%)",
+        "每股收益增长率(%)"
+      ],
+      "significant": 0.9999999999999999,
+      "info": {
+        "correlationType": "positive"
+      },
+      "data": [],
+      "name": "spearman",
+      "textContent": {
+        "content": "${a}和${b}呈${c}相关",
+        "variables": {
+          "a": {
+            "value": "净利润增长率(%)",
+            "fieldName": "20001"
+          },
+          "b": {
+            "value": "每股收益增长率(%)",
+            "fieldName": "20001"
+          },
+          "c": {
+            "value": "正",
+            "fieldName": null
+          }
+        },
+        "plainText": "净利润增长率(%)和每股收益增长率(%)呈正相关"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 11,
+          "dataItem": {
+            "10001": "每股收益增长率(%)",
+            "10002": 19.6,
+            "20001": "每股收益增长率(%)",
+            "年份": 2022
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 19.6,
+      "significant": 1,
+      "seriesName": "每股收益增长率(%)",
+      "name": "pageHinkley",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "每股收益增长率(%)",
+            "fieldName": "20001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 19.6,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "每股收益增长率(%)在2022上显著异常，值为19.6"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 10,
+          "dataItem": {
+            "10001": "净利润增长率(%)",
+            "10002": 19.6,
+            "20001": "净利润增长率(%)",
+            "年份": 2022
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 19.6,
+      "significant": 1,
+      "seriesName": "净利润增长率(%)",
+      "name": "pageHinkley",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "净利润增长率(%)",
+            "fieldName": "20001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 19.6,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "净利润增长率(%)在2022上显著异常，值为19.6"
+      }
+    },
+    {
+      "type": "outlier",
+      "data": [
+        {
+          "index": 6,
+          "dataItem": {
+            "10001": "营收增长率(%)",
+            "10002": 15.3,
+            "20001": "营收增长率(%)",
+            "年份": 2021
+          }
+        }
+      ],
+      "fieldId": "10002",
+      "value": 15.3,
+      "significant": 1,
+      "seriesName": "营收增长率(%)",
+      "name": "pageHinkley",
+      "textContent": {
+        "content": "${a}在${b}上显著异常，值为${c}",
+        "variables": {
+          "a": {
+            "value": "营收增长率(%)",
+            "fieldName": "20001"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": 2021,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 15.3,
+            "isMeasure": true,
+            "fieldName": "10002"
+          }
+        },
+        "plainText": "营收增长率(%)在2021上显著异常，值为15.3"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "10002",
+      "value": 15.859999999999998,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "",
+        "seriesIndex": null,
+        "isAxesArea": false,
+        "titleName": ""
+      },
+      "textContent": {
+        "content": "平均值为${b}",
+        "variables": {
+          "b": {
+            "value": 15.859999999999998,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "平均值为15.859999999999998"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "10002",
+      "value": 19.6,
+      "significant": 1,
+      "data": [
+        {
+          "index": 10,
+          "dataItem": {
+            "10001": "净利润增长率(%)",
+            "10002": 19.6,
+            "20001": "净利润增长率(%)",
+            "年份": 2022
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": false,
+        "titleName": "",
+        "seriesId": "",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": 2022
+      },
+      "textContent": {
+        "content": "最大值位于${b}，值为${c}",
+        "variables": {
+          "b": {
+            "isDimValue": true,
+            "value": 2022,
+            "fieldName": "年份"
+          },
+          "c": {
+            "value": 19.6,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "最大值位于2022，值为19.6"
+      }
+    }
+  ]
+}

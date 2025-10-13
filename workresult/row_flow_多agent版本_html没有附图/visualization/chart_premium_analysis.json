@@ -1,0 +1,377 @@
+{
+  "type": "common",
+  "series": [
+    {
+      "type": "bar",
+      "id": "mainSeries",
+      "data": {
+        "id": "data_bar",
+        "values": [
+          {
+            "20001": "Moutai_Value",
+            "Valuation_Metric": "市盈率",
+            "Premium_Percentage": 8.7,
+            "Moutai_Value": 35.2,
+            "Industry_Avg": 32.4
+          },
+          {
+            "20001": "Moutai_Value",
+            "Valuation_Metric": "市净率",
+            "Premium_Percentage": 24.1,
+            "Moutai_Value": 10.8,
+            "Industry_Avg": 8.7
+          }
+        ]
+      },
+      "dataIndex": 0,
+      "label": {
+        "visible": true
+      },
+      "xField": "Valuation_Metric",
+      "yField": "Moutai_Value",
+      "seriesField": 20001,
+      "bar": {
+        "style": {}
+      }
+    },
+    {
+      "type": "line",
+      "id": "subSeries",
+      "dataIndex": 0,
+      "data": {
+        "id": "data_line",
+        "values": [
+          {
+            "20001": "Premium_Percentage",
+            "Valuation_Metric": "市盈率",
+            "Premium_Percentage": 8.7,
+            "Moutai_Value": 35.2,
+            "Industry_Avg": 32.4
+          },
+          {
+            "20001": "Premium_Percentage",
+            "Valuation_Metric": "市净率",
+            "Premium_Percentage": 24.1,
+            "Moutai_Value": 10.8,
+            "Industry_Avg": 8.7
+          }
+        ]
+      },
+      "label": {
+        "visible": true
+      },
+      "xField": "Valuation_Metric",
+      "yField": "Premium_Percentage",
+      "seriesField": 20001,
+      "line": {
+        "style": {}
+      },
+      "point": {
+        "style": {}
+      }
+    }
+  ],
+  "labelLayout": "region",
+  "axes": [
+    {
+      "id": "dimensionAxis",
+      "type": "band",
+      "orient": "bottom"
+    },
+    {
+      "id": "measureAxisLeft",
+      "seriesId": "mainSeries",
+      "type": "linear",
+      "orient": "left",
+      "label": {
+        "style": {}
+      }
+    },
+    {
+      "id": "measureAxisRight",
+      "seriesId": "subSeries",
+      "type": "linear",
+      "orient": "right",
+      "tick": {
+        "visible": false
+      },
+      "grid": {
+        "visible": false
+      },
+      "label": {
+        "style": {}
+      }
+    }
+  ],
+  "legends": [
+    {
+      "orient": "right",
+      "type": "discrete",
+      "item": {
+        "visible": true,
+        "background": {
+          "style": {}
+        },
+        "label": {
+          "style": {}
+        },
+        "shape": {
+          "style": {}
+        }
+      }
+    }
+  ],
+  "title": {
+    "text": "茅台估值溢价分析"
+  },
+  "insights": [
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Premium_Percentage",
+      "value": 16.4,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "right"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "value": 16.4,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的平均值为16.4"
+      }
+    },
+    {
+      "name": "base",
+      "type": "avg",
+      "fieldId": "Moutai_Value",
+      "value": 23,
+      "significant": 1,
+      "data": [],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "axesDirection": "left"
+      },
+      "textContent": {
+        "content": "${a}的平均值为${b}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "value": 23,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的平均值为23"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Premium_Percentage",
+      "value": 24.1,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "20001": "Premium_Percentage",
+            "Valuation_Metric": "市净率",
+            "Premium_Percentage": 24.1,
+            "Moutai_Value": 10.8,
+            "Industry_Avg": 8.7
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isGroup": false,
+        "dimValue": "市净率"
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": "市净率",
+            "fieldName": "Valuation_Metric"
+          },
+          "c": {
+            "value": 24.1,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的最大值位于市净率，值为24.1"
+      }
+    },
+    {
+      "name": "base",
+      "type": "max",
+      "fieldId": "Moutai_Value",
+      "value": 35.2,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Moutai_Value",
+            "Valuation_Metric": "市盈率",
+            "Premium_Percentage": 8.7,
+            "Moutai_Value": 35.2,
+            "Industry_Avg": 32.4
+          }
+        }
+      ],
+      "info": {
+        "isAxesArea": true,
+        "titleName": "",
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isGroup": true,
+        "dimValue": "市盈率"
+      },
+      "textContent": {
+        "content": "${a}的最大值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": "市盈率",
+            "fieldName": "Valuation_Metric"
+          },
+          "c": {
+            "value": 35.2,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的最大值位于市盈率，值为35.2"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Premium_Percentage",
+      "value": 8.7,
+      "significant": 1,
+      "data": [
+        {
+          "index": 0,
+          "dataItem": {
+            "20001": "Premium_Percentage",
+            "Valuation_Metric": "市盈率",
+            "Premium_Percentage": 8.7,
+            "Moutai_Value": 35.2,
+            "Industry_Avg": 32.4
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "subSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": false,
+        "dimValue": "市盈率"
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": "市盈率",
+            "fieldName": "Valuation_Metric"
+          },
+          "c": {
+            "value": 8.7,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的最小值位于市盈率，值为8.7"
+      }
+    },
+    {
+      "name": "base",
+      "type": "min",
+      "fieldId": "Moutai_Value",
+      "value": 10.8,
+      "significant": 1,
+      "data": [
+        {
+          "index": 1,
+          "dataItem": {
+            "20001": "Moutai_Value",
+            "Valuation_Metric": "市净率",
+            "Premium_Percentage": 24.1,
+            "Moutai_Value": 10.8,
+            "Industry_Avg": 8.7
+          }
+        }
+      ],
+      "info": {
+        "seriesId": "mainSeries",
+        "seriesIndex": null,
+        "isAxesArea": true,
+        "titleName": "",
+        "isGroup": true,
+        "dimValue": "市净率"
+      },
+      "textContent": {
+        "content": "${a}的最小值位于${b}，值为${c}",
+        "variables": {
+          "a": {
+            "value": "Moutai_Value",
+            "fieldName": "Moutai_Value"
+          },
+          "b": {
+            "isDimValue": true,
+            "value": "市净率",
+            "fieldName": "Valuation_Metric"
+          },
+          "c": {
+            "value": 10.8,
+            "isMeasure": true,
+            "fieldName": null
+          }
+        },
+        "plainText": "Moutai_Value的最小值位于市净率，值为10.8"
+      }
+    }
+  ]
+}
