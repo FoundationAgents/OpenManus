@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import Field, model_validator
 
 from app.agent.toolcall import ToolCallAgent
+from app.config import config
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
@@ -94,12 +94,10 @@ class BrowserAgent(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
-    max_steps: int = 20
+    max_steps: int = Field(default_factory=lambda: config.agent_config.max_steps_browser)
 
     # Configure the available tools
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
-    )
+    available_tools: ToolCollection = Field(default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate()))
 
     # Use Auto for tool choice to allow both tool usage and free-form responses
     tool_choices: ToolChoice = ToolChoice.AUTO
@@ -114,9 +112,7 @@ class BrowserAgent(ToolCallAgent):
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
-        self.next_step_prompt = (
-            await self.browser_context_helper.format_next_step_prompt()
-        )
+        self.next_step_prompt = await self.browser_context_helper.format_next_step_prompt()
         return await super().think()
 
     async def cleanup(self):

@@ -25,7 +25,7 @@ class Manus(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
-    max_steps: int = 20
+    max_steps: int = Field(default_factory=lambda: config.agent_config.max_steps_manus)
 
     # MCP clients for remote tool access
     mcp_clients: MCPClients = Field(default_factory=MCPClients)
@@ -45,9 +45,7 @@ class Manus(ToolCallAgent):
     browser_context_helper: Optional[BrowserContextHelper] = None
 
     # Track connected MCP servers
-    connected_servers: Dict[str, str] = Field(
-        default_factory=dict
-    )  # server_id -> url/command
+    connected_servers: Dict[str, str] = Field(default_factory=dict)  # server_id -> url/command
     _initialized: bool = False
 
     @model_validator(mode="after")
@@ -71,9 +69,7 @@ class Manus(ToolCallAgent):
                 if server_config.type == "sse":
                     if server_config.url:
                         await self.connect_mcp_server(server_config.url, server_id)
-                        logger.info(
-                            f"Connected to MCP server {server_id} at {server_config.url}"
-                        )
+                        logger.info(f"Connected to MCP server {server_id} at {server_config.url}")
                 elif server_config.type == "stdio":
                     if server_config.command:
                         await self.connect_mcp_server(
@@ -82,9 +78,7 @@ class Manus(ToolCallAgent):
                             use_stdio=True,
                             stdio_args=server_config.args,
                         )
-                        logger.info(
-                            f"Connected to MCP server {server_id} using command {server_config.command}"
-                        )
+                        logger.info(f"Connected to MCP server {server_id} using command {server_config.command}")
             except Exception as e:
                 logger.error(f"Failed to connect to MCP server {server_id}: {e}")
 
@@ -97,18 +91,14 @@ class Manus(ToolCallAgent):
     ) -> None:
         """Connect to an MCP server and add its tools."""
         if use_stdio:
-            await self.mcp_clients.connect_stdio(
-                server_url, stdio_args or [], server_id
-            )
+            await self.mcp_clients.connect_stdio(server_url, stdio_args or [], server_id)
             self.connected_servers[server_id or server_url] = server_url
         else:
             await self.mcp_clients.connect_sse(server_url, server_id)
             self.connected_servers[server_id or server_url] = server_url
 
         # Update available tools with only the new tools from this server
-        new_tools = [
-            tool for tool in self.mcp_clients.tools if tool.server_id == server_id
-        ]
+        new_tools = [tool for tool in self.mcp_clients.tools if tool.server_id == server_id]
         self.available_tools.add_tools(*new_tools)
 
     async def disconnect_mcp_server(self, server_id: str = "") -> None:
@@ -120,11 +110,7 @@ class Manus(ToolCallAgent):
             self.connected_servers.clear()
 
         # Rebuild available tools without the disconnected server's tools
-        base_tools = [
-            tool
-            for tool in self.available_tools.tools
-            if not isinstance(tool, MCPClientTool)
-        ]
+        base_tools = [tool for tool in self.available_tools.tools if not isinstance(tool, MCPClientTool)]
         self.available_tools = ToolCollection(*base_tools)
         self.available_tools.add_tools(*self.mcp_clients.tools)
 
@@ -153,9 +139,7 @@ class Manus(ToolCallAgent):
         )
 
         if browser_in_use:
-            self.next_step_prompt = (
-                await self.browser_context_helper.format_next_step_prompt()
-            )
+            self.next_step_prompt = await self.browser_context_helper.format_next_step_prompt()
 
         result = await super().think()
 

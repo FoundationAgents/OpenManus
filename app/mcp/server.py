@@ -3,12 +3,15 @@ import asyncio
 import atexit
 import json
 import logging
+import os
 import sys
 from inspect import Parameter, Signature
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from mcp.server.fastmcp import FastMCP
 
+from app.config import config
 from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
@@ -24,7 +27,8 @@ class MCPServer:
     """MCP Server implementation with tool registration and management."""
 
     def __init__(self, name: str = "openmanus"):
-        self.server = FastMCP(name)
+        logger.info(f"Initializing name: {name}, path: {config.workspace_root}")
+        self.server = FastMCP(name, path=config.workspace_root)
         self.tools: Dict[str, BaseTool] = {}
 
         # Initialize standard tools
@@ -143,13 +147,26 @@ class MCPServer:
         for tool in self.tools.values():
             self.register_tool(tool)
 
-    def run(self, transport: str = "stdio") -> None:
-        """Run the MCP server."""
+    def run(self, transport: str = "stdio", working_dir: Optional[Path] = None) -> None:
+        """Run the MCP server.
+
+        transport: "stdio" | "sse"
+        working_dir: Optional path to chdir into before starting the server
+        """
         # Register all tools
         self.register_all_tools()
 
         # Register cleanup function (match original behavior)
         atexit.register(lambda: asyncio.run(self.cleanup()))
+
+        # Optionally change working directory
+        if working_dir is not None:
+            try:
+                os.makedirs(working_dir, exist_ok=True)
+            except FileExistsError:
+                pass
+            os.chdir(str(working_dir))
+            logger.info(f"Changed working directory to: {working_dir}")
 
         # Start server (with same logging as original)
         logger.info(f"Starting OpenManus server ({transport} mode)")
@@ -161,9 +178,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="OpenManus MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio"],
+        choices=["stdio", "sse"],
         default="stdio",
-        help="Communication method: stdio or http (default: stdio)",
+        help="Communication method: stdio or sse (default: stdio)",
     )
     return parser.parse_args()
 

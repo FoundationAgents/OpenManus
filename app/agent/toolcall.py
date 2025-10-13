@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Union
 from pydantic import Field
 
 from app.agent.react import ReActAgent
+from app.config import config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
@@ -30,7 +31,7 @@ class ToolCallAgent(ReActAgent):
     tool_calls: List[ToolCall] = Field(default_factory=list)
     _current_base64_image: Optional[str] = None
 
-    max_steps: int = 30
+    max_steps: int = Field(default_factory=lambda: config.agent_config.max_steps_toolcall)
     max_observe: Optional[Union[int, bool]] = None
 
     async def think(self) -> bool:
