@@ -141,6 +141,13 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP server config: {e}")
 
 
+class MinerUSettings(BaseModel):
+    """Configuration for MinerU PDF parsing service"""
+
+    api_key: str = Field(..., description="MinerU API key (Bearer token)")
+    base_url: str = Field(default="https://mineru.net/api/v4/extract", description="MinerU API base URL")
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(None, description="Sandbox configuration")
@@ -149,6 +156,7 @@ class AppConfig(BaseModel):
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
     run_flow_config: Optional[RunflowSettings] = Field(None, description="Run flow configuration")
     agent_config: Optional[AgentSettings] = Field(None, description="Agent execution configuration")
+    mineru_config: Optional[MinerUSettings] = Field(None, description="MinerU PDF parsing configuration")
 
     class Config:
         arbitrary_types_allowed = True
@@ -264,6 +272,11 @@ class Config:
         else:
             agent_settings = AgentSettings()
 
+        mineru_config = raw_config.get("mineru", {})
+        mineru_settings = None
+        if mineru_config and mineru_config.get("api_key"):
+            mineru_settings = MinerUSettings(**mineru_config)
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -275,6 +288,7 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "agent_config": agent_settings,
+            "mineru_config": mineru_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -309,6 +323,11 @@ class Config:
     def agent_config(self) -> AgentSettings:
         """Get the Agent configuration"""
         return self._config.agent_config
+
+    @property
+    def mineru_config(self) -> Optional[MinerUSettings]:
+        """Get the MinerU configuration"""
+        return self._config.mineru_config
 
     @property
     def workspace_root(self) -> Path:
