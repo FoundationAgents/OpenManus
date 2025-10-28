@@ -14,8 +14,12 @@ from app.tool.base import BaseTool
 
 class DataVisualization(BaseTool):
     name: str = "data_visualization"
-    description: str = """Visualize statistical chart with JSON info from visualization_preparation tool.
-Outputs: Charts (png/html)"""
+    description: str = """Visualize statistical chart or Add insights in chart with JSON info from visualization_preparation tool. You can do steps as follows:
+1. Visualize statistical chart
+2. Choose insights into chart based on step 1 (Optional)
+Outputs:
+1. Charts (png/html)
+2. Charts Insights (.md)(Optional)"""
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -30,9 +34,10 @@ Outputs: Charts (png/html)"""
                 "enum": ["png", "html"],
             },
             "tool_type": {
-                "description": "visualize",
+                "description": "visualize chart or add insights",
                 "type": "string",
                 "default": "visualization",
+                "enum": ["visualization", "insight"],
             },
             "language": {
                 "description": "english(en) / chinese(zh)",
@@ -74,43 +79,11 @@ Outputs: Charts (png/html)"""
                 raise Exception(f"No such file or directory: {item[path_str]}")
         return res
 
-    def load_chart_with_css(self, chart_path):
-        # 读取 HTML 文件
-        with open(chart_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-
-        # 在 <head> 里插入 CSS
-        css = """
-        <style>
-            body, html {
-                margin: 0;
-                padding: 0;
-                height: 100%;
-                overflow: hidden;
-            }
-            #chart-container {
-                width: 100%;
-                height: 100%;
-            }
-        </style>
-        """
-
-        # 如果原文件没有 <head>，直接插入到最前面
-        if "<head>" in html_content:
-            html_content = html_content.replace("<head>", "<head>" + css)
-        else:
-            html_content = css + html_content
-
-        with open(chart_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-
     def success_output_template(self, result: list[dict[str, str]]) -> str:
         content = ""
         if len(result) == 0:
             return "Is EMPTY!"
         for item in result:
-            chart_path=item['chart_path']
-            self.load_chart_with_css(chart_path)
             content += f"""## {item['title']}\nChart saved in: {item['chart_path']}"""
             if "insight_path" in item and item["insight_path"] and "insight_md" in item:
                 content += "\n" + item["insight_md"]
@@ -172,7 +145,7 @@ Outputs: Charts (png/html)"""
         else:
             return {"observation": f"{self.success_output_template(success_list)}"}
 
-    async def add_insights(
+    async def add_insighs(
         self, json_info: list[dict[str, str]], output_type: str
     ) -> str:
         data_list = []
@@ -234,7 +207,7 @@ Outputs: Charts (png/html)"""
             if tool_type == "visualization":
                 return await self.data_visualization(json_info, output_type, language)
             else:
-                return await self.add_insights(json_info, output_type)
+                return await self.add_insighs(json_info, output_type)
         except Exception as e:
             return {
                 "observation": f"Error: {e}",
