@@ -1,8 +1,7 @@
 import path from "path";
 import fs from "fs";
 import puppeteer from "puppeteer";
-import VMind, { ChartType } from "@visactor/vmind";
-import type { DataTable } from '@visactor/generate-vchart';
+import VMind, { ChartType, DataTable } from "@visactor/vmind";
 import { isString } from "@visactor/vutils";
 
 enum AlgorithmType {
@@ -64,7 +63,8 @@ function getHtmlVChart(spec: any, width?: number, height?: number) {
     <script src="https://unpkg.com/@visactor/vchart/build/index.min.js"></script>
 </head>
 <body>
-    <div id="chart-container" style="width: ${width ? `${width}px` : "100%"
+    <div id="chart-container" style="width: ${
+      width ? `${width}px` : "100%"
     }; height: ${height ? `${height}px` : "100%"};"></div>
     <script>
       // parse spec with function
@@ -82,7 +82,7 @@ function getHtmlVChart(spec: any, width?: number, height?: number) {
           return v;
         });
       }
-      const spec = parseSpec(\'${serializeSpec(spec)}\');
+      const spec = parseSpec(\`${serializeSpec(spec)}\`);
       const chart = new VChart.VChart(spec, {
           dom: 'chart-container'
       });
@@ -242,7 +242,7 @@ async function generateChart(
         ChartType.AreaChart,
         ChartType.ScatterPlot,
         ChartType.DualAxisChart,
-      ].includes(chartType as ChartType)
+      ].includes(chartType)
     ) {
       const { insights: vmindInsights } = await vmind.getInsights(spec, {
         maxNum: 6,
@@ -295,14 +295,11 @@ async function updateChartWithInsight(
   }
 ) {
   const { directory, outputType, fileName, insightsId } = options;
-  //???????为什么打印不出来？？？？？？？
-  //console.log(options)
   let res: { error?: string; chart_path?: string } = {};
   try {
     const specPath = getSavedPathName(directory, fileName, "json", true);
     const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
     // llm select index from 1
-    //console.log(spec)
     const insights = (spec.insights || []).filter(
       (_insight: any, index: number) => insightsId.includes(index + 1)
     );
