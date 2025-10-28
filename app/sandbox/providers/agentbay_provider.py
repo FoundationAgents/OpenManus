@@ -35,6 +35,7 @@ from .base import (
     BrowserService,
     ComputerService,
     FileService,
+    MobileService,
     SandboxMetadata,
     SandboxProvider,
     ShellCommandResult,
@@ -288,6 +289,85 @@ class AgentBayComputerService(ComputerService):
         # AgentBay Computer API does not expose explicit mouse down/up operations yet.
         return False
 
+
+class AgentBayMobileService(MobileService):
+    """Mobile automation service backed by AgentBay Mobile APIs."""
+
+    def __init__(self, session):
+        self._session = session
+
+    async def tap(self, x: int, y: int) -> None:
+        result = await self._call(self._session.mobile.tap, x, y)
+        self._ensure_success(result, f"Failed to tap ({x}, {y})")
+
+    async def swipe(
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        duration_ms: int = 300,
+    ) -> None:
+        result = await self._call(
+            self._session.mobile.swipe,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            duration_ms,
+        )
+        self._ensure_success(result, "Failed to perform swipe")
+
+    async def input_text(self, text: str) -> None:
+        result = await self._call(self._session.mobile.input_text, text)
+        self._ensure_success(result, "Failed to input text")
+
+    async def send_key(self, key_code: int) -> None:
+        result = await self._call(self._session.mobile.send_key, key_code)
+        self._ensure_success(result, f"Failed to send key {key_code}")
+
+    async def screenshot(self) -> Dict[str, Any]:
+        result = await self._call(self._session.mobile.screenshot)
+        operation = self._ensure_success(result, "Failed to capture screenshot")
+        screenshot_ref = getattr(operation, "data", None)
+        base64_image: Optional[str] = None
+        if isinstance(screenshot_ref, str) and screenshot_ref:
+            try:
+                base64_image = await asyncio.to_thread(
+                    self._download_base64, screenshot_ref
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to download mobile screenshot from %s: %s",
+                    screenshot_ref,
+                    exc,
+                )
+        return {"url": screenshot_ref, "base64": base64_image}
+
+    async def get_clickable_ui_elements(self, timeout_ms: int = 2000) -> Dict[str, Any]:
+        result = await self._call(
+            self._session.mobile.get_clickable_ui_elements, timeout_ms
+        )
+        if not getattr(result, "success", False):
+            error = getattr(result, "error_message", "Failed to get UI elements")
+            raise RuntimeError(error)
+        elements = getattr(result, "elements", []) or []
+        return {"elements": elements, "count": len(elements)}
+
+    async def _call(self, func, *args, **kwargs):
+        return await asyncio.to_thread(func, *args, **kwargs)
+
+    def _ensure_success(self, result, default_error: str):
+        if not getattr(result, "success", False):
+            error = getattr(result, "error_message", "") or default_error
+            raise RuntimeError(error)
+        return result
+
+    def _download_base64(self, url: str) -> str:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return base64.b64encode(response.content).decode("ascii")
+
     async def _call(self, func, *args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
 
@@ -533,90 +613,422 @@ class AgentBaySandboxProvider(SandboxProvider):
         self._config = app_config
         self._sandbox_settings = sandbox_settings
         self._settings: AgentBaySettings = app_config.agentbay
+        if not self._settings:
+            raise RuntimeError("AgentBay settings are required when provider=agentbay")
 
         self._client: Optional[AgentBay] = None
-        self._session = None
-
         self._metadata = SandboxMetadata(provider="agentbay")
-        self._shell_service: Optional[AgentBayShellService] = None
-        self._file_service: Optional[AgentBayFileService] = None
-        self._browser_service: Optional[AgentBayBrowserService] = None
-        self._computer_service: Optional[AgentBayComputerService] = None
+
+        self._sessions: Dict[str, Any] = {}
+        self._session_locks: Dict[str, asyncio.Lock] = {}
+        self._service_cache: Dict[tuple[str, str], Any] = {}
+
+        self._shell_wrapper: Optional["AgentBayLazyShellService"] = None
+        self._file_wrapper: Optional["AgentBayLazyFileService"] = None
+        self._browser_wrapper: Optional["AgentBayLazyBrowserService"] = None
+        self._computer_wrapper: Optional["AgentBayLazyComputerService"] = None
+        self._mobile_wrapper: Optional["AgentBayLazyMobileService"] = None
 
     async def initialize(self) -> None:
-        logger.info("Initializing AgentBay sandbox provider")
-
-        agentbay_cfg = AgentBayConfig(
-            endpoint=self._settings.endpoint,
-            timeout_ms=self._settings.timeout_ms,
-        )
-        api_key = self._settings.api_key or ""
-        env_file = self._settings.env_file
-
-        self._client = AgentBay(api_key=api_key, cfg=agentbay_cfg, env_file=env_file)
-
-        params = CreateSessionParams()
-        params.is_vpc = self._settings.session_defaults.is_vpc
-        if self._settings.session_defaults.image_id:
-            params.image_id = self._settings.session_defaults.image_id
-
-        # AgentBay.create is synchronous; run in executor to avoid blocking event loop
-        session_result = await asyncio.to_thread(self._client.create, params)
-        if not session_result.success:
-            raise RuntimeError(
-                session_result.error_message
-                or "Failed to create AgentBay sandbox session"
-            )
-
-        self._session = session_result.session
-        logger.info(f"AgentBay session created: {self._session.session_id}")
-
-        self._metadata.extra["session_id"] = self._session.session_id
-        if getattr(self._session, "resource_url", None):
-            self._metadata.links["resource"] = self._session.resource_url
-
-        self._shell_service = AgentBayShellService(self._session)
-        self._file_service = AgentBayFileService(self._session)
-        self._browser_service = AgentBayBrowserService(self._session)
-        self._computer_service = AgentBayComputerService(self._session)
+        logger.info("Initializing AgentBay sandbox provider (lazy sessions)")
+        self._metadata.links.clear()
+        self._metadata.extra.clear()
+        self._metadata.extra["sessions"] = []
 
     async def cleanup(self) -> None:
-        if self._browser_service:
-            try:
-                await self._browser_service.cleanup()
-            except Exception:
-                logger.warning("Failed to cleanup AgentBay browser", exc_info=True)
-            self._browser_service = None
-        if self._client and self._session:
-            try:
-                await asyncio.to_thread(self._client.delete, self._session)
-            except Exception:
-                logger.warning(
-                    f"Failed to delete AgentBay session {self._session.session_id}",
-                    exc_info=True,
-                )
-        self._session = None
+        for service in list(self._service_cache.values()):
+            if isinstance(service, AgentBayBrowserService):
+                try:
+                    await service.cleanup()
+                except Exception:
+                    logger.warning("Failed to cleanup AgentBay browser", exc_info=True)
+
+        if self._client:
+            for image_id, session in list(self._sessions.items()):
+                try:
+                    await asyncio.to_thread(self._client.delete, session)
+                except Exception:
+                    logger.warning(
+                        "Failed to delete AgentBay session %s for image %s",
+                        getattr(session, "session_id", "unknown"),
+                        image_id,
+                        exc_info=True,
+                    )
+            self._sessions.clear()
+
+        self._service_cache.clear()
+        self._session_locks.clear()
         self._client = None
-        self._computer_service = None
+        self._shell_wrapper = None
+        self._file_wrapper = None
+        self._browser_wrapper = None
+        self._computer_wrapper = None
+        self._mobile_wrapper = None
 
     def metadata(self) -> SandboxMetadata:
         return self._metadata
 
     def shell_service(self) -> ShellService:
-        if not self._shell_service:
-            raise RuntimeError("AgentBay sandbox not initialized")
-        return self._shell_service
+        if self._shell_wrapper is None:
+            self._shell_wrapper = AgentBayLazyShellService(self)
+        return self._shell_wrapper
 
     def file_service(self) -> FileService:
-        if not self._file_service:
-            raise RuntimeError("AgentBay sandbox not initialized")
-        return self._file_service
+        if self._file_wrapper is None:
+            self._file_wrapper = AgentBayLazyFileService(self)
+        return self._file_wrapper
 
     def browser_service(self) -> Optional[BrowserService]:
-        return self._browser_service
+        if self._get_image_id_for_role("browser") is None:
+            return None
+        if self._browser_wrapper is None:
+            self._browser_wrapper = AgentBayLazyBrowserService(self)
+        return self._browser_wrapper
 
     def vision_service(self) -> Optional[VisionService]:
         return None
 
     def computer_service(self) -> Optional[ComputerService]:
-        return self._computer_service
+        if self._get_image_id_for_role("computer") is None:
+            return None
+        if self._computer_wrapper is None:
+            self._computer_wrapper = AgentBayLazyComputerService(self)
+        return self._computer_wrapper
+
+    def mobile_service(self) -> Optional[MobileService]:
+        if self._get_image_id_for_role("mobile") is None:
+            return None
+        if self._mobile_wrapper is None:
+            self._mobile_wrapper = AgentBayLazyMobileService(self)
+        return self._mobile_wrapper
+
+    async def _get_service(self, kind: str, role: str):
+        image_id = self._get_image_id_for_role(role)
+        if not image_id:
+            raise RuntimeError(f"No image configured for AgentBay role '{role}'")
+
+        session = await self._ensure_session(image_id)
+        cache_key = (image_id, kind)
+        if cache_key in self._service_cache:
+            return self._service_cache[cache_key]
+
+        if kind == "shell":
+            service = AgentBayShellService(session)
+        elif kind == "file":
+            service = AgentBayFileService(session)
+        elif kind == "browser":
+            service = AgentBayBrowserService(session)
+        elif kind == "computer":
+            service = AgentBayComputerService(session)
+        elif kind == "mobile":
+            service = AgentBayMobileService(session)
+        else:
+            raise ValueError(f"Unknown service kind: {kind}")
+
+        self._service_cache[cache_key] = service
+        return service
+
+    async def _ensure_session(self, image_id: str):
+        if image_id in self._sessions:
+            return self._sessions[image_id]
+
+        lock = self._session_locks.setdefault(image_id, asyncio.Lock())
+        async with lock:
+            if image_id in self._sessions:
+                return self._sessions[image_id]
+
+            if self._client is None:
+                agentbay_cfg = AgentBayConfig(
+                    endpoint=self._settings.endpoint,
+                    timeout_ms=self._settings.timeout_ms,
+                )
+                api_key = self._settings.api_key or ""
+                env_file = self._settings.env_file
+                self._client = AgentBay(
+                    api_key=api_key, cfg=agentbay_cfg, env_file=env_file
+                )
+
+            params = CreateSessionParams()
+            params.is_vpc = self._settings.session_defaults.is_vpc
+            params.image_id = image_id
+
+            logger.info("Creating AgentBay session with image %s", image_id)
+            session_result = await asyncio.to_thread(self._client.create, params)
+            if not session_result.success:
+                raise RuntimeError(
+                    session_result.error_message
+                    or f"Failed to create AgentBay session for image {image_id}"
+                )
+
+            session = session_result.session
+            self._sessions[image_id] = session
+            self._metadata.extra.setdefault("sessions", []).append(
+                {
+                    "image_id": image_id,
+                    "session_id": session.session_id,
+                }
+            )
+            if getattr(session, "resource_url", None):
+                self._metadata.links[f"{image_id}_resource"] = session.resource_url
+                logger.info(
+                    "AgentBay session %s (image %s) resource: %s",
+                    session.session_id,
+                    image_id,
+                    session.resource_url,
+                )
+
+            logger.info(
+                "AgentBay session %s ready for image %s",
+                session.session_id,
+                image_id,
+            )
+
+            return session
+
+    def _get_image_id_for_role(self, role: str) -> Optional[str]:
+        desktop_image = self._settings.desktop_image_id
+        browser_image = self._settings.browser_image_id
+        mobile_image = self._settings.mobile_image_id
+        default_image = self._settings.session_defaults.image_id
+
+        if role == "computer":
+            return desktop_image or default_image
+        if role == "browser":
+            return browser_image or default_image or desktop_image
+        if role == "mobile":
+            return mobile_image or default_image or desktop_image
+        # shell/file default preference: use desktop if available, otherwise default, otherwise browser
+        return default_image or desktop_image or browser_image or mobile_image
+
+
+class AgentBayLazyShellService(ShellService):
+    def __init__(self, provider: AgentBaySandboxProvider):
+        self._provider = provider
+
+    async def execute(
+        self,
+        command: str,
+        *,
+        cwd: Optional[str] = None,
+        timeout: Optional[int] = None,
+        blocking: bool = False,
+        session: Optional[str] = None,
+    ) -> ShellCommandResult:
+        service: AgentBayShellService = await self._provider._get_service(
+            "shell", "shell"
+        )
+        return await service.execute(
+            command, cwd=cwd, timeout=timeout, blocking=blocking, session=session
+        )
+
+    async def check(self, session: str) -> ShellCommandResult:
+        service: AgentBayShellService = await self._provider._get_service(
+            "shell", "shell"
+        )
+        return await service.check(session)
+
+    async def terminate(self, session: str) -> ShellCommandResult:
+        service: AgentBayShellService = await self._provider._get_service(
+            "shell", "shell"
+        )
+        return await service.terminate(session)
+
+    async def list_sessions(self) -> Sequence[str]:
+        service: AgentBayShellService = await self._provider._get_service(
+            "shell", "shell"
+        )
+        return await service.list_sessions()
+
+
+class AgentBayLazyFileService(FileService):
+    def __init__(self, provider: AgentBaySandboxProvider):
+        self._provider = provider
+
+    async def read(self, path: str) -> str:
+        service: AgentBayFileService = await self._provider._get_service(
+            "file", "shell"
+        )
+        return await service.read(path)
+
+    async def write(
+        self, path: str, content: str, *, overwrite: bool = True
+    ) -> None:
+        service: AgentBayFileService = await self._provider._get_service(
+            "file", "shell"
+        )
+        await service.write(path, content, overwrite=overwrite)
+
+    async def delete(self, path: str) -> None:
+        service: AgentBayFileService = await self._provider._get_service(
+            "file", "shell"
+        )
+        await service.delete(path)
+
+    async def list(self, path: str) -> Sequence[Dict[str, Any]]:
+        service: AgentBayFileService = await self._provider._get_service(
+            "file", "shell"
+        )
+        return await service.list(path)
+
+    async def exists(self, path: str) -> bool:
+        service: AgentBayFileService = await self._provider._get_service(
+            "file", "shell"
+        )
+        return await service.exists(path)
+
+
+class AgentBayLazyBrowserService(BrowserService):
+    def __init__(self, provider: AgentBaySandboxProvider):
+        self._provider = provider
+
+    async def perform_action(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        service: AgentBayBrowserService = await self._provider._get_service(
+            "browser", "browser"
+        )
+        return await service.perform_action(action, payload)
+
+    async def current_state(self) -> Dict[str, Any]:
+        service: AgentBayBrowserService = await self._provider._get_service(
+            "browser", "browser"
+        )
+        return await service.current_state()
+
+    async def cleanup(self) -> None:
+        image_id = self._provider._get_image_id_for_role("browser")
+        if not image_id:
+            return
+        service = self._provider._service_cache.get((image_id, "browser"))
+        if service:
+            await service.cleanup()
+
+
+class AgentBayLazyComputerService(ComputerService):
+    def __init__(self, provider: AgentBaySandboxProvider):
+        self._provider = provider
+
+    async def move_mouse(self, x: int, y: int) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.move_mouse(x, y)
+
+    async def click_mouse(
+        self, x: int, y: int, *, button: str, count: int = 1
+    ) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.click_mouse(x, y, button=button, count=count)
+
+    async def drag_mouse(
+        self,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+        *,
+        button: str = "left",
+    ) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.drag_mouse(from_x, from_y, to_x, to_y, button=button)
+
+    async def scroll(self, x: int, y: int, *, amount: int) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.scroll(x, y, amount=amount)
+
+    async def input_text(self, text: str) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.input_text(text)
+
+    async def press_keys(self, keys: Sequence[str], *, hold: bool = False) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.press_keys(keys, hold=hold)
+
+    async def release_keys(self, keys: Sequence[str]) -> None:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        await service.release_keys(keys)
+
+    async def get_cursor_position(self) -> Dict[str, int]:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        return await service.get_cursor_position()
+
+    async def get_screen_size(self) -> Dict[str, Any]:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        return await service.get_screen_size()
+
+    async def screenshot(self) -> Dict[str, Any]:
+        service: AgentBayComputerService = await self._provider._get_service(
+            "computer", "computer"
+        )
+        return await service.screenshot()
+
+    def supports_mouse_hold(self) -> bool:
+        image_id = self._provider._get_image_id_for_role("computer")
+        if not image_id:
+            return False
+        service = self._provider._service_cache.get((image_id, "computer"))
+        if isinstance(service, AgentBayComputerService):
+            return service.supports_mouse_hold()
+        return False
+
+
+class AgentBayLazyMobileService(MobileService):
+    def __init__(self, provider: AgentBaySandboxProvider):
+        self._provider = provider
+
+    async def tap(self, x: int, y: int) -> None:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        await service.tap(x, y)
+
+    async def swipe(
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        duration_ms: int = 300,
+    ) -> None:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        await service.swipe(start_x, start_y, end_x, end_y, duration_ms)
+
+    async def input_text(self, text: str) -> None:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        await service.input_text(text)
+
+    async def send_key(self, key_code: int) -> None:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        await service.send_key(key_code)
+
+    async def screenshot(self) -> Dict[str, Any]:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        return await service.screenshot()
+
+    async def get_clickable_ui_elements(self, timeout_ms: int = 2000) -> Dict[str, Any]:
+        service: AgentBayMobileService = await self._provider._get_service(
+            "mobile", "mobile"
+        )
+        return await service.get_clickable_ui_elements(timeout_ms)

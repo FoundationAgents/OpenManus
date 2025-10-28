@@ -117,6 +117,18 @@ class AgentBaySettings(BaseModel):
     env_file: Optional[str] = Field(
         None, description="Path to .env file for AgentBay credentials"
     )
+    desktop_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for desktop-capable sessions (e.g., linux_latest)",
+    )
+    browser_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for browser-focused sessions (e.g., browser_latest)",
+    )
+    mobile_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for mobile automation sessions (e.g., android_latest)",
+    )
     session_defaults: AgentBaySessionDefaults = Field(
         default_factory=AgentBaySessionDefaults,
         description="Default session creation parameters",

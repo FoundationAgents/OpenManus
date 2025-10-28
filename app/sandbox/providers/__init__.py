@@ -11,6 +11,7 @@ from .base import (
     BrowserService,
     VisionService,
     ComputerService,
+    MobileService,
 )
 from .factory import create_sandbox_provider
 
@@ -23,5 +24,6 @@ __all__ = [
     "BrowserService",
     "VisionService",
     "ComputerService",
+    "MobileService",
     "create_sandbox_provider",
 ]

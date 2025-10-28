@@ -1,1 +1,0 @@
-export { Computer, BoolResult, CursorPosition, ScreenSize, ScreenshotResult } from './computer'; 

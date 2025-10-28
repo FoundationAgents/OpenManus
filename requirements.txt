@@ -1,3 +1,4 @@
+wuying-agentbay-sdk~=0.9.3
 pydantic>=2.11.6,<3
 openai~=1.66.3
 tenacity~=9.0.0

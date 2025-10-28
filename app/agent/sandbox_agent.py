@@ -13,6 +13,7 @@ from app.tool.ask_human import AskHuman
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
 from app.tool.sandbox.sb_computer_tool import SandboxComputerTool
+from app.tool.sandbox.sb_mobile_tool import SandboxMobileTool
 from app.tool.sandbox.sb_files_tool import SandboxFilesTool
 from app.tool.sandbox.sb_shell_tool import SandboxShellTool
 from app.tool.sandbox.sb_vision_tool import SandboxVisionTool
@@ -100,6 +101,10 @@ class SandboxManus(ToolCallAgent):
             if computer_service:
                 tools.append(SandboxComputerTool(computer_service))
 
+            mobile_service = provider.mobile_service()
+            if mobile_service:
+                tools.append(SandboxMobileTool(mobile_service))
+
             vision_service = provider.vision_service()
             if vision_service:
                 tools.append(SandboxVisionTool(vision_service))
@@ -182,7 +187,10 @@ class SandboxManus(ToolCallAgent):
         if self._initialized:
             await self.disconnect_mcp_server()
             if self.sandbox_provider:
-                await self.sandbox_provider.cleanup()
+                try:
+                    await self.sandbox_provider.cleanup()
+                except Exception:
+                    logger.warning("Failed to cleanup sandbox provider", exc_info=True)
                 self.sandbox_provider = None
             self._initialized = False
 

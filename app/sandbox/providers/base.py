@@ -166,6 +166,37 @@ class ComputerService(ABC):
         return False
 
 
+class MobileService(ABC):
+    """Abstract mobile automation service."""
+
+    async def tap(self, x: int, y: int) -> None:
+        raise NotImplementedError("tap is not supported by this provider")
+
+    async def swipe(
+        self,
+        start_x: int,
+        start_y: int,
+        end_x: int,
+        end_y: int,
+        duration_ms: int = 300,
+    ) -> None:
+        raise NotImplementedError("swipe is not supported by this provider")
+
+    async def input_text(self, text: str) -> None:
+        raise NotImplementedError("input_text is not supported by this provider")
+
+    async def send_key(self, key_code: int) -> None:
+        raise NotImplementedError("send_key is not supported by this provider")
+
+    async def screenshot(self) -> Dict[str, Any]:
+        raise NotImplementedError("screenshot is not supported by this provider")
+
+    async def get_clickable_ui_elements(self, timeout_ms: int = 2000) -> Dict[str, Any]:
+        raise NotImplementedError(
+            "get_clickable_ui_elements is not supported by this provider"
+        )
+
+
 class SandboxProvider(ABC):
     """Base class for sandbox providers."""
 
@@ -206,4 +237,8 @@ class SandboxProvider(ABC):
 
     def computer_service(self) -> Optional[ComputerService]:
         """Return computer automation service if available."""
+        return None
+
+    def mobile_service(self) -> Optional[MobileService]:
+        """Return mobile automation service if available."""
         return None

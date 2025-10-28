@@ -1,6 +1,0 @@
-wuying-agentbay-sdk>=0.7.0
-playwright>=1.40.0
-python-dotenv>=0.19.0
-langchain>=0.1.0
-langchain-openai>=0.1.0
-langchain-community>=0.1.0
