@@ -1,0 +1,132 @@
+name: Auto Publish to TestPyPI And TestNpm
+
+on:
+  push:
+    branches: [ '*' ]
+jobs:
+  build-and-publish-test:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      pull-requests: read
+      checks: read
+      statuses: read
+      actions: write
+      id-token: write
+
+    if: github.repository == 'aliyun/wuying-agentbay-sdk'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Extract base version from pyproject.toml
+        run: |
+          cd python
+          BASE_VERSION=$(grep "version = " pyproject.toml | head -n 1 | cut -d '"' -f 2)
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+
+      - name: Generate final version with timestamp
+        run: |
+          TIMESTAMP=$(TZ='Asia/Shanghai' date "+%Y%m%d%H%M%S")
+          FINAL_VERSION="${BASE_VERSION}.${TIMESTAMP}"
+          echo "FINAL_VERSION=${FINAL_VERSION}" >> $GITHUB_ENV
+
+      - name: Print current directory before changing to python
+        run: pwd
+
+      - name: List files in current directory before changing to python
+        run: ls .
+
+      - name: Change directory to python and perform operations
+        run: |
+          cd python
+          pwd
+          if [ -d "dist" ]; then
+            rm -rf dist/
+          fi
+          python -m pip install --upgrade pip
+          pip install poetry
+          echo "Using version: $FINAL_VERSION"
+          poetry version $FINAL_VERSION
+
+
+      - name: Build and Publish to TestPyPI
+        env:
+          POETRY_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          cd python
+          poetry config repositories.test-pypi https://test.pypi.org/legacy/
+          poetry config pypi-token.test-pypi $POETRY_PYPI_TOKEN
+          poetry build
+          ls dist/
+          poetry publish -r test-pypi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Extract base version from package.json
+        run: |
+          cd typescript
+          BASE_VERSION=$(jq -r .version package.json)
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+
+      - name: Generate final version with timestamp
+        run: |
+          TIMESTAMP=$(TZ='Asia/Shanghai' date "+%Y%m%d%H%M%S")
+          FINAL_VERSION="${BASE_VERSION}-${TIMESTAMP}"
+          echo "NPM_FINAL_VERSION=${FINAL_VERSION}" >> $GITHUB_ENV
+
+      - name: Build TypeScript
+        run: |
+          cd typescript
+          rm -rf dist/ || true
+          sed -i 's/"name":.*/"name": "test-wuying-agentbay-sdk",/' package.json
+          npm install
+          npm install -g typescript
+          npm version ${{ env.NPM_FINAL_VERSION }} --no-git-tag-version
+          npm run build
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.TEST_NPM_TOKEN }}
+        run: |
+          cd typescript
+          npm publish
+
+      - name: Get commit info
+        run: |
+          # Get Commit ID and time
+          LATEST_COMMIT=$(git log -1 --pretty=format:"%H")
+          COMMIT_TIME=$(git log -1 --pretty=format:"%cd")
+          echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
+          echo "COMMIT_TIME=$COMMIT_TIME" >> $GITHUB_ENV
+          echo "Latest Commit ID: $LATEST_COMMIT"
+          echo "Commit Time: $COMMIT_TIME"
+
+      - name: get install command
+        run: |
+          echo "pip install -i https://test.pypi.org/simple/ wuying-agentbay-sdk==${{ env.FINAL_VERSION }}"
+          echo "npm install test-wuying-agentbay-sdk@${{ env.NPM_FINAL_VERSION }}"
+          echo "go get github.com/aliyun/wuying-agentbay-sdk@${{env.LATEST_COMMIT }}"
+
+      - name: Generate Build Summary
+        if: success()
+        run: |
+          SUMMARY_PATH=$GITHUB_STEP_SUMMARY
+
+          # Write test content
+          echo "## INSTALL COMMAND " > $SUMMARY_PATH
+          echo "### CONTENT" >> $SUMMARY_PATH
+
+          echo "go get github.com/aliyun/wuying-agentbay-sdk@${{env.LATEST_COMMIT }}" >> $SUMMARY_PATH
+          echo "pip install -i https://test.pypi.org/simple/ wuying-agentbay-sdk==${{ env.FINAL_VERSION }}" >> $SUMMARY_PATH
+          echo "npm install test-wuying-agentbay-sdk@${{ env.NPM_FINAL_VERSION }}" >> $SUMMARY_PATH

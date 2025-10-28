@@ -5,14 +5,14 @@ from pydantic import Field, model_validator
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
-from app.daytona.sandbox import create_sandbox, delete_sandbox
-from app.daytona.tool_base import SandboxToolsBase
+from app.sandbox.providers import create_sandbox_provider, SandboxProvider
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
+from app.tool.sandbox.sb_computer_tool import SandboxComputerTool
 from app.tool.sandbox.sb_files_tool import SandboxFilesTool
 from app.tool.sandbox.sb_shell_tool import SandboxShellTool
 from app.tool.sandbox.sb_vision_tool import SandboxVisionTool
@@ -53,6 +53,7 @@ class SandboxManus(ToolCallAgent):
     )  # server_id -> url/command
     _initialized: bool = False
     sandbox_link: Optional[dict[str, dict[str, str]]] = Field(default_factory=dict)
+    sandbox_provider: Optional[SandboxProvider] = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
     def initialize_helper(self) -> "SandboxManus":
@@ -69,42 +70,41 @@ class SandboxManus(ToolCallAgent):
         instance._initialized = True
         return instance
 
-    async def initialize_sandbox_tools(
-        self,
-        password: str = config.daytona.VNC_password,
-    ) -> None:
+    async def initialize_sandbox_tools(self) -> None:
         try:
-            # 创建新沙箱
-            if password:
-                sandbox = create_sandbox(password=password)
-                self.sandbox = sandbox
-            else:
-                raise ValueError("password must be provided")
-            vnc_link = sandbox.get_preview_link(6080)
-            website_link = sandbox.get_preview_link(8080)
-            vnc_url = vnc_link.url if hasattr(vnc_link, "url") else str(vnc_link)
-            website_url = (
-                website_link.url if hasattr(website_link, "url") else str(website_link)
-            )
+            provider = create_sandbox_provider()
+            await provider.initialize()
+            self.sandbox_provider = provider
 
-            # Get the actual sandbox_id from the created sandbox
-            actual_sandbox_id = sandbox.id if hasattr(sandbox, "id") else "new_sandbox"
-            if not self.sandbox_link:
-                self.sandbox_link = {}
-            self.sandbox_link[actual_sandbox_id] = {
-                "vnc": vnc_url,
-                "website": website_url,
-            }
-            logger.info(f"VNC URL: {vnc_url}")
-            logger.info(f"Website URL: {website_url}")
-            SandboxToolsBase._urls_printed = True
-            sb_tools = [
-                SandboxBrowserTool(sandbox),
-                SandboxFilesTool(sandbox),
-                SandboxShellTool(sandbox),
-                SandboxVisionTool(sandbox),
+            metadata = provider.metadata()
+            link_key = (
+                metadata.extra.get("sandbox_id")
+                if metadata.extra.get("sandbox_id")
+                else metadata.provider
+            )
+            if metadata.links:
+                self.sandbox_link[link_key] = metadata.links
+                for name, url in metadata.links.items():
+                    logger.info(f"Sandbox {name} link: {url}")
+
+            tools = [
+                SandboxShellTool(provider.shell_service()),
+                SandboxFilesTool(provider.file_service()),
             ]
-            self.available_tools.add_tools(*sb_tools)
+
+            browser_service = provider.browser_service()
+            if browser_service:
+                tools.append(SandboxBrowserTool(browser_service))
+
+            computer_service = provider.computer_service()
+            if computer_service:
+                tools.append(SandboxComputerTool(computer_service))
+
+            vision_service = provider.vision_service()
+            if vision_service:
+                tools.append(SandboxVisionTool(vision_service))
+
+            self.available_tools.add_tools(*tools)
 
         except Exception as e:
             logger.error(f"Error initializing sandbox tools: {e}")
@@ -174,17 +174,6 @@ class SandboxManus(ToolCallAgent):
         self.available_tools = ToolCollection(*base_tools)
         self.available_tools.add_tools(*self.mcp_clients.tools)
 
-    async def delete_sandbox(self, sandbox_id: str) -> None:
-        """Delete a sandbox by ID."""
-        try:
-            await delete_sandbox(sandbox_id)
-            logger.info(f"Sandbox {sandbox_id} deleted successfully")
-            if sandbox_id in self.sandbox_link:
-                del self.sandbox_link[sandbox_id]
-        except Exception as e:
-            logger.error(f"Error deleting sandbox {sandbox_id}: {e}")
-            raise e
-
     async def cleanup(self):
         """Clean up Manus agent resources."""
         if self.browser_context_helper:
@@ -192,7 +181,9 @@ class SandboxManus(ToolCallAgent):
         # Disconnect from all MCP servers only if we were initialized
         if self._initialized:
             await self.disconnect_mcp_server()
-            await self.delete_sandbox(self.sandbox.id if self.sandbox else "unknown")
+            if self.sandbox_provider:
+                await self.sandbox_provider.cleanup()
+                self.sandbox_provider = None
             self._initialized = False
 
     async def think(self) -> bool:
@@ -203,8 +194,9 @@ class SandboxManus(ToolCallAgent):
 
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
+        browser_tool_name = "sandbox_browser"
         browser_in_use = any(
-            tc.function.name == SandboxBrowserTool().name
+            tc.function.name == browser_tool_name
             for msg in recent_messages
             if msg.tool_calls
             for tc in msg.tool_calls

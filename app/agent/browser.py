@@ -22,11 +22,11 @@ class BrowserContextHelper:
         self._current_base64_image: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = None
+        if BrowserUseTool:
+            browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
         if not browser_tool:
-            browser_tool = self.agent.available_tools.get_tool(
-                SandboxBrowserTool().name
-            )
+            browser_tool = self.agent.available_tools.get_tool("sandbox_browser")
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
             logger.warning("BrowserUseTool not found or doesn't have get_current_state")
             return None
@@ -79,9 +79,13 @@ class BrowserContextHelper:
         )
 
     async def cleanup_browser(self):
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
-        if browser_tool and hasattr(browser_tool, "cleanup"):
-            await browser_tool.cleanup()
+        if BrowserUseTool:
+            browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+            if browser_tool and hasattr(browser_tool, "cleanup"):
+                await browser_tool.cleanup()
+        sandbox_tool = self.agent.available_tools.get_tool("sandbox_browser")
+        if sandbox_tool and hasattr(sandbox_tool, "cleanup"):
+            await sandbox_tool.cleanup()
 
 
 class BrowserAgent(ToolCallAgent):
@@ -103,7 +107,9 @@ class BrowserAgent(ToolCallAgent):
 
     # Configure the available tools
     available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
+        default_factory=lambda: ToolCollection(
+            *(tuple([BrowserUseTool(), Terminate()]) if BrowserUseTool else (Terminate(),))
+        )
     )
 
     # Use Auto for tool choice to allow both tool usage and free-form responses

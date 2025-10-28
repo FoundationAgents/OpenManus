@@ -1,0 +1,57 @@
+name: Manual Publish to PyPI
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      version:
+        description: "Stable version (e.g., 1.0.0)"
+        required: true
+        type: string
+
+jobs:
+  build-and-publish-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List files in current directory before changing to python
+        run: ls .
+
+      - name: Setup Python, remove dist folder, install dependencies, and build package
+        run: |
+          cd python
+          pwd
+          if [ -d "dist" ]; then
+            rm -rf dist/
+          fi
+          python -m pip install --upgrade pip
+          pip install poetry
+          # Use user-specified version number
+          echo "PACKAGE_VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+
+          poetry version $PACKAGE_VERSION
+          # Verify replacement results
+          cat pyproject.toml | grep version
+
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          cd python
+          poetry config repositories.pypi https://upload.pypi.org/legacy/
+          poetry config pypi-token.pypi $POETRY_PYPI_TOKEN
+          poetry build
+          ls dist/
+          poetry publish --repository pypi
+
+      - name: Generate Build Summary
+        if: success()
+        run: |
+          SUMMARY_PATH=$GITHUB_STEP_SUMMARY
+
+          #  Write test content
+          echo "## INSTALL COMMAND " > $SUMMARY_PATH
+          echo "### CONTENT" >> $SUMMARY_PATH
+
+          echo "pip install -i https://pypi.org/ wuying-agentbay-sdk==${{ inputs.version }}" >> $SUMMARY_PATH

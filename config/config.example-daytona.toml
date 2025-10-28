@@ -88,12 +88,23 @@ temperature = 0.0                          # Controls randomness for vision mode
 ## Sandbox configuration
 #[sandbox]
 #use_sandbox = false
+## available providers: "daytona", "agentbay"
+#provider = "daytona"
 #image = "python:3.12-slim"
 #work_dir = "/workspace"
 #memory_limit = "1g"  # 512m
 #cpu_limit = 2.0
 #timeout = 300
 #network_enabled = true
+
+#[sandbox.agentbay]
+#api_key = ""  # fallback to AGENTBAY_API_KEY env when empty
+#endpoint = "wuyingai.cn-shanghai.aliyuncs.com"
+#timeout_ms = 60000
+#env_file = ""
+# [sandbox.agentbay.session_defaults]
+# image_id = ""
+# is_vpc = false
 
 # Daytona configuration
 [daytona]

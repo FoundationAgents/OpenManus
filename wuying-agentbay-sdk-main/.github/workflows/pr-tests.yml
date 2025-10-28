@@ -1,0 +1,51 @@
+name: PR Tests
+
+on:
+  pull_request:
+    branches: [ '*' ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+      golang: ${{ steps.filter.outputs.golang }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'python/**'
+              - '.github/workflows/python-tests.yml'
+            typescript:
+              - 'typescript/**'
+              - '.github/workflows/typescript-tests.yml'
+            golang:
+              - 'golang/**'
+              - '.github/workflows/golang-tests.yml'
+              - '.golangci.yml'
+
+  python-tests:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    uses: ./.github/workflows/python-tests.yml
+    secrets: inherit
+
+  typescript-tests:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    uses: ./.github/workflows/typescript-tests.yml
+    secrets: inherit
+
+  golang-tests:
+    needs: changes
+    if: needs.changes.outputs.golang == 'true'
+    uses: ./.github/workflows/golang-tests.yml
+    secrets: inherit

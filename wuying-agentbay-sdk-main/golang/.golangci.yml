@@ -1,0 +1,51 @@
+# golangci-lint configuration file
+# Compatible with golangci-lint v2.2.2
+
+version: "2"
+
+run:
+  timeout: 5m
+  go: "1.21"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - goconst
+    - gocyclo
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # Too strict for this project
+
+    gocyclo:
+      min-complexity: 30
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+
+  exclusions:
+    generated: strict
+
+    # Exclude entire directories from linting
+    paths:
+      - api/client/     # Skip generated API client files
+      - tests/          # Skip test files directory
+
+    rules:
+      # Ignore specific deprecated field usage (temporary)
+      - text: "SA1019.*ContextID.*is deprecated"
+        linters:
+          - staticcheck
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10

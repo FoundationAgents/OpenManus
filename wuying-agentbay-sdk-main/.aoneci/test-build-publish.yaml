@@ -1,0 +1,287 @@
+name: Test Build and Upload
+
+triggers:
+  merge_request:
+    target-branches: 
+    - main
+    - feature/add-ci-pipeline
+    types:
+    - merged
+
+params:
+  python-version:
+    name: "Python Version"
+    type: string
+    required: false
+    options:
+      - "3.10"
+      - "3.11"
+      - "3.12"
+    description: Python version for building PyPI package
+    default: "3.10"
+  
+  repository-url:
+    name: "Custom Repository URL"
+    advanced: true
+    type: string
+    required: false
+    default: "http://opsx.vip.tbsite.net/aliyun-pypi/simple/"
+    description: "Upload repository URL, fill in when uploading to custom repository. Default upload to artlab"
+  node-version:
+    name: "Node.js Version"
+    type: string
+    required: false
+    options:
+      - "18"
+      - "20"
+    description: Node.js version for building npm package
+    default: "20"
+
+jobs:
+  pypi-build:
+    image: alios-8u
+    outputs:
+      string-output: ${{steps.modify-version.outputs.env}}
+    steps:
+      - uses: checkout
+      - uses: setup-env
+        inputs:
+          python-version: ${{params.python-version}}
+      - id: rm-dist
+        run: |
+          cd python
+          if [ -d "dist" ]; then
+              rm -rf dist/
+          fi
+      - id: modify-version
+        run: |
+          cd python
+          echo "Modifying version number and package name..."
+          BASE_VERSION=$(grep "version = " pyproject.toml | head -n 1 | cut -d '"' -f 2)
+          echo "BASE_VERSION=${BASE_VERSION}" > $AONE_CI_WORKSPACE/BASE_VERSION
+          TIMESTAMP=$(TZ='Asia/Shanghai' date "+%Y%m%d%H%M%S")
+          FINAL_VERSION="0.0.0.${TIMESTAMP}"
+          echo "FINAL_VERSION=${FINAL_VERSION}" > $AONE_CI_WORKSPACE/FINAL_VERSION
+          echo "${FINAL_VERSION}" > ${{outputs.env.path}}
+          cat $AONE_CI_WORKSPACE/BASE_VERSION
+          cat $AONE_CI_WORKSPACE/FINAL_VERSION
+          sed -i "s/version = .*/version = \"${FINAL_VERSION}\"/" pyproject.toml
+          sed -i 's/wuying-agentbay-sdk/wuying-agentbay-sdk-test/g' pyproject.toml
+          cat pyproject.toml | grep name
+          grep "version" pyproject.toml
+      
+      - id: pypi-install--build-publish
+        run: | 
+          cd python
+          echo "Installing dependencies..."
+          python -m pip install --upgrade pip
+          pip install twine build poetry
+          echo "Building PyPI package..."
+          cat $AONE_CI_WORKSPACE/FINAL_VERSION
+          # Check if build module can be imported
+          echo $FINAL_VERSION_ENV
+          python -c "import build; print('✅ Build module available, version:', build.__version__)" || (echo "❌ Build module import failed" && exit 1)
+          # Build using poetry
+          poetry build
+          echo "Files to upload:"
+          ls -la dist/
+          echo "Uploading PyPI package..."
+          twine --version
+          twine upload --repository-url ${{params.repository-url}} --username ${{secrets.username}} --password ${{secrets.password}} dist/*
+          echo "✅ Upload completed"
+  
+  npm-build:
+    image: alios-8u
+    outputs:
+      string-output: ${{steps.modify-version.outputs.env}}
+    steps:
+      - uses: checkout
+      - uses: setup-env
+        inputs:
+          node-version: ${{params.node-version}}
+          npm-cache: false
+      
+      - id: rm-dist
+        run: |
+          cd typescript
+          if [ -d "dist" ]; then
+            rm -rf dist/
+          fi
+      
+      - id: modify-version
+        run: |
+          cd typescript
+          echo "Modifying version number and package name..."
+          
+          # Read current version number
+          CURRENT_NAME=$(jq -r '.name' package.json)
+          BASE_VERSION=$(jq -r '.version' package.json)
+          echo "Original package name: $CURRENT_NAME"
+          echo "Original version number: $BASE_VERSION"
+          
+          echo "BASE_VERSION=${BASE_VERSION}" > $AONE_CI_WORKSPACE/BASE_VERSION
+          TIMESTAMP=$(TZ='Asia/Shanghai' date "+%Y%m%d%H%M%S")
+          FINAL_VERSION="$BASE_VERSION-beta.$TIMESTAMP"
+          echo "FINAL_VERSION=${FINAL_VERSION}" > $AONE_CI_WORKSPACE/FINAL_VERSION
+          echo "${FINAL_VERSION}" > ${{outputs.env.path}}
+          
+          cat $AONE_CI_WORKSPACE/BASE_VERSION
+          cat $AONE_CI_WORKSPACE/FINAL_VERSION
+          
+          # Modify package name to internal scope
+          NEW_PACKAGE_NAME="test-wuying-agentbay-sdk"
+          echo "NEW_PACKAGE_NAME=$NEW_PACKAGE_NAME"
+          
+          # Update package.json, add publishConfig
+          jq ".name = \"$NEW_PACKAGE_NAME\" | .version = \"$FINAL_VERSION\" | .publishConfig = {\"registry\": \"https://registry.npmjs.org\"}" package.json > package_temp.json
+          mv package_temp.json package.json
+          
+          echo "Modified package information:"
+          jq '{name, version, publishConfig}' package.json
+         
+
+      - id: tnmp-install-build-publish
+        run: | 
+          set -e
+          cd typescript
+          echo "Installing dependencies and building with npm..."
+          
+          # Install dependencies using npm
+          npm install
+          
+          echo "Building TypeScript package..."
+          npm run build
+          
+          echo "Build artifacts:"
+          ls -la dist/
+
+          echo "🔐 Configuring NPM authentication..."
+          
+          # Check if NPM_TOKEN exists
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "❌ Error: NPM_TOKEN not configured"
+            echo "Please configure secrets.NPM_TOKEN in CI system"
+            exit 1
+          fi
+          
+          # Create .npmrc file - using safer approach
+          {
+            printf "//registry.npmjs.org/:_authToken=%s\n" "${{ secrets.NPM_TOKEN }}"
+            printf "registry=https://registry.npmjs.org/\n"
+            printf "always-auth=true\n"
+          } > ~/.npmrc
+          
+          # Verify configuration
+          echo "📋 Verifying NPM configuration..."
+          npm whoami
+          grep -v "_authToken" ~/.npmrc || true
+          
+          # Test authentication
+          echo "🔍 Testing NPM authentication..."
+          
+          echo "✅ NPM authentication configuration completed"
+          echo "Publishing to NPM registry..."
+          npm publish --access public
+          
+          echo "✅ Publishing completed"
+          
+  go-build:
+    outputs:
+      string-output: ${{steps.generate_instructions.outputs.env}}
+    name: golang release
+    runs-on: 2-8Gi
+    timeout: 20m
+
+    steps:
+      - uses: checkout
+      - uses: setup-env
+        inputs:
+          go_version: "1.23.2"
+          go_mod_cache: true
+          go_cache: true
+      
+      - id: get_commit
+        run: |
+          git fetch --all --tags
+          COMMIT_SHA=$(git rev-parse --short=12 HEAD)
+          echo "COMMIT_SHA=$(git rev-parse --short=12 HEAD)" >> $AONE_CI_ENV
+          echo "$COMMIT_SHA"
+      
+      - id: validate_module
+        run: |
+          echo "Validating Go module configuration..."
+          cd golang
+          echo "Current directory: $(pwd)"
+          echo "Checking go.mod file:"
+          cat go.mod | head -5
+          echo "Running go mod tidy to verify module integrity..."
+          go mod tidy
+          echo "[SUCCESS] Go module validation passed"
+      - id: generate_instructions
+        run: |
+          # Get commit time and hash (using UTC time to ensure consistency with Git)
+          COMMIT_DATE=$(git show -s --format=%ct $COMMIT_SHA)
+          PSEUDO_VERSION="v0.0.0-$(date -u -d @$COMMIT_DATE +%Y%m%d%H%M%S)-$COMMIT_SHA"
+          echo "${PSEUDO_VERSION}" > ${{outputs.env.path}}
+  summary:
+    continue-on-error: true
+    needs: [pypi-build, npm-build, go-build]
+    steps:
+      - run: |
+          # Get commit time and hash (using UTC time to ensure consistency with Git)
+          echo "${{jobs.go-build.outputs.string-output}}"
+          
+          cat <<EOF >> $AONE_CI_SUMMARY_MD
+          # Wuying AgentBay SDK Multi-Language Release Summary
+
+          ## Build Information
+          - **Source Branch**: ${{git.branch}}
+          - **Git Commit**: ${{git.commitId}}
+          - **Build Timestamp**: $(date '+%Y-%m-%d %H:%M:%S')
+
+          ## 🐍 Python Package
+          ### Installation Command
+          \`\`\`bash
+          pip install -i http://yum.tbsite.net/aliyun-pypi/simple/ --trusted-host yum.tbsite.net wuying-agentbay-sdk-test==${{jobs.pypi-build.outputs.string-output}}
+          \`\`\`
+
+          ## 📦 TypeScript/npm Package
+          ### Installation Command
+          \`\`\`bash
+          npm install test-wuying-agentbay-sdk@${{jobs.npm-build.outputs.string-output}}
+          \`\`\`
+
+          ## 🚀 Go Module Development Version
+          ### Basic Information
+          - **Module Path**: github.com/aliyun/wuying-agentbay-sdk/golang
+          - **Internal Repository**: code.alibaba-inc.com/InnoArchClub/wuying-agentbay-sdk.git/golang
+          - **Pseudo Version**: ${{jobs.go-build.outputs.string-output}}
+          - **Commit Hash**: ${{git.commitId}}
+
+          ### Installation Command
+          \`\`\`bash
+          go mod edit -replace github.com/aliyun/wuying-agentbay-sdk/golang=code.alibaba-inc.com/InnoArchClub/wuying-agentbay-sdk.git/golang@${{jobs.go-build.outputs.string-output}}
+          go mod tidy
+          \`\`\`
+
+          ### Cleanup Command (After Testing)
+          \`\`\`bash
+          go mod edit -dropreplace github.com/aliyun/wuying-agentbay-sdk/golang
+          go mod tidy
+          \`\`\`
+
+          ## Important Notes
+          - **Python**: Use the internal PyPI repository for installation
+          - **TypeScript/npm**: Package published to NPM registry with test prefix
+          - **Go**: Ensure your Git client can access the internal repository
+          - **Go**: Remember to execute the cleanup command after testing is complete
+
+          ---
+          **✅ All three language SDKs have been successfully built and published!**
+          EOF
+
+          echo "=========================================="
+          echo "      Wuying AgentBay SDK Multi-Language Release Completed"
+          echo "=========================================="
+          echo ""
+          echo "📋 Summary has been generated in markdown format"

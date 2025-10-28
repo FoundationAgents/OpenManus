@@ -1,0 +1,106 @@
+{
+    "tasks": [
+        {
+            "name": "extract_aigrant_companies",
+            "categories": [
+                "extract",
+                "regression"
+            ],
+            "extract_method": "textExtract"
+        },
+        {
+            "name": "extract_area_codes",
+            "categories": [
+                "extract",
+                "regression"
+            ],
+            "extract_method": "textExtract"
+        },
+        {
+            "name": "extract_apartments",
+            "categories": [
+                "extract",
+                "regression"
+            ],
+            "extract_method": "textExtract"
+        },
+        {
+            "name": "simple_google_search",
+            "categories": [
+                "act",
+                "regression"
+            ]
+        },
+        {
+            "name": "apple",
+            "categories": [
+                "act",
+                "regression"
+            ]
+        },
+        {
+            "name": "nonsense_action",
+            "categories": [
+                "act",
+                "regression"
+            ]
+        },
+        {
+            "name": "observe_iframes1",
+            "categories": [
+                "observe",
+                "regression"
+            ]
+        },
+        {
+            "name": "vanta_h",
+            "categories": [
+                "observe",
+                "regression"
+            ]
+        },
+        {
+            "name": "combination_sauce",
+            "categories": [
+                "combination",
+                "regression"
+            ]
+        },
+        {
+            "name": "observe_amazon_add_to_cart",
+            "categories": [
+                "combination",
+                "regression"
+            ]
+        },
+        {
+            "name": "arxiv",
+            "categories": [
+                "combination",
+                "regression"
+            ],
+            "extract_method": "textExtract"
+        },
+        {
+            "name": "imdb_movie_details",
+            "categories": [
+                "combination",
+                "regression"
+            ]
+        },
+        {
+            "name": "allrecipes",
+            "categories": [
+                "combination",
+                "experimental"
+            ]
+        },
+        {
+            "name": "extract_products",
+            "categories": [
+                "combination",
+                "experimental"
+            ]
+        }
+    ]
+}

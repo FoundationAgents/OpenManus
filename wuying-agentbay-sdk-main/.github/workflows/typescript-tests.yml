@@ -1,0 +1,71 @@
+name: TypeScript Tests
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Get full history for SonarQube analysis
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'typescript/package.json'
+
+    - name: Install dependencies
+      working-directory: ./typescript
+      run: npm ci
+
+    - name: Lint TypeScript code
+      working-directory: ./typescript
+      run: |
+        # Run ESLint to check for critical issues only (no auto-fixing)
+        npm run lint
+
+    - name: SonarQube Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: ./typescript
+        args: >
+          -Dsonar.projectKey=wuying-agentbay-sdk_typescript
+          -Dsonar.organization=wuying-agentbay
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: 'typescript/package.json'
+
+    - name: Install dependencies
+      working-directory: ./typescript
+      run: npm ci
+
+    - name: Build TypeScript code
+      working-directory: ./typescript
+      run: npm run build
+
+    - name: Run unit tests
+      working-directory: ./typescript
+      run: npm run test:unit

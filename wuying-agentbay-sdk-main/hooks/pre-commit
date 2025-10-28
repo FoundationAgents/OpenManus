@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# 定义敏感信息正则规则（直接写在脚本中）
+SECRETS_REGEX=(
+    "STS\.[A-Za-z0-9]{20}"                          # AccessKeyId
+    "accessKeySecret\s*=\s*\"[A-Za-z0-9]{44}\""  # AccessKeySecret
+    "CAIS([a-zA-Z0-9+\/]+)" # SecurityToken
+    "akm(-[a-z0-9]{8})(-[a-z0-9]{4}){3}(-[a-z0-9]{12})"                          # 自定义 APIkey 格式
+    "ako(-[a-z0-9]{8})(-[a-z0-9]{4}){3}(-[a-z0-9]{12})"                        # 海外 APIkey
+)
+
+ERROR_FOUND=false
+
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+for file in $CHANGED_FILES; do
+    echo "file:$file"
+    # 显式检查 .ts .go .py 文件，或所有文本文件
+    if [[ "$file" =~ \.(ts|go|py)$ ]] || file "$file" | grep -q "text"; then
+
+        for pattern in "${SECRETS_REGEX[@]}"; do
+
+            if grep -zqE "$pattern" "$file"; then
+                echo "pattern-FOR-IF:$pattern"
+                echo "❌ Sensitive information detected in file: $file"
+                ERROR_FOUND=true
+                exit 1
+            fi
+        done
+    fi
+done
+
+if [ "$ERROR_FOUND" = true ]; then
+    echo "⚠️ Please address the sensitive information and retry the commit."
+    exit 1
+fi
+
+echo "✅ No sensitive information found."
+exit 0
