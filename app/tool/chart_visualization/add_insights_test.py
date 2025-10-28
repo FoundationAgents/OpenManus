@@ -96,6 +96,7 @@ Contains chart insights data in format:
     ) -> list[str]:
         res = []
         for item in json_info:
+            print(item[path_str])
             if os.path.exists(item[path_str]):
                 res.append(item[path_str])
             elif os.path.exists(
@@ -127,6 +128,7 @@ Contains chart insights data in format:
                         "insights_id": item["insights_id"],
                     }
                 )
+        print(data_list)
         tasks = [
             self.invoke_vmind(
                 insights_id=item["insights_id"],
@@ -204,7 +206,10 @@ Contains chart insights data in format:
             "directory": str(config.workspace_root),
             "language": language,
         }
-
+        # build async sub process
+        # 添加输入参数验证
+        print("\n=== 传递给Node.js的参数 ===")
+        print(json.dumps(vmind_params, indent=2, ensure_ascii=False))
         process = await asyncio.create_subprocess_exec(
             "npx",
             "ts-node",
@@ -226,3 +231,21 @@ Contains chart insights data in format:
         except Exception as e:
             return {"error": f"Subprocess Error: {str(e)}"}
 
+async def main():
+    # 1. 创建工具实例
+    tool = AddInsights()
+
+    # 2. 准备参数
+    json_path = "/home/vm3/JoyZhao/OSPP/OpenManus/workspace/selected_insights.json"  # 替换为你的实际JSON路径
+    output_type = "html"  # 或其他支持的格式
+
+    # 3. 直接调用execute方法
+    result = await tool.execute(
+        json_path=json_path,
+        output_type=output_type
+    )
+
+    print("执行结果:", result)
+
+# 运行异步函数
+asyncio.run(main())
