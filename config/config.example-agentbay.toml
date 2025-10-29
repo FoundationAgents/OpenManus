@@ -1,0 +1,24 @@
+# Minimal configuration example for running OpenManus with the AgentBay sandbox provider.
+
+[llm]
+model = "gpt-4o-mini"                         # Replace with your preferred model
+base_url = "https://api.openai.com/v1"        # Replace with the endpoint of your LLM vendor
+api_key = "YOUR_LLM_API_KEY"                  # Insert the corresponding API key
+max_tokens = 4096
+temperature = 0.0
+
+[sandbox]
+provider = "agentbay"                         # Use AgentBay as the sandbox backend
+use_sandbox = true
+
+[sandbox.agentbay]
+api_key = "YOUR_AGENTBAY_API_KEY"             # Create via https://help.aliyun.com/zh/agentbay/user-guide/service-management
+endpoint = "wuyingai.cn-shanghai.aliyuncs.com" # Default endpoint; change if your account uses a different region
+timeout_ms = 60000
+desktop_image_id = "linux_latest"              # AgentBay desktop image with GUI capabilities
+browser_image_id = "browser_latest"            # Optional dedicated browser automation image
+mobile_image_id = "mobile_latest"              # Optional Android automation image
+
+[sandbox.agentbay.session_defaults]
+image_id = "linux_latest"                      # Fallback image if role-specific IDs are not provided
+is_vpc = false                                 # Set true only if your AgentBay account requires VPC sessions

@@ -202,9 +202,8 @@ class SandboxManus(ToolCallAgent):
 
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
-        browser_tool_name = "sandbox_browser"
         browser_in_use = any(
-            tc.function.name == browser_tool_name
+            tc.function.name == SandboxBrowserTool().name
             for msg in recent_messages
             if msg.tool_calls
             for tc in msg.tool_calls
