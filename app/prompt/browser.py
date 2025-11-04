@@ -92,3 +92,11 @@ Be methodical - remember your progress and what you've learned so far.
 
 If you want to stop the interaction at any point, use the `terminate` tool/function call.
 """
+
+EXTRACT_CONTENT_PROMPT = """\
+Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
+Extraction goal: {goal}
+
+Page content:
+{content[:max_content_length]}
+"""

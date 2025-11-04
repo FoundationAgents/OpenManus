@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import Field
 
 from app.agent.base import BaseAgent
+from app.config import config
 from app.llm import LLM
 from app.schema import AgentState, Memory
 
@@ -19,7 +20,7 @@ class ReActAgent(BaseAgent, ABC):
     memory: Memory = Field(default_factory=Memory)
     state: AgentState = AgentState.IDLE
 
-    max_steps: int = 10
+    max_steps: int = Field(default_factory=lambda: config.agent_config.max_steps_react)
     current_step: int = 0
 
     @abstractmethod

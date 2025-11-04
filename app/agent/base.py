@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.config import config
 from app.llm import LLM
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
@@ -22,22 +23,19 @@ class BaseAgent(BaseModel, ABC):
     description: Optional[str] = Field(None, description="Optional agent description")
 
     # Prompts
-    system_prompt: Optional[str] = Field(
-        None, description="System-level instruction prompt"
-    )
-    next_step_prompt: Optional[str] = Field(
-        None, description="Prompt for determining next action"
-    )
+    system_prompt: Optional[str] = Field(None, description="System-level instruction prompt")
+    next_step_prompt: Optional[str] = Field(None, description="Prompt for determining next action")
 
     # Dependencies
     llm: LLM = Field(default_factory=LLM, description="Language model instance")
     memory: Memory = Field(default_factory=Memory, description="Agent's memory store")
-    state: AgentState = Field(
-        default=AgentState.IDLE, description="Current agent state"
-    )
+    state: AgentState = Field(default=AgentState.IDLE, description="Current agent state")
 
     # Execution control
-    max_steps: int = Field(default=10, description="Maximum steps before termination")
+    max_steps: int = Field(
+        default_factory=lambda: config.agent_config.max_steps_default,
+        description="Maximum steps before termination",
+    )
     current_step: int = Field(default=0, description="Current step in execution")
 
     duplicate_threshold: int = 2
@@ -133,9 +131,7 @@ class BaseAgent(BaseModel, ABC):
 
         results: List[str] = []
         async with self.state_context(AgentState.RUNNING):
-            while (
-                self.current_step < self.max_steps and self.state != AgentState.FINISHED
-            ):
+            while self.current_step < self.max_steps and self.state != AgentState.FINISHED:
                 self.current_step += 1
                 logger.info(f"Executing step {self.current_step}/{self.max_steps}")
                 step_result = await self.step()

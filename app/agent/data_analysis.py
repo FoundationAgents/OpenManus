@@ -18,13 +18,15 @@ class DataAnalysis(ToolCallAgent):
     """
 
     name: str = "Data_Analysis"
-    description: str = "An analytical agent that utilizes python and data visualization tools to solve diverse data analysis tasks"
+    description: str = (
+        "An analytical agent that utilizes python and data visualization tools to solve diverse data analysis tasks"
+    )
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 15000
-    max_steps: int = 20
+    max_steps: int = Field(default_factory=lambda: config.agent_config.max_steps_data_analysis)
 
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(

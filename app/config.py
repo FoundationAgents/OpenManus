@@ -61,34 +61,31 @@ class SearchSettings(BaseModel):
 
 
 class RunflowSettings(BaseModel):
-    use_data_analysis_agent: bool = Field(
-        default=False, description="Enable data analysis agent in run flow"
-    )
+    use_data_analysis_agent: bool = Field(default=False, description="Enable data analysis agent in run flow")
+
+
+class AgentSettings(BaseModel):
+    """Configuration for agent execution settings"""
+
+    max_steps_default: int = Field(default=10, description="Default maximum steps for agents")
+    max_steps_react: int = Field(default=10, description="Maximum steps for ReAct agent")
+    max_steps_swe: int = Field(default=20, description="Maximum steps for SWE agent")
+    max_steps_toolcall: int = Field(default=30, description="Maximum steps for ToolCall agent")
+    max_steps_browser: int = Field(default=20, description="Maximum steps for Browser agent")
+    max_steps_mcp: int = Field(default=20, description="Maximum steps for MCP agent")
+    max_steps_data_analysis: int = Field(default=20, description="Maximum steps for Data Analysis agent")
+    max_steps_manus: int = Field(default=20, description="Maximum steps for Manus agent")
 
 
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
-    disable_security: bool = Field(
-        True, description="Disable browser security features"
-    )
-    extra_chromium_args: List[str] = Field(
-        default_factory=list, description="Extra arguments to pass to the browser"
-    )
-    chrome_instance_path: Optional[str] = Field(
-        None, description="Path to a Chrome instance to use"
-    )
-    wss_url: Optional[str] = Field(
-        None, description="Connect to a browser instance via WebSocket"
-    )
-    cdp_url: Optional[str] = Field(
-        None, description="Connect to a browser instance via CDP"
-    )
-    proxy: Optional[ProxySettings] = Field(
-        None, description="Proxy settings for the browser"
-    )
-    max_content_length: int = Field(
-        2000, description="Maximum length for content retrieval operations"
-    )
+    disable_security: bool = Field(True, description="Disable browser security features")
+    extra_chromium_args: List[str] = Field(default_factory=list, description="Extra arguments to pass to the browser")
+    chrome_instance_path: Optional[str] = Field(None, description="Path to a Chrome instance to use")
+    wss_url: Optional[str] = Field(None, description="Connect to a browser instance via WebSocket")
+    cdp_url: Optional[str] = Field(None, description="Connect to a browser instance via CDP")
+    proxy: Optional[ProxySettings] = Field(None, description="Proxy settings for the browser")
+    max_content_length: int = Field(2000, description="Maximum length for content retrieval operations")
 
 
 class SandboxSettings(BaseModel):
@@ -100,9 +97,7 @@ class SandboxSettings(BaseModel):
     memory_limit: str = Field("512m", description="Memory limit")
     cpu_limit: float = Field(1.0, description="CPU limit")
     timeout: int = Field(300, description="Default command timeout (seconds)")
-    network_enabled: bool = Field(
-        False, description="Whether network access is allowed"
-    )
+    network_enabled: bool = Field(False, description="Whether network access is allowed")
 
 
 class MCPServerConfig(BaseModel):
@@ -111,20 +106,14 @@ class MCPServerConfig(BaseModel):
     type: str = Field(..., description="Server connection type (sse or stdio)")
     url: Optional[str] = Field(None, description="Server URL for SSE connections")
     command: Optional[str] = Field(None, description="Command for stdio connections")
-    args: List[str] = Field(
-        default_factory=list, description="Arguments for stdio command"
-    )
+    args: List[str] = Field(default_factory=list, description="Arguments for stdio command")
 
 
 class MCPSettings(BaseModel):
     """Configuration for MCP (Model Context Protocol)"""
 
-    server_reference: str = Field(
-        "app.mcp.server", description="Module reference for the MCP server"
-    )
-    servers: Dict[str, MCPServerConfig] = Field(
-        default_factory=dict, description="MCP server configurations"
-    )
+    server_reference: str = Field("app.mcp.server", description="Module reference for the MCP server")
+    servers: Dict[str, MCPServerConfig] = Field(default_factory=dict, description="MCP server configurations")
 
     @classmethod
     def load_server_config(cls) -> Dict[str, MCPServerConfig]:
@@ -154,19 +143,12 @@ class MCPSettings(BaseModel):
 
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
-    sandbox: Optional[SandboxSettings] = Field(
-        None, description="Sandbox configuration"
-    )
-    browser_config: Optional[BrowserSettings] = Field(
-        None, description="Browser configuration"
-    )
-    search_config: Optional[SearchSettings] = Field(
-        None, description="Search configuration"
-    )
+    sandbox: Optional[SandboxSettings] = Field(None, description="Sandbox configuration")
+    browser_config: Optional[BrowserSettings] = Field(None, description="Browser configuration")
+    search_config: Optional[SearchSettings] = Field(None, description="Search configuration")
     mcp_config: Optional[MCPSettings] = Field(None, description="MCP configuration")
-    run_flow_config: Optional[RunflowSettings] = Field(
-        None, description="Run flow configuration"
-    )
+    run_flow_config: Optional[RunflowSettings] = Field(None, description="Run flow configuration")
+    agent_config: Optional[AgentSettings] = Field(None, description="Agent execution configuration")
 
     class Config:
         arbitrary_types_allowed = True
@@ -211,9 +193,7 @@ class Config:
     def _load_initial_config(self):
         raw_config = self._load_config()
         base_llm = raw_config.get("llm", {})
-        llm_overrides = {
-            k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
-        }
+        llm_overrides = {k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)}
 
         default_settings = {
             "model": base_llm.get("model"),
@@ -237,18 +217,12 @@ class Config:
 
             if proxy_config and proxy_config.get("server"):
                 proxy_settings = ProxySettings(
-                    **{
-                        k: v
-                        for k, v in proxy_config.items()
-                        if k in ["server", "username", "password"] and v
-                    }
+                    **{k: v for k, v in proxy_config.items() if k in ["server", "username", "password"] and v}
                 )
 
             # filter valid browser config parameters.
             valid_browser_params = {
-                k: v
-                for k, v in browser_config.items()
-                if k in BrowserSettings.__annotations__ and v is not None
+                k: v for k, v in browser_config.items() if k in BrowserSettings.__annotations__ and v is not None
             }
 
             # if there is proxy settings, add it to the parameters.
@@ -283,19 +257,24 @@ class Config:
             run_flow_settings = RunflowSettings(**run_flow_config)
         else:
             run_flow_settings = RunflowSettings()
+
+        agent_config = raw_config.get("agent", {})
+        if agent_config:
+            agent_settings = AgentSettings(**agent_config)
+        else:
+            agent_settings = AgentSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
-                **{
-                    name: {**default_settings, **override_config}
-                    for name, override_config in llm_overrides.items()
-                },
+                **{name: {**default_settings, **override_config} for name, override_config in llm_overrides.items()},
             },
             "sandbox": sandbox_settings,
             "browser_config": browser_settings,
             "search_config": search_settings,
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
+            "agent_config": agent_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -325,6 +304,11 @@ class Config:
     def run_flow_config(self) -> RunflowSettings:
         """Get the Run Flow configuration"""
         return self._config.run_flow_config
+
+    @property
+    def agent_config(self) -> AgentSettings:
+        """Get the Agent configuration"""
+        return self._config.agent_config
 
     @property
     def workspace_root(self) -> Path:

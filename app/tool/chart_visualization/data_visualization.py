@@ -14,8 +14,10 @@ from app.tool.base import BaseTool
 
 class DataVisualization(BaseTool):
     name: str = "data_visualization"
-    description: str = """Visualize statistical chart or Add insights in chart with JSON info from visualization_preparation tool. You can do steps as follows:
-1. Visualize statistical chart
+    description: str = """
+Visualize statistical chart or Add insights in chart with JSON info from visualization_preparation tool.
+You can do steps as follows:
+1. Visualize statistical chartß
 2. Choose insights into chart based on step 1 (Optional)
 Outputs:
 1. Charts (png/html)
@@ -30,7 +32,7 @@ Outputs:
             "output_type": {
                 "description": "Rendering format (html=interactive)",
                 "type": "string",
-                "default": "html",
+                "default": "png",
                 "enum": ["png", "html"],
             },
             "tool_type": {
@@ -67,14 +69,8 @@ Outputs:
         for item in json_info:
             if os.path.exists(item[path_str]):
                 res.append(item[path_str])
-            elif os.path.exists(
-                os.path.join(f"{directory or config.workspace_root}", item[path_str])
-            ):
-                res.append(
-                    os.path.join(
-                        f"{directory or config.workspace_root}", item[path_str]
-                    )
-                )
+            elif os.path.exists(os.path.join(f"{directory or config.workspace_root}", item[path_str])):
+                res.append(os.path.join(f"{directory or config.workspace_root}", item[path_str]))
             else:
                 raise Exception(f"No such file or directory: {item[path_str]}")
         return res
@@ -91,9 +87,7 @@ Outputs:
                 content += "\n"
         return f"Chart Generated Successful!\n{content}"
 
-    async def data_visualization(
-        self, json_info: list[dict[str, str]], output_type: str, language: str
-    ) -> str:
+    async def data_visualization(self, json_info: list[dict[str, str]], output_type: str, language: str) -> str:
         data_list = []
         csv_file_path = self.get_file_path(json_info, "csvFilePath")
         for index, item in enumerate(json_info):
@@ -104,9 +98,7 @@ Outputs:
 
             data_list.append(
                 {
-                    "file_name": os.path.basename(csv_file_path[index]).replace(
-                        ".csv", ""
-                    ),
+                    "file_name": os.path.basename(csv_file_path[index]).replace(".csv", ""),
                     "dict_data": data_dict_list,
                     "chartTitle": item["chartTitle"],
                 }
@@ -138,16 +130,17 @@ Outputs:
                     }
                 )
         if len(error_list) > 0:
+            newline = "\n"
+            error_msg = f"# Error chart generated{newline.join(error_list)}"
+            success_msg = self.success_output_template(success_list)
             return {
-                "observation": f"# Error chart generated{'\n'.join(error_list)}\n{self.success_output_template(success_list)}",
+                "observation": f"{error_msg}{newline}{success_msg}",
                 "success": False,
             }
         else:
             return {"observation": f"{self.success_output_template(success_list)}"}
 
-    async def add_insighs(
-        self, json_info: list[dict[str, str]], output_type: str
-    ) -> str:
+    async def add_insighs(self, json_info: list[dict[str, str]], output_type: str) -> str:
         data_list = []
         chart_file_path = self.get_file_path(
             json_info, "chartPath", os.path.join(config.workspace_root, "visualization")
@@ -156,9 +149,7 @@ Outputs:
             if "insights_id" in item:
                 data_list.append(
                     {
-                        "file_name": os.path.basename(chart_file_path[index]).replace(
-                            f".{output_type}", ""
-                        ),
+                        "file_name": os.path.basename(chart_file_path[index]).replace(f".{output_type}", ""),
                         "insights_id": item["insights_id"],
                     }
                 )
@@ -180,14 +171,11 @@ Outputs:
                 error_list.append(f"Error in {chart_path}: {result['error']}")
             else:
                 success_list.append(chart_path)
-        success_template = (
-            f"# Charts Update with Insights\n{','.join(success_list)}"
-            if len(success_list) > 0
-            else ""
-        )
+        success_template = f"# Charts Update with Insights\n{','.join(success_list)}" if len(success_list) > 0 else ""
         if len(error_list) > 0:
+            newline = "\n"
             return {
-                "observation": f"# Error in chart insights:{'\n'.join(error_list)}\n{success_template}",
+                "observation": f"# Error in chart insights:{newline.join(error_list)}{newline}{success_template}",
                 "success": False,
             }
         else:
@@ -202,7 +190,7 @@ Outputs:
     ) -> str:
         try:
             logger.info(f"📈 data_visualization with {json_path} in: {tool_type} ")
-            with open(json_path, "r", encoding="utf-8") as file:
+            with open(json_path, encoding="utf-8") as file:
                 json_info = json.load(file)
             if tool_type == "visualization":
                 return await self.data_visualization(json_info, output_type, language)

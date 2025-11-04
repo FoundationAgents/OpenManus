@@ -1,3 +1,4 @@
+import json
 import math
 from typing import Dict, List, Optional, Union
 
@@ -29,7 +30,6 @@ from app.schema import (
     Message,
     ToolChoice,
 )
-
 
 REASONING_MODELS = ["o1", "o3-mini"]
 MULTIMODAL_MODELS = [
@@ -88,9 +88,7 @@ class TokenCounter:
                 width, height = image_item["dimensions"]
                 return self._calculate_high_detail_tokens(width, height)
 
-        return (
-            self._calculate_high_detail_tokens(1024, 1024) if detail == "high" else 1024
-        )
+        return self._calculate_high_detail_tokens(1024, 1024) if detail == "high" else 1024
 
     def _calculate_high_detail_tokens(self, width: int, height: int) -> int:
         """Calculate tokens for high detail images based on dimensions"""
@@ -111,9 +109,7 @@ class TokenCounter:
         total_tiles = tiles_x * tiles_y
 
         # Step 4: Calculate final token count
-        return (
-            total_tiles * self.HIGH_DETAIL_TILE_TOKENS
-        ) + self.LOW_DETAIL_IMAGE_TOKENS
+        return (total_tiles * self.HIGH_DETAIL_TILE_TOKENS) + self.LOW_DETAIL_IMAGE_TOKENS
 
     def count_content(self, content: Union[str, List[Union[str, dict]]]) -> int:
         """Calculate tokens for message content"""
@@ -174,18 +170,14 @@ class TokenCounter:
 class LLM:
     _instances: Dict[str, "LLM"] = {}
 
-    def __new__(
-        cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
-    ):
+    def __new__(cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None):
         if config_name not in cls._instances:
             instance = super().__new__(cls)
             instance.__init__(config_name, llm_config)
             cls._instances[config_name] = instance
         return cls._instances[config_name]
 
-    def __init__(
-        self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
-    ):
+    def __init__(self, config_name: str = "default", llm_config: Optional[LLMSettings] = None):
         if not hasattr(self, "client"):  # Only initialize if not already initialized
             llm_config = llm_config or config.llm
             llm_config = llm_config.get(config_name, llm_config["default"])
@@ -200,11 +192,7 @@ class LLM:
             # Add token counting related attributes
             self.total_input_tokens = 0
             self.total_completion_tokens = 0
-            self.max_input_tokens = (
-                llm_config.max_input_tokens
-                if hasattr(llm_config, "max_input_tokens")
-                else None
-            )
+            self.max_input_tokens = llm_config.max_input_tokens if hasattr(llm_config, "max_input_tokens") else None
 
             # Initialize tokenizer
             try:
@@ -243,7 +231,8 @@ class LLM:
         logger.info(
             f"Token usage: Input={input_tokens}, Completion={completion_tokens}, "
             f"Cumulative Input={self.total_input_tokens}, Cumulative Completion={self.total_completion_tokens}, "
-            f"Total={input_tokens + completion_tokens}, Cumulative Total={self.total_input_tokens + self.total_completion_tokens}"
+            f"Total={input_tokens + completion_tokens}, Cumulative Total"
+            f"={self.total_input_tokens + self.total_completion_tokens}"
         )
 
     def check_token_limit(self, input_tokens: int) -> bool:
@@ -255,18 +244,17 @@ class LLM:
 
     def get_limit_error_message(self, input_tokens: int) -> str:
         """Generate error message for token limit exceeded"""
-        if (
-            self.max_input_tokens is not None
-            and (self.total_input_tokens + input_tokens) > self.max_input_tokens
-        ):
-            return f"Request may exceed input token limit (Current: {self.total_input_tokens}, Needed: {input_tokens}, Max: {self.max_input_tokens})"
+        if self.max_input_tokens is not None and (self.total_input_tokens + input_tokens) > self.max_input_tokens:
+            return_content = (
+                f"Request may exceed input token limit (Current: {self.total_input_tokens}"
+                f", Needed: {input_tokens}, Max: {self.max_input_tokens})"
+            )
+            return return_content
 
         return "Token limit exceeded"
 
     @staticmethod
-    def format_messages(
-        messages: List[Union[dict, Message]], supports_images: bool = False
-    ) -> List[dict]:
+    def format_messages(messages: List[Union[dict, Message]], supports_images: bool = False) -> List[dict]:
         """
         Format messages for LLM by converting them to OpenAI message format.
 
@@ -307,17 +295,11 @@ class LLM:
                     if not message.get("content"):
                         message["content"] = []
                     elif isinstance(message["content"], str):
-                        message["content"] = [
-                            {"type": "text", "text": message["content"]}
-                        ]
+                        message["content"] = [{"type": "text", "text": message["content"]}]
                     elif isinstance(message["content"], list):
                         # Convert string items to proper text objects
                         message["content"] = [
-                            (
-                                {"type": "text", "text": item}
-                                if isinstance(item, str)
-                                else item
-                            )
+                            ({"type": "text", "text": item} if isinstance(item, str) else item)
                             for item in message["content"]
                         ]
 
@@ -325,9 +307,7 @@ class LLM:
                     message["content"].append(
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{message['base64_image']}"
-                            },
+                            "image_url": {"url": f"data:image/jpeg;base64,{message['base64_image']}"},
                         }
                     )
 
@@ -354,9 +334,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),  # Don't retry TokenLimitExceeded
     )
     async def ask(
         self,
@@ -412,29 +390,23 @@ class LLM:
                 params["max_completion_tokens"] = self.max_tokens
             else:
                 params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
-                )
+                params["temperature"] = temperature if temperature is not None else self.temperature
 
             if not stream:
                 # Non-streaming request
-                response = await self.client.chat.completions.create(
-                    **params, stream=False
-                )
+                response = await self.client.chat.completions.create(**params, stream=False)
 
                 if not response.choices or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
                 # Update token counts
-                self.update_token_count(
-                    response.usage.prompt_tokens, response.usage.completion_tokens
-                )
+                self.update_token_count(response.usage.prompt_tokens, response.usage.completion_tokens)
 
                 return response.choices[0].message.content
 
             # Streaming request, For streaming, update estimated token count before making the request
             self.update_token_count(input_tokens)
-
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
             response = await self.client.chat.completions.create(**params, stream=True)
 
             collected_messages = []
@@ -452,21 +424,20 @@ class LLM:
 
             # estimate completion tokens for streaming response
             completion_tokens = self.count_tokens(completion_text)
-            logger.info(
-                f"Estimated completion tokens for streaming response: {completion_tokens}"
-            )
+            logger.info(f"Estimated completion tokens for streaming response: {completion_tokens}")
             self.total_completion_tokens += completion_tokens
 
+            self.show_llm_output(full_response)
             return full_response
 
         except TokenLimitExceeded:
             # Re-raise token limit errors without logging
             raise
         except ValueError:
-            logger.exception(f"Validation error")
+            logger.exception("Validation error")
             raise
         except OpenAIError as oe:
-            logger.exception(f"OpenAI API error")
+            logger.exception("OpenAI API error")
             if isinstance(oe, AuthenticationError):
                 logger.error("Authentication failed. Check API key.")
             elif isinstance(oe, RateLimitError):
@@ -475,15 +446,13 @@ class LLM:
                 logger.error(f"API error: {oe}")
             raise
         except Exception:
-            logger.exception(f"Unexpected error in ask")
+            logger.exception("Unexpected error in ask")
             raise
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        stop=stop_after_attempt(2),
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),  # Don't retry TokenLimitExceeded
     )
     async def ask_with_images(
         self,
@@ -516,18 +485,14 @@ class LLM:
             # For ask_with_images, we always set supports_images to True because
             # this method should only be called with models that support images
             if self.model not in MULTIMODAL_MODELS:
-                raise ValueError(
-                    f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}"
-                )
+                raise ValueError(f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}")
 
             # Format messages with image support
             formatted_messages = self.format_messages(messages, supports_images=True)
 
             # Ensure the last message is from the user to attach images
             if not formatted_messages or formatted_messages[-1]["role"] != "user":
-                raise ValueError(
-                    "The last message must be from the user to attach images"
-                )
+                raise ValueError("The last message must be from the user to attach images")
 
             # Process the last user message to include images
             last_message = formatted_messages[-1]
@@ -545,9 +510,7 @@ class LLM:
             # Add images to content
             for image in images:
                 if isinstance(image, str):
-                    multimodal_content.append(
-                        {"type": "image_url", "image_url": {"url": image}}
-                    )
+                    multimodal_content.append({"type": "image_url", "image_url": {"url": image}})
                 elif isinstance(image, dict) and "url" in image:
                     multimodal_content.append({"type": "image_url", "image_url": image})
                 elif isinstance(image, dict) and "image_url" in image:
@@ -560,10 +523,7 @@ class LLM:
 
             # Add system messages if provided
             if system_msgs:
-                all_messages = (
-                    self.format_messages(system_msgs, supports_images=True)
-                    + formatted_messages
-                )
+                all_messages = self.format_messages(system_msgs, supports_images=True) + formatted_messages
             else:
                 all_messages = formatted_messages
 
@@ -584,9 +544,7 @@ class LLM:
                 params["max_completion_tokens"] = self.max_tokens
             else:
                 params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
-                )
+                params["temperature"] = temperature if temperature is not None else self.temperature
 
             # Handle non-streaming request
             if not stream:
@@ -600,6 +558,7 @@ class LLM:
 
             # Handle streaming request
             self.update_token_count(input_tokens)
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
             response = await self.client.chat.completions.create(**params)
 
             collected_messages = []
@@ -613,6 +572,8 @@ class LLM:
 
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
+
+            self.show_llm_output(full_response)
 
             return full_response
 
@@ -636,10 +597,8 @@ class LLM:
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        stop=stop_after_attempt(2),
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),  # Don't retry TokenLimitExceeded
     )
     async def ask_tool(
         self,
@@ -674,6 +633,7 @@ class LLM:
         """
         try:
             # Validate tool_choice
+            logger.info(f"tool_choice: {tool_choice}")
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
@@ -715,7 +675,7 @@ class LLM:
                 "model": self.model,
                 "messages": messages,
                 "tools": tools,
-                "tool_choice": tool_choice,
+                "tool_choice": tool_choice.value,
                 "timeout": timeout,
                 **kwargs,
             }
@@ -724,14 +684,11 @@ class LLM:
                 params["max_completion_tokens"] = self.max_tokens
             else:
                 params["max_tokens"] = self.max_tokens
-                params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
-                )
+                params["temperature"] = temperature if temperature is not None else self.temperature
 
             params["stream"] = False  # Always use non-streaming for tool requests
-            response: ChatCompletion = await self.client.chat.completions.create(
-                **params
-            )
+            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
+            response: ChatCompletion = await self.client.chat.completions.create(**params)
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:
@@ -740,20 +697,21 @@ class LLM:
                 return None
 
             # Update token counts
-            self.update_token_count(
-                response.usage.prompt_tokens, response.usage.completion_tokens
-            )
+            self.update_token_count(response.usage.prompt_tokens, response.usage.completion_tokens)
 
-            return response.choices[0].message
+            llm_out_put = response.choices[0].message
+            self.show_llm_output(llm_out_put)
+
+            return llm_out_put
 
         except TokenLimitExceeded:
             # Re-raise token limit errors without logging
             raise
         except ValueError as ve:
-            logger.error(f"Validation error in ask_tool: {ve}")
+            logger.error(f"Validation error in ask_tool: {ve}, {ve.args}")
             raise
         except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
+            logger.error(f"OpenAI API error: {oe}, {oe.args}")
             if isinstance(oe, AuthenticationError):
                 logger.error("Authentication failed. Check API key.")
             elif isinstance(oe, RateLimitError):
@@ -764,3 +722,54 @@ class LLM:
         except Exception as e:
             logger.error(f"Unexpected error in ask_tool: {e}")
             raise
+
+    def show_llm_output(self, response: Union[str, ChatCompletionMessage]):
+        """
+        Display LLM output in a formatted way.
+
+        Args:
+            response: Either a string response or ChatCompletionMessage object
+        """
+        split_line = "**************** 注意大模型输出 ****************"
+
+        if isinstance(response, ChatCompletionMessage):
+            # Convert ChatCompletionMessage to a clean dictionary for JSON output
+            response_dict = {
+                "content": response.content,
+                "role": response.role,
+                "refusal": response.refusal,
+                "tool_calls": [],
+            }
+
+            # Process tool calls if they exist
+            if response.tool_calls:
+                for tool_call in response.tool_calls:
+                    tool_dict = {
+                        "id": tool_call.id,
+                        "type": tool_call.type,
+                        "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments},
+                    }
+                    # Try to parse arguments as JSON for better readability
+                    try:
+                        parsed_args = json.loads(tool_call.function.arguments)
+                        tool_dict["function"]["arguments_parsed"] = parsed_args
+                    except (json.JSONDecodeError, TypeError):
+                        # Keep original arguments if parsing fails
+                        pass
+
+                    response_dict["tool_calls"].append(tool_dict)
+
+            # Remove empty fields for cleaner output
+            response_dict = {k: v for k, v in response_dict.items() if v is not None and v != []}
+
+            # Format as pretty JSON
+            formatted_response = json.dumps(response_dict, ensure_ascii=False, indent=2)
+            logger.info(f"{self.model} 的回答 (JSON格式): \n\n{split_line}\n\n{formatted_response}\n\n{split_line}")
+
+        elif isinstance(response, str):
+            # Handle string responses as before
+            logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{response}\n\n{split_line}")
+
+        else:
+            # Handle other types by converting to string
+            logger.info(f"{self.model} 的回答: \n\n{split_line}\n\n{str(response)}\n\n{split_line}")

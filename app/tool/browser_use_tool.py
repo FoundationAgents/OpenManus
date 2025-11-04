@@ -1,3 +1,4 @@
+# flake8: noqa: C901  # 临时忽略函数复杂度检查
 import asyncio
 import base64
 import json
@@ -12,9 +13,9 @@ from pydantic_core.core_schema import ValidationInfo
 
 from app.config import config
 from app.llm import LLM
+from app.schema import ToolChoice
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
-
 
 _BROWSER_DESCRIPTION = """\
 A powerful browser automation tool that allows interaction with web pages through various actions.
@@ -70,7 +71,8 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             },
             "index": {
                 "type": "integer",
-                "description": "Element index for 'click_element', 'input_text', 'get_dropdown_options', or 'select_dropdown_option' actions",
+                "description": "Element index for 'click_element', 'input_text', "
+                "'get_dropdown_options', or 'select_dropdown_option' actions",
             },
             "text": {
                 "type": "string",
@@ -78,7 +80,8 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             },
             "scroll_amount": {
                 "type": "integer",
-                "description": "Pixels to scroll (positive for down, negative for up) for 'scroll_down' or 'scroll_up' actions",
+                "description": "Pixels to scroll (positive for down, negative for up) for 'scroll_down'"
+                "or 'scroll_up' actions",
             },
             "tab_id": {
                 "type": "integer",
@@ -225,16 +228,12 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 context = await self._ensure_browser_initialized()
 
                 # Get max content length from config
-                max_content_length = getattr(
-                    config.browser_config, "max_content_length", 2000
-                )
+                max_content_length = getattr(config.browser_config, "max_content_length", 2000)
 
                 # Navigation actions
                 if action == "go_to_url":
                     if not url:
-                        return ToolResult(
-                            error="URL is required for 'go_to_url' action"
-                        )
+                        return ToolResult(error="URL is required for 'go_to_url' action")
                     page = await context.get_current_page()
                     await page.goto(url)
                     await page.wait_for_load_state()
@@ -250,13 +249,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "web_search":
                     if not query:
-                        return ToolResult(
-                            error="Query is required for 'web_search' action"
-                        )
+                        return ToolResult(error="Query is required for 'web_search' action")
                     # Execute the web search and return results directly without browser navigation
-                    search_response = await self.web_search_tool.execute(
-                        query=query, fetch_content=True, num_results=1
-                    )
+                    search_response = await self.web_search_tool.execute(query=query, fetch_content=True, num_results=1)
                     # Navigate to the first search result
                     first_search_result = search_response.results[0]
                     url_to_navigate = first_search_result.url
@@ -270,9 +265,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 # Element interaction actions
                 elif action == "click_element":
                     if index is None:
-                        return ToolResult(
-                            error="Index is required for 'click_element' action"
-                        )
+                        return ToolResult(error="Index is required for 'click_element' action")
                     element = await context.get_dom_element_by_index(index)
                     if not element:
                         return ToolResult(error=f"Element with index {index} not found")
@@ -284,36 +277,24 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "input_text":
                     if index is None or not text:
-                        return ToolResult(
-                            error="Index and text are required for 'input_text' action"
-                        )
+                        return ToolResult(error="Index and text are required for 'input_text' action")
                     element = await context.get_dom_element_by_index(index)
                     if not element:
                         return ToolResult(error=f"Element with index {index} not found")
                     await context._input_text_element_node(element, text)
-                    return ToolResult(
-                        output=f"Input '{text}' into element at index {index}"
-                    )
+                    return ToolResult(output=f"Input '{text}' into element at index {index}")
 
                 elif action == "scroll_down" or action == "scroll_up":
                     direction = 1 if action == "scroll_down" else -1
                     amount = (
-                        scroll_amount
-                        if scroll_amount is not None
-                        else context.config.browser_window_size["height"]
+                        scroll_amount if scroll_amount is not None else context.config.browser_window_size["height"]
                     )
-                    await context.execute_javascript(
-                        f"window.scrollBy(0, {direction * amount});"
-                    )
-                    return ToolResult(
-                        output=f"Scrolled {'down' if direction > 0 else 'up'} by {amount} pixels"
-                    )
+                    await context.execute_javascript(f"window.scrollBy(0, {direction * amount});")
+                    return ToolResult(output=f"Scrolled {'down' if direction > 0 else 'up'} by {amount} pixels")
 
                 elif action == "scroll_to_text":
                     if not text:
-                        return ToolResult(
-                            error="Text is required for 'scroll_to_text' action"
-                        )
+                        return ToolResult(error="Text is required for 'scroll_to_text' action")
                     page = await context.get_current_page()
                     try:
                         locator = page.get_by_text(text, exact=False)
@@ -324,18 +305,14 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "send_keys":
                     if not keys:
-                        return ToolResult(
-                            error="Keys are required for 'send_keys' action"
-                        )
+                        return ToolResult(error="Keys are required for 'send_keys' action")
                     page = await context.get_current_page()
                     await page.keyboard.press(keys)
                     return ToolResult(output=f"Sent keys: {keys}")
 
                 elif action == "get_dropdown_options":
                     if index is None:
-                        return ToolResult(
-                            error="Index is required for 'get_dropdown_options' action"
-                        )
+                        return ToolResult(error="Index is required for 'get_dropdown_options' action")
                     element = await context.get_dom_element_by_index(index)
                     if not element:
                         return ToolResult(error=f"Element with index {index} not found")
@@ -359,24 +336,18 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "select_dropdown_option":
                     if index is None or not text:
-                        return ToolResult(
-                            error="Index and text are required for 'select_dropdown_option' action"
-                        )
+                        return ToolResult(error="Index and text are required for 'select_dropdown_option' action")
                     element = await context.get_dom_element_by_index(index)
                     if not element:
                         return ToolResult(error=f"Element with index {index} not found")
                     page = await context.get_current_page()
                     await page.select_option(element.xpath, label=text)
-                    return ToolResult(
-                        output=f"Selected option '{text}' from dropdown at index {index}"
-                    )
+                    return ToolResult(output=f"Selected option '{text}' from dropdown at index {index}")
 
                 # Content extraction actions
                 elif action == "extract_content":
                     if not goal:
-                        return ToolResult(
-                            error="Goal is required for 'extract_content' action"
-                        )
+                        return ToolResult(error="Goal is required for 'extract_content' action")
 
                     page = await context.get_current_page()
                     import markdownify
@@ -431,24 +402,20 @@ Page content:
                     response = await self.llm.ask_tool(
                         messages,
                         tools=[extraction_function],
-                        tool_choice="required",
+                        tool_choice=ToolChoice.AUTO,
                     )
 
                     if response and response.tool_calls:
                         args = json.loads(response.tool_calls[0].function.arguments)
                         extracted_content = args.get("extracted_content", {})
-                        return ToolResult(
-                            output=f"Extracted from page:\n{extracted_content}\n"
-                        )
+                        return ToolResult(output=f"Extracted from page:\n{extracted_content}\n")
 
                     return ToolResult(output="No content was extracted from the page.")
 
                 # Tab management actions
                 elif action == "switch_tab":
                     if tab_id is None:
-                        return ToolResult(
-                            error="Tab ID is required for 'switch_tab' action"
-                        )
+                        return ToolResult(error="Tab ID is required for 'switch_tab' action")
                     await context.switch_to_tab(tab_id)
                     page = await context.get_current_page()
                     await page.wait_for_load_state()
@@ -476,9 +443,7 @@ Page content:
             except Exception as e:
                 return ToolResult(error=f"Browser action '{action}' failed: {str(e)}")
 
-    async def get_current_state(
-        self, context: Optional[BrowserContext] = None
-    ) -> ToolResult:
+    async def get_current_state(self, context: Optional[BrowserContext] = None) -> ToolResult:
         """
         Get the current browser state as a ToolResult.
         If context is not provided, uses self.context.
@@ -504,9 +469,7 @@ Page content:
             await page.bring_to_front()
             await page.wait_for_load_state()
 
-            screenshot = await page.screenshot(
-                full_page=True, animations="disabled", type="jpeg", quality=100
-            )
+            screenshot = await page.screenshot(full_page=True, animations="disabled", type="jpeg", quality=100)
 
             screenshot = base64.b64encode(screenshot).decode("utf-8")
 
@@ -517,9 +480,7 @@ Page content:
                 "tabs": [tab.model_dump() for tab in state.tabs],
                 "help": "[0], [1], [2], etc., represent clickable indices corresponding to the elements listed. Clicking on these indices will navigate to or interact with the respective content behind them.",
                 "interactive_elements": (
-                    state.element_tree.clickable_elements_to_string()
-                    if state.element_tree
-                    else ""
+                    state.element_tree.clickable_elements_to_string() if state.element_tree else ""
                 ),
                 "scroll_info": {
                     "pixels_above": getattr(state, "pixels_above", 0),
