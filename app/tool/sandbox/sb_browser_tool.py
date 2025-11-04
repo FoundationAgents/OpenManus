@@ -11,11 +11,13 @@ Execute browser automation actions within the sandbox.
 The supported actions depend on the selected sandbox provider.
 """
 
+SANDBOX_BROWSER_TOOL_NAME = "sandbox_browser"
+
 
 class SandboxBrowserTool(BaseTool):
     """Provider-agnostic browser automation tool."""
 
-    name: str = "sandbox_browser"
+    name: str = Field(default=SANDBOX_BROWSER_TOOL_NAME)
     description: str = _BROWSER_DESCRIPTION
     parameters: dict = {
         "type": "object",

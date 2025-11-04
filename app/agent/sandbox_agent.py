@@ -11,7 +11,10 @@ from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.mcp import MCPClients, MCPClientTool
-from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
+from app.tool.sandbox.sb_browser_tool import (
+    SandboxBrowserTool,
+    SANDBOX_BROWSER_TOOL_NAME,
+)
 from app.tool.sandbox.sb_computer_tool import SandboxComputerTool
 from app.tool.sandbox.sb_mobile_tool import SandboxMobileTool
 from app.tool.sandbox.sb_files_tool import SandboxFilesTool
@@ -202,8 +205,16 @@ class SandboxManus(ToolCallAgent):
 
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
+        browser_tool_names = {
+            tool.name
+            for tool in self.available_tools.tools
+            if isinstance(tool, SandboxBrowserTool)
+        }
+        if not browser_tool_names:
+            browser_tool_names = {SANDBOX_BROWSER_TOOL_NAME}
+
         browser_in_use = any(
-            tc.function.name == SandboxBrowserTool().name
+            tc.function.name in browser_tool_names
             for msg in recent_messages
             if msg.tool_calls
             for tc in msg.tool_calls

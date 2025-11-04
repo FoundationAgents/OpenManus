@@ -168,6 +168,77 @@ class AgentBayComputerService(ComputerService):
     def __init__(self, session):
         self._session = session
 
+    async def _call(self, func, *args, **kwargs):
+        return await asyncio.to_thread(func, *args, **kwargs)
+
+    def _ensure_success(self, result, default_error: str):
+        if not getattr(result, "success", False):
+            error = getattr(result, "error_message", "") or default_error
+            raise RuntimeError(error)
+        return result
+
+    def _download_base64(self, url: str) -> str:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return base64.b64encode(response.content).decode("ascii")
+
+    def _normalize_button(self, button: str, allow_double: bool = True) -> str:
+        value = (button or "left").lower()
+        mapping = {
+            "left": MouseButton.LEFT.value,
+            "right": MouseButton.RIGHT.value,
+            "middle": MouseButton.MIDDLE.value,
+        }
+        if allow_double:
+            mapping["double_left"] = MouseButton.DOUBLE_LEFT.value
+        if value not in mapping:
+            raise RuntimeError(f"Unsupported mouse button: {button}")
+        normalized = mapping[value]
+        if normalized == MouseButton.DOUBLE_LEFT.value and not allow_double:
+            raise RuntimeError("Double click button is not supported for this action")
+        return normalized
+
+    def _format_key(self, raw: str) -> str:
+        key = (raw or "").strip()
+        if not key:
+            raise RuntimeError("Empty key provided")
+        lower = key.lower()
+        special_map = {
+            "enter": "Enter",
+            "esc": "Esc",
+            "escape": "Esc",
+            "backspace": "Backspace",
+            "tab": "Tab",
+            "space": "Space",
+            "delete": "Delete",
+            "ctrl": "Ctrl",
+            "control": "Ctrl",
+            "alt": "Alt",
+            "shift": "Shift",
+            "win": "Win",
+            "cmd": "Meta",
+            "command": "Meta",
+            "meta": "Meta",
+            "up": "Up",
+            "down": "Down",
+            "left": "Left",
+            "right": "Right",
+            "pageup": "PageUp",
+            "pagedown": "PageDown",
+            "home": "Home",
+            "end": "End",
+            "insert": "Insert",
+        }
+        if lower in special_map:
+            return special_map[lower]
+        if lower.startswith("f") and lower[1:].isdigit():
+            return lower.upper()
+        if len(lower) == 1 and lower.isalpha():
+            return lower
+        if lower.isdigit():
+            return lower
+        return key
+
     async def move_mouse(self, x: int, y: int) -> None:
         result = await self._call(self._session.computer.move_mouse, x, y)
         self._ensure_success(result, f"Failed to move mouse to ({x}, {y})")
@@ -362,77 +433,6 @@ class AgentBayMobileService(MobileService):
             error = getattr(result, "error_message", "") or default_error
             raise RuntimeError(error)
         return result
-
-    def _download_base64(self, url: str) -> str:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return base64.b64encode(response.content).decode("ascii")
-
-    async def _call(self, func, *args, **kwargs):
-        return await asyncio.to_thread(func, *args, **kwargs)
-
-    def _ensure_success(self, result, default_error: str):
-        if not getattr(result, "success", False):
-            error = getattr(result, "error_message", "") or default_error
-            raise RuntimeError(error)
-        return result
-
-    def _normalize_button(self, button: str, allow_double: bool = True) -> str:
-        value = (button or "left").lower()
-        mapping = {
-            "left": MouseButton.LEFT.value,
-            "right": MouseButton.RIGHT.value,
-            "middle": MouseButton.MIDDLE.value,
-        }
-        if allow_double:
-            mapping["double_left"] = MouseButton.DOUBLE_LEFT.value
-        if value not in mapping:
-            raise RuntimeError(f"Unsupported mouse button: {button}")
-        normalized = mapping[value]
-        if normalized == MouseButton.DOUBLE_LEFT.value and not allow_double:
-            raise RuntimeError("Double click button is not supported for this action")
-        return normalized
-
-    def _format_key(self, raw: str) -> str:
-        key = (raw or "").strip()
-        if not key:
-            raise RuntimeError("Empty key provided")
-        lower = key.lower()
-        special_map = {
-            "enter": "Enter",
-            "esc": "Esc",
-            "escape": "Esc",
-            "backspace": "Backspace",
-            "tab": "Tab",
-            "space": "Space",
-            "delete": "Delete",
-            "ctrl": "Ctrl",
-            "control": "Ctrl",
-            "alt": "Alt",
-            "shift": "Shift",
-            "win": "Win",
-            "cmd": "Meta",
-            "command": "Meta",
-            "meta": "Meta",
-            "up": "Up",
-            "down": "Down",
-            "left": "Left",
-            "right": "Right",
-            "pageup": "PageUp",
-            "pagedown": "PageDown",
-            "home": "Home",
-            "end": "End",
-            "insert": "Insert",
-        }
-        if lower in special_map:
-            return special_map[lower]
-        if lower.startswith("f") and lower[1:].isdigit():
-            return lower.upper()
-        if len(lower) == 1 and lower.isalpha():
-            return lower
-        if lower.isdigit():
-            return lower
-        return key
 
     def _download_base64(self, url: str) -> str:
         response = requests.get(url, timeout=30)
