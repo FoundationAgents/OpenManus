@@ -43,6 +43,7 @@ setuptools~=75.8.0
 
 # New UI and system dependencies
 PyQt6~=6.8.0
+PyQt6-WebEngine~=6.8.0
 websockets~=14.1
 psutil~=6.1.0
 subprocess32~=3.5.4;python_version<'3.3'
