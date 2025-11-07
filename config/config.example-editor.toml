@@ -1,0 +1,15 @@
+# Editor Engine Configuration Example
+
+[editor]
+enable_editor = true
+default_language = "python"
+default_theme = "default"
+auto_save = true
+auto_save_interval = 60
+line_numbers = true
+syntax_highlighting = true
+tab_size = 4
+use_spaces = true
+font_size = 10
+font_family = "Courier New"
+languages_config_dir = "config/languages"

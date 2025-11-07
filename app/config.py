@@ -299,6 +299,23 @@ class LocalServiceSettings(BaseModel):
     )
 
 
+class EditorSettings(BaseModel):
+    """Configuration for code editor"""
+    
+    enable_editor: bool = Field(True, description="Enable code editor")
+    default_language: str = Field("python", description="Default language for new files")
+    default_theme: str = Field("default", description="Default editor theme")
+    auto_save: bool = Field(True, description="Auto-save files")
+    auto_save_interval: int = Field(60, description="Auto-save interval in seconds")
+    line_numbers: bool = Field(True, description="Show line numbers")
+    syntax_highlighting: bool = Field(True, description="Enable syntax highlighting")
+    tab_size: int = Field(4, description="Tab size in spaces")
+    use_spaces: bool = Field(True, description="Use spaces instead of tabs")
+    font_size: int = Field(10, description="Editor font size")
+    font_family: str = Field("Courier New", description="Editor font family")
+    languages_config_dir: str = Field("config/languages", description="Directory for language definitions")
+
+
 class UISettings(BaseModel):
     """Configuration for user interface"""
     
@@ -379,6 +396,9 @@ class AppConfig(BaseModel):
     )
     local_service_config: Optional[LocalServiceSettings] = Field(
         None, description="Local service configuration"
+    )
+    editor_config: Optional[EditorSettings] = Field(
+        None, description="Code editor configuration"
     )
     ui_config: Optional[UISettings] = Field(
         None, description="UI configuration"
@@ -521,6 +541,12 @@ class Config:
         else:
             local_service_settings = LocalServiceSettings()
 
+        editor_config = raw_config.get("editor", {})
+        if editor_config:
+            editor_settings = EditorSettings(**editor_config)
+        else:
+            editor_settings = EditorSettings()
+
         ui_config = raw_config.get("ui", {})
         if ui_config:
             ui_settings = UISettings(**ui_config)
@@ -600,6 +626,7 @@ class Config:
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
             "local_service_config": local_service_settings,
+            "editor_config": editor_settings,
             "ui_config": ui_settings,
             "agent_pools_config": agent_pools_settings,
             "blackboard_config": blackboard_settings,
@@ -656,6 +683,11 @@ class Config:
     def local_service(self) -> LocalServiceSettings:
         """Get the local service configuration"""
         return self._config.local_service_config
+
+    @property
+    def editor(self) -> EditorSettings:
+        """Get the editor configuration"""
+        return self._config.editor_config
 
     @property
     def ui(self) -> UISettings:
