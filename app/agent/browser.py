@@ -8,7 +8,7 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-from app.tool.sandbox.sb_browser_tool import SANDBOX_BROWSER_TOOL_NAME
+from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
 
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
@@ -25,7 +25,7 @@ class BrowserContextHelper:
         browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
         if not browser_tool:
             browser_tool = self.agent.available_tools.get_tool(
-                SANDBOX_BROWSER_TOOL_NAME
+                SandboxBrowserTool().name
             )
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
             logger.warning("BrowserUseTool not found or doesn't have get_current_state")
