@@ -103,3 +103,26 @@ server_reference = "app.mcp.server" # default server module reference
 # Your can add additional agents into run-flow workflow to solve different-type tasks.
 [runflow]
 use_data_analysis_agent = false     # The Data Analysi Agent to solve various data analysis tasks
+default_mode = "agent_flow"         # Default mode: chat, agent_flow, or ade
+enable_ade_mode = true              # Enable ADE (Agentic Development Environment) mode
+
+# Local Service configuration (replaces Daytona)
+[local_service]
+use_local_service = true             # Use local service instead of Daytona
+workspace_directory = "./workspace"   # Local workspace directory
+python_executable = "python3"         # Python executable path
+max_concurrent_processes = 5          # Maximum concurrent processes
+process_timeout = 300                 # Process timeout in seconds
+enable_network = true                 # Enable network access
+allowed_commands = ["python", "pip", "git", "npm", "node", "bash", "cmd", "powershell"]
+
+# UI configuration
+[ui]
+enable_gui = true                     # Enable PyQt6 GUI
+enable_webui = true                  # Enable web UI on localhost
+webui_port = 8080                   # Port for web UI
+webui_host = "localhost"             # Host for web UI
+theme = "dark"                       # UI theme: light, dark, or auto
+window_width = 1200                   # Default window width
+window_height = 800                   # Default window height
+auto_save = true                      # Auto-save conversations

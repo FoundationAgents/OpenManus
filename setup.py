@@ -33,6 +33,13 @@ setup(
         "aiofiles~=24.1.0",
         "pydantic_core>=2.27.2,<2.28.0",
         "colorama~=0.4.6",
+        "PyQt6~=6.8.0",
+        "fastapi~=0.115.11",
+        "websockets~=14.1",
+        "psutil~=6.1.0",
+        "subprocess32~=3.5.4;python_version<'3.3'",
+        "pywin32>=306;sys_platform=='win32'",
+        "wmi>=1.5.1;sys_platform=='win32'",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
