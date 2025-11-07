@@ -88,6 +88,43 @@ uv pip install -r requirements.txt
 playwright install
 ```
 
+### IDE UI Dependencies
+
+The IDE requires PyQt6 and PyQt6-WebEngine. These are included in the `requirements.txt`:
+```
+PyQt6~=6.8.0
+PyQt6-WebEngine~=6.8.0
+```
+
+If you need to install them separately:
+```bash
+pip install PyQt6 PyQt6-WebEngine
+```
+
+## IDE Layout Architecture
+
+The UI package (`app/ui/`) provides a modular IDE-style interface:
+
+### Core Components
+
+- **`main_window.py`**: Main IDE window managing dockable panels and state persistence
+- **`panels/`**: Modular UI panels for different IDE functions:
+  - `code_editor.py`: Central code editor with syntax highlighting
+  - `agent_control.py`: Agent orchestration and execution control
+  - `workflow_visualizer.py`: DAG visualization using QGraphicsView
+  - `command_log.py`: Command execution history and filtering
+  - `console.py`: Sandbox console output with color coding
+  - `agent_monitor.py`: Real-time agent metrics and status
+- **`dialogs/`**: Modal dialogs for specific interactions:
+  - `command_validation.py`: Guardian-driven command approval workflow
+
+### Layout Features
+
+- **Dockable Widgets**: All panels are dockable and can be rearranged
+- **Persistence**: Layout and window state are saved with QSettings
+- **Theme Support**: Light and dark themes with persistent selection
+- **Responsive Design**: Panels auto-resize with window dimensions
+
 ## Configuration
 
 OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
@@ -125,6 +162,29 @@ python main.py
 ```
 
 Then input your idea via terminal!
+
+### IDE Interface (GUI)
+
+OpenManus now includes a comprehensive IDE-style graphical interface. Launch it with:
+
+```bash
+python main.py --gui
+```
+
+The IDE features:
+- **Central Code Editor**: Full-featured code editing with syntax highlighting
+- **Agent Control Panel**: Manage and execute agents with different modes (chat, agent_flow, ade, multi_agent)
+- **Workflow Visualization**: View agent execution flow as a DAG
+- **Command Log**: Track all command executions with filtering
+- **Sandbox Console**: Real-time output from sandboxed execution
+- **Agent Status Monitor**: Monitor agent metrics and performance
+
+**UI Features**:
+- Dockable panels for flexible layouts
+- Theme switching (Light/Dark mode)
+- Layout persistence across sessions
+- Command validation through Guardian system
+- Workspace selection and management
 
 For MCP tool version, you can run:
 ```bash
