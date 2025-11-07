@@ -11,6 +11,8 @@ from pydantic import Field
 from app.daytona.tool_base import Sandbox, SandboxToolsBase
 from app.tool.base import ToolResult
 from app.tool.computer_constants import KEYBOARD_KEYS, MOUSE_BUTTONS
+
+
 _COMPUTER_USE_DESCRIPTION = """\
 A comprehensive computer automation tool that allows interaction with the desktop environment.
 * This tool provides commands for controlling mouse, keyboard, and taking screenshots

@@ -66,9 +66,7 @@ class FileService(ABC):
         """Read file contents."""
 
     @abstractmethod
-    async def write(
-        self, path: str, content: str, *, overwrite: bool = True
-    ) -> None:
+    async def write(self, path: str, content: str, *, overwrite: bool = True) -> None:
         """Write file contents."""
 
     @abstractmethod
@@ -94,7 +92,9 @@ class BrowserService(ABC):
         """Release browser resources."""
 
     @abstractmethod
-    async def perform_action(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def perform_action(
+        self, action: str, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute a browser action and return structured response."""
 
     async def current_state(self) -> Dict[str, Any]:
@@ -151,7 +151,9 @@ class ComputerService(ABC):
 
     async def get_cursor_position(self) -> Dict[str, int]:
         """Return current cursor position."""
-        raise NotImplementedError("get_cursor_position is not supported by this provider")
+        raise NotImplementedError(
+            "get_cursor_position is not supported by this provider"
+        )
 
     async def get_screen_size(self) -> Dict[str, Any]:
         """Return screen size metadata."""

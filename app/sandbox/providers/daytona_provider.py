@@ -16,7 +16,7 @@ from uuid import uuid4
 from PIL import Image
 
 from app.config import Config, SandboxSettings
-from app.daytona.sandbox import create_sandbox, delete_sandbox, SessionExecuteRequest
+from app.daytona.sandbox import SessionExecuteRequest, create_sandbox, delete_sandbox
 from app.utils.logger import logger
 
 from .base import (
@@ -242,9 +242,7 @@ class DaytonaFileService(FileService):
             return content.decode("utf-8", errors="ignore")
         return str(content)
 
-    async def write(
-        self, path: str, content: str, *, overwrite: bool = True
-    ) -> None:
+    async def write(self, path: str, content: str, *, overwrite: bool = True) -> None:
         full_path = self._resolve(path)
         parent = "/".join(full_path.split("/")[:-1])
         if parent:
@@ -435,7 +433,9 @@ class DaytonaVisionService(VisionService):
                     background = Image.new("RGB", img.size, (255, 255, 255))
                     if img.mode == "P":
                         img = img.convert("RGBA")
-                    background.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+                    background.paste(
+                        img, mask=img.split()[-1] if img.mode == "RGBA" else None
+                    )
                     img = background
 
                 width, height = img.size
@@ -444,7 +444,8 @@ class DaytonaVisionService(VisionService):
                         self.DEFAULT_MAX_WIDTH / width, self.DEFAULT_MAX_HEIGHT / height
                     )
                     img = img.resize(
-                        (int(width * ratio), int(height * ratio)), Image.Resampling.LANCZOS
+                        (int(width * ratio), int(height * ratio)),
+                        Image.Resampling.LANCZOS,
                     )
 
                 output = io.BytesIO()

@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import requests
 from agentbay import AgentBay
@@ -22,13 +22,13 @@ from agentbay.filesystem.filesystem import (
     FileInfoResult,
 )
 from agentbay.session_params import CreateSessionParams
-from browser_use import Browser as BrowserUseBrowser, BrowserConfig
+from browser_use import Browser as BrowserUseBrowser
+from browser_use import BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
 from browser_use.dom.service import DomService
-from app.tool.browser_use_tool import BrowserUseTool
-
 
 from app.config import AgentBaySettings, Config, SandboxSettings
+from app.tool.browser_use_tool import BrowserUseTool
 from app.utils.logger import logger
 
 from .base import (
@@ -243,9 +243,7 @@ class AgentBayComputerService(ComputerService):
         result = await self._call(self._session.computer.move_mouse, x, y)
         self._ensure_success(result, f"Failed to move mouse to ({x}, {y})")
 
-    async def click_mouse(
-        self, x: int, y: int, *, button: str, count: int = 1
-    ) -> None:
+    async def click_mouse(self, x: int, y: int, *, button: str, count: int = 1) -> None:
         normalized_button = self._normalize_button(button)
         clicks = max(1, min(3, count))
 
@@ -292,7 +290,9 @@ class AgentBayComputerService(ComputerService):
     async def scroll(self, x: int, y: int, *, amount: int) -> None:
         if amount == 0:
             return
-        direction = ScrollDirection.UP.value if amount > 0 else ScrollDirection.DOWN.value
+        direction = (
+            ScrollDirection.UP.value if amount > 0 else ScrollDirection.DOWN.value
+        )
         result = await self._call(
             self._session.computer.scroll,
             x,
@@ -324,9 +324,7 @@ class AgentBayComputerService(ComputerService):
 
     async def get_cursor_position(self) -> Dict[str, int]:
         result = await self._call(self._session.computer.get_cursor_position)
-        operation = self._ensure_success(
-            result, "Failed to get cursor position"
-        )
+        operation = self._ensure_success(result, "Failed to get cursor position")
         data = getattr(operation, "data", None) or {}
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
@@ -850,9 +848,7 @@ class AgentBayLazyFileService(FileService):
         )
         return await service.read(path)
 
-    async def write(
-        self, path: str, content: str, *, overwrite: bool = True
-    ) -> None:
+    async def write(self, path: str, content: str, *, overwrite: bool = True) -> None:
         service: AgentBayFileService = await self._provider._get_service(
             "file", "shell"
         )
@@ -881,7 +877,9 @@ class AgentBayLazyBrowserService(BrowserService):
     def __init__(self, provider: AgentBaySandboxProvider):
         self._provider = provider
 
-    async def perform_action(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def perform_action(
+        self, action: str, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         service: AgentBayBrowserService = await self._provider._get_service(
             "browser", "browser"
         )
@@ -912,9 +910,7 @@ class AgentBayLazyComputerService(ComputerService):
         )
         await service.move_mouse(x, y)
 
-    async def click_mouse(
-        self, x: int, y: int, *, button: str, count: int = 1
-    ) -> None:
+    async def click_mouse(self, x: int, y: int, *, button: str, count: int = 1) -> None:
         service: AgentBayComputerService = await self._provider._get_service(
             "computer", "computer"
         )

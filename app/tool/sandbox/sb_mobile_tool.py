@@ -107,7 +107,9 @@ class SandboxMobileTool(BaseTool):
         try:
             if action == "tap":
                 if x is None or y is None:
-                    return self.fail_response("x and y coordinates are required for tap")
+                    return self.fail_response(
+                        "x and y coordinates are required for tap"
+                    )
                 xi, yi = int(round(float(x))), int(round(float(y)))
                 await self.mobile_service.tap(xi, yi)
                 return ToolResult(output=f"Tapped at ({xi}, {yi})")

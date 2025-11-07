@@ -97,7 +97,9 @@ class SandboxShellTool(BaseTool):
 
             if action == "list_commands":
                 sessions = list(await self.shell_service.list_sessions())
-                return self.success_response({"sessions": sessions, "count": len(sessions)})
+                return self.success_response(
+                    {"sessions": sessions, "count": len(sessions)}
+                )
 
             return self.fail_response(f"Unknown action: {action}")
 

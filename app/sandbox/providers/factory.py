@@ -11,6 +11,7 @@ from app.utils.logger import logger
 
 from .base import SandboxProvider
 
+
 if TYPE_CHECKING:
     from app.config import SandboxSettings
 
@@ -33,7 +34,9 @@ def create_sandbox_provider() -> SandboxProvider:
     """
 
     sandbox_settings: SandboxSettings = config.sandbox or SandboxSettings()
-    provider_name = _normalize_provider_name(getattr(sandbox_settings, "provider", None))
+    provider_name = _normalize_provider_name(
+        getattr(sandbox_settings, "provider", None)
+    )
 
     logger.debug(f"Creating sandbox provider: {provider_name}")
 

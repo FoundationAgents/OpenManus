@@ -342,11 +342,7 @@ class Config:
         if sandbox_config:
             sandbox_agentbay = sandbox_config.get("agentbay") or {}
             sandbox_settings = SandboxSettings(
-                **{
-                    k: v
-                    for k, v in sandbox_config.items()
-                    if k != "agentbay"
-                },
+                **{k: v for k, v in sandbox_config.items() if k != "agentbay"},
                 agentbay=AgentBaySettings(**sandbox_agentbay)
                 if sandbox_agentbay
                 else None,

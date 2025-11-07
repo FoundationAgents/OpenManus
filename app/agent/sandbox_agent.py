@@ -5,19 +5,19 @@ from pydantic import Field, model_validator
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
-from app.sandbox.providers import create_sandbox_provider, SandboxProvider
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.sandbox.providers import SandboxProvider, create_sandbox_provider
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.sandbox.sb_browser_tool import (
-    SandboxBrowserTool,
     SANDBOX_BROWSER_TOOL_NAME,
+    SandboxBrowserTool,
 )
 from app.tool.sandbox.sb_computer_tool import SandboxComputerTool
-from app.tool.sandbox.sb_mobile_tool import SandboxMobileTool
 from app.tool.sandbox.sb_files_tool import SandboxFilesTool
+from app.tool.sandbox.sb_mobile_tool import SandboxMobileTool
 from app.tool.sandbox.sb_shell_tool import SandboxShellTool
 from app.tool.sandbox.sb_vision_tool import SandboxVisionTool
 

@@ -8,10 +8,7 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-from app.tool.sandbox.sb_browser_tool import (
-    SandboxBrowserTool,
-    SANDBOX_BROWSER_TOOL_NAME,
-)
+from app.tool.sandbox.sb_browser_tool import SANDBOX_BROWSER_TOOL_NAME
 
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
