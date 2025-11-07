@@ -3,9 +3,9 @@ import base64
 import json
 from typing import Generic, Optional, TypeVar
 
-from browser_use import Browser as BrowserUseBrowser
-from browser_use import BrowserConfig
-from browser_use.browser.context import BrowserContext, BrowserContextConfig
+from browser_use import Agent as BrowserUseBrowser
+from browser_use import Browser
+from browser_use import Controller
 from browser_use.dom.service import DomService
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo

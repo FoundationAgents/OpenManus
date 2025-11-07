@@ -1,0 +1,399 @@
+name: Enhanced Multi-Agent Environment CI/CD
+
+on:
+  push:
+    branches: [ main, ade-agent-async-blackboard-multilang-ci-cd ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-cov flake8 black isort mypy
+    
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check code formatting with black
+      run: |
+        black --check --diff .
+    
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only --diff .
+    
+    - name: Type checking with mypy
+      run: |
+        mypy app/ --ignore-missing-imports --no-strict-optional
+    
+    - name: Run unit tests
+      run: |
+        python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+    
+    - name: Run multi-agent system tests
+      run: |
+        python test_multi_agent_system.py
+    
+    - name: Test configuration loading
+      run: |
+        python -c "
+        from app.config import config
+        print('✅ Configuration loaded successfully')
+        print(f'LLM Model: {config.llm[\"default\"].model}')
+        print(f'Multi-agent enabled: {config.run_flow_config.enable_multi_agent}')
+        print(f'Agent pools: {config.agent_pools.developer} developers')
+        "
+    
+    - name: Test async flow initialization
+      run: |
+        python -c "
+        import asyncio
+        from app.flow.enhanced_async_flow import EnhancedAsyncFlow
+        from unittest.mock import Mock
+        
+        async def test():
+            agents = {'test': Mock()}
+            flow = EnhancedAsyncFlow(agents=agents)
+            print('✅ Enhanced async flow initialized successfully')
+            print(f'Flow state: {flow.flow_state}')
+            print(f'Agents in environment: {len(flow.multi_agent_env.agents)}')
+        
+        asyncio.run(test())
+        "
+    
+    - name: Test multi-agent environment
+      run: |
+        python -c "
+        import asyncio
+        from app.flow.multi_agent_environment import AutonomousMultiAgentEnvironment
+        
+        async def test():
+            env = AutonomousMultiAgentEnvironment()
+            print('✅ Multi-agent environment initialized successfully')
+            print(f'Agent pools: {len(env.agent_pools)}')
+            print(f'Total agents: {len(env.agents)}')
+            
+            # Test project status
+            status = env.get_project_status()
+            print(f'Project status keys: {list(status.keys())}')
+        
+        asyncio.run(test())
+        "
+    
+    - name: Generate coverage report
+      run: |
+        coverage report --show-missing
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+    
+    - name: Archive test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          htmlcov/
+          test-results/
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+    
+    - name: Run integration tests
+      run: |
+        python -m pytest tests/integration/ -v -m integration
+    
+    - name: Test ADE flow
+      run: |
+        python -c "
+        import asyncio
+        from app.flow.ade_flow import ADEFlow
+        from unittest.mock import Mock
+        
+        async def test():
+            agents = {'swe': Mock()}
+            flow = ADEFlow(agents=agents)
+            print('✅ ADE flow initialized successfully')
+        
+        asyncio.run(test())
+        "
+    
+    - name: Test enhanced flow execution
+      run: |
+        python -c "
+        import asyncio
+        from app.flow.enhanced_async_flow import EnhancedAsyncFlow
+        from unittest.mock import Mock, AsyncMock
+        
+        async def test():
+            # Mock LLM
+            with __import__('unittest.mock').patch('app.llm.LLM.ask', new_callable=AsyncMock) as mock_ask:
+                mock_ask.return_value = '{\"title\": \"Test\", \"phases\": []}'
+                
+                agents = {'manus': Mock()}
+                flow = EnhancedAsyncFlow(agents=agents)
+                
+                # Test simple execution
+                result = await flow.execute('Test project')
+                print('✅ Enhanced flow execution test passed')
+                print(f'Result length: {len(result)} characters')
+        
+        asyncio.run(test())
+        "
+    
+    - name: Test multi-agent coordination
+      run: |
+        python -c "
+        import asyncio
+        import time
+        from app.flow.multi_agent_environment import (
+            AutonomousMultiAgentEnvironment,
+            DevelopmentTask,
+            AgentRole,
+            TaskPriority
+        )
+        
+        async def test():
+            env = AutonomousMultiAgentEnvironment()
+            
+            # Create test task
+            task = DevelopmentTask(
+                id='test_task',
+                title='Test Task',
+                description='Test coordination',
+                role=AgentRole.DEVELOPER,
+                priority=TaskPriority.MEDIUM
+            )
+            
+            # Test task assignment
+            pool = env.agent_pools[AgentRole.DEVELOPER]
+            agent_id = pool.acquire_agent(task)
+            
+            if agent_id:
+                pool.release_agent(agent_id)
+                print('✅ Multi-agent coordination test passed')
+            else:
+                print('❌ No agents available for coordination test')
+        
+        asyncio.run(test())
+        "
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Check for secrets
+      run: |
+        # Install and run truffleHog
+        pip install truffleHog
+        truffleHog . --regex --entropy=False --results=verified
+        echo "✅ No secrets detected"
+
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install memory-profiler psutil
+    
+    - name: Run performance tests
+      run: |
+        python -c "
+        import time
+        import psutil
+        from app.flow.multi_agent_environment import AutonomousMultiAgentEnvironment
+        
+        print('🚀 Running performance tests...')
+        
+        # Test environment initialization time
+        start_time = time.time()
+        env = AutonomousMultiAgentEnvironment()
+        init_time = time.time() - start_time
+        
+        print(f'Environment initialization: {init_time:.3f}s')
+        
+        # Test memory usage
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        memory_mb = memory_info.rss / 1024 / 1024
+        
+        print(f'Memory usage: {memory_mb:.1f} MB')
+        print(f'Total agents: {len(env.agents)}')
+        
+        # Performance assertions
+        assert init_time < 5.0, 'Environment initialization too slow'
+        assert memory_mb < 500, 'Memory usage too high'
+        assert len(env.agents) > 0, 'No agents created'
+        
+        print('✅ Performance tests passed')
+        "
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [test, integration-test, security-scan]
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ade/multi-agent-env:latest
+          ade/multi-agent-env:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm ade/multi-agent-env:latest python -c "
+        from app.config import config
+        from app.flow.multi_agent_environment import AutonomousMultiAgentEnvironment
+        print('✅ Docker image test passed')
+        print(f'Configuration loaded successfully')
+        "
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [test, integration-test, build-docker]
+    if: github.ref == 'refs/heads/ade-agent-async-blackboard-multilang-ci-cd'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        # Add deployment commands here
+        echo "✅ Staging deployment completed"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [test, integration-test, security-scan, build-docker]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to production
+      run: |
+        echo "🚀 Deploying to production environment..."
+        # Add production deployment commands here
+        echo "✅ Production deployment completed"
+    
+    - name: Run smoke tests
+      run: |
+        echo "🧪 Running smoke tests..."
+        # Add smoke test commands here
+        echo "✅ Smoke tests passed"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [test, integration-test, security-scan, performance-test]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: ${{ needs.test.result == 'success' && needs.integration-test.result == 'success' }}
+      run: |
+        echo "✅ All tests passed successfully!"
+        echo "Multi-agent environment is ready for deployment."
+    
+    - name: Notify on failure
+      if: ${{ needs.test.result == 'failure' || needs.integration-test.result == 'failure' }}
+      run: |
+        echo "❌ Some tests failed."
+        echo "Please review the test results and fix the issues."

@@ -21,23 +21,37 @@ async def run_cli_mode(prompt: str, mode: str = "chat"):
                 print(f"\nAgent Response:\n{result}")
             finally:
                 await agent.cleanup()
-        elif mode in ["agent_flow", "ade"]:
+        elif mode in ["agent_flow", "ade", "multi_agent"]:
+            from app.flow.enhanced_async_flow import EnhancedAsyncFlow
             from app.flow.flow_factory import FlowFactory, FlowType
             from app.agent.data_analysis import DataAnalysis
             
-            agents = {"manus": await Manus.create()}
-            if config.run_flow_config.use_data_analysis_agent:
-                agents["data_analysis"] = DataAnalysis()
+            # Use enhanced multi-agent flow if enabled
+            if config.run_flow_config.enable_multi_agent:
+                agents = {"manus": await Manus.create()}
+                if config.run_flow_config.use_data_analysis_agent:
+                    agents["data_analysis"] = DataAnalysis()
+                    
+                enhanced_flow = EnhancedAsyncFlow(agents=agents)
                 
-            flow = FlowFactory.create_flow(
-                flow_type=FlowType.PLANNING,
-                agents=agents,
-            )
-            
-            logger.warning(f"Processing your request in {mode} mode...")
-            result = await flow.execute(prompt)
-            logger.info("Request processing completed.")
-            print(f"\nAgent Flow Response:\n{result}")
+                logger.warning(f"Processing your request in enhanced multi-agent {mode} mode...")
+                result = await enhanced_flow.execute(prompt)
+                logger.info("Request processing completed.")
+                print(f"\n🚀 Enhanced Multi-Agent Response:\n{result}")
+            else:
+                agents = {"manus": await Manus.create()}
+                if config.run_flow_config.use_data_analysis_agent:
+                    agents["data_analysis"] = DataAnalysis()
+                    
+                flow = FlowFactory.create_flow(
+                    flow_type=FlowType.PLANNING,
+                    agents=agents,
+                )
+                
+                logger.warning(f"Processing your request in {mode} mode...")
+                result = await flow.execute(prompt)
+                logger.info("Request processing completed.")
+                print(f"\nAgent Flow Response:\n{result}")
         else:
             logger.error(f"Unknown mode: {mode}")
             return
@@ -55,9 +69,9 @@ async def main():
         "--prompt", type=str, required=False, help="Input prompt for the agent"
     )
     parser.add_argument(
-        "--mode", type=str, choices=["chat", "agent_flow", "ade"], 
+        "--mode", type=str, choices=["chat", "agent_flow", "ade", "multi_agent"], 
         default=config.run_flow_config.default_mode,
-        help="Agent mode: chat, agent_flow, or ade"
+        help="Agent mode: chat, agent_flow, ade, or multi_agent"
     )
     parser.add_argument(
         "--gui", action="store_true", help="Launch PyQt6 GUI interface"

@@ -76,6 +76,10 @@ async def run_ade_flow(prompt: str) -> str:
     """Run the ADE (Agentic Development Environment) flow."""
     logger.info("Initializing ADE flow for complex task")
     
+    # Check if multi-agent mode is enabled
+    if config.run_flow_config.enable_multi_agent:
+        return await run_enhanced_multi_agent_flow(prompt)
+    
     # Create agents for ADE
     from app.agent.swe_agent import SWEAgent
     
@@ -93,6 +97,34 @@ async def run_ade_flow(prompt: str) -> str:
     result = await asyncio.wait_for(
         ade_flow.execute(prompt),
         timeout=3600,  # 60 minute timeout
+    )
+    
+    return result
+
+
+async def run_enhanced_multi_agent_flow(prompt: str) -> str:
+    """Run the enhanced multi-agent flow."""
+    logger.info("Initializing Enhanced Multi-Agent Environment")
+    
+    from app.flow.enhanced_async_flow import EnhancedAsyncFlow
+    from app.agent.manus import Manus
+    
+    # Create enhanced flow with multi-agent environment
+    agents = {}
+    
+    # Add base agents
+    agents["manus"] = await Manus.create()
+    
+    # Add data analysis agent if configured
+    if config.run_flow_config.use_data_analysis_agent:
+        agents["data_analysis"] = DataAnalysis()
+    
+    # Create enhanced async flow
+    enhanced_flow = EnhancedAsyncFlow(agents=agents)
+    
+    result = await asyncio.wait_for(
+        enhanced_flow.execute(prompt),
+        timeout=7200,  # 120 minute timeout for multi-agent coordination
     )
     
     return result
