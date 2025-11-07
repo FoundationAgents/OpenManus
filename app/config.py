@@ -73,6 +73,157 @@ class RunflowSettings(BaseModel):
     enable_ade_mode: bool = Field(
         default=True, description="Enable ADE (Agentic Development Environment) mode"
     )
+    enable_multi_agent: bool = Field(
+        default=True, description="Enable multi-agent environment"
+    )
+    enable_user_interaction: bool = Field(
+        default=True, description="Enable real-time user interaction"
+    )
+    max_concurrent_agents: int = Field(
+        default=20, description="Maximum concurrent agents"
+    )
+    agent_timeout: int = Field(
+        default=3600, description="Agent timeout in seconds"
+    )
+
+
+class AgentPoolSettings(BaseModel):
+    """Configuration for agent pools"""
+    
+    architect: int = Field(default=2, description="Number of architect agents")
+    developer: int = Field(default=8, description="Number of developer agents")
+    tester: int = Field(default=4, description="Number of tester agents")
+    devops: int = Field(default=3, description="Number of DevOps agents")
+    security: int = Field(default=3, description="Number of security agents")
+    product_manager: int = Field(default=2, description="Number of product manager agents")
+    ui_ux_designer: int = Field(default=3, description="Number of UI/UX designer agents")
+    data_analyst: int = Field(default=2, description="Number of data analyst agents")
+    documentation: int = Field(default=2, description="Number of documentation agents")
+    performance: int = Field(default=2, description="Number of performance agents")
+    code_reviewer: int = Field(default=4, description="Number of code reviewer agents")
+    researcher: int = Field(default=2, description="Number of researcher agents")
+
+
+class BlackboardSettings(BaseModel):
+    """Configuration for blackboard communication system"""
+    
+    max_message_history: int = Field(
+        default=10000, description="Maximum message history size"
+    )
+    message_retention_seconds: int = Field(
+        default=86400, description="Message retention time in seconds"
+    )
+    enable_thought_broadcasting: bool = Field(
+        default=True, description="Enable broadcasting agent thoughts"
+    )
+    enable_real_time_coordination: bool = Field(
+        default=True, description="Enable real-time agent coordination"
+    )
+
+
+class InteractionSettings(BaseModel):
+    """Configuration for user interaction"""
+    
+    enable_real_time_thoughts: bool = Field(
+        default=True, description="Enable real-time thought display"
+    )
+    enable_user_guidance: bool = Field(
+        default=True, description="Enable user guidance during execution"
+    )
+    enable_execution_control: bool = Field(
+        default=True, description="Enable execution pause/resume/cancel"
+    )
+    thought_update_interval: float = Field(
+        default=2.0, description="Thought update interval in seconds"
+    )
+    max_thought_history: int = Field(
+        default=1000, description="Maximum thought history per agent"
+    )
+
+
+class ProjectManagementSettings(BaseModel):
+    """Configuration for project management"""
+    
+    enable_roadmap_generation: bool = Field(
+        default=True, description="Enable automatic roadmap generation"
+    )
+    enable_milestone_tracking: bool = Field(
+        default=True, description="Enable milestone tracking"
+    )
+    enable_risk_assessment: bool = Field(
+        default=True, description="Enable risk assessment"
+    )
+    enable_resource_optimization: bool = Field(
+        default=True, description="Enable resource optimization"
+    )
+    max_project_duration_hours: int = Field(
+        default=168, description="Maximum project duration in hours (1 week)"
+    )
+
+
+class QualityAssuranceSettings(BaseModel):
+    """Configuration for quality assurance"""
+    
+    enable_automated_testing: bool = Field(
+        default=True, description="Enable automated testing"
+    )
+    enable_code_review: bool = Field(
+        default=True, description="Enable automated code review"
+    )
+    enable_security_scanning: bool = Field(
+        default=True, description="Enable security scanning"
+    )
+    enable_performance_analysis: bool = Field(
+        default=True, description="Enable performance analysis"
+    )
+    min_test_coverage: float = Field(
+        default=80.0, description="Minimum test coverage percentage"
+    )
+    min_code_quality_score: float = Field(
+        default=7.0, description="Minimum code quality score (0-10)"
+    )
+
+
+class DeploymentSettings(BaseModel):
+    """Configuration for deployment"""
+    
+    enable_automated_deployment: bool = Field(
+        default=True, description="Enable automated deployment"
+    )
+    enable_infrastructure_as_code: bool = Field(
+        default=True, description="Enable infrastructure as code"
+    )
+    enable_monitoring: bool = Field(
+        default=True, description="Enable deployment monitoring"
+    )
+    enable_backup: bool = Field(
+        default=True, description="Enable backup strategies"
+    )
+    deployment_environments: List[str] = Field(
+        default_factory=lambda: ["development", "staging", "production"],
+        description="Deployment environments"
+    )
+
+
+class MonitoringSettings(BaseModel):
+    """Configuration for monitoring and metrics"""
+    
+    enable_performance_monitoring: bool = Field(
+        default=True, description="Enable performance monitoring"
+    )
+    enable_agent_monitoring: bool = Field(
+        default=True, description="Enable agent activity monitoring"
+    )
+    enable_project_monitoring: bool = Field(
+        default=True, description="Enable project progress monitoring"
+    )
+    metrics_retention_days: int = Field(
+        default=30, description="Metrics retention period in days"
+    )
+    alert_thresholds: Dict[str, float] = Field(
+        default_factory=lambda: {"error_rate": 0.05, "response_time": 5.0},
+        description="Alert thresholds for monitoring"
+    )
 
 
 class BrowserSettings(BaseModel):
@@ -232,6 +383,27 @@ class AppConfig(BaseModel):
     ui_config: Optional[UISettings] = Field(
         None, description="UI configuration"
     )
+    agent_pools_config: Optional[AgentPoolSettings] = Field(
+        None, description="Agent pool configuration"
+    )
+    blackboard_config: Optional[BlackboardSettings] = Field(
+        None, description="Blackboard configuration"
+    )
+    interaction_config: Optional[InteractionSettings] = Field(
+        None, description="User interaction configuration"
+    )
+    project_management_config: Optional[ProjectManagementSettings] = Field(
+        None, description="Project management configuration"
+    )
+    quality_assurance_config: Optional[QualityAssuranceSettings] = Field(
+        None, description="Quality assurance configuration"
+    )
+    deployment_config: Optional[DeploymentSettings] = Field(
+        None, description="Deployment configuration"
+    )
+    monitoring_config: Optional[MonitoringSettings] = Field(
+        None, description="Monitoring configuration"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -369,6 +541,50 @@ class Config:
             run_flow_settings = RunflowSettings(**run_flow_config)
         else:
             run_flow_settings = RunflowSettings()
+
+        # Load new multi-agent configuration sections
+        agent_pools_config = raw_config.get("agent_pools", {})
+        if agent_pools_config:
+            agent_pools_settings = AgentPoolSettings(**agent_pools_config)
+        else:
+            agent_pools_settings = AgentPoolSettings()
+
+        blackboard_config = raw_config.get("blackboard", {})
+        if blackboard_config:
+            blackboard_settings = BlackboardSettings(**blackboard_config)
+        else:
+            blackboard_settings = BlackboardSettings()
+
+        interaction_config = raw_config.get("interaction", {})
+        if interaction_config:
+            interaction_settings = InteractionSettings(**interaction_config)
+        else:
+            interaction_settings = InteractionSettings()
+
+        project_management_config = raw_config.get("project_management", {})
+        if project_management_config:
+            project_management_settings = ProjectManagementSettings(**project_management_config)
+        else:
+            project_management_settings = ProjectManagementSettings()
+
+        quality_assurance_config = raw_config.get("quality_assurance", {})
+        if quality_assurance_config:
+            quality_assurance_settings = QualityAssuranceSettings(**quality_assurance_config)
+        else:
+            quality_assurance_settings = QualityAssuranceSettings()
+
+        deployment_config = raw_config.get("deployment", {})
+        if deployment_config:
+            deployment_settings = DeploymentSettings(**deployment_config)
+        else:
+            deployment_settings = DeploymentSettings()
+
+        monitoring_config = raw_config.get("monitoring", {})
+        if monitoring_config:
+            monitoring_settings = MonitoringSettings(**monitoring_config)
+        else:
+            monitoring_settings = MonitoringSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -385,6 +601,13 @@ class Config:
             "daytona_config": daytona_settings,
             "local_service_config": local_service_settings,
             "ui_config": ui_settings,
+            "agent_pools_config": agent_pools_settings,
+            "blackboard_config": blackboard_settings,
+            "interaction_config": interaction_settings,
+            "project_management_config": project_management_settings,
+            "quality_assurance_config": quality_assurance_settings,
+            "deployment_config": deployment_settings,
+            "monitoring_config": monitoring_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -438,6 +661,41 @@ class Config:
     def ui(self) -> UISettings:
         """Get the UI configuration"""
         return self._config.ui_config
+
+    @property
+    def agent_pools(self) -> AgentPoolSettings:
+        """Get the agent pools configuration"""
+        return self._config.agent_pools_config
+
+    @property
+    def blackboard(self) -> BlackboardSettings:
+        """Get the blackboard configuration"""
+        return self._config.blackboard_config
+
+    @property
+    def interaction(self) -> InteractionSettings:
+        """Get the interaction configuration"""
+        return self._config.interaction_config
+
+    @property
+    def project_management(self) -> ProjectManagementSettings:
+        """Get the project management configuration"""
+        return self._config.project_management_config
+
+    @property
+    def quality_assurance(self) -> QualityAssuranceSettings:
+        """Get the quality assurance configuration"""
+        return self._config.quality_assurance_config
+
+    @property
+    def deployment(self) -> DeploymentSettings:
+        """Get the deployment configuration"""
+        return self._config.deployment_config
+
+    @property
+    def monitoring(self) -> MonitoringSettings:
+        """Get the monitoring configuration"""
+        return self._config.monitoring_config
 
 
 config = Config()

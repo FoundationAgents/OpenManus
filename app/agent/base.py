@@ -55,7 +55,7 @@ class BaseAgent(BaseModel, ABC):
         extra = "allow"  # Allow extra fields for flexibility in subclasses
 
     @model_validator(mode="after")
-    def initialize_helper(self, field_name, values) -> "BaseAgent":
+    def initialize_helper(self) -> "BaseAgent":
         """Initialize agent with default settings if not provided."""
         if self.llm is None or not isinstance(self.llm, LLM):
             self.llm = LLM(config_name=self.name.lower())

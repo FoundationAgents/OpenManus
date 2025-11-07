@@ -10,10 +10,10 @@ from app.config import config
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.search import (
-    BaiduSearchEngine,
-    BingSearchEngine,
-    DuckDuckGoSearchEngine,
-    GoogleSearchEngine,
+    # BaiduSearchEngine,  # Temporarily disabled
+    # BingSearchEngine,   # Temporarily disabled
+    # DuckDuckGoSearchEngine,  # Temporarily disabled
+    # GoogleSearchEngine,  # Temporarily disabled
     WebSearchEngine,
 )
 from app.tool.search.base import SearchItem
