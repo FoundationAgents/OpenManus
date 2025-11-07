@@ -40,3 +40,11 @@ crawl4ai~=0.6.3
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+
+# New UI and system dependencies
+PyQt6~=6.8.0
+websockets~=14.1
+psutil~=6.1.0
+subprocess32~=3.5.4;python_version<'3.3'
+pywin32>=306;sys_platform=='win32'
+wmi>=1.5.1;sys_platform=='win32'

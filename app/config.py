@@ -19,15 +19,18 @@ WORKSPACE_ROOT = PROJECT_ROOT / "workspace"
 class LLMSettings(BaseModel):
     model: str = Field(..., description="Model name")
     base_url: str = Field(..., description="API base URL")
-    api_key: str = Field(..., description="API key")
+    api_key: Optional[str] = Field(None, description="API key (optional for some providers)")
     max_tokens: int = Field(4096, description="Maximum number of tokens per request")
     max_input_tokens: Optional[int] = Field(
         None,
         description="Maximum input tokens to use across all requests (None for unlimited)",
     )
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="Azure, Openai, or Ollama")
-    api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    api_type: str = Field("openai", description="API type: openai, azure, aws, ollama, or custom")
+    api_version: Optional[str] = Field(None, description="Azure Openai version if AzureOpenai")
+    requires_api_key: bool = Field(True, description="Whether this provider requires an API key")
+    supports_tools: bool = Field(True, description="Whether this provider supports tool calling")
+    supports_vision: bool = Field(False, description="Whether this provider supports vision input")
 
 
 class ProxySettings(BaseModel):
@@ -63,6 +66,12 @@ class SearchSettings(BaseModel):
 class RunflowSettings(BaseModel):
     use_data_analysis_agent: bool = Field(
         default=False, description="Enable data analysis agent in run flow"
+    )
+    default_mode: str = Field(
+        default="agent_flow", description="Default mode: chat or agent_flow"
+    )
+    enable_ade_mode: bool = Field(
+        default=True, description="Enable ADE (Agentic Development Environment) mode"
     )
 
 
@@ -106,7 +115,7 @@ class SandboxSettings(BaseModel):
 
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = Field(None, description="Daytona API key (optional)")
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -122,6 +131,34 @@ class DaytonaSettings(BaseModel):
     VNC_password: Optional[str] = Field(
         "123456", description="VNC password for the vnc service in sandbox"
     )
+
+
+class LocalServiceSettings(BaseModel):
+    """Configuration for local service execution (replacing Daytona)"""
+    
+    use_local_service: bool = Field(True, description="Use local service instead of Daytona")
+    workspace_directory: str = Field("./workspace", description="Local workspace directory")
+    python_executable: str = Field("python3", description="Python executable path")
+    max_concurrent_processes: int = Field(5, description="Maximum concurrent processes")
+    process_timeout: int = Field(300, description="Process timeout in seconds")
+    enable_network: bool = Field(True, description="Enable network access")
+    allowed_commands: List[str] = Field(
+        default_factory=lambda: ["python", "pip", "git", "npm", "node", "bash", "cmd", "powershell"],
+        description="Allowed commands for execution"
+    )
+
+
+class UISettings(BaseModel):
+    """Configuration for user interface"""
+    
+    enable_gui: bool = Field(True, description="Enable PyQt6 GUI")
+    enable_webui: bool = Field(True, description="Enable web UI on localhost")
+    webui_port: int = Field(8080, description="Port for web UI")
+    webui_host: str = Field("localhost", description="Host for web UI")
+    theme: str = Field("dark", description="UI theme: light, dark, or auto")
+    window_width: int = Field(1200, description="Default window width")
+    window_height: int = Field(800, description="Default window height")
+    auto_save: bool = Field(True, description="Auto-save conversations")
 
 
 class MCPServerConfig(BaseModel):
@@ -188,6 +225,12 @@ class AppConfig(BaseModel):
     )
     daytona_config: Optional[DaytonaSettings] = Field(
         None, description="Daytona configuration"
+    )
+    local_service_config: Optional[LocalServiceSettings] = Field(
+        None, description="Local service configuration"
+    )
+    ui_config: Optional[UISettings] = Field(
+        None, description="UI configuration"
     )
 
     class Config:
@@ -292,9 +335,25 @@ class Config:
             sandbox_settings = SandboxSettings()
         daytona_config = raw_config.get("daytona", {})
         if daytona_config:
-            daytona_settings = DaytonaSettings(**daytona_config)
+            try:
+                daytona_settings = DaytonaSettings(**daytona_config)
+            except Exception as e:
+                logger.warning(f"Failed to load Daytona settings: {e}")
+                daytona_settings = DaytonaSettings()
         else:
             daytona_settings = DaytonaSettings()
+
+        local_service_config = raw_config.get("local_service", {})
+        if local_service_config:
+            local_service_settings = LocalServiceSettings(**local_service_config)
+        else:
+            local_service_settings = LocalServiceSettings()
+
+        ui_config = raw_config.get("ui", {})
+        if ui_config:
+            ui_settings = UISettings(**ui_config)
+        else:
+            ui_settings = UISettings()
 
         mcp_config = raw_config.get("mcp", {})
         mcp_settings = None
@@ -324,6 +383,8 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
+            "local_service_config": local_service_settings,
+            "ui_config": ui_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -367,6 +428,16 @@ class Config:
     def root_path(self) -> Path:
         """Get the root path of the application"""
         return PROJECT_ROOT
+
+    @property
+    def local_service(self) -> LocalServiceSettings:
+        """Get the local service configuration"""
+        return self._config.local_service_config
+
+    @property
+    def ui(self) -> UISettings:
+        """Get the UI configuration"""
+        return self._config.ui_config
 
 
 config = Config()

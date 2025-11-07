@@ -2,7 +2,15 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
+try:
+    from pydantic import model_validator
+except ImportError:
+    # Fallback for older pydantic versions
+    def model_validator(field_name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 
 from app.llm import LLM
 from app.logger import logger
@@ -47,7 +55,7 @@ class BaseAgent(BaseModel, ABC):
         extra = "allow"  # Allow extra fields for flexibility in subclasses
 
     @model_validator(mode="after")
-    def initialize_agent(self) -> "BaseAgent":
+    def initialize_helper(self, field_name, values) -> "BaseAgent":
         """Initialize agent with default settings if not provided."""
         if self.llm is None or not isinstance(self.llm, LLM):
             self.llm = LLM(config_name=self.name.lower())

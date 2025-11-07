@@ -197,6 +197,11 @@ class LLM:
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
 
+            # Add new configuration options
+            self.requires_api_key = getattr(llm_config, "requires_api_key", True)
+            self.supports_tools = getattr(llm_config, "supports_tools", True)
+            self.supports_vision = getattr(llm_config, "supports_vision", False)
+
             # Add token counting related attributes
             self.total_input_tokens = 0
             self.total_completion_tokens = 0
@@ -213,18 +218,48 @@ class LLM:
                 # If the model is not in tiktoken's presets, use cl100k_base as default
                 self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
-            if self.api_type == "azure":
-                self.client = AsyncAzureOpenAI(
-                    base_url=self.base_url,
-                    api_key=self.api_key,
-                    api_version=self.api_version,
-                )
-            elif self.api_type == "aws":
-                self.client = BedrockClient()
-            else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+            # Initialize client with enhanced support for different providers
+            self.client = self._initialize_client(llm_config)
 
             self.token_counter = TokenCounter(self.tokenizer)
+
+    def _initialize_client(self, llm_config):
+        """Initialize the appropriate client based on API type and configuration."""
+        
+        # Check if API key is required but not provided
+        if self.requires_api_key and not self.api_key:
+            raise ValueError(f"API key is required for {self.api_type} provider")
+        
+        # For providers that don't require API keys, use a placeholder
+        api_key = self.api_key
+        if not api_key:
+            api_key = "no-key-required"
+
+        if self.api_type == "azure":
+            return AsyncAzureOpenAI(
+                base_url=self.base_url,
+                api_key=api_key,
+                api_version=self.api_version,
+            )
+        elif self.api_type == "aws":
+            return BedrockClient()
+        elif self.api_type == "ollama":
+            # Ollama typically doesn't require an API key for local instances
+            return AsyncOpenAI(
+                api_key="ollama",
+                base_url=self.base_url,
+            )
+        elif self.api_type == "custom":
+            # Custom OpenAI-compatible endpoint
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=self.base_url,
+            )
+        else:  # Default OpenAI-compatible
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=self.base_url,
+            )
 
     def count_tokens(self, text: str) -> int:
         """Calculate the number of tokens in a text"""
