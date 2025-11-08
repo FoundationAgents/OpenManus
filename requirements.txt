@@ -49,4 +49,14 @@ psutil~=6.1.0
 subprocess32~=3.5.4;python_version<'3.3'
 pywin32>=306;sys_platform=='win32'
 wmi>=1.5.1;sys_platform=='win32'
+
+# System integration dependencies
+networkx~=3.4.2
+faiss-cpu~=1.9.0
+anthropic~=0.42.0
+aiosqlite~=0.21.0
+cryptography~=44.0.0
+asyncio-mqtt~=0.16.2
+prometheus-client~=0.21.0
+structlog~=24.4.0
 APScheduler~=3.10.4
