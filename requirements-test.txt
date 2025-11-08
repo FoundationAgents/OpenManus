@@ -1,0 +1,49 @@
+# Testing Requirements
+# Core testing frameworks
+pytest~=8.3.5
+pytest-asyncio~=0.25.3
+pytest-cov~=5.0.0
+pytest-timeout~=2.1.1
+pytest-xdist~=3.5.0
+pytest-qt~=4.4.0
+
+# Mocking and fixtures
+unittest-mock~=1.5.0
+
+# UI Testing
+PyQt6~=6.8.0
+PyQt6-WebEngine~=6.8.0
+
+# Async support
+aiofiles~=24.1.0
+aiosqlite~=0.21.0
+
+# Performance and profiling
+memory-profiler~=0.61.0
+pytest-benchmark~=4.0.0
+
+# Security testing
+bandit~=1.7.5
+safety~=2.3.5
+
+# Code quality
+black~=24.1.1
+isort~=5.13.2
+flake8~=7.0.0
+mypy~=1.7.1
+
+# Type stubs
+types-pyyaml
+types-requests
+
+# Documentation
+sphinx~=7.2.6
+sphinx-rtd-theme~=2.0.0
+
+# Continuous Integration
+tox~=4.11.3
+
+# Additional utilities
+coverage~=7.4.1
+pytest-json-report~=1.5.0
+pytest-html~=4.1.1
