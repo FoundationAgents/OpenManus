@@ -1,0 +1,88 @@
+{
+  "rules": [
+    {
+      "rule_id": "critical_file_access",
+      "name": "Critical File Access",
+      "description": "Detect access to critical system files",
+      "severity": "high",
+      "rule_type": "file_access",
+      "conditions": {
+        "file_patterns": [
+          "/etc/passwd",
+          "/etc/shadow", 
+          "/etc/sudoers",
+          "/root/.*",
+          "\.ssh/.*",
+          "\.env$",
+          "config/.*\\.conf$"
+        ],
+        "restricted_actions": ["write", "delete", "execute"]
+      },
+      "action": "alert"
+    },
+    {
+      "rule_id": "api_rate_limit",
+      "name": "API Rate Limiting", 
+      "description": "Detect excessive API usage",
+      "severity": "medium",
+      "rule_type": "api_access",
+      "conditions": {
+        "rate_limit": {
+          "time_window": 3600,
+          "max_requests": 1000
+        }
+      },
+      "action": "alert"
+    },
+    {
+      "rule_id": "unusual_login_time",
+      "name": "Unusual Login Time",
+      "description": "Detect logins outside normal hours",
+      "severity": "low", 
+      "rule_type": "user_behavior",
+      "conditions": {
+        "login_time_restrictions": {
+          "allowed_hours": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        }
+      },
+      "action": "alert"
+    },
+    {
+      "rule_id": "system_resource_abuse",
+      "name": "System Resource Abuse",
+      "description": "Detect system resource threshold violations",
+      "severity": "high",
+      "rule_type": "system_resource", 
+      "conditions": {
+        "thresholds": {
+          "cpu_usage": {"max": 95.0},
+          "memory_usage": {"max": 90.0},
+          "disk_usage": {"max": 85.0},
+          "error_rate": {"max": 0.1}
+        },
+        "sustained_violations": {
+          "duration": 300,
+          "threshold": 0.8
+        }
+      },
+      "action": "alert"
+    },
+    {
+      "rule_id": "maintenance_window",
+      "name": "Maintenance Window Restriction",
+      "description": "Restrict operations during maintenance windows",
+      "severity": "medium",
+      "rule_type": "time_based",
+      "conditions": {
+        "maintenance_windows": [
+          {
+            "start_hour": 2,
+            "end_hour": 4,
+            "days": [6]
+          }
+        ]
+      },
+      "action": "block"
+    }
+  ]
+}

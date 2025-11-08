@@ -126,3 +126,81 @@ theme = "dark"                       # UI theme: light, dark, or auto
 window_width = 1200                   # Default window width
 window_height = 800                   # Default window height
 auto_save = true                      # Auto-save conversations
+
+# Access Control Layer (ACL) configuration
+[acl]
+enable_acl = true                     # Enable access control system
+default_permission = "read"           # Default permission level for users
+admin_roles = ["admin", "superuser"]  # Roles with administrative privileges
+permission_cache_ttl = 300            # Permission cache time-to-live (seconds)
+audit_access = true                    # Log all access attempts
+max_failed_attempts = 5               # Maximum failed login attempts before lockout
+lockout_duration = 900               # Account lockout duration (seconds)
+
+# Guardian security monitoring configuration
+[guardian]
+enable_guardian = true                # Enable Guardian security system
+threat_detection = true               # Enable automatic threat detection
+anomaly_threshold = 0.8               # Anomaly detection threshold (0.0-1.0)
+scan_interval = 60                    # Security scan interval (seconds)
+alert_channels = ["log", "ui"]        # Alert notification channels
+quarantine_suspicious = true          # Quarantine suspicious activities
+security_rules_file = "config/security_rules.json"  # Security rules file
+
+# Versioning and configuration management
+[versioning]
+enable_versioning = true              # Enable version management system
+max_versions_per_file = 100           # Maximum versions to keep per file
+auto_snapshot = true                   # Enable automatic snapshots
+snapshot_interval = 3600              # Snapshot interval (seconds)
+compression = true                     # Compress version data
+storage_backend = "sqlite"             # Storage backend: sqlite, postgresql, mysql
+retention_days = 90                   # Version retention period (days)
+
+# Backup management configuration
+[backup]
+enable_backups = true                  # Enable backup system
+backup_interval = 86400               # Backup interval (seconds, 24 hours)
+max_backups = 30                       # Maximum number of backups to keep
+compression = true                     # Compress backup files
+encryption = false                     # Encrypt backup files
+backup_locations = ["./backups"]       # Backup storage locations
+include_workspace = true               # Include workspace in backups
+include_config = true                 # Include configuration in backups
+include_database = true               # Include database in backups
+
+# Knowledge graph configuration
+[knowledge_graph]
+enable_knowledge_graph = true         # Enable knowledge graph system
+vector_db_type = "faiss"              # Vector database: faiss, milvus, chroma
+embedding_model = "text-embedding-ada-002"  # Embedding model for vectors
+max_nodes = 10000                      # Maximum nodes in knowledge graph
+max_relationships = 50000              # Maximum relationships in graph
+auto_update = true                     # Auto-update graph from interactions
+similarity_threshold = 0.7              # Similarity threshold for connections
+persist_to_disk = true                 # Persist graph to disk
+graph_storage_path = "./data/knowledge_graph"  # Graph storage path
+
+# Network configuration
+[network]
+enable_networking = true               # Enable networking features
+max_connections = 100                  # Maximum concurrent connections
+connection_timeout = 30                # Connection timeout (seconds)
+retry_attempts = 3                     # Max retry attempts for failed connections
+bandwidth_limit = null                 # Bandwidth limit (bytes/s, null for unlimited)
+enable_proxy = false                   # Enable proxy support
+proxy_url = null                       # Proxy server URL
+enable_ssl_verification = true         # Enable SSL certificate verification
+trusted_certificates = []              # Trusted certificate file paths
+
+# Resilience and fault tolerance configuration
+[resilience]
+enable_resilience = true               # Enable resilience features
+circuit_breaker_threshold = 5         # Circuit breaker failure threshold
+circuit_breaker_timeout = 60          # Circuit breaker timeout (seconds)
+retry_base_delay = 1.0                 # Base delay for retries (seconds)
+retry_max_delay = 60.0                 # Maximum delay for retries (seconds)
+retry_jitter = true                    # Add jitter to retry delays
+bulkhead_limit = 10                    # Bulkhead pattern limit
+timeout_threshold = 30.0                # Operation timeout threshold (seconds)
+health_check_interval = 30             # Health check interval (seconds)
