@@ -186,6 +186,37 @@ class MigrationManager:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Dynamic permissions tables
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS permissions_grants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                grant_id TEXT UNIQUE NOT NULL,
+                request_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                granted_tools TEXT,
+                network_allowed BOOLEAN DEFAULT FALSE,
+                ttl_seconds INTEGER,
+                expires_at TEXT,
+                revoked_at TEXT,
+                revoked_reason TEXT,
+                revocation_token TEXT,
+                audit_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS permissions_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                audit_id TEXT UNIQUE NOT NULL,
+                action TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                request_id TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     
     async def get_applied_migrations(self) -> List[str]:
         """Get list of applied migration versions"""
@@ -292,9 +323,17 @@ def register_default_migrations(manager: MigrationManager):
             CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
             
             -- System metrics indexes
-            CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
-            CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
-        """,
+             CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
+             CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
+
+             -- Permissions indexes
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_agent ON permissions_grants(agent_id);
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_expires ON permissions_grants(expires_at);
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_revoked ON permissions_grants(revoked_at);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_agent ON permissions_audit(agent_id);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_action ON permissions_audit(action);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_created ON permissions_audit(created_at);
+            """,
         down_sql="""
             DROP INDEX IF EXISTS idx_acl_users_username;
             DROP INDEX IF EXISTS idx_acl_permissions_user_resource;
@@ -313,6 +352,12 @@ def register_default_migrations(manager: MigrationManager):
             DROP INDEX IF EXISTS idx_security_events_created;
             DROP INDEX IF EXISTS idx_system_metrics_name;
             DROP INDEX IF EXISTS idx_system_metrics_timestamp;
+            DROP INDEX IF EXISTS idx_permissions_grants_agent;
+            DROP INDEX IF EXISTS idx_permissions_grants_expires;
+            DROP INDEX IF EXISTS idx_permissions_grants_revoked;
+            DROP INDEX IF EXISTS idx_permissions_audit_agent;
+            DROP INDEX IF EXISTS idx_permissions_audit_action;
+            DROP INDEX IF EXISTS idx_permissions_audit_created;
         """
     )
     

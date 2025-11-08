@@ -710,6 +710,7 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
     )
@@ -721,8 +722,10 @@ class AppConfig(BaseModel):
     )
     backup_config: Optional[BackupSettings] = Field(
         None, description="Backup configuration"
+    )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
+    )
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
     )
