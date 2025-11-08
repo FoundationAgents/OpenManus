@@ -316,6 +316,29 @@ class EditorSettings(BaseModel):
     languages_config_dir: str = Field("config/languages", description="Directory for language definitions")
 
 
+class VersioningSettings(BaseModel):
+    """Configuration for versioning engine"""
+    
+    enable_versioning: bool = Field(True, description="Enable file versioning")
+    database_path: str = Field("workspace/.versions/versions.db", description="SQLite database path")
+    storage_path: str = Field("workspace/.versions/storage", description="Content storage directory")
+    auto_version: bool = Field(True, description="Automatically create versions on file saves")
+    retention_days: int = Field(30, description="Default retention period for versions in days")
+    max_storage_mb: int = Field(1024, description="Maximum storage size in MB")
+    cleanup_interval_hours: int = Field(24, description="Cleanup interval in hours")
+    track_file_patterns: List[str] = Field(
+        default_factory=lambda: ["**/*.py", "**/*.js", "**/*.ts", "**/*.go", "**/*.rs", "**/*.sql", "**/*.sh", "**/*.md"],
+        description="File patterns to track for versioning"
+    )
+    exclude_patterns: List[str] = Field(
+        default_factory=lambda: ["**/.git/**", "**/node_modules/**", "**/__pycache__/**", "**/.pytest_cache/**"],
+        description="File patterns to exclude from versioning"
+    )
+    enable_snapshots: bool = Field(True, description="Enable snapshot functionality")
+    max_snapshots: int = Field(100, description="Maximum number of snapshots to keep")
+    enable_guardian_checks: bool = Field(True, description="Enable Guardian checks on rollback operations")
+
+
 class UISettings(BaseModel):
     """Configuration for user interface"""
     
@@ -399,6 +422,9 @@ class AppConfig(BaseModel):
     )
     editor_config: Optional[EditorSettings] = Field(
         None, description="Code editor configuration"
+    )
+    versioning_config: Optional[VersioningSettings] = Field(
+        None, description="Versioning engine configuration"
     )
     ui_config: Optional[UISettings] = Field(
         None, description="UI configuration"
@@ -547,6 +573,12 @@ class Config:
         else:
             editor_settings = EditorSettings()
 
+        versioning_config = raw_config.get("versioning", {})
+        if versioning_config:
+            versioning_settings = VersioningSettings(**versioning_config)
+        else:
+            versioning_settings = VersioningSettings()
+
         ui_config = raw_config.get("ui", {})
         if ui_config:
             ui_settings = UISettings(**ui_config)
@@ -627,6 +659,7 @@ class Config:
             "daytona_config": daytona_settings,
             "local_service_config": local_service_settings,
             "editor_config": editor_settings,
+            "versioning_config": versioning_settings,
             "ui_config": ui_settings,
             "agent_pools_config": agent_pools_settings,
             "blackboard_config": blackboard_settings,
@@ -688,6 +721,11 @@ class Config:
     def editor(self) -> EditorSettings:
         """Get the editor configuration"""
         return self._config.editor_config
+
+    @property
+    def versioning(self) -> VersioningSettings:
+        """Get the versioning configuration"""
+        return self._config.versioning_config
 
     @property
     def ui(self) -> UISettings:

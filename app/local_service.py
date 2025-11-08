@@ -310,6 +310,23 @@ class LocalService:
             
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(content)
+            
+            # Create version if versioning is enabled
+            try:
+                from app.storage.service import get_versioning_service
+                versioning_service = get_versioning_service()
+                versioning_service.on_file_save(
+                    file_path,
+                    content,
+                    agent="local_service",
+                    reason="File written via LocalService"
+                )
+            except ImportError:
+                # Versioning service not available
+                pass
+            except Exception as e:
+                logger.warning(f"Failed to create version for {file_path}: {e}")
+            
             return True
         except Exception as e:
             logger.error(f"Error writing file {file_path}: {e}")
