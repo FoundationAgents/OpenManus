@@ -10,10 +10,6 @@ from app.config import config
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.search import (
-    # BaiduSearchEngine,  # Temporarily disabled
-    # BingSearchEngine,   # Temporarily disabled
-    # DuckDuckGoSearchEngine,  # Temporarily disabled
-    # GoogleSearchEngine,  # Temporarily disabled
     WebSearchEngine,
 )
 from app.tool.search.base import SearchItem
@@ -191,10 +187,11 @@ class WebSearch(BaseTool):
         "required": ["query"],
     }
     _search_engine: dict[str, WebSearchEngine] = {
-        "google": GoogleSearchEngine(),
-        "baidu": BaiduSearchEngine(),
-        "duckduckgo": DuckDuckGoSearchEngine(),
-        "bing": BingSearchEngine(),
+        # Search engines temporarily disabled due to dependency issues
+        # "google": GoogleSearchEngine(),
+        # "baidu": BaiduSearchEngine(),
+        # "duckduckgo": DuckDuckGoSearchEngine(),
+        # "bing": BingSearchEngine(),
     }
     content_fetcher: WebContentFetcher = WebContentFetcher()
 

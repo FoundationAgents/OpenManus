@@ -226,6 +226,68 @@ class MonitoringSettings(BaseModel):
     )
 
 
+class ResilienceSettings(BaseModel):
+    """Configuration for agent resilience and health monitoring"""
+    
+    # Health monitoring settings
+    health_check_interval: float = Field(
+        default=30.0, description="Health check interval in seconds"
+    )
+    heartbeat_timeout: float = Field(
+        default=120.0, description="Heartbeat timeout in seconds"
+    )
+    inactivity_threshold: float = Field(
+        default=300.0, description="Inactivity threshold in seconds"
+    )
+    
+    # Failure detection thresholds
+    max_consecutive_errors: int = Field(
+        default=3, description="Maximum consecutive errors before replacement"
+    )
+    max_error_rate: float = Field(
+        default=0.3, description="Maximum error rate (0.0 to 1.0)"
+    )
+    max_latency: float = Field(
+        default=10.0, description="Maximum average latency in seconds"
+    )
+    min_health_score: float = Field(
+        default=0.3, description="Minimum health score before replacement"
+    )
+    
+    # Replacement settings
+    enable_auto_replacement: bool = Field(
+        default=True, description="Enable automatic agent replacement"
+    )
+    replacement_delay: float = Field(
+        default=5.0, description="Delay before replacement in seconds"
+    )
+    max_replacements_per_hour: int = Field(
+        default=5, description="Maximum replacements per hour per role"
+    )
+    
+    # Context transfer settings
+    context_retention_tasks: int = Field(
+        default=10, description="Number of recent tasks to retain"
+    )
+    context_retention_messages: int = Field(
+        default=50, description="Number of recent messages to retain"
+    )
+    context_retention_time: float = Field(
+        default=3600.0, description="Context retention time in seconds"
+    )
+    
+    # Recovery settings
+    enable_recovery_attempts: bool = Field(
+        default=True, description="Enable recovery attempts before replacement"
+    )
+    max_recovery_attempts: int = Field(
+        default=2, description="Maximum recovery attempts"
+    )
+    recovery_timeout: float = Field(
+        default=60.0, description="Recovery attempt timeout"
+    )
+
+
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -513,6 +575,8 @@ class AppConfig(BaseModel):
     monitoring_config: Optional[MonitoringSettings] = Field(
         None, description="Monitoring configuration"
     )
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
     )
