@@ -1,3 +1,4 @@
+"""Security package providing ACL management
 """
 Security Module - Dynamic Permissions & Capabilities System
 
@@ -25,4 +26,6 @@ __all__ = [
     "DynamicPermissionManager",
     "ResourceLimits",
     "get_permission_manager",
+    "ACLManager", 
+    "acl_manager"
 ]

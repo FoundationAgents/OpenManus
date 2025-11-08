@@ -12,6 +12,7 @@ from app.config import config
 from app.database.database_service import database_service
 from app.guardian.guardian_service import guardian_service
 from app.knowledge_graph.knowledge_graph_service import knowledge_graph_service
+from app.security import acl_manager
 from app.knowledge_graph.graph_builder import graph_builder
 from app.backup.backup_service import backup_service
 from app.backup.backup_scheduler import backup_scheduler
@@ -40,6 +41,7 @@ class SystemIntegrationService:
     def _register_services(self):
         """Register all services with the registry"""
         self.service_registry.register("database", database_service)
+        self.service_registry.register("acl", acl_manager)
         self.service_registry.register("guardian", guardian_service)
         self.service_registry.register("knowledge_graph", knowledge_graph_service)
         self.service_registry.register("graph_builder", graph_builder)
@@ -79,6 +81,9 @@ class SystemIntegrationService:
         try:
             # Initialize database first
             await database_service.initialize()
+
+            # Initialize ACL manager before dependent services
+            await acl_manager.initialize()
             
             # Initialize other services
             await guardian_service.start()

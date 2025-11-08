@@ -19,8 +19,8 @@ from .migration_manager import MigrationManager, register_default_migrations
 class DatabaseService:
     """Main database service for all subsystems"""
     
-    def __init__(self):
-        self.db_path = "./data/system.db"
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or "./data/system.db"
         self.migration_manager = MigrationManager(self.db_path)
         self._connection_pool: Optional[aiosqlite.Connection] = None
     
