@@ -39,6 +39,8 @@ class DataIntegrityManager:
         self._lock = threading.RLock()
         self.data_dir = Path("./data")
         self.backup_dir = Path("./backups")
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
         self._init_db()
         self._optimize_database()
 

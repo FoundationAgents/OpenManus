@@ -107,14 +107,28 @@ class HealthMonitor:
     async def check_llm_health(self) -> ComponentHealth:
         """Check LLM service health"""
         try:
-            from app.llm.client import openai_client
+            from app.config import config
+            from app.llm.api_client import OpenAICompatibleClient
 
-            # Attempt a simple API call with timeout
+            # Attempt a health check with timeout
             try:
-                # Create a timeout task
+                # Get endpoint configuration
+                endpoint = config.get("llm.endpoint", "http://localhost:5000/v1")
+                model = config.get("llm.model", "gpt-3.5-turbo")
+
                 async def health_check():
-                    result = await openai_client.get_health_status()
-                    return result
+                    client = OpenAICompatibleClient(
+                        endpoint=endpoint,
+                        model=model,
+                        timeout=self._thresholds["llm_timeout_seconds"],
+                    )
+                    try:
+                        is_healthy = await client.health_check()
+                        await client.close()
+                        return {"status": "ok" if is_healthy else "degraded"}
+                    except Exception as e:
+                        await client.close()
+                        raise e
 
                 result = await asyncio.wait_for(
                     health_check(), timeout=self._thresholds["llm_timeout_seconds"]
