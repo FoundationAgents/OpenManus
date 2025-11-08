@@ -20,6 +20,11 @@ except ImportError:
 
 from app.config import config
 from app.logger import logger
+from app.security.guardian_agent import (
+    get_guardian_agent,
+    ValidationRequest,
+    CommandSource,
+)
 
 
 class LocalProcess:
@@ -113,11 +118,40 @@ class LocalService:
         command: str,
         cwd: Optional[str] = None,
         timeout: Optional[int] = None,
-        capture_output: bool = True
+        capture_output: bool = True,
+        user_id: Optional[int] = None,
+        agent_id: Optional[str] = None
     ) -> Dict[str, Union[int, str, bool]]:
         """Execute a command and return the result."""
         
-        # Validate command
+        # Validate command through Guardian
+        if config.guardian_validation.enable_command_validation:
+            guardian = await get_guardian_agent()
+            
+            working_dir = Path(cwd) if cwd else self.workspace_dir
+            
+            validation_request = ValidationRequest(
+                command=command,
+                source=CommandSource.LOCAL_SERVICE,
+                agent_id=agent_id,
+                user_id=user_id,
+                working_dir=str(working_dir)
+            )
+            
+            decision = await guardian.validate(validation_request)
+            
+            if not decision.approved:
+                logger.warning(f"Command rejected by Guardian: {command}")
+                return {
+                    "success": False,
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"Command rejected by Guardian: {decision.reason}"
+                }
+            
+            logger.debug(f"Command approved by Guardian: {command}")
+        
+        # Validate command locally
         validated_command = self._get_allowed_command(command)
         if not validated_command:
             return {

@@ -258,6 +258,20 @@ class GuardianSettings(BaseModel):
     security_rules_file: str = Field("config/security_rules.json", description="Security rules file")
 
 
+class GuardianValidationSettings(BaseModel):
+    """Configuration for Guardian validation and command approval"""
+    
+    enable_command_validation: bool = Field(True, description="Enable command validation")
+    auto_approval_threshold: float = Field(70.0, description="Auto-approval risk score threshold (0-100)")
+    approval_timeout: int = Field(300, description="User approval timeout in seconds")
+    policies_file: str = Field("config/security/guardian.json", description="Guardian policies file")
+    audit_db_path: str = Field("./data/guardian.db", description="Path to Guardian audit database")
+    require_user_approval: bool = Field(True, description="Require user approval for risky commands")
+    log_all_commands: bool = Field(True, description="Log all command validations")
+    enable_sandbox_validation: bool = Field(True, description="Enable validation in sandbox")
+    block_dangerous_patterns: bool = Field(True, description="Block dangerous patterns automatically")
+
+
 class VersioningSettings(BaseModel):
     """Configuration for version control and management"""
     
@@ -710,19 +724,19 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
     )
     guardian_config: Optional[GuardianSettings] = Field(
         None, description="Guardian security monitoring configuration"
     )
-    versioning_config: Optional[VersioningSettings] = Field(
-        None, description="Versioning configuration"
+    guardian_validation_config: Optional[GuardianValidationSettings] = Field(
+        None, description="Guardian validation and command approval configuration"
     )
-    backup_config: Optional[BackupSettings] = Field(
-        None, description="Backup configuration"
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
+    )
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
     )
@@ -867,12 +881,6 @@ class Config:
         else:
             editor_settings = EditorSettings()
 
-        versioning_config = raw_config.get("versioning", {})
-        if versioning_config:
-            versioning_settings = VersioningSettings(**versioning_config)
-        else:
-            versioning_settings = VersioningSettings()
-
         ui_config = raw_config.get("ui", {})
         if ui_config:
             ui_settings = UISettings(**ui_config)
@@ -950,6 +958,12 @@ class Config:
         else:
             guardian_settings = GuardianSettings()
 
+        guardian_validation_config = raw_config.get("guardian_validation", {})
+        if guardian_validation_config:
+            guardian_validation_settings = GuardianValidationSettings(**guardian_validation_config)
+        else:
+            guardian_validation_settings = GuardianValidationSettings()
+
         versioning_config = raw_config.get("versioning", {})
         if versioning_config:
             versioning_settings = VersioningSettings(**versioning_config)
@@ -1017,9 +1031,9 @@ class Config:
             "quality_assurance_config": quality_assurance_settings,
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
-            "network_config": network_settings,
             "acl_config": acl_settings,
             "guardian_config": guardian_settings,
+            "guardian_validation_config": guardian_validation_settings,
             "versioning_config": versioning_settings,
             "backup_config": backup_settings,
             "knowledge_graph_config": knowledge_graph_settings,
@@ -1027,7 +1041,6 @@ class Config:
             "resilience_config": resilience_settings,
             "vector_store_config": vector_store_settings,
             "embedding_config": embedding_settings,
-            "knowledge_graph_config": knowledge_graph_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -1141,6 +1154,11 @@ class Config:
     def guardian(self) -> GuardianSettings:
         """Get the Guardian configuration"""
         return self._config.guardian_config
+
+    @property
+    def guardian_validation(self) -> GuardianValidationSettings:
+        """Get the Guardian validation configuration"""
+        return self._config.guardian_validation_config
 
     @property
     def versioning(self) -> VersioningSettings:
