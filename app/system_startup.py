@@ -12,6 +12,10 @@ from app.logger import logger
 from app.config import config
 from app.system_integration.integration_service import system_integration
 from app.ui.main_window import MainWindow
+from app.reliability.crash_recovery import CrashRecoveryManager
+from app.reliability.health_monitor import HealthMonitor
+from app.reliability.event_logger import EventLogger
+from app.reliability.db_optimization import DatabaseOptimizer
 from PyQt6.QtWidgets import QApplication
 
 
@@ -21,6 +25,10 @@ class SystemApplication:
     def __init__(self):
         self.qt_app = None
         self.main_window = None
+        self.crash_recovery_manager = None
+        self.health_monitor = None
+        self.event_logger = None
+        self.db_optimizer = None
         self._setup_signal_handlers()
     
     def _setup_signal_handlers(self):
@@ -37,6 +45,9 @@ class SystemApplication:
         try:
             logger.info("Starting OpenManus System Integration...")
             
+            # Initialize reliability components
+            await self._initialize_reliability()
+            
             # Initialize system integration service
             await system_integration.initialize()
             
@@ -46,10 +57,57 @@ class SystemApplication:
             logger.error(f"Failed to initialize system: {e}")
             raise
     
+    async def _initialize_reliability(self):
+        """Initialize reliability and monitoring components"""
+        try:
+            db_path = str(Path("./data/reliability.db"))
+            
+            # Initialize database optimizer
+            self.db_optimizer = DatabaseOptimizer(db_path)
+            self.db_optimizer.optimize_for_reliability()
+            logger.info("Database optimizer initialized")
+            
+            # Initialize crash recovery
+            self.crash_recovery_manager = CrashRecoveryManager(db_path)
+            await self.crash_recovery_manager.start()
+            logger.info("Crash recovery manager started")
+            
+            # Initialize health monitor
+            self.health_monitor = HealthMonitor(db_path)
+            logger.info("Health monitor initialized")
+            
+            # Initialize event logger
+            self.event_logger = EventLogger(db_path)
+            logger.info("Event logger initialized")
+            
+            # Log system startup
+            await self.event_logger.log_event(
+                level="INFO",
+                component="system",
+                event_type="startup",
+                message="System started successfully",
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize reliability components: {e}")
+    
     async def shutdown(self):
         """Shutdown all system components"""
         try:
             logger.info("Shutting down OpenManus System...")
+            
+            # Log shutdown event
+            if self.event_logger:
+                await self.event_logger.log_event(
+                    level="INFO",
+                    component="system",
+                    event_type="shutdown",
+                    message="System shutting down",
+                )
+            
+            # Shutdown crash recovery manager
+            if self.crash_recovery_manager:
+                await self.crash_recovery_manager.stop()
             
             # Shutdown system integration
             await system_integration.shutdown()
