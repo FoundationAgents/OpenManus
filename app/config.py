@@ -102,6 +102,10 @@ class AgentPoolSettings(BaseModel):
     performance: int = Field(default=2, description="Number of performance agents")
     code_reviewer: int = Field(default=4, description="Number of code reviewer agents")
     researcher: int = Field(default=2, description="Number of researcher agents")
+    game_dev: int = Field(default=2, description="Number of game development agents")
+    reverse_engineering: int = Field(default=2, description="Number of reverse engineering agents")
+    low_level: int = Field(default=2, description="Number of low-level systems agents")
+    network: int = Field(default=3, description="Number of network engineering agents")
 
 
 class BlackboardSettings(BaseModel):
@@ -870,7 +874,6 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
-    ),
     )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
@@ -883,13 +886,6 @@ class AppConfig(BaseModel):
     )
     backup_config: Optional[BackupSettings] = Field(
         None, description="Backup configuration"
-    ),
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Agent resilience configuration"
-    ),
-    )
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Agent resilience configuration"
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"

@@ -1,0 +1,273 @@
+{
+  "workflow_name": "distributed_network_pipeline",
+  "description": "Distributed systems and network engineering workflow",
+  "version": "1.0.0",
+  "agents_required": [
+    "network",
+    "architect",
+    "developer",
+    "security",
+    "devops",
+    "performance"
+  ],
+  "phases": [
+    {
+      "name": "system_architecture",
+      "description": "Distributed system architecture design",
+      "agent_role": "architect",
+      "collaboration": ["network"],
+      "tasks": [
+        {
+          "id": "arch_001",
+          "title": "Distributed Architecture Design",
+          "description": "Design distributed system architecture with microservices, message queues, and data partitioning",
+          "priority": "critical",
+          "outputs": ["architecture_diagram", "component_specifications"]
+        },
+        {
+          "id": "arch_002",
+          "title": "CAP Theorem Analysis",
+          "description": "Analyze consistency, availability, and partition tolerance trade-offs",
+          "priority": "high",
+          "outputs": ["cap_analysis", "consistency_model"]
+        }
+      ]
+    },
+    {
+      "name": "api_design",
+      "description": "API design and specification",
+      "agent_role": "network",
+      "dependencies": ["system_architecture"],
+      "tasks": [
+        {
+          "id": "api_001",
+          "title": "REST API Design",
+          "description": "Design RESTful API with OpenAPI specification",
+          "priority": "high",
+          "outputs": ["openapi_spec", "api_documentation"]
+        },
+        {
+          "id": "api_002",
+          "title": "gRPC Service Definition",
+          "description": "Define gRPC services with Protocol Buffers for microservice communication",
+          "priority": "high",
+          "outputs": ["proto_files", "service_definitions"]
+        },
+        {
+          "id": "api_003",
+          "title": "WebSocket Real-Time API",
+          "description": "Design WebSocket API for real-time bidirectional communication",
+          "priority": "medium",
+          "outputs": ["websocket_spec", "event_definitions"]
+        }
+      ]
+    },
+    {
+      "name": "network_infrastructure",
+      "description": "Network infrastructure implementation",
+      "agent_role": "network",
+      "dependencies": ["api_design"],
+      "collaboration": ["devops"],
+      "tasks": [
+        {
+          "id": "net_001",
+          "title": "Service Communication Layer",
+          "description": "Implement HTTP client with caching, retry logic, and circuit breakers",
+          "priority": "high",
+          "tool_integration": "HTTPClientWithCaching",
+          "outputs": ["http_client", "retry_policy", "circuit_breaker"]
+        },
+        {
+          "id": "net_002",
+          "title": "WebSocket Handler Implementation",
+          "description": "Implement WebSocket handler with reconnection and heartbeat",
+          "priority": "high",
+          "tool_integration": "WebSocketHandler",
+          "outputs": ["websocket_handler", "connection_manager"]
+        },
+        {
+          "id": "net_003",
+          "title": "Message Queue Integration",
+          "description": "Integrate message queue (RabbitMQ/Kafka) for asynchronous communication",
+          "priority": "high",
+          "outputs": ["message_queue_client", "event_handlers"]
+        }
+      ]
+    },
+    {
+      "name": "security_implementation",
+      "description": "Network security implementation",
+      "agent_role": "security",
+      "collaboration": ["network"],
+      "dependencies": ["network_infrastructure"],
+      "tasks": [
+        {
+          "id": "sec_001",
+          "title": "TLS/SSL Configuration",
+          "description": "Configure TLS/SSL with certificate management and cipher suites",
+          "priority": "critical",
+          "outputs": ["tls_config", "certificate_setup"]
+        },
+        {
+          "id": "sec_002",
+          "title": "API Authentication and Authorization",
+          "description": "Implement JWT authentication and role-based access control",
+          "priority": "critical",
+          "outputs": ["auth_middleware", "rbac_policies"]
+        },
+        {
+          "id": "sec_003",
+          "title": "Rate Limiting and DDoS Protection",
+          "description": "Implement rate limiting and DDoS protection with Guardian integration",
+          "priority": "high",
+          "tool_integration": "Guardian",
+          "outputs": ["rate_limiter", "guardian_policies"]
+        }
+      ]
+    },
+    {
+      "name": "service_implementation",
+      "description": "Microservices implementation",
+      "agent_role": "developer",
+      "collaboration": ["network"],
+      "dependencies": ["security_implementation"],
+      "tasks": [
+        {
+          "id": "svc_001",
+          "title": "Core Microservices Development",
+          "description": "Implement core microservices with clean architecture",
+          "priority": "high",
+          "outputs": ["microservices", "service_interfaces"]
+        },
+        {
+          "id": "svc_002",
+          "title": "Service Discovery Implementation",
+          "description": "Implement service discovery and registration (Consul/etcd)",
+          "priority": "high",
+          "outputs": ["service_registry", "discovery_client"]
+        },
+        {
+          "id": "svc_003",
+          "title": "Data Replication and Consistency",
+          "description": "Implement data replication with consistency guarantees",
+          "priority": "high",
+          "outputs": ["replication_logic", "consensus_algorithm"]
+        }
+      ]
+    },
+    {
+      "name": "network_diagnostics",
+      "description": "Network diagnostics and monitoring",
+      "agent_role": "network",
+      "dependencies": ["service_implementation"],
+      "tasks": [
+        {
+          "id": "diag_001",
+          "title": "Network Diagnostics Implementation",
+          "description": "Implement network diagnostics with DNS, ping, and traceroute",
+          "priority": "high",
+          "tool_integration": "NetworkDiagnostics",
+          "outputs": ["diagnostics_suite", "health_checks"]
+        },
+        {
+          "id": "diag_002",
+          "title": "Distributed Tracing",
+          "description": "Implement distributed tracing with OpenTelemetry",
+          "priority": "high",
+          "outputs": ["tracing_setup", "trace_exporters"]
+        },
+        {
+          "id": "diag_003",
+          "title": "Metrics and Monitoring",
+          "description": "Implement metrics collection and monitoring dashboard",
+          "priority": "medium",
+          "outputs": ["metrics_collectors", "monitoring_dashboard"]
+        }
+      ]
+    },
+    {
+      "name": "performance_optimization",
+      "description": "Network performance optimization",
+      "agent_role": "performance",
+      "collaboration": ["network"],
+      "dependencies": ["network_diagnostics"],
+      "tasks": [
+        {
+          "id": "perf_001",
+          "title": "Latency Optimization",
+          "description": "Optimize network latency with caching, connection pooling, and CDN",
+          "priority": "high",
+          "outputs": ["latency_report", "optimization_strategies"]
+        },
+        {
+          "id": "perf_002",
+          "title": "Throughput Optimization",
+          "description": "Optimize throughput with compression, batching, and multiplexing",
+          "priority": "high",
+          "outputs": ["throughput_analysis", "optimization_implementation"]
+        },
+        {
+          "id": "perf_003",
+          "title": "Load Testing",
+          "description": "Perform load testing and capacity planning",
+          "priority": "high",
+          "outputs": ["load_test_results", "capacity_plan"]
+        }
+      ]
+    },
+    {
+      "name": "deployment",
+      "description": "Deployment and orchestration",
+      "agent_role": "devops",
+      "collaboration": ["network"],
+      "dependencies": ["performance_optimization"],
+      "tasks": [
+        {
+          "id": "dep_001",
+          "title": "Container Orchestration",
+          "description": "Set up Kubernetes cluster with service mesh (Istio/Linkerd)",
+          "priority": "critical",
+          "outputs": ["k8s_manifests", "service_mesh_config"]
+        },
+        {
+          "id": "dep_002",
+          "title": "Load Balancer Configuration",
+          "description": "Configure load balancers with health checks and failover",
+          "priority": "high",
+          "outputs": ["load_balancer_config", "health_check_endpoints"]
+        },
+        {
+          "id": "dep_003",
+          "title": "CI/CD Pipeline",
+          "description": "Set up CI/CD pipeline with automated testing and deployment",
+          "priority": "high",
+          "outputs": ["pipeline_config", "deployment_scripts"]
+        }
+      ]
+    }
+  ],
+  "tool_access_control": {
+    "network": ["bash", "python_execute", "str_replace_editor", "browser", "web_search", "http_request", "dns_lookup", "ping", "traceroute"],
+    "developer": ["bash", "python_execute", "str_replace_editor"],
+    "security": ["bash", "browser", "http_request"],
+    "devops": ["bash", "python_execute", "str_replace_editor"],
+    "performance": ["bash", "python_execute", "http_request", "ping"]
+  },
+  "network_toolkit_integration": {
+    "http_client": "HTTPClientWithCaching",
+    "websocket": "WebSocketHandler",
+    "diagnostics": "NetworkDiagnostics",
+    "api_manager": "APIIntegrationManager",
+    "guardian": "Guardian",
+    "rate_limiter": "RateLimiter",
+    "cache": "ResponseCache"
+  },
+  "knowledge_bases": {
+    "network": ["network-protocols", "distributed-systems", "api-design", "network-security"],
+    "architect": ["distributed-architecture", "microservices-patterns"],
+    "developer": ["microservices-development", "api-implementation"],
+    "security": ["network-security", "api-security", "tls-ssl"],
+    "devops": ["kubernetes", "service-mesh", "ci-cd"],
+    "performance": ["network-performance", "load-testing", "caching-strategies"]
+  }
+}

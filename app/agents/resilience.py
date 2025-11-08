@@ -23,10 +23,16 @@ if TYPE_CHECKING:
         AgentPool, 
         SpecializedAgent, 
         DevelopmentTask,
-        AgentRole,
         BlackboardMessage,
         MessageType
     )
+
+# Import AgentRole at runtime (avoid circular import by importing just the enum)
+try:
+    from app.flow.multi_agent_environment import AgentRole
+except ImportError:
+    # Fallback if circular import occurs
+    AgentRole = str
 
 
 class HealthStatus(str, Enum):
