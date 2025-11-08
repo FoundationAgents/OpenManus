@@ -1,0 +1,75 @@
+# QA System Configuration
+
+[qa]
+enabled = true
+mode = "standard"  # basic | standard | strict | paranoid
+auto_fix_enabled = true
+auto_fix_safe_only = true  # only apply non-logic-changing fixes
+
+[qa.thresholds]
+max_cyclomatic_complexity = 10
+max_nesting_depth = 4
+min_code_coverage = 80
+max_function_lines = 50
+max_file_lines = 500
+max_class_lines = 500
+
+[qa.production_readiness]
+enforce_tests = true
+enforce_documentation = true
+enforce_backwards_compatibility = true
+enforce_performance_slas = true
+test_timeout_seconds = 300
+coverage_tool = "pytest-cov"
+
+[qa.blockers]
+critical_issues = true  # any CRITICAL blocks merge
+security_issues = true  # any security issue blocks merge
+high_issues = true      # any HIGH blocks merge
+
+[qa.knowledge_base]
+enabled = true
+auto_learn = true  # learn from caught issues
+context_injection = true  # feed patterns to LLM
+storage_path = "cache/qa_knowledge.json"
+max_examples_per_pattern = 10
+
+[qa.metrics]
+enabled = true
+storage_path = "cache/qa_metrics.json"
+retention_days = 90
+daily_report = true
+weekly_report = true
+
+[qa.auto_fixes]
+# Which fixes can be auto-applied
+import_organization = true
+trailing_whitespace = true
+bare_except_fix = true
+add_docstrings = true
+line_length_fix = false  # may break code
+naming_convention_fix = false  # requires manual review
+magic_number_extraction = false  # requires context understanding
+
+[qa.security]
+scan_for_secrets = true
+scan_for_sql_injection = true
+scan_for_code_injection = true
+scan_for_xss = true
+use_bandit = true  # if available
+
+[qa.performance]
+check_inefficient_loops = true
+check_string_concatenation = true
+check_regex_complexity = false
+benchmark_regression_threshold = 0.1  # 10% slower
+
+[qa.guardian_integration]
+enabled = true
+require_approval_for_logic_changes = true
+audit_all_qa_changes = true
+
+[qa.versioning]
+create_qa_commits = true
+atomic_commits = true  # code + tests + docs together
+rollback_enabled = true

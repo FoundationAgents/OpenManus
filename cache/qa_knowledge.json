@@ -1,0 +1,140 @@
+{
+  "entries": [
+    {
+      "id": "kb_sql_injection",
+      "category": "security",
+      "pattern": "sql_injection",
+      "description": "SQL injection vulnerability from string formatting",
+      "severity": "CRITICAL",
+      "examples": [
+        "cursor.execute(f\"SELECT * FROM users WHERE id={user_id}\")"
+      ],
+      "fixes": [
+        "Use parameterized queries",
+        "Use ORM with proper escaping"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_command_injection"
+      ]
+    },
+    {
+      "id": "kb_bare_except",
+      "category": "anti-pattern",
+      "pattern": "bare_except",
+      "description": "Bare except clause catches all exceptions",
+      "severity": "HIGH",
+      "examples": [
+        "except:",
+        "except: pass"
+      ],
+      "fixes": [
+        "Specify exception types",
+        "Use except Exception: for general catch"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_silent_exception"
+      ]
+    },
+    {
+      "id": "kb_magic_number",
+      "category": "anti-pattern",
+      "pattern": "magic_number",
+      "description": "Unexplained numeric constant in code",
+      "severity": "MEDIUM",
+      "examples": [
+        "if len(items) > 100:",
+        "time.sleep(3600)"
+      ],
+      "fixes": [
+        "Extract to named constant with explanation"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_hardcoded_value"
+      ]
+    },
+    {
+      "id": "kb_long_function",
+      "category": "anti-pattern",
+      "pattern": "long_function",
+      "description": "Function exceeds recommended length",
+      "severity": "MEDIUM",
+      "examples": [],
+      "fixes": [
+        "Break into smaller functions",
+        "Extract helper methods"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_god_class",
+        "kb_deep_nesting"
+      ]
+    },
+    {
+      "id": "kb_dependency_injection",
+      "category": "best-practice",
+      "pattern": "dependency_injection",
+      "description": "Pass dependencies as parameters instead of hardcoding",
+      "severity": "LOW",
+      "examples": [
+        "def process(db_conn, logger):",
+        "class Service(config):"
+      ],
+      "fixes": [
+        "Use dependency injection pattern"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_tight_coupling"
+      ]
+    },
+    {
+      "id": "kb_transaction_handling",
+      "category": "best-practice",
+      "pattern": "transaction_handling",
+      "description": "Proper database transaction management",
+      "severity": "HIGH",
+      "examples": [
+        "with db.transaction():",
+        "db.commit()",
+        "db.rollback()"
+      ],
+      "fixes": [
+        "Use context managers for transactions",
+        "Always handle rollback"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_resource_leak"
+      ]
+    },
+    {
+      "id": "kb_list_comprehension",
+      "category": "performance",
+      "pattern": "list_comprehension",
+      "description": "Use list comprehension instead of loops for simple transformations",
+      "severity": "LOW",
+      "examples": [
+        "[x*2 for x in items]",
+        "[item.name for item in objects]"
+      ],
+      "fixes": [
+        "Replace loop with list comprehension"
+      ],
+      "occurrence_count": 0,
+      "last_seen": null,
+      "related_patterns": [
+        "kb_generator_expression"
+      ]
+    }
+  ],
+  "updated_at": "2025-11-08T14:26:17.166247"
+}
