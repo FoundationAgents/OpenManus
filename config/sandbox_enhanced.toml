@@ -1,0 +1,189 @@
+[enhanced_sandbox]
+# Enhanced sandbox configuration with Guardian, monitoring, and audit logging
+
+# General settings
+max_sandboxes = 50
+idle_timeout = 3600  # 1 hour
+cleanup_interval = 300  # 5 minutes
+auto_start_monitoring = true
+
+# Default resource limits
+[enhanced_sandbox.default_resource_limits]
+cpu_percent = 80.0
+memory_mb = 512
+disk_mb = 1024
+timeout_seconds = 300
+network_bandwidth_mbps = 100  # Optional
+
+# Guardian security settings
+[enhanced_sandbox.guardian]
+enable_guardian = true
+auto_approve_agents = true
+log_denied_operations = true
+
+# Default security rules
+[[enhanced_sandbox.guardian.rules]]
+name = "system_commands"
+pattern = "(shutdown|reboot|halt|poweroff)\\s+"
+risk_level = "high"
+action = "deny"
+description = "System shutdown commands"
+enabled = true
+
+[[enhanced_sandbox.guardian.rules]]
+name = "disk_operations"
+pattern = "(mkfs|format|fdisk)\\s+[/]"
+risk_level = "critical"
+action = "deny"
+description = "Disk formatting operations"
+enabled = true
+
+[[enhanced_sandbox.guardian.rules]]
+name = "network_scanning"
+pattern = "(nmap|netdiscover|masscan)\\s+"
+risk_level = "medium"
+action = "require_approval"
+description = "Network scanning tools"
+enabled = true
+
+[[enhanced_sandbox.guardian.rules]]
+name = "privilege_escalation"
+pattern = "(sudo\\s+|su\\s+)"
+risk_level = "high"
+action = "require_approval"
+description = "Privilege escalation attempts"
+enabled = true
+
+# Volume ACLs
+[[enhanced_sandbox.guardian.volume_acls]]
+host_path = "/tmp/safe"
+container_path = "/safe"
+mode = "rw"
+allowed_patterns = [".*\\.py$", ".*\\.txt$", ".*\\.json$"]
+blocked_patterns = [".*\\.sh$", ".*\\.(exe|bin)$"]
+
+[[enhanced_sandbox.guardian.volume_acls]]
+host_path = "/tmp/readonly"
+container_path = "/readonly"
+mode = "ro"
+allowed_patterns = [".*"]
+blocked_patterns = []
+
+# Resource monitoring settings
+[enhanced_sandbox.monitoring]
+enable_monitoring = true
+monitoring_interval = 5.0  # seconds
+enable_killswitch = true
+killswitch_threshold_multiplier = 1.2  # Trigger killswitch at 120% of limit
+
+# Alert settings
+[enhanced_sandbox.monitoring.alerts]
+cpu_warning_threshold = 70.0
+cpu_critical_threshold = 90.0
+memory_warning_threshold = 0.8  # 80% of limit
+memory_critical_threshold = 0.95  # 95% of limit
+disk_warning_threshold = 0.8  # 80% of limit
+disk_critical_threshold = 0.95  # 95% of limit
+
+# Audit logging settings
+[enhanced_sandbox.audit]
+enable_audit_logging = true
+database_path = "workspace/sandbox_audit.db"
+log_all_operations = true
+log_resource_usage = true
+log_failed_operations = true
+log_denied_operations = true
+
+# Log retention
+[enhanced_sandbox.audit.retention]
+days_to_keep = 30
+cleanup_interval_hours = 24
+max_database_size_mb = 1000
+
+# Per-agent resource quotas
+[enhanced_sandbox.agent_quotas]
+# Default quotas for all agents
+default_max_sandboxes = 5
+default_max_memory_mb = 2048
+default_max_cpu_percent = 200.0  # Across all sandboxes
+
+# Agent-specific quotas (example)
+[enhanced_sandbox.agent_quotas.agent_developer]
+max_sandboxes = 10
+max_memory_mb = 4096
+max_cpu_percent = 400.0
+
+[enhanced_sandbox.agent_quotas.agent_tester]
+max_sandboxes = 3
+max_memory_mb = 1024
+max_cpu_percent = 150.0
+
+# Docker configuration
+[enhanced_sandbox.docker]
+default_image = "python:3.12-slim"
+default_work_dir = "/workspace"
+default_network_enabled = false
+
+# Security constraints
+[enhanced_sandbox.docker.security]
+read_only_filesystem = false
+no_new_privileges = true
+user = "sandbox"  # Run as non-root user
+drop_capabilities = ["ALL"]
+add_capabilities = []
+
+# Temporary filesystems
+[enhanced_sandbox.docker.tmpfs]
+"/tmp" = "rw,noexec,nosuid,size=100m"
+"/var/tmp" = "rw,noexec,nosuid,size=100m"
+"/run" = "rw,noexec,nosuid,size=50m"
+
+# Network settings
+[enhanced_sandbox.docker.network]
+enable_network = false
+allowed_ports = []  # Empty means no port access
+dns_servers = ["8.8.8.8", "8.8.4.4"]
+
+# Process-based fallback (when Docker is unavailable)
+[enhanced_sandbox.process_fallback]
+enable_fallback = true
+default_shell = "/bin/bash"
+process_timeout = 300
+enable_resource_monitoring = true
+memory_limit_mb = 512
+cpu_limit_percent = 80.0
+
+# UI integration settings
+[enhanced_sandbox.ui]
+enable_real_time_metrics = true
+metrics_update_interval = 2.0  # seconds
+show_agent_activity = true
+show_resource_charts = true
+enable_killswitch_ui = true
+
+# CLI settings
+[enhanced_sandbox.cli]
+default_output_format = "table"  # "table" or "json"
+default_list_limit = 50
+enable_colors = true
+confirm_dangerous_operations = true
+
+# Notification settings
+[enhanced_sandbox.notifications]
+enable_killswitch_notifications = true
+enable_resource_alerts = true
+enable_guardian_denials = true
+notification_methods = ["log"]  # "log", "webhook", "email"
+
+# Webhook notifications (if enabled)
+[enhanced_sandbox.notifications.webhook]
+url = ""
+timeout_seconds = 10
+retry_attempts = 3
+
+# Performance settings
+[enhanced_sandbox.performance]
+enable_metrics_caching = true
+cache_ttl_seconds = 30
+max_concurrent_operations = 10
+operation_timeout_seconds = 600
