@@ -90,6 +90,36 @@ class MigrationManager:
             )
         """)
         
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS acl_agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL,
+                pools TEXT,
+                inherits_from TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS acl_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject_type TEXT NOT NULL,
+                subject_id TEXT NOT NULL,
+                path TEXT NOT NULL,
+                operations TEXT NOT NULL,
+                effect TEXT NOT NULL CHECK(effect IN ('allow','deny')),
+                priority INTEGER DEFAULT 100,
+                inherits_from TEXT,
+                description TEXT,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # Versioning tables
         await db.execute("""
             CREATE TABLE IF NOT EXISTS file_versions (
@@ -267,6 +297,11 @@ def register_default_migrations(manager: MigrationManager):
             -- ACL indexes
             CREATE INDEX IF NOT EXISTS idx_acl_users_username ON acl_users(username);
             CREATE INDEX IF NOT EXISTS idx_acl_permissions_user_resource ON acl_permissions(user_id, resource);
+            CREATE INDEX IF NOT EXISTS idx_acl_agents_agent_id ON acl_agents(agent_id);
+            CREATE INDEX IF NOT EXISTS idx_acl_agents_role ON acl_agents(role);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_subject ON acl_rules(subject_type, subject_id);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_path ON acl_rules(path);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_effect ON acl_rules(effect);
             
             -- Versioning indexes
             CREATE INDEX IF NOT EXISTS idx_file_versions_path ON file_versions(file_path);
@@ -298,6 +333,11 @@ def register_default_migrations(manager: MigrationManager):
         down_sql="""
             DROP INDEX IF EXISTS idx_acl_users_username;
             DROP INDEX IF EXISTS idx_acl_permissions_user_resource;
+            DROP INDEX IF EXISTS idx_acl_agents_agent_id;
+            DROP INDEX IF EXISTS idx_acl_agents_role;
+            DROP INDEX IF EXISTS idx_acl_rules_subject;
+            DROP INDEX IF EXISTS idx_acl_rules_path;
+            DROP INDEX IF EXISTS idx_acl_rules_effect;
             DROP INDEX IF EXISTS idx_file_versions_path;
             DROP INDEX IF EXISTS idx_file_versions_created;
             DROP INDEX IF EXISTS idx_backup_records_type;

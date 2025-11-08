@@ -226,11 +226,41 @@ class MonitoringSettings(BaseModel):
     )
 
 
+class ACLTemplateRule(BaseModel):
+    """Default ACL rule template definition."""
+    
+    path: str = Field(..., description="Path scope (supports environment variables and wildcards)")
+    operations: List[str] = Field(
+        default_factory=lambda: ["read"],
+        description="Operations governed by this rule"
+    )
+    effect: str = Field(
+        "allow",
+        pattern="^(allow|deny)$",
+        description="Whether the rule allows or denies the operations"
+    )
+    priority: int = Field(100, description="Rule evaluation priority (lower values take precedence)")
+    description: Optional[str] = Field(None, description="Optional human readable description")
+
+
+class ACLRoleTemplate(BaseModel):
+    """ACL template definition applied to agents with a given role."""
+    
+    inherits: List[str] = Field(
+        default_factory=list,
+        description="Parent role templates that this role inherits"
+    )
+    rules: List[ACLTemplateRule] = Field(
+        default_factory=list,
+        description="ACL rules applied to the role"
+    )
+
+
 class ACLSettings(BaseModel):
     """Configuration for Access Control Layer"""
     
     enable_acl: bool = Field(True, description="Enable access control")
-    default_permission: str = Field("read", description="Default permission level")
+    default_permission: str = Field("read", description="Default permission level (comma separated operations)")
     admin_roles: List[str] = Field(
         default_factory=lambda: ["admin", "superuser"], 
         description="Roles with administrative access"
@@ -241,6 +271,14 @@ class ACLSettings(BaseModel):
     audit_access: bool = Field(True, description="Audit all access attempts")
     max_failed_attempts: int = Field(5, description="Max failed login attempts")
     lockout_duration: int = Field(900, description="Account lockout duration in seconds")
+    default_role_templates: Dict[str, ACLRoleTemplate] = Field(
+        default_factory=dict,
+        description="Default ACL templates loaded for each agent role"
+    )
+    default_agent_pools: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Default pool memberships assigned per role"
+    )
 
 
 class GuardianSettings(BaseModel):
