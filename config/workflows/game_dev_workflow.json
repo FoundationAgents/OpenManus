@@ -1,0 +1,151 @@
+{
+  "workflow_name": "game_development_pipeline",
+  "description": "Complete game development workflow using specialized agents",
+  "version": "1.0.0",
+  "agents_required": [
+    "game_dev",
+    "architect",
+    "developer",
+    "performance",
+    "tester"
+  ],
+  "phases": [
+    {
+      "name": "game_design",
+      "description": "Initial game design and architecture",
+      "agent_role": "game_dev",
+      "tasks": [
+        {
+          "id": "gd_001",
+          "title": "Game Concept and Mechanics Design",
+          "description": "Design core game mechanics, gameplay loop, and player progression system",
+          "priority": "high",
+          "outputs": ["game_design_document", "mechanics_specification"]
+        },
+        {
+          "id": "gd_002",
+          "title": "Game Engine Selection and Setup",
+          "description": "Evaluate and select appropriate game engine (Unity/Unreal/Godot) based on project requirements",
+          "priority": "critical",
+          "outputs": ["engine_recommendation", "project_structure"]
+        }
+      ]
+    },
+    {
+      "name": "architecture",
+      "description": "System architecture design",
+      "agent_role": "architect",
+      "dependencies": ["game_design"],
+      "tasks": [
+        {
+          "id": "arch_001",
+          "title": "Game Architecture Design",
+          "description": "Design game system architecture including ECS, state management, and asset pipeline",
+          "priority": "high",
+          "outputs": ["architecture_diagram", "component_specifications"]
+        }
+      ]
+    },
+    {
+      "name": "graphics_implementation",
+      "description": "Graphics and rendering implementation",
+      "agent_role": "game_dev",
+      "dependencies": ["architecture"],
+      "tasks": [
+        {
+          "id": "gfx_001",
+          "title": "Rendering Pipeline Implementation",
+          "description": "Implement rendering pipeline with shaders, lighting, and post-processing effects",
+          "priority": "high",
+          "outputs": ["shader_code", "rendering_system"]
+        },
+        {
+          "id": "gfx_002",
+          "title": "Material and Texture System",
+          "description": "Implement material system with texture management and LOD support",
+          "priority": "medium",
+          "outputs": ["material_system", "texture_loader"]
+        }
+      ]
+    },
+    {
+      "name": "gameplay_implementation",
+      "description": "Core gameplay mechanics implementation",
+      "agent_role": "developer",
+      "dependencies": ["architecture"],
+      "collaboration": ["game_dev"],
+      "tasks": [
+        {
+          "id": "gp_001",
+          "title": "Player Controller Implementation",
+          "description": "Implement player input handling, movement, and camera control",
+          "priority": "high",
+          "outputs": ["player_controller", "input_system"]
+        },
+        {
+          "id": "gp_002",
+          "title": "Game Physics Integration",
+          "description": "Integrate physics engine and implement collision detection",
+          "priority": "high",
+          "outputs": ["physics_system", "collision_handlers"]
+        }
+      ]
+    },
+    {
+      "name": "performance_optimization",
+      "description": "Game performance optimization",
+      "agent_role": "performance",
+      "collaboration": ["game_dev"],
+      "dependencies": ["graphics_implementation", "gameplay_implementation"],
+      "tasks": [
+        {
+          "id": "perf_001",
+          "title": "Profiling and Optimization",
+          "description": "Profile game performance and optimize CPU/GPU bottlenecks to achieve 60 FPS",
+          "priority": "high",
+          "outputs": ["profiling_report", "optimization_recommendations"]
+        },
+        {
+          "id": "perf_002",
+          "title": "Memory Optimization",
+          "description": "Optimize memory usage and implement asset streaming",
+          "priority": "medium",
+          "outputs": ["memory_report", "streaming_system"]
+        }
+      ]
+    },
+    {
+      "name": "testing",
+      "description": "Game testing and QA",
+      "agent_role": "tester",
+      "dependencies": ["performance_optimization"],
+      "tasks": [
+        {
+          "id": "test_001",
+          "title": "Gameplay Testing",
+          "description": "Test game mechanics, physics, and player interactions",
+          "priority": "high",
+          "outputs": ["test_results", "bug_reports"]
+        },
+        {
+          "id": "test_002",
+          "title": "Performance Benchmarking",
+          "description": "Benchmark game performance across target platforms",
+          "priority": "high",
+          "outputs": ["benchmark_results", "performance_report"]
+        }
+      ]
+    }
+  ],
+  "tool_access_control": {
+    "game_dev": ["bash", "python_execute", "str_replace_editor", "browser", "web_search", "crawl4ai", "http_request"],
+    "performance": ["bash", "python_execute", "browser"],
+    "developer": ["bash", "python_execute", "str_replace_editor"],
+    "tester": ["bash", "python_execute", "browser"]
+  },
+  "knowledge_bases": {
+    "game_dev": ["game-engine-documentation", "graphics-programming", "game-design-patterns"],
+    "performance": ["optimization-techniques", "profiling-tools"],
+    "developer": ["coding-best-practices", "testing-frameworks"]
+  }
+}

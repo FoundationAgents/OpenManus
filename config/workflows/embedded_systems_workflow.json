@@ -1,0 +1,202 @@
+{
+  "workflow_name": "embedded_systems_pipeline",
+  "description": "Low-level embedded systems development workflow",
+  "version": "1.0.0",
+  "agents_required": [
+    "low_level",
+    "architect",
+    "developer",
+    "tester",
+    "performance"
+  ],
+  "phases": [
+    {
+      "name": "requirements_analysis",
+      "description": "Hardware and software requirements analysis",
+      "agent_role": "architect",
+      "collaboration": ["low_level"],
+      "tasks": [
+        {
+          "id": "req_001",
+          "title": "Hardware Requirements Specification",
+          "description": "Define hardware requirements, constraints, and target platform selection",
+          "priority": "critical",
+          "outputs": ["hardware_specification", "platform_selection"]
+        },
+        {
+          "id": "req_002",
+          "title": "System Architecture Design",
+          "description": "Design embedded system architecture with real-time constraints",
+          "priority": "high",
+          "outputs": ["system_architecture", "component_diagram"]
+        }
+      ]
+    },
+    {
+      "name": "firmware_design",
+      "description": "Firmware architecture and design",
+      "agent_role": "low_level",
+      "dependencies": ["requirements_analysis"],
+      "tasks": [
+        {
+          "id": "fw_001",
+          "title": "Firmware Architecture",
+          "description": "Design firmware architecture including boot process, interrupt handlers, and peripheral drivers",
+          "priority": "high",
+          "outputs": ["firmware_architecture", "driver_specifications"]
+        },
+        {
+          "id": "fw_002",
+          "title": "Memory Map Design",
+          "description": "Design memory layout for code, data, and peripheral registers",
+          "priority": "high",
+          "outputs": ["memory_map", "linker_script"]
+        }
+      ]
+    },
+    {
+      "name": "peripheral_drivers",
+      "description": "Hardware peripheral driver implementation",
+      "agent_role": "low_level",
+      "dependencies": ["firmware_design"],
+      "tasks": [
+        {
+          "id": "drv_001",
+          "title": "GPIO and Basic I/O Drivers",
+          "description": "Implement GPIO, UART, SPI, I2C drivers",
+          "priority": "high",
+          "outputs": ["gpio_driver", "uart_driver", "spi_driver", "i2c_driver"]
+        },
+        {
+          "id": "drv_002",
+          "title": "Advanced Peripheral Drivers",
+          "description": "Implement ADC, PWM, Timer, and DMA drivers",
+          "priority": "medium",
+          "outputs": ["adc_driver", "pwm_driver", "timer_driver", "dma_driver"]
+        },
+        {
+          "id": "drv_003",
+          "title": "Interrupt Service Routines",
+          "description": "Implement ISRs for all peripherals with proper priority handling",
+          "priority": "high",
+          "outputs": ["isr_implementations", "interrupt_vector_table"]
+        }
+      ]
+    },
+    {
+      "name": "application_layer",
+      "description": "Application layer implementation",
+      "agent_role": "developer",
+      "collaboration": ["low_level"],
+      "dependencies": ["peripheral_drivers"],
+      "tasks": [
+        {
+          "id": "app_001",
+          "title": "Main Application Logic",
+          "description": "Implement main control loop and application state machine",
+          "priority": "high",
+          "outputs": ["main_application", "state_machine"]
+        },
+        {
+          "id": "app_002",
+          "title": "Real-Time Task Scheduling",
+          "description": "Implement task scheduler with priority management",
+          "priority": "high",
+          "outputs": ["scheduler", "task_definitions"]
+        }
+      ]
+    },
+    {
+      "name": "power_optimization",
+      "description": "Power management and optimization",
+      "agent_role": "low_level",
+      "dependencies": ["application_layer"],
+      "tasks": [
+        {
+          "id": "pwr_001",
+          "title": "Power Management Implementation",
+          "description": "Implement sleep modes, clock gating, and power-saving strategies",
+          "priority": "high",
+          "outputs": ["power_management", "sleep_modes"]
+        },
+        {
+          "id": "pwr_002",
+          "title": "Power Consumption Analysis",
+          "description": "Analyze and optimize power consumption",
+          "priority": "medium",
+          "outputs": ["power_analysis", "optimization_report"]
+        }
+      ]
+    },
+    {
+      "name": "performance_tuning",
+      "description": "Performance optimization and timing analysis",
+      "agent_role": "performance",
+      "collaboration": ["low_level"],
+      "dependencies": ["power_optimization"],
+      "tasks": [
+        {
+          "id": "perf_001",
+          "title": "Real-Time Performance Analysis",
+          "description": "Analyze interrupt latency, task response times, and real-time guarantees",
+          "priority": "critical",
+          "outputs": ["timing_analysis", "worst_case_execution_time"]
+        },
+        {
+          "id": "perf_002",
+          "title": "Code Size and Memory Optimization",
+          "description": "Optimize code size and memory footprint",
+          "priority": "high",
+          "outputs": ["memory_optimization", "code_size_report"]
+        }
+      ]
+    },
+    {
+      "name": "testing",
+      "description": "Embedded system testing",
+      "agent_role": "tester",
+      "dependencies": ["performance_tuning"],
+      "tasks": [
+        {
+          "id": "test_001",
+          "title": "Unit Testing",
+          "description": "Unit test all drivers and application components",
+          "priority": "high",
+          "outputs": ["unit_tests", "test_results"]
+        },
+        {
+          "id": "test_002",
+          "title": "Hardware-in-the-Loop Testing",
+          "description": "Test with actual hardware peripherals and sensors",
+          "priority": "critical",
+          "outputs": ["hil_tests", "hardware_validation"]
+        },
+        {
+          "id": "test_003",
+          "title": "Stress and Reliability Testing",
+          "description": "Perform stress tests and long-term reliability testing",
+          "priority": "high",
+          "outputs": ["stress_test_results", "reliability_metrics"]
+        }
+      ]
+    }
+  ],
+  "tool_access_control": {
+    "low_level": ["bash", "python_execute", "str_replace_editor", "browser", "web_search"],
+    "developer": ["bash", "python_execute", "str_replace_editor"],
+    "performance": ["bash", "python_execute"],
+    "tester": ["bash", "python_execute"]
+  },
+  "build_configuration": {
+    "toolchain": "arm-none-eabi-gcc",
+    "optimization_level": "-Os",
+    "debug_symbols": true,
+    "target_platforms": ["ARM Cortex-M", "AVR", "ESP32"]
+  },
+  "knowledge_bases": {
+    "low_level": ["embedded-systems", "microcontroller-programming", "real-time-systems", "hardware-interfaces"],
+    "developer": ["c-programming", "state-machines"],
+    "performance": ["embedded-optimization", "timing-analysis"],
+    "tester": ["embedded-testing", "hardware-debugging"]
+  }
+}

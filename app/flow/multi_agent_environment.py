@@ -36,6 +36,10 @@ class AgentRole(str, Enum):
     PERFORMANCE = "performance"
     CODE_REVIEWER = "code_reviewer"
     RESEARCHER = "researcher"
+    GAME_DEV = "game_dev"
+    REVERSE_ENGINEERING = "reverse_engineering"
+    LOW_LEVEL = "low_level"
+    NETWORK = "network"
 
 
 class MessageType(str, Enum):
@@ -268,14 +272,6 @@ class SpecializedAgent(BaseAgent):
     """Specialized agent with role-specific capabilities"""
     
     def __init__(self, role: AgentRole, blackboard: Blackboard, **kwargs):
-        self.role = role
-        self.blackboard = blackboard
-        self.thoughts: List[str] = []
-        self.current_task: Optional[DevelopmentTask] = None
-        self.collaboration_partners: Set[str] = set()
-        self.knowledge_base: Dict[str, Any] = {}
-        self.resilience_manager = None  # Will be set by environment
-        
         # Role-specific system prompts
         role_prompts = {
             AgentRole.ARCHITECT: "You are a Software Architect. Design scalable, maintainable systems. Focus on patterns, modularity, and technical excellence.",
@@ -289,13 +285,26 @@ class SpecializedAgent(BaseAgent):
             AgentRole.DOCUMENTATION: "You are a Technical Writer. Create clear, comprehensive documentation.",
             AgentRole.PERFORMANCE: "You are a Performance Engineer. Optimize for speed, efficiency, and resource usage.",
             AgentRole.CODE_REVIEWER: "You are a Code Reviewer. Ensure code quality, standards compliance, and best practices.",
-            AgentRole.RESEARCHER: "You are a Technical Researcher. Investigate technologies, solutions, and approaches."
+            AgentRole.RESEARCHER: "You are a Technical Researcher. Investigate technologies, solutions, and approaches.",
+            AgentRole.GAME_DEV: "You are a Game Development Specialist. Expert in game engines (Unity, Unreal), graphics programming, game design patterns, and performance optimization for real-time applications.",
+            AgentRole.REVERSE_ENGINEERING: "You are a Reverse Engineering Expert. Skilled in binary analysis, disassembly, decompilation, debugging, malware analysis, and security research. You understand x86/x64/ARM assembly and executable formats.",
+            AgentRole.LOW_LEVEL: "You are a Low-Level Systems Expert. Specialize in system programming, kernel development, embedded systems, assembly language, memory management, and hardware interaction.",
+            AgentRole.NETWORK: "You are a Network Engineering Specialist. Expert in network protocols (TCP/IP, HTTP, WebSockets), distributed systems, API design, network security, and performance optimization."
         }
         
         kwargs.setdefault("system_prompt", role_prompts.get(role, "You are a specialized software development agent."))
         kwargs.setdefault("name", f"{role.value}_agent")
         
         super().__init__(**kwargs)
+        
+        # Set attributes after super().__init__() so Pydantic is initialized
+        self.role = role
+        self.blackboard = blackboard
+        self.thoughts: List[str] = []
+        self.current_task: Optional[DevelopmentTask] = None
+        self.collaboration_partners: Set[str] = set()
+        self.knowledge_base: Dict[str, Any] = {}
+        self.resilience_manager = None  # Will be set by environment
         
         # Subscribe to relevant message types
         self.blackboard.subscribe(self.name, [

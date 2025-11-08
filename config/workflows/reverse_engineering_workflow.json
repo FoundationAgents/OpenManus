@@ -1,0 +1,203 @@
+{
+  "workflow_name": "reverse_engineering_pipeline",
+  "description": "Security-focused reverse engineering and analysis workflow",
+  "version": "1.0.0",
+  "security_clearance_required": true,
+  "agents_required": [
+    "reverse_engineering",
+    "security",
+    "low_level",
+    "network"
+  ],
+  "phases": [
+    {
+      "name": "initial_assessment",
+      "description": "Initial binary assessment and triage",
+      "agent_role": "reverse_engineering",
+      "tasks": [
+        {
+          "id": "re_001",
+          "title": "Binary Triage and Classification",
+          "description": "Perform initial analysis to identify file format, architecture, and potential risks",
+          "priority": "critical",
+          "sandbox_required": true,
+          "outputs": ["triage_report", "risk_assessment"]
+        }
+      ]
+    },
+    {
+      "name": "security_clearance",
+      "description": "Security validation and authorization",
+      "agent_role": "security",
+      "dependencies": ["initial_assessment"],
+      "tasks": [
+        {
+          "id": "sec_001",
+          "title": "Security Clearance Validation",
+          "description": "Validate security clearance and establish containment protocols",
+          "priority": "critical",
+          "outputs": ["clearance_status", "security_protocols"]
+        }
+      ]
+    },
+    {
+      "name": "static_analysis",
+      "description": "Static binary analysis",
+      "agent_role": "reverse_engineering",
+      "dependencies": ["security_clearance"],
+      "collaboration": ["low_level"],
+      "tasks": [
+        {
+          "id": "sa_001",
+          "title": "Disassembly and Decompilation",
+          "description": "Disassemble binary and attempt decompilation using Ghidra/IDA",
+          "priority": "high",
+          "sandbox_required": true,
+          "outputs": ["disassembly_listing", "decompiled_code"]
+        },
+        {
+          "id": "sa_002",
+          "title": "Control Flow Analysis",
+          "description": "Analyze control flow, identify functions, and map execution paths",
+          "priority": "high",
+          "outputs": ["control_flow_graph", "function_signatures"]
+        },
+        {
+          "id": "sa_003",
+          "title": "String and Constant Analysis",
+          "description": "Extract and analyze strings, constants, and embedded resources",
+          "priority": "medium",
+          "outputs": ["strings_list", "constants_analysis"]
+        }
+      ]
+    },
+    {
+      "name": "low_level_analysis",
+      "description": "Deep low-level system analysis",
+      "agent_role": "low_level",
+      "dependencies": ["static_analysis"],
+      "collaboration": ["reverse_engineering"],
+      "tasks": [
+        {
+          "id": "ll_001",
+          "title": "Assembly Code Analysis",
+          "description": "Analyze assembly code patterns and optimization techniques",
+          "priority": "high",
+          "outputs": ["assembly_analysis", "code_patterns"]
+        },
+        {
+          "id": "ll_002",
+          "title": "Memory Layout Analysis",
+          "description": "Analyze memory layout, data structures, and calling conventions",
+          "priority": "medium",
+          "outputs": ["memory_layout", "data_structures"]
+        }
+      ]
+    },
+    {
+      "name": "dynamic_analysis",
+      "description": "Dynamic analysis and behavior monitoring",
+      "agent_role": "reverse_engineering",
+      "dependencies": ["low_level_analysis"],
+      "tasks": [
+        {
+          "id": "da_001",
+          "title": "Dynamic Instrumentation",
+          "description": "Instrument binary with Frida/DynamoRIO for runtime analysis",
+          "priority": "high",
+          "sandbox_required": true,
+          "network_isolation": true,
+          "outputs": ["instrumentation_results", "runtime_behavior"]
+        },
+        {
+          "id": "da_002",
+          "title": "Debugger Analysis",
+          "description": "Debug binary execution and trace critical code paths",
+          "priority": "high",
+          "sandbox_required": true,
+          "outputs": ["debug_trace", "execution_log"]
+        }
+      ]
+    },
+    {
+      "name": "network_analysis",
+      "description": "Network behavior and protocol analysis",
+      "agent_role": "network",
+      "dependencies": ["dynamic_analysis"],
+      "collaboration": ["reverse_engineering"],
+      "tasks": [
+        {
+          "id": "net_001",
+          "title": "Network Traffic Analysis",
+          "description": "Capture and analyze network communications",
+          "priority": "high",
+          "sandbox_required": true,
+          "outputs": ["pcap_analysis", "protocol_identification"]
+        },
+        {
+          "id": "net_002",
+          "title": "Protocol Reverse Engineering",
+          "description": "Reverse engineer custom protocols and message formats",
+          "priority": "medium",
+          "outputs": ["protocol_specification", "message_formats"]
+        }
+      ]
+    },
+    {
+      "name": "vulnerability_assessment",
+      "description": "Security vulnerability assessment",
+      "agent_role": "reverse_engineering",
+      "dependencies": ["network_analysis"],
+      "collaboration": ["security"],
+      "tasks": [
+        {
+          "id": "vuln_001",
+          "title": "Vulnerability Research",
+          "description": "Identify potential vulnerabilities and security issues",
+          "priority": "critical",
+          "outputs": ["vulnerability_report", "poc_code"]
+        },
+        {
+          "id": "vuln_002",
+          "title": "Exploit Mitigation Analysis",
+          "description": "Analyze security mitigations and bypass techniques",
+          "priority": "high",
+          "outputs": ["mitigation_analysis", "security_recommendations"]
+        }
+      ]
+    },
+    {
+      "name": "reporting",
+      "description": "Final analysis report",
+      "agent_role": "reverse_engineering",
+      "dependencies": ["vulnerability_assessment"],
+      "tasks": [
+        {
+          "id": "rep_001",
+          "title": "Comprehensive Analysis Report",
+          "description": "Generate comprehensive reverse engineering report with findings and recommendations",
+          "priority": "high",
+          "outputs": ["final_report", "ioc_list", "yara_rules"]
+        }
+      ]
+    }
+  ],
+  "tool_access_control": {
+    "reverse_engineering": ["bash", "python_execute", "str_replace_editor", "browser", "web_search"],
+    "security": ["bash", "browser"],
+    "low_level": ["bash", "python_execute", "str_replace_editor"],
+    "network": ["bash", "dns_lookup", "ping", "traceroute"]
+  },
+  "sandbox_requirements": {
+    "isolation_level": "high",
+    "network_policy": "restricted",
+    "filesystem_policy": "restricted",
+    "monitoring": "enabled"
+  },
+  "knowledge_bases": {
+    "reverse_engineering": ["binary-analysis-techniques", "vulnerability-research", "malware-analysis"],
+    "low_level": ["assembly-language", "system-internals"],
+    "network": ["network-protocols", "traffic-analysis"],
+    "security": ["security-best-practices", "exploit-mitigation"]
+  }
+}
