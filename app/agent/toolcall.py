@@ -160,6 +160,8 @@ class ToolCallAgent(ReActAgent):
             )
             self.memory.add_message(tool_msg)
             results.append(result)
+            if self.state == AgentState.FINISHED:  # if the tool used now is Terminate, stop to execute other tools.
+                break
 
         return "\n\n".join(results)
 
@@ -245,6 +247,6 @@ class ToolCallAgent(ReActAgent):
     async def run(self, request: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""
         try:
-            return await super().run(request)
+            return await super().run(request)  # 执行完后先不return，先执行finally，最后再return
         finally:
             await self.cleanup()

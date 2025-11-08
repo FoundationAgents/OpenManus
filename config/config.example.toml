@@ -95,6 +95,12 @@ temperature = 0.0                          # Controls randomness for vision mode
 #timeout = 300
 #network_enabled = true
 
+[daytona]
+daytona_api_key = "YOUR API KEY"
+daytona_server_url = "https://app.daytona.io/api"
+daytona_target = "us"
+
+
 # MCP (Model Context Protocol) configuration
 [mcp]
 server_reference = "app.mcp.server" # default server module reference

@@ -106,8 +106,9 @@ class SandboxSettings(BaseModel):
 
 
 class DaytonaSettings(BaseModel):
+    # BaseModel: Pydantic提供的核心类，可以根据传入的字典的字段定义自动构造实例，如果传入字典没有某个字段，按照默认值设置
     daytona_api_key: str
-    daytona_server_url: Optional[str] = Field(
+    daytona_server_url: Optional[str] = Field(  # Field: Pydantic提供的函数，可用于设置默认值、元数据（如描述）以及验证规则
         "https://app.daytona.io/api", description=""
     )
     daytona_target: Optional[str] = Field("us", description="enum ['eu', 'us']")
@@ -196,17 +197,17 @@ class AppConfig(BaseModel):
 
 class Config:
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.Lock()  # 线程锁，用于确保在多线程环境下，只有一个线程能进入临界区，避免并发创建多个实例
     _initialized = False
 
     def __new__(cls):
         if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
+            with cls._lock:  # 进入锁保护区域，其它线程必须等待锁释放后才能进入
+                if cls._instance is None:  # 双重检查
+                    cls._instance = super().__new__(cls)  # 创建新实例
         return cls._instance
 
-    def __init__(self):
+    def __init__(self):  # __new__后自动调用
         if not self._initialized:
             with self._lock:
                 if not self._initialized:

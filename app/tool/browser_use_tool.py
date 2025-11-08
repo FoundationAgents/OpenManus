@@ -383,14 +383,18 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                     content = markdownify.markdownify(await page.content())
 
-                    prompt = f"""\
-Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
-Extraction goal: {goal}
+                    system_prompt = """Your task is to extract the content of the page. You will be given a page and \
+                    a goal, and you should extract all relevant information around this goal from the page. If the goal\
+                     is vague, summarize the page. Respond in json format."""
+                    user_prompt = f"""Extraction goal: {goal}
 
-Page content:
-{content[:max_content_length]}
-"""
-                    messages = [{"role": "system", "content": prompt}]
+                    Page content:
+                    {content[:max_content_length]}"""
+
+                    messages = [  # if the llm model the Manus use is gemini, the messages must contain user message.
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ]
 
                     # Define extraction function schema
                     extraction_function = {
