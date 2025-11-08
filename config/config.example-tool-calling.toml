@@ -1,0 +1,62 @@
+# Tool Calling Emulation Configuration
+# This configuration enables tool calling for LLM APIs that don't natively support it
+
+[tool_calling]
+# Enable tool calling emulation system
+enabled = true
+
+# Use emulation mode (pattern matching) instead of native API support
+# Set to false if your API supports native tool calling
+emulation_mode = true
+
+# Maximum tool calling iterations per conversation
+# Prevents infinite loops
+max_iterations = 5
+
+# Timeout per tool execution in seconds
+timeout_per_tool = 30.0
+
+# Enable parallel execution of independent tools
+parallel_execution = true
+
+# Enable result caching
+caching_enabled = true
+
+# Cache time-to-live in seconds
+cache_ttl = 3600
+
+# Enable MCP fallback when pattern matching fails
+enable_fallback = true
+
+# Enable comprehensive audit logging
+enable_audit_log = true
+
+# Directory for audit logs (relative to project root)
+audit_log_dir = "workspace/logs/tool_calls"
+
+# Include usage examples in system prompt
+include_examples_in_prompt = true
+
+# Use strict mode for parsing (raise exceptions on errors)
+# Recommended: false for production, true for debugging
+strict_parsing = false
+
+# Maximum length of formatted tool results
+max_result_length = 10000
+
+# Tool-specific settings
+# Each tool can be: local, mcp, or external
+[tool_calling.tools]
+python_execute = "local"
+bash = "local"
+web_search = "external"
+browser = "external"
+str_replace_editor = "local"
+crawl4ai = "external"
+create_chat_completion = "local"
+planning = "local"
+terminate = "local"
+http_request = "local"
+dns_lookup = "local"
+ping = "local"
+traceroute = "local"

@@ -714,6 +714,44 @@ class KnowledgeGraphSettings(BaseModel):
     vacuum_interval_seconds: int = Field(3600, description="Auto-vacuum interval in seconds")
 
 
+class ToolCallingSettings(BaseModel):
+    """Configuration for tool calling emulation system"""
+    
+    enabled: bool = Field(True, description="Enable tool calling emulation")
+    emulation_mode: bool = Field(True, description="Use emulation (pattern matching) instead of native API support")
+    max_iterations: int = Field(5, description="Maximum tool calling iterations per conversation")
+    timeout_per_tool: float = Field(30.0, description="Timeout per tool execution in seconds")
+    parallel_execution: bool = Field(True, description="Enable parallel tool execution for independent tools")
+    caching_enabled: bool = Field(True, description="Enable result caching")
+    cache_ttl: int = Field(3600, description="Cache time-to-live in seconds")
+    enable_fallback: bool = Field(True, description="Enable MCP fallback when pattern matching fails")
+    enable_audit_log: bool = Field(True, description="Enable comprehensive audit logging")
+    audit_log_dir: str = Field("workspace/logs/tool_calls", description="Directory for audit logs")
+    include_examples_in_prompt: bool = Field(True, description="Include usage examples in system prompt")
+    strict_parsing: bool = Field(False, description="Use strict mode for parsing (raise exceptions on errors)")
+    max_result_length: int = Field(10000, description="Maximum length of formatted tool results")
+    
+    # Tool-specific settings
+    tools: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "python_execute": "local",
+            "bash": "local",
+            "web_search": "external",
+            "browser": "external",
+            "str_replace_editor": "local",
+            "crawl4ai": "external",
+            "create_chat_completion": "local",
+            "planning": "local",
+            "terminate": "local",
+            "http_request": "local",
+            "dns_lookup": "local",
+            "ping": "local",
+            "traceroute": "local"
+        },
+        description="Tool execution mode: local, mcp, or external"
+    )
+
+
 class MCPServerConfig(BaseModel):
     """Configuration for a single MCP server"""
 
@@ -932,6 +970,9 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network configuration"
+    )
+    tool_calling_config: Optional[ToolCallingSettings] = Field(
+        None, description="Tool calling emulation configuration"
     )
 
     class Config:
@@ -1410,6 +1451,11 @@ class Config:
     def resilience(self) -> ResilienceSettings:
         """Get the resilience configuration"""
         return self._config.resilience_config
+
+    @property
+    def tool_calling(self) -> ToolCallingSettings:
+        """Get the tool calling configuration"""
+        return self._config.tool_calling_config
 
 
 config = Config()
