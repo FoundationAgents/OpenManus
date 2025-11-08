@@ -100,6 +100,13 @@ def get_registered_tools_info() -> Dict[str, Dict[str, str]]:
             "description": "Search the web using various search engines",
             "requires_guardian": False,
         },
+        "modern_web_search": {
+            "name": "modern_web_search",
+            "module": "app.tool.modern_web_search",
+            "class": "ModernWebSearch",
+            "description": "Modern web search with HTTP/2, structured results, and LLM-based semantic refinement",
+            "requires_guardian": False,
+        },
         "crawl4ai": {
             "name": "crawl4ai",
             "module": "app.tool.crawl4ai",

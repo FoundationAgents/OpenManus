@@ -40,6 +40,7 @@ class ProxySettings(BaseModel):
 
 
 class SearchSettings(BaseModel):
+    # Legacy settings (for backward compatibility)
     engine: str = Field(default="Google", description="Search engine the llm to use")
     fallback_engines: List[str] = Field(
         default_factory=lambda: ["DuckDuckGo", "Baidu", "Bing"],
@@ -60,6 +61,120 @@ class SearchSettings(BaseModel):
     country: str = Field(
         default="us",
         description="Country code for search results (e.g., us, cn, uk)",
+    )
+    
+    # Modern web search settings
+    search_backend: str = Field(
+        default="serpapi", 
+        description="Search backend: serpapi, brave, duckduckgo, google"
+    )
+    search_rag_enabled: bool = Field(
+        default=True, 
+        description="Enable RAG helper for semantic search refinement"
+    )
+    search_batch_size: int = Field(
+        default=5, 
+        description="Number of queries to process in parallel"
+    )
+    search_cache_ttl: int = Field(
+        default=3600, 
+        description="Cache TTL for search results in seconds"
+    )
+    search_timeout: float = Field(
+        default=30.0, 
+        description="Timeout for search requests in seconds"
+    )
+    search_max_retries: int = Field(
+        default=3, 
+        description="Maximum retry attempts for search requests"
+    )
+    
+    # HTTP/2 and modern protocol settings
+    enable_http2: bool = Field(
+        default=True, 
+        description="Enable HTTP/2 for faster search requests"
+    )
+    enable_connection_pooling: bool = Field(
+        default=True, 
+        description="Enable connection pooling for search requests"
+    )
+    max_connections_per_backend: int = Field(
+        default=10, 
+        description="Maximum connections per search backend"
+    )
+    enable_request_compression: bool = Field(
+        default=True, 
+        description="Enable request compression"
+    )
+    enable_response_compression: bool = Field(
+        default=True, 
+        description="Enable response compression"
+    )
+    
+    # Structured results parsing
+    enable_structured_results: bool = Field(
+        default=True, 
+        description="Parse structured results (JSON-LD, microdata)"
+    )
+    enable_query_expansion: bool = Field(
+        default=True, 
+        description="Enable LLM-assisted query expansion"
+    )
+    enable_query_disambiguation: bool = Field(
+        default=True, 
+        description="Enable LLM-assisted query disambiguation"
+    )
+    
+    # RAG Helper settings
+    rag_max_iterations: int = Field(
+        default=3, 
+        description="Maximum refinement iterations for RAG helper"
+    )
+    rag_context_window: int = Field(
+        default=4000, 
+        description="Context window size for RAG reasoning"
+    )
+    rag_similarity_threshold: float = Field(
+        default=0.7, 
+        description="Similarity threshold for result relevance"
+    )
+    rag_enable_reasoning_trace: bool = Field(
+        default=True, 
+        description="Include reasoning traces in results"
+    )
+    
+    # API Keys (can be overridden per backend)
+    serpapi_key: Optional[str] = Field(
+        default=None, 
+        description="SerpAPI key"
+    )
+    brave_api_key: Optional[str] = Field(
+        default=None, 
+        description="Brave Search API key"
+    )
+    google_api_key: Optional[str] = Field(
+        default=None, 
+        description="Google Custom Search API key"
+    )
+    google_search_engine_id: Optional[str] = Field(
+        default=None, 
+        description="Google Custom Search Engine ID"
+    )
+    
+    # User-Agent rotation for reliability
+    enable_user_agent_rotation: bool = Field(
+        default=True, 
+        description="Rotate User-Agent strings for reliability"
+    )
+    user_agents: List[str] = Field(
+        default_factory=lambda: [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0"
+        ],
+        description="List of User-Agent strings to rotate through"
     )
 
 

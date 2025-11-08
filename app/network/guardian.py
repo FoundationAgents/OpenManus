@@ -33,6 +33,7 @@ class OperationType(str, Enum):
     ICMP_PING = "icmp_ping"
     ICMP_TRACEROUTE = "icmp_traceroute"
     API_CALL = "api_call"
+    WEB_SEARCH = "web_search"
 
 
 class RiskAssessment(BaseModel):
