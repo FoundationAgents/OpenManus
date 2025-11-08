@@ -17,6 +17,7 @@ from app.backup.backup_service import backup_service
 from app.backup.backup_scheduler import backup_scheduler
 from app.versioning.versioning_service import versioning_service
 from app.versioning.snapshot_manager import snapshot_manager
+from app.resources.catalog import resource_catalog
 from .event_bus import EventBus
 from .service_registry import ServiceRegistry
 
@@ -46,6 +47,7 @@ class SystemIntegrationService:
         self.service_registry.register("backup_scheduler", backup_scheduler)
         self.service_registry.register("versioning", versioning_service)
         self.service_registry.register("snapshot_manager", snapshot_manager)
+        self.service_registry.register("resource_catalog", resource_catalog)
         self.service_registry.register("event_bus", self.event_bus)
     
     def _setup_event_handlers(self):
@@ -85,6 +87,7 @@ class SystemIntegrationService:
             await versioning_service.initialize()
             await snapshot_manager.initialize()
             await backup_scheduler.start()
+            await resource_catalog.initialize()
             
             # Start event processing
             await self.event_bus.start()
@@ -118,6 +121,7 @@ class SystemIntegrationService:
             # Stop services in reverse order
             await backup_scheduler.stop()
             await snapshot_manager.stop()
+            await resource_catalog.shutdown()
             await versioning_service.stop()
             await graph_builder.stop()
             await knowledge_graph_service.stop()

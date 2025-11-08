@@ -301,6 +301,32 @@ class KnowledgeGraphSettings(BaseModel):
     graph_storage_path: str = Field("./data/knowledge_graph", description="Graph storage path")
 
 
+class ResourceCatalogSettings(BaseModel):
+    """Configuration for system resource catalog"""
+    
+    enable_catalog: bool = Field(True, description="Enable system resource catalog")
+    auto_refresh_on_startup: bool = Field(
+        True, description="Run discovery when the system starts"
+    )
+    debounce_seconds: int = Field(
+        300, description="Minimum seconds between discovery refresh runs"
+    )
+    enable_watchers: bool = Field(
+        True, description="Enable filesystem polling for cache invalidation"
+    )
+    watch_paths: List[str] = Field(
+        default_factory=list,
+        description="Paths to monitor for resource availability changes",
+    )
+    watch_interval_seconds: int = Field(
+        900, description="Polling interval for watcher checks in seconds"
+    )
+    known_install_paths: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Known installation roots per locator identifier",
+    )
+
+
 class NetworkSettings(BaseModel):
     """Configuration for network management"""
     
@@ -710,19 +736,16 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
     )
     guardian_config: Optional[GuardianSettings] = Field(
         None, description="Guardian security monitoring configuration"
     )
-    versioning_config: Optional[VersioningSettings] = Field(
-        None, description="Versioning configuration"
+    resource_catalog_config: Optional[ResourceCatalogSettings] = Field(
+        None, description="System resource catalog configuration"
     )
-    backup_config: Optional[BackupSettings] = Field(
-        None, description="Backup configuration"
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Agent resilience configuration"
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
     )
@@ -731,9 +754,6 @@ class AppConfig(BaseModel):
     )
     knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
         None, description="Knowledge graph configuration"
-    )
-    network_config: Optional[NetworkSettings] = Field(
-        None, description="Network configuration"
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Resilience configuration"
@@ -937,6 +957,12 @@ class Config:
         else:
             monitoring_settings = MonitoringSettings()
 
+        resource_catalog_config = raw_config.get("resource_catalog", {})
+        if resource_catalog_config:
+            resource_catalog_settings = ResourceCatalogSettings(**resource_catalog_config)
+        else:
+            resource_catalog_settings = ResourceCatalogSettings()
+
         # Load new system integration configurations
         acl_config = raw_config.get("acl", {})
         if acl_config:
@@ -1020,14 +1046,11 @@ class Config:
             "network_config": network_settings,
             "acl_config": acl_settings,
             "guardian_config": guardian_settings,
-            "versioning_config": versioning_settings,
-            "backup_config": backup_settings,
-            "knowledge_graph_config": knowledge_graph_settings,
-            "network_config": network_settings,
-            "resilience_config": resilience_settings,
+            "resource_catalog_config": resource_catalog_settings,
             "vector_store_config": vector_store_settings,
             "embedding_config": embedding_settings,
             "knowledge_graph_config": knowledge_graph_settings,
+            "resilience_config": resilience_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -1133,6 +1156,11 @@ class Config:
         return self._config.monitoring_config
 
     @property
+    def network(self) -> NetworkSettings:
+        """Get the network configuration"""
+        return self._config.network_config
+
+    @property
     def acl(self) -> ACLSettings:
         """Get the ACL configuration"""
         return self._config.acl_config
@@ -1143,14 +1171,11 @@ class Config:
         return self._config.guardian_config
 
     @property
-    def versioning(self) -> VersioningSettings:
-        """Get the versioning configuration"""
-        return self._config.versioning_config
+    def resource_catalog(self) -> ResourceCatalogSettings:
+        """Get the system resource catalog configuration"""
+        return self._config.resource_catalog_config
 
     @property
-    def backup(self) -> BackupSettings:
-        """Get the backup configuration"""
-        return self._config.backup_config
     def vector_store(self) -> VectorStoreSettings:
         """Get the vector store configuration"""
         return self._config.vector_store_config
@@ -1164,11 +1189,6 @@ class Config:
     def knowledge_graph(self) -> KnowledgeGraphSettings:
         """Get the knowledge graph configuration"""
         return self._config.knowledge_graph_config
-
-    @property
-    def network(self) -> NetworkSettings:
-        """Get the network configuration"""
-        return self._config.network_config
 
     @property
     def resilience(self) -> ResilienceSettings:
