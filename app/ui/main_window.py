@@ -32,9 +32,16 @@ except ImportError:
 
 
 from app.ui.panels import (
-    CodeEditorPanel, AgentControlPanel, WorkflowVisualizerPanel,
-    CommandLogPanel, ConsolePanel, AgentMonitorPanel,
-    SecurityMonitorPanel, KnowledgeGraphPanel, BackupPanel
+    CodeEditorPanel,
+    AgentControlPanel,
+    WorkflowVisualizerPanel,
+    CommandLogPanel,
+    ConsolePanel,
+    AgentMonitorPanel,
+    SecurityMonitorPanel,
+    KnowledgeGraphPanel,
+    BackupPanel,
+    ResourceCatalogPanel,
 )
 from app.ui.dialogs import CommandValidationDialog
 from app.config import config
@@ -243,6 +250,12 @@ class MainWindow(QMainWindow):
         self.backup_panel = BackupPanel()
         self.backup_dock.setWidget(self.backup_panel)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.backup_dock)
+
+        # Resource Catalog Dock
+        self.resource_dock = QDockWidget("Resource Catalog", self)
+        self.resource_panel = ResourceCatalogPanel()
+        self.resource_dock.setWidget(self.resource_panel)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.resource_dock)
         
         # Tab the right docks together
         self.tabifyDockWidget(self.agent_dock, self.workflow_dock)
@@ -252,6 +265,7 @@ class MainWindow(QMainWindow):
         
         # Tab the bottom docks together
         self.tabifyDockWidget(self.log_dock, self.console_dock)
+        self.tabifyDockWidget(self.backup_dock, self.resource_dock)
         
         # Set initial active tabs
         self.agent_dock.raise_()
@@ -395,12 +409,17 @@ class MainWindow(QMainWindow):
         self.log_dock.setFloating(False)
         self.console_dock.setFloating(False)
         self.monitor_dock.setFloating(False)
+        self.backup_dock.setFloating(False)
+        self.resource_dock.setFloating(False)
         
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.agent_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.workflow_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.monitor_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.console_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.backup_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.resource_dock)
+        self.tabifyDockWidget(self.backup_dock, self.resource_dock)
         
         self.status_bar.showMessage("Layout reset to default")
         
