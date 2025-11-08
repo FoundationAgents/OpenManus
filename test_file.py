@@ -1,1 +1,1 @@
-original content
+"""Placeholder module for integration tests."""

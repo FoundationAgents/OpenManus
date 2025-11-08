@@ -1,206 +1,120 @@
-"""Tests for versioning engine functionality."""
+"""Tests for the SQLite-backed VersioningEngine."""
+
+import shutil
+import sqlite3
+import tempfile
+from datetime import datetime
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-import tempfile
-import shutil
 
-from app.storage.versioning import VersioningEngine, FileVersion
+from app.storage.versioning import SnapshotMetadata, VersionMetadata, VersioningEngine
 
 
 @pytest.fixture
-def temp_versions_dir():
-    """Create a temporary directory for versions."""
-    temp_dir = Path(tempfile.mkdtemp())
-    yield temp_dir
-    shutil.rmtree(temp_dir)
+def temp_dir():
+    """Provide a temporary directory for versioning artifacts."""
+    directory = Path(tempfile.mkdtemp())
+    try:
+        yield directory
+    finally:
+        shutil.rmtree(directory)
 
 
 @pytest.fixture
-def versioning_engine(temp_versions_dir, monkeypatch):
-    """Create a VersioningEngine instance with temporary directory."""
-    monkeypatch.setattr("app.storage.versioning.PROJECT_ROOT", temp_versions_dir)
-    
-    engine = VersioningEngine.__new__(VersioningEngine)
-    engine._initialized = False
-    engine.__init__()
-    
-    return engine
+def engine(temp_dir, monkeypatch):
+    """Create an isolated VersioningEngine instance for testing."""
+    db_path = temp_dir / "versions.db"
+    storage_path = temp_dir / "storage"
 
-
-def test_versioning_engine_initialization(versioning_engine):
-    """Test versioning engine initializes correctly."""
-    assert versioning_engine._initialized
-    assert versioning_engine._versions_dir.exists()
-    assert versioning_engine._objects_dir.exists()
-    assert versioning_engine._index_dir.exists()
-
-
-def test_create_version(versioning_engine):
-    """Test creating a file version."""
-    content = b"Hello, World!"
-    version = versioning_engine.create_version(
-        file_path="/test/file.txt",
-        content=content,
-        author="test_user",
-        message="Initial commit"
+    # Ensure files are always tracked during tests
+    monkeypatch.setattr(
+        VersioningEngine,
+        "_should_track_file",
+        lambda self, file_path: True,
     )
-    
-    assert version.file_path == "/test/file.txt"
-    assert version.size == len(content)
-    assert version.author == "test_user"
-    assert version.message == "Initial commit"
-    assert version.content_hash is not None
+
+    eng = VersioningEngine(db_path=db_path, storage_path=storage_path)
+    # Disable guardian checks to keep rollback simple in tests
+    if hasattr(eng.settings, "enable_guardian_checks"):
+        eng.settings.enable_guardian_checks = False
+    return eng
 
 
-def test_get_version(versioning_engine):
-    """Test retrieving a specific version."""
-    content = b"Test content"
-    version = versioning_engine.create_version(
-        file_path="/test/file.txt",
-        content=content
+def test_initialization(engine: VersioningEngine):
+    """Engine should create storage directories and database on init."""
+    assert engine.db_path.exists()
+    assert engine.storage_path.exists()
+
+
+def test_create_and_get_version(engine: VersioningEngine):
+    """Creating a version should persist metadata retrievable via get_version."""
+    content = "print('hello')\n"
+    version_id = engine.create_version("src/example.py", content, agent="tester")
+
+    metadata = engine.get_version(version_id)
+    assert isinstance(metadata, VersionMetadata)
+    assert metadata.file_path == "src/example.py"
+    assert metadata.agent == "tester"
+    assert metadata.size == len(content)
+
+
+def test_duplicate_version_returns_existing_id(engine: VersioningEngine):
+    """Creating identical content twice should return the same version id."""
+    version_id = engine.create_version("duplicate.py", "same content")
+    same_id = engine.create_version("duplicate.py", "same content")
+
+    assert same_id == version_id
+    history = engine.get_version_history("duplicate.py")
+    assert len(history) == 1
+
+
+def test_generate_diff(engine: VersioningEngine):
+    """Diff generation should highlight modified lines between versions."""
+    v1 = engine.create_version("diff.py", "line1\nline2\n")
+    v2 = engine.create_version("diff.py", "line1\nmodified\n")
+
+    diff = engine.generate_diff(v1, v2)
+    assert "-line2" in diff
+    assert "+modified" in diff
+
+
+def test_cleanup_old_versions(engine: VersioningEngine):
+    """Old versions should be removed when cleanup is invoked."""
+    version_id = engine.create_version("old.py", "stale")
+
+    old_timestamp = datetime.now().timestamp() - (35 * 24 * 3600)
+    with sqlite3.connect(engine.db_path) as conn:
+        conn.execute(
+            "UPDATE versions SET timestamp = ? WHERE version_id = ?",
+            (old_timestamp, version_id),
+        )
+        conn.commit()
+
+    deleted = engine.cleanup_old_versions(days=30)
+    assert deleted == 1
+    assert engine.get_version(version_id) is None
+
+
+def test_snapshot_creation(engine: VersioningEngine):
+    """Snapshots should capture the latest versions of requested files."""
+    engine.create_version("snap1.py", "content1")
+    engine.create_version("snap2.py", "content2")
+
+    snapshot_id = engine.create_snapshot(
+        "snapshot-test",
+        ["snap1.py", "snap2.py"],
+        description="test snapshot",
+        agent="tester",
     )
-    
-    retrieved = versioning_engine.get_version("/test/file.txt", version.version_id)
-    
-    assert retrieved is not None
-    assert retrieved.version_id == version.version_id
-    assert retrieved.content_hash == version.content_hash
 
+    assert snapshot_id is not None
+    snapshot = engine.get_snapshot(snapshot_id)
+    assert isinstance(snapshot, SnapshotMetadata)
+    assert snapshot.agent == "tester"
 
-def test_get_version_content(versioning_engine):
-    """Test retrieving version content."""
-    content = b"Test content"
-    version = versioning_engine.create_version(
-        file_path="/test/file.txt",
-        content=content
-    )
-    
-    retrieved_content = versioning_engine.get_version_content(version)
-    
-    assert retrieved_content == content
-
-
-def test_get_versions(versioning_engine):
-    """Test getting all versions of a file."""
-    file_path = "/test/file.txt"
-    
-    versioning_engine.create_version(file_path, b"Version 1")
-    versioning_engine.create_version(file_path, b"Version 2")
-    versioning_engine.create_version(file_path, b"Version 3")
-    
-    versions = versioning_engine.get_versions(file_path)
-    
-    assert len(versions) == 3
-
-
-def test_get_latest_version(versioning_engine):
-    """Test getting the latest version."""
-    file_path = "/test/file.txt"
-    
-    v1 = versioning_engine.create_version(file_path, b"Version 1")
-    v2 = versioning_engine.create_version(file_path, b"Version 2")
-    v3 = versioning_engine.create_version(file_path, b"Version 3")
-    
-    latest = versioning_engine.get_latest_version(file_path)
-    
-    assert latest is not None
-    assert latest.version_id == v3.version_id
-
-
-def test_content_deduplication(versioning_engine):
-    """Test that identical content is deduplicated."""
-    content = b"Same content"
-    
-    v1 = versioning_engine.create_version("/file1.txt", content)
-    v2 = versioning_engine.create_version("/file2.txt", content)
-    
-    assert v1.content_hash == v2.content_hash
-    
-    object_path = versioning_engine._get_object_path(v1.content_hash)
-    assert object_path.exists()
-
-
-def test_diff_versions(versioning_engine):
-    """Test generating diff between versions."""
-    file_path = "/test/file.txt"
-    
-    v1 = versioning_engine.create_version(file_path, b"Line 1\nLine 2\nLine 3\n")
-    v2 = versioning_engine.create_version(file_path, b"Line 1\nModified Line 2\nLine 3\nLine 4\n")
-    
-    diff = versioning_engine.diff_versions(v1, v2)
-    
-    assert diff is not None
-    assert "Modified Line 2" in diff
-
-
-def test_tag_version(versioning_engine):
-    """Test tagging a version."""
-    version = versioning_engine.create_version(
-        file_path="/test/file.txt",
-        content=b"Test content"
-    )
-    
-    success = versioning_engine.tag_version(
-        file_path="/test/file.txt",
-        version_id=version.version_id,
-        tag="release-1.0"
-    )
-    
-    assert success is True
-    
-    retrieved = versioning_engine.get_version("/test/file.txt", version.version_id)
-    assert "release-1.0" in retrieved.tags
-
-
-def test_delete_version(versioning_engine):
-    """Test deleting a version."""
-    file_path = "/test/file.txt"
-    
-    v1 = versioning_engine.create_version(file_path, b"Version 1")
-    v2 = versioning_engine.create_version(file_path, b"Version 2")
-    
-    success = versioning_engine.delete_version(file_path, v1.version_id)
-    
-    assert success is True
-    
-    versions = versioning_engine.get_versions(file_path)
-    assert len(versions) == 1
-    assert versions[0].version_id == v2.version_id
-
-
-def test_get_all_files(versioning_engine):
-    """Test getting all tracked files."""
-    versioning_engine.create_version("/file1.txt", b"Content 1")
-    versioning_engine.create_version("/file2.txt", b"Content 2")
-    versioning_engine.create_version("/file3.txt", b"Content 3")
-    
-    files = versioning_engine.get_all_files()
-    
-    assert len(files) == 3
-    assert "/file1.txt" in files
-    assert "/file2.txt" in files
-    assert "/file3.txt" in files
-
-
-def test_get_storage_stats(versioning_engine):
-    """Test getting storage statistics."""
-    versioning_engine.create_version("/file1.txt", b"Content 1")
-    versioning_engine.create_version("/file2.txt", b"Content 2")
-    
-    stats = versioning_engine.get_storage_stats()
-    
-    assert stats["total_files"] == 2
-    assert stats["total_versions"] == 2
-    assert stats["total_size_bytes"] > 0
-
-
-def test_parent_version_tracking(versioning_engine):
-    """Test that parent versions are tracked correctly."""
-    file_path = "/test/file.txt"
-    
-    v1 = versioning_engine.create_version(file_path, b"Version 1")
-    v2 = versioning_engine.create_version(file_path, b"Version 2")
-    
-    assert v1.parent_version is None
-    assert v2.parent_version == v1.version_id
+    latest_ids = {
+        engine.get_latest_version("snap1.py").version_id,
+        engine.get_latest_version("snap2.py").version_id,
+    }
+    assert set(snapshot.file_versions) == latest_ids
