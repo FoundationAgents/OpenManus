@@ -12,11 +12,13 @@ from app.config import config
 from app.database.database_service import database_service
 from app.guardian.guardian_service import guardian_service
 from app.knowledge_graph.knowledge_graph_service import knowledge_graph_service
+from app.security import acl_manager
 from app.knowledge_graph.graph_builder import graph_builder
 from app.backup.backup_service import backup_service
 from app.backup.backup_scheduler import backup_scheduler
 from app.versioning.versioning_service import versioning_service
 from app.versioning.snapshot_manager import snapshot_manager
+from app.resources.catalog import resource_catalog
 from .event_bus import EventBus
 from .service_registry import ServiceRegistry
 
@@ -39,6 +41,7 @@ class SystemIntegrationService:
     def _register_services(self):
         """Register all services with the registry"""
         self.service_registry.register("database", database_service)
+        self.service_registry.register("acl", acl_manager)
         self.service_registry.register("guardian", guardian_service)
         self.service_registry.register("knowledge_graph", knowledge_graph_service)
         self.service_registry.register("graph_builder", graph_builder)
@@ -46,6 +49,7 @@ class SystemIntegrationService:
         self.service_registry.register("backup_scheduler", backup_scheduler)
         self.service_registry.register("versioning", versioning_service)
         self.service_registry.register("snapshot_manager", snapshot_manager)
+        self.service_registry.register("resource_catalog", resource_catalog)
         self.service_registry.register("event_bus", self.event_bus)
     
     def _setup_event_handlers(self):
@@ -77,6 +81,9 @@ class SystemIntegrationService:
         try:
             # Initialize database first
             await database_service.initialize()
+
+            # Initialize ACL manager before dependent services
+            await acl_manager.initialize()
             
             # Initialize other services
             await guardian_service.start()
@@ -85,6 +92,7 @@ class SystemIntegrationService:
             await versioning_service.initialize()
             await snapshot_manager.initialize()
             await backup_scheduler.start()
+            await resource_catalog.initialize()
             
             # Start event processing
             await self.event_bus.start()
@@ -118,6 +126,7 @@ class SystemIntegrationService:
             # Stop services in reverse order
             await backup_scheduler.stop()
             await snapshot_manager.stop()
+            await resource_catalog.shutdown()
             await versioning_service.stop()
             await graph_builder.stop()
             await knowledge_graph_service.stop()

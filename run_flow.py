@@ -7,10 +7,17 @@ from app.config import config
 from app.flow.flow_factory import FlowFactory, FlowType
 from app.flow.ade_flow import ADEFlow
 from app.logger import logger
+from app.mcp.bridge import MCPBridge
 
 
 async def run_flow():
+    bridge = MCPBridge()
+    
     try:
+        # Initialize MCP bridge
+        await bridge.initialize()
+        logger.info(f"MCP Bridge initialized (fallback: {bridge.is_fallback_active()})")
+        
         prompt = input("Enter your prompt: ")
 
         if prompt.strip().isspace() or not prompt:
@@ -30,9 +37,9 @@ async def run_flow():
             start_time = time.time()
             
             if mode == "ade":
-                result = await run_ade_flow(prompt)
+                result = await run_ade_flow(prompt, bridge)
             else:
-                result = await run_planning_flow(prompt)
+                result = await run_planning_flow(prompt, bridge)
                 
             elapsed_time = time.time() - start_time
             logger.info(f"Request processed in {elapsed_time:.2f} seconds")
@@ -48,6 +55,8 @@ async def run_flow():
         logger.info("Operation cancelled by user.")
     except Exception as e:
         logger.error(f"Error: {str(e)}")
+    finally:
+        await bridge.cleanup()
 
 
 def _is_complex_task(prompt: str) -> bool:
@@ -72,13 +81,13 @@ def _is_complex_task(prompt: str) -> bool:
     return complexity_score >= 3  # Threshold for ADE mode
 
 
-async def run_ade_flow(prompt: str) -> str:
+async def run_ade_flow(prompt: str, bridge: MCPBridge) -> str:
     """Run the ADE (Agentic Development Environment) flow."""
     logger.info("Initializing ADE flow for complex task")
     
     # Check if multi-agent mode is enabled
     if config.run_flow_config.enable_multi_agent:
-        return await run_enhanced_multi_agent_flow(prompt)
+        return await run_enhanced_multi_agent_flow(prompt, bridge)
     
     # Create agents for ADE
     from app.agent.swe_agent import SWEAgent
@@ -91,8 +100,8 @@ async def run_ade_flow(prompt: str) -> str:
     if config.run_flow_config.use_data_analysis_agent:
         agents["data_analysis"] = DataAnalysis()
     
-    # Create ADE flow
-    ade_flow = ADEFlow(agents=agents)
+    # Create ADE flow with bridge
+    ade_flow = ADEFlow(agents=agents, bridge=bridge)
     
     result = await asyncio.wait_for(
         ade_flow.execute(prompt),
@@ -102,7 +111,7 @@ async def run_ade_flow(prompt: str) -> str:
     return result
 
 
-async def run_enhanced_multi_agent_flow(prompt: str) -> str:
+async def run_enhanced_multi_agent_flow(prompt: str, bridge: MCPBridge) -> str:
     """Run the enhanced multi-agent flow."""
     logger.info("Initializing Enhanced Multi-Agent Environment")
     
@@ -119,8 +128,8 @@ async def run_enhanced_multi_agent_flow(prompt: str) -> str:
     if config.run_flow_config.use_data_analysis_agent:
         agents["data_analysis"] = DataAnalysis()
     
-    # Create enhanced async flow
-    enhanced_flow = EnhancedAsyncFlow(agents=agents)
+    # Create enhanced async flow with bridge
+    enhanced_flow = EnhancedAsyncFlow(agents=agents, bridge=bridge)
     
     result = await asyncio.wait_for(
         enhanced_flow.execute(prompt),
@@ -130,7 +139,7 @@ async def run_enhanced_multi_agent_flow(prompt: str) -> str:
     return result
 
 
-async def run_planning_flow(prompt: str) -> str:
+async def run_planning_flow(prompt: str, bridge: MCPBridge) -> str:
     """Run the standard planning flow."""
     logger.info("Initializing planning flow")
     
@@ -144,6 +153,7 @@ async def run_planning_flow(prompt: str) -> str:
     flow = FlowFactory.create_flow(
         flow_type=FlowType.PLANNING,
         agents=agents,
+        bridge=bridge,
     )
     
     result = await asyncio.wait_for(

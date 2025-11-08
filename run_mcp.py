@@ -6,6 +6,7 @@ import sys
 from app.agent.mcp import MCPAgent
 from app.config import config
 from app.logger import logger
+from app.mcp.bridge import MCPBridge
 
 
 class MCPRunner:
@@ -15,23 +16,50 @@ class MCPRunner:
         self.root_path = config.root_path
         self.server_reference = config.mcp_config.server_reference
         self.agent = MCPAgent()
+        self.bridge = MCPBridge()
 
     async def initialize(
         self,
         connection_type: str,
         server_url: str | None = None,
+        use_bridge: bool = False,
     ) -> None:
         """Initialize the MCP agent with the appropriate connection."""
         logger.info(f"Initializing MCPAgent with {connection_type} connection...")
 
-        if connection_type == "stdio":
-            await self.agent.initialize(
-                connection_type="stdio",
-                command=sys.executable,
-                args=["-m", self.server_reference],
-            )
-        else:  # sse
-            await self.agent.initialize(connection_type="sse", server_url=server_url)
+        if use_bridge:
+            # Initialize the MCP bridge first
+            await self.bridge.initialize()
+            logger.info(f"MCP Bridge initialized (fallback: {self.bridge.is_fallback_active()})")
+            
+            # Configure agent based on bridge mode
+            if self.bridge.is_fallback_active():
+                # In fallback mode, connect to internal MCP server
+                await self.agent.initialize(
+                    connection_type="stdio",
+                    command=sys.executable,
+                    args=["-m", self.server_reference, "--service", "tools"],
+                )
+            else:
+                # In native mode, proceed normally
+                if connection_type == "stdio":
+                    await self.agent.initialize(
+                        connection_type="stdio",
+                        command=sys.executable,
+                        args=["-m", self.server_reference],
+                    )
+                else:  # sse
+                    await self.agent.initialize(connection_type="sse", server_url=server_url)
+        else:
+            # Legacy mode - direct connection
+            if connection_type == "stdio":
+                await self.agent.initialize(
+                    connection_type="stdio",
+                    command=sys.executable,
+                    args=["-m", self.server_reference],
+                )
+            else:  # sse
+                await self.agent.initialize(connection_type="sse", server_url=server_url)
 
         logger.info(f"Connected to MCP server via {connection_type}")
 
@@ -63,6 +91,7 @@ class MCPRunner:
     async def cleanup(self) -> None:
         """Clean up agent resources."""
         await self.agent.cleanup()
+        await self.bridge.cleanup()
         logger.info("Session ended")
 
 
@@ -85,6 +114,14 @@ def parse_args() -> argparse.Namespace:
         "--interactive", "-i", action="store_true", help="Run in interactive mode"
     )
     parser.add_argument("--prompt", "-p", help="Single prompt to execute and exit")
+    parser.add_argument(
+        "--bridge", "-b", action="store_true", 
+        help="Use MCP bridge with automatic fallback"
+    )
+    parser.add_argument(
+        "--start-server", action="store_true",
+        help="Start internal MCP server before connecting"
+    )
     return parser.parse_args()
 
 
@@ -94,7 +131,17 @@ async def run_mcp() -> None:
     runner = MCPRunner()
 
     try:
-        await runner.initialize(args.connection, args.server_url)
+        # Start server if requested
+        if args.start_server:
+            logger.info("Starting internal MCP server...")
+            # This would start the server in the background
+            # For now, we'll rely on the bridge to handle it
+        
+        await runner.initialize(
+            args.connection, 
+            args.server_url,
+            use_bridge=args.bridge
+        )
 
         if args.prompt:
             await runner.run_single_prompt(args.prompt)

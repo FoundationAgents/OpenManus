@@ -90,6 +90,36 @@ class MigrationManager:
             )
         """)
         
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS acl_agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL,
+                pools TEXT,
+                inherits_from TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS acl_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject_type TEXT NOT NULL,
+                subject_id TEXT NOT NULL,
+                path TEXT NOT NULL,
+                operations TEXT NOT NULL,
+                effect TEXT NOT NULL CHECK(effect IN ('allow','deny')),
+                priority INTEGER DEFAULT 100,
+                inherits_from TEXT,
+                description TEXT,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # Versioning tables
         await db.execute("""
             CREATE TABLE IF NOT EXISTS file_versions (
@@ -145,6 +175,27 @@ class MigrationManager:
             )
         """)
         
+        # Resource catalog table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS resources_catalog (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                version TEXT,
+                install_path TEXT,
+                dependencies TEXT,
+                min_requirements TEXT,
+                max_requirements TEXT,
+                capability_tags TEXT,
+                metadata TEXT,
+                discovery_source TEXT,
+                available BOOLEAN NOT NULL DEFAULT TRUE,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(name, install_path)
+            )
+        """)
+        
         # Audit logs tables
         await db.execute("""
             CREATE TABLE IF NOT EXISTS audit_logs (
@@ -184,6 +235,37 @@ class MigrationManager:
                 metric_value REAL NOT NULL,
                 labels TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Dynamic permissions tables
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS permissions_grants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                grant_id TEXT UNIQUE NOT NULL,
+                request_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                granted_tools TEXT,
+                network_allowed BOOLEAN DEFAULT FALSE,
+                ttl_seconds INTEGER,
+                expires_at TEXT,
+                revoked_at TEXT,
+                revoked_reason TEXT,
+                revocation_token TEXT,
+                audit_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS permissions_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                audit_id TEXT UNIQUE NOT NULL,
+                action TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                request_id TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
     
@@ -267,6 +349,11 @@ def register_default_migrations(manager: MigrationManager):
             -- ACL indexes
             CREATE INDEX IF NOT EXISTS idx_acl_users_username ON acl_users(username);
             CREATE INDEX IF NOT EXISTS idx_acl_permissions_user_resource ON acl_permissions(user_id, resource);
+            CREATE INDEX IF NOT EXISTS idx_acl_agents_agent_id ON acl_agents(agent_id);
+            CREATE INDEX IF NOT EXISTS idx_acl_agents_role ON acl_agents(role);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_subject ON acl_rules(subject_type, subject_id);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_path ON acl_rules(path);
+            CREATE INDEX IF NOT EXISTS idx_acl_rules_effect ON acl_rules(effect);
             
             -- Versioning indexes
             CREATE INDEX IF NOT EXISTS idx_file_versions_path ON file_versions(file_path);
@@ -292,12 +379,33 @@ def register_default_migrations(manager: MigrationManager):
             CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
             
             -- System metrics indexes
+             CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
+             CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
+
+             -- Permissions indexes
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_agent ON permissions_grants(agent_id);
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_expires ON permissions_grants(expires_at);
+             CREATE INDEX IF NOT EXISTS idx_permissions_grants_revoked ON permissions_grants(revoked_at);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_agent ON permissions_audit(agent_id);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_action ON permissions_audit(action);
+             CREATE INDEX IF NOT EXISTS idx_permissions_audit_created ON permissions_audit(created_at);
+            """,
             CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
             CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
+            
+            -- Resource catalog indexes
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_type ON resources_catalog(resource_type);
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_available ON resources_catalog(available);
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_name ON resources_catalog(name);
         """,
         down_sql="""
             DROP INDEX IF EXISTS idx_acl_users_username;
             DROP INDEX IF EXISTS idx_acl_permissions_user_resource;
+            DROP INDEX IF EXISTS idx_acl_agents_agent_id;
+            DROP INDEX IF EXISTS idx_acl_agents_role;
+            DROP INDEX IF EXISTS idx_acl_rules_subject;
+            DROP INDEX IF EXISTS idx_acl_rules_path;
+            DROP INDEX IF EXISTS idx_acl_rules_effect;
             DROP INDEX IF EXISTS idx_file_versions_path;
             DROP INDEX IF EXISTS idx_file_versions_created;
             DROP INDEX IF EXISTS idx_backup_records_type;
@@ -313,6 +421,15 @@ def register_default_migrations(manager: MigrationManager):
             DROP INDEX IF EXISTS idx_security_events_created;
             DROP INDEX IF EXISTS idx_system_metrics_name;
             DROP INDEX IF EXISTS idx_system_metrics_timestamp;
+            DROP INDEX IF EXISTS idx_permissions_grants_agent;
+            DROP INDEX IF EXISTS idx_permissions_grants_expires;
+            DROP INDEX IF EXISTS idx_permissions_grants_revoked;
+            DROP INDEX IF EXISTS idx_permissions_audit_agent;
+            DROP INDEX IF EXISTS idx_permissions_audit_action;
+            DROP INDEX IF EXISTS idx_permissions_audit_created;
+            DROP INDEX IF EXISTS idx_resources_catalog_type;
+            DROP INDEX IF EXISTS idx_resources_catalog_available;
+            DROP INDEX IF EXISTS idx_resources_catalog_name;
         """
     )
     

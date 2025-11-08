@@ -2,7 +2,7 @@ import json
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -226,11 +226,41 @@ class MonitoringSettings(BaseModel):
     )
 
 
+class ACLTemplateRule(BaseModel):
+    """Default ACL rule template definition."""
+    
+    path: str = Field(..., description="Path scope (supports environment variables and wildcards)")
+    operations: List[str] = Field(
+        default_factory=lambda: ["read"],
+        description="Operations governed by this rule"
+    )
+    effect: str = Field(
+        "allow",
+        pattern="^(allow|deny)$",
+        description="Whether the rule allows or denies the operations"
+    )
+    priority: int = Field(100, description="Rule evaluation priority (lower values take precedence)")
+    description: Optional[str] = Field(None, description="Optional human readable description")
+
+
+class ACLRoleTemplate(BaseModel):
+    """ACL template definition applied to agents with a given role."""
+    
+    inherits: List[str] = Field(
+        default_factory=list,
+        description="Parent role templates that this role inherits"
+    )
+    rules: List[ACLTemplateRule] = Field(
+        default_factory=list,
+        description="ACL rules applied to the role"
+    )
+
+
 class ACLSettings(BaseModel):
     """Configuration for Access Control Layer"""
     
     enable_acl: bool = Field(True, description="Enable access control")
-    default_permission: str = Field("read", description="Default permission level")
+    default_permission: str = Field("read", description="Default permission level (comma separated operations)")
     admin_roles: List[str] = Field(
         default_factory=lambda: ["admin", "superuser"], 
         description="Roles with administrative access"
@@ -241,6 +271,14 @@ class ACLSettings(BaseModel):
     audit_access: bool = Field(True, description="Audit all access attempts")
     max_failed_attempts: int = Field(5, description="Max failed login attempts")
     lockout_duration: int = Field(900, description="Account lockout duration in seconds")
+    default_role_templates: Dict[str, ACLRoleTemplate] = Field(
+        default_factory=dict,
+        description="Default ACL templates loaded for each agent role"
+    )
+    default_agent_pools: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Default pool memberships assigned per role"
+    )
 
 
 class GuardianSettings(BaseModel):
@@ -256,6 +294,20 @@ class GuardianSettings(BaseModel):
     )
     quarantine_suspicious: bool = Field(True, description="Quarantine suspicious activities")
     security_rules_file: str = Field("config/security_rules.json", description="Security rules file")
+
+
+class GuardianValidationSettings(BaseModel):
+    """Configuration for Guardian validation and command approval"""
+    
+    enable_command_validation: bool = Field(True, description="Enable command validation")
+    auto_approval_threshold: float = Field(70.0, description="Auto-approval risk score threshold (0-100)")
+    approval_timeout: int = Field(300, description="User approval timeout in seconds")
+    policies_file: str = Field("config/security/guardian.json", description="Guardian policies file")
+    audit_db_path: str = Field("./data/guardian.db", description="Path to Guardian audit database")
+    require_user_approval: bool = Field(True, description="Require user approval for risky commands")
+    log_all_commands: bool = Field(True, description="Log all command validations")
+    enable_sandbox_validation: bool = Field(True, description="Enable validation in sandbox")
+    block_dangerous_patterns: bool = Field(True, description="Block dangerous patterns automatically")
 
 
 class VersioningSettings(BaseModel):
@@ -299,6 +351,32 @@ class KnowledgeGraphSettings(BaseModel):
     similarity_threshold: float = Field(0.7, description="Similarity threshold for connections")
     persist_to_disk: bool = Field(True, description="Persist graph to disk")
     graph_storage_path: str = Field("./data/knowledge_graph", description="Graph storage path")
+
+
+class ResourceCatalogSettings(BaseModel):
+    """Configuration for system resource catalog"""
+    
+    enable_catalog: bool = Field(True, description="Enable system resource catalog")
+    auto_refresh_on_startup: bool = Field(
+        True, description="Run discovery when the system starts"
+    )
+    debounce_seconds: int = Field(
+        300, description="Minimum seconds between discovery refresh runs"
+    )
+    enable_watchers: bool = Field(
+        True, description="Enable filesystem polling for cache invalidation"
+    )
+    watch_paths: List[str] = Field(
+        default_factory=list,
+        description="Paths to monitor for resource availability changes",
+    )
+    watch_interval_seconds: int = Field(
+        900, description="Polling interval for watcher checks in seconds"
+    )
+    known_install_paths: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Known installation roots per locator identifier",
+    )
 
 
 class NetworkSettings(BaseModel):
@@ -621,16 +699,62 @@ class MCPServerConfig(BaseModel):
 class MCPSettings(BaseModel):
     """Configuration for MCP (Model Context Protocol)"""
 
+    # Legacy settings for backward compatibility
     server_reference: str = Field(
-        "app.mcp.server", description="Module reference for the MCP server"
+        "app.mcp.modular_server", description="Module reference for the MCP server"
     )
     servers: Dict[str, MCPServerConfig] = Field(
-        default_factory=dict, description="MCP server configurations"
+        default_factory=dict, description="Legacy MCP server configurations"
+    )
+    
+    # New bridge configuration
+    default_transport: str = Field("stdio", description="Default transport: stdio or sse")
+    enable_fallback: bool = Field(True, description="Enable stdio fallback when tools not supported")
+    
+    # Fallback detection settings
+    fallback_detection: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "checkSupportsTools": True,
+            "checkApiType": True,
+            "unsupportedApiTypes": ["ollama", "custom"]
+        },
+        description="Settings for detecting when to use fallback"
+    )
+    
+    # Internal server configurations
+    internal_servers: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="Internal MCP server configurations"
+    )
+    
+    # External server configurations  
+    external_servers: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="External MCP server configurations"
+    )
+    
+    # Connection pool settings
+    connection_pool: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "maxConnections": 10,
+            "connectionTimeout": 30,
+            "retryAttempts": 3,
+            "retryDelay": 1.0
+        },
+        description="Connection pool settings"
+    )
+    
+    # Logging settings
+    logging: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "level": "INFO",
+            "logToolCalls": True,
+            "logFallbacks": True
+        },
+        description="Logging configuration"
     )
 
     @classmethod
     def load_server_config(cls) -> Dict[str, MCPServerConfig]:
-        """Load MCP server configuration from JSON file"""
+        """Load MCP server configuration from JSON file (legacy support)"""
         config_path = PROJECT_ROOT / "config" / "mcp.json"
 
         try:
@@ -642,6 +766,7 @@ class MCPSettings(BaseModel):
                 data = json.load(f)
                 servers = {}
 
+                # Load legacy mcpServers
                 for server_id, server_config in data.get("mcpServers", {}).items():
                     servers[server_id] = MCPServerConfig(
                         type=server_config["type"],
@@ -649,9 +774,44 @@ class MCPSettings(BaseModel):
                         command=server_config.get("command"),
                         args=server_config.get("args", []),
                     )
+                
+                # Load internal servers
+                for server_id, server_config in data.get("internalServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                
+                # Load external servers
+                for server_id, server_config in data.get("externalServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                
                 return servers
         except Exception as e:
             raise ValueError(f"Failed to load MCP server config: {e}")
+    
+    @classmethod
+    def load_bridge_config(cls) -> Dict[str, Any]:
+        """Load complete bridge configuration from JSON file"""
+        config_path = PROJECT_ROOT / "config" / "mcp.json"
+
+        try:
+            config_file = config_path if config_path.exists() else None
+            if not config_file:
+                return {}
+
+            with config_file.open() as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            raise ValueError(f"Failed to load MCP bridge config: {e}")
 
 
 class AppConfig(BaseModel):
@@ -710,6 +870,7 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    ),
     )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
@@ -717,23 +878,39 @@ class AppConfig(BaseModel):
     guardian_config: Optional[GuardianSettings] = Field(
         None, description="Guardian security monitoring configuration"
     )
-    versioning_config: Optional[VersioningSettings] = Field(
-        None, description="Versioning configuration"
+    guardian_validation_config: Optional[GuardianValidationSettings] = Field(
+        None, description="Guardian validation and command approval configuration"
     )
     backup_config: Optional[BackupSettings] = Field(
         None, description="Backup configuration"
+    ),
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
+    ),
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
     )
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
+    )
+    resource_catalog_config: Optional[ResourceCatalogSettings] = Field(
+        None, description="System resource catalog configuration"
+    )
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
-    )
+    ),
     embedding_config: Optional[EmbeddingSettings] = Field(
         None, description="Embedding generation configuration"
-    )
+    ),
     knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
         None, description="Knowledge graph configuration"
+    ),
+    network_config: Optional[NetworkSettings] = Field(
+        None, description="Network configuration"
+    )
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Resilience configuration"
     )
 
     class Config:
@@ -864,12 +1041,6 @@ class Config:
         else:
             editor_settings = EditorSettings()
 
-        versioning_config = raw_config.get("versioning", {})
-        if versioning_config:
-            versioning_settings = VersioningSettings(**versioning_config)
-        else:
-            versioning_settings = VersioningSettings()
-
         ui_config = raw_config.get("ui", {})
         if ui_config:
             ui_settings = UISettings(**ui_config)
@@ -881,9 +1052,21 @@ class Config:
         if mcp_config:
             # Load server configurations from JSON
             mcp_config["servers"] = MCPSettings.load_server_config()
+            
+            # Load bridge configuration from JSON if not in TOML
+            if "internal_servers" not in mcp_config:
+                bridge_config = MCPSettings.load_bridge_config()
+                mcp_config.update(bridge_config)
+            
             mcp_settings = MCPSettings(**mcp_config)
         else:
-            mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
+            # Load from JSON only
+            bridge_config = MCPSettings.load_bridge_config()
+            if bridge_config:
+                bridge_config["servers"] = MCPSettings.load_server_config()
+                mcp_settings = MCPSettings(**bridge_config)
+            else:
+                mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
         run_flow_config = raw_config.get("runflow")
         if run_flow_config:
@@ -934,6 +1117,12 @@ class Config:
         else:
             monitoring_settings = MonitoringSettings()
 
+        resource_catalog_config = raw_config.get("resource_catalog", {})
+        if resource_catalog_config:
+            resource_catalog_settings = ResourceCatalogSettings(**resource_catalog_config)
+        else:
+            resource_catalog_settings = ResourceCatalogSettings()
+
         # Load new system integration configurations
         acl_config = raw_config.get("acl", {})
         if acl_config:
@@ -946,6 +1135,12 @@ class Config:
             guardian_settings = GuardianSettings(**guardian_config)
         else:
             guardian_settings = GuardianSettings()
+
+        guardian_validation_config = raw_config.get("guardian_validation", {})
+        if guardian_validation_config:
+            guardian_validation_settings = GuardianValidationSettings(**guardian_validation_config)
+        else:
+            guardian_validation_settings = GuardianValidationSettings()
 
         versioning_config = raw_config.get("versioning", {})
         if versioning_config:
@@ -1014,9 +1209,9 @@ class Config:
             "quality_assurance_config": quality_assurance_settings,
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
-            "network_config": network_settings,
             "acl_config": acl_settings,
             "guardian_config": guardian_settings,
+            "guardian_validation_config": guardian_validation_settings,
             "versioning_config": versioning_settings,
             "backup_config": backup_settings,
             "knowledge_graph_config": knowledge_graph_settings,
@@ -1024,7 +1219,11 @@ class Config:
             "resilience_config": resilience_settings,
             "vector_store_config": vector_store_settings,
             "embedding_config": embedding_settings,
+            "resource_catalog_config": resource_catalog_settings,
+            "vector_store_config": vector_store_settings,
+            "embedding_config": embedding_settings,
             "knowledge_graph_config": knowledge_graph_settings,
+            "resilience_config": resilience_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -1130,6 +1329,11 @@ class Config:
         return self._config.monitoring_config
 
     @property
+    def network(self) -> NetworkSettings:
+        """Get the network configuration"""
+        return self._config.network_config
+
+    @property
     def acl(self) -> ACLSettings:
         """Get the ACL configuration"""
         return self._config.acl_config
@@ -1140,14 +1344,19 @@ class Config:
         return self._config.guardian_config
 
     @property
+    def guardian_validation(self) -> GuardianValidationSettings:
+        """Get the Guardian validation configuration"""
+        return self._config.guardian_validation_config
+
+    @property
     def versioning(self) -> VersioningSettings:
         """Get the versioning configuration"""
         return self._config.versioning_config
+    def resource_catalog(self) -> ResourceCatalogSettings:
+        """Get the system resource catalog configuration"""
+        return self._config.resource_catalog_config
 
     @property
-    def backup(self) -> BackupSettings:
-        """Get the backup configuration"""
-        return self._config.backup_config
     def vector_store(self) -> VectorStoreSettings:
         """Get the vector store configuration"""
         return self._config.vector_store_config
@@ -1161,11 +1370,6 @@ class Config:
     def knowledge_graph(self) -> KnowledgeGraphSettings:
         """Get the knowledge graph configuration"""
         return self._config.knowledge_graph_config
-
-    @property
-    def network(self) -> NetworkSettings:
-        """Get the network configuration"""
-        return self._config.network_config
 
     @property
     def resilience(self) -> ResilienceSettings:
