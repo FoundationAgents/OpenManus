@@ -40,6 +40,7 @@ from app.ui.panels import (
     AgentMonitorPanel,
     SecurityMonitorPanel,
     KnowledgeGraphPanel,
+    RetrievalInsightsPanel,
     BackupPanel,
     ResourceCatalogPanel,
 )
@@ -245,6 +246,12 @@ class MainWindow(QMainWindow):
         self.knowledge_dock.setWidget(self.knowledge_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.knowledge_dock)
         
+        # Retrieval Insights Dock
+        self.retrieval_dock = QDockWidget("Retrieval Insights", self)
+        self.retrieval_panel = RetrievalInsightsPanel()
+        self.retrieval_dock.setWidget(self.retrieval_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.retrieval_dock)
+        
         # Backup Dock
         self.backup_dock = QDockWidget("Backup Management", self)
         self.backup_panel = BackupPanel()
@@ -262,6 +269,7 @@ class MainWindow(QMainWindow):
         self.tabifyDockWidget(self.workflow_dock, self.monitor_dock)
         self.tabifyDockWidget(self.monitor_dock, self.security_dock)
         self.tabifyDockWidget(self.security_dock, self.knowledge_dock)
+        self.tabifyDockWidget(self.knowledge_dock, self.retrieval_dock)
         
         # Tab the bottom docks together
         self.tabifyDockWidget(self.log_dock, self.console_dock)
