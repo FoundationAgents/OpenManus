@@ -9,7 +9,7 @@ functionality when limits are exceeded.
 import asyncio
 import psutil
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Callable, Any
 from enum import Enum

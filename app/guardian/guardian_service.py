@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
+import aiosqlite
+
 from app.logger import logger
 from app.config import config
 from app.database.database_service import database_service, audit_service

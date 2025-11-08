@@ -629,7 +629,7 @@ class VersioningEngine:
         Returns:
             True if successful, False otherwise
         """
-                with self._lock:
+        with self._lock:
             snapshot = self.get_snapshot(snapshot_id)
             if not snapshot:
                 logger.error(f"Snapshot {snapshot_id} not found")

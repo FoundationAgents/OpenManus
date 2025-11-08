@@ -11,7 +11,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
         QTableWidgetItem, QLabel, QGroupBox, QMessageBox, QTextEdit,
-        QProgressBar, QHeaderView
+        QProgressBar, QHeaderView, QSplitter, QLineEdit, QComboBox, QCheckBox
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
     from PyQt6.QtGui import QFont
@@ -21,6 +21,14 @@ except ImportError:
     class QWidget:
         pass
     class QThread:
+        pass
+    class QSplitter:
+        pass
+    class QLineEdit:
+        pass
+    class QComboBox:
+        pass
+    class QCheckBox:
         pass
     def pyqtSignal(*args, **kwargs):
         class DummySignal:

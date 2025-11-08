@@ -40,6 +40,8 @@ def test_config_loading():
     print("\nTesting configuration loading...")
     
     try:
+        from app.config import config
+        
         # Test workspace root
         workspace_root = config.workspace_root
         print(f"✓ Workspace root: {workspace_root}")
@@ -62,6 +64,8 @@ def test_workspace():
     print("\nTesting workspace...")
     
     try:
+        from app.config import config
+        
         workspace = config.workspace_root
         workspace.mkdir(parents=True, exist_ok=True)
         

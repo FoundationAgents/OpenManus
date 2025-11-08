@@ -1350,6 +1350,8 @@ class Config:
             try:
                 daytona_settings = DaytonaSettings(**daytona_config)
             except Exception as e:
+                # Lazy import to avoid circular dependency
+                from app.logger import logger
                 logger.warning(f"Failed to load Daytona settings: {e}")
                 daytona_settings = DaytonaSettings()
         else:

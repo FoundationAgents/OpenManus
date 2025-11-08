@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.config import config
 from app.rag.search_rag_helper import SearchRAGHelper, QueryReformulation, ResultRanking
-from app.tool.modern_web_search import ModernWebSearch, ModernSearchResult, ModernSearchMetadata
+from app.tool.modern_web_search import ModernWebSearch, ModernSearchResult, ModernSearchMetadata, ModernSearchResponse
 from app.tool.search.backends import (
     BraveSearchBackend,
     DuckDuckGoBackend,
