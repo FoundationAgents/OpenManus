@@ -34,6 +34,11 @@ from .flaky_test_detector import FlakyTestDetector, FlakyTestReport, FlakyTestIn
 from .doc_tester import DocumentationTester, DocTestReport, CodeSample
 from .test_reporter import TestReporter, TestReport
 
+# Hybrid QA System Components
+from .ai_qa_agent import AIQAAgent, CodeExpert, PlannerExpert, FixerExpert, CleanupAgent, SpecialistType, SpecialistDecision
+from .postchecks import PostCheckValidator, PostCheckType, CodeIntegrityChecker, BehaviorPreservationChecker, RegressionDetector, FixVerificationChecker, SecurityAuditChecker, PerformanceImpactChecker
+from .hybrid_qa_system import HybridQASystem, HybridQAStatus, QAIssue, QAApprovalDecision
+
 __all__ = [
     # Original QA System
     "CodeAnalyzer",
@@ -81,4 +86,25 @@ __all__ = [
     "CodeSample",
     "TestReporter",
     "TestReport",
+    
+    # Hybrid QA System (AI + Traditional)
+    "AIQAAgent",
+    "CodeExpert",
+    "PlannerExpert",
+    "FixerExpert",
+    "CleanupAgent",
+    "SpecialistType",
+    "SpecialistDecision",
+    "PostCheckValidator",
+    "PostCheckType",
+    "CodeIntegrityChecker",
+    "BehaviorPreservationChecker",
+    "RegressionDetector",
+    "FixVerificationChecker",
+    "SecurityAuditChecker",
+    "PerformanceImpactChecker",
+    "HybridQASystem",
+    "HybridQAStatus",
+    "QAIssue",
+    "QAApprovalDecision",
 ]

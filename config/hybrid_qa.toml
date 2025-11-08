@@ -1,0 +1,326 @@
+# Hybrid QA System Configuration
+# Combines AI-powered analysis with traditional QA checks
+
+[hybrid_qa]
+# Enable/disable hybrid QA system
+enabled = true
+
+# QA Level: basic, standard, strict, paranoid
+qa_level = "standard"
+
+# Automatically fix issues
+auto_fix_enabled = true
+
+# Only apply safe fixes (formatting, imports, minor refactors)
+auto_fix_safe_only = true
+
+# Run post-check validation after fixes
+enable_postcheck = true
+
+# Require human review for certain changes
+require_review = false
+
+[hybrid_qa.ai_agent]
+# Enable AI-powered analysis
+enabled = true
+
+# Specialist team components
+specialists = [
+    "code_expert",
+    "planner_expert",
+    "fixer_expert",
+    "cleanup_agent"
+]
+
+# Confidence threshold for AI decisions (0.0 - 1.0)
+min_confidence = 0.75
+
+# Consensus threshold for approval
+min_consensus = 0.85
+
+[hybrid_qa.traditional_qa]
+# Enable traditional QA checks (runs parallel with AI)
+enabled = true
+
+# Traditional check types
+checks = [
+    "syntax_validation",
+    "import_check",
+    "code_smell_detection",
+    "naming_convention_check",
+    "error_handling_validation",
+    "security_scan"
+]
+
+# Strict mode - fail on all issues
+strict_mode = false
+
+[hybrid_qa.specialists.code_expert]
+# Code Expert configuration
+enabled = true
+
+# Analysis focus areas
+focus = [
+    "code_patterns",
+    "complexity_analysis",
+    "security_analysis",
+    "architecture_validation"
+]
+
+# Complexity thresholds
+max_cyclomatic_complexity = 10
+max_nesting_depth = 4
+
+# Security patterns to detect
+detect_security_issues = true
+detect_hardcoded_credentials = true
+detect_sql_injection = true
+detect_code_injection = true
+
+[hybrid_qa.specialists.planner_expert]
+# Planner Expert configuration
+enabled = true
+
+# Planning validation focus
+focus = [
+    "task_decomposition",
+    "dependency_analysis",
+    "effort_estimation",
+    "risk_assessment"
+]
+
+# Task constraints
+max_task_hours = 40
+min_task_hours = 0.25
+
+# Allow circular dependencies (generally not recommended)
+allow_circular_deps = false
+
+# Risk assessment
+identify_high_risk = true
+require_mitigation_plan = true
+
+[hybrid_qa.specialists.fixer_expert]
+# Fixer Expert configuration
+enabled = true
+
+# Fix types enabled
+auto_fix_types = [
+    "import_organization",
+    "formatting",
+    "add_docstrings",
+    "add_type_hints",
+    "extract_magic_numbers",
+    "add_logging"
+]
+
+# Fixes requiring manual review
+manual_review_required = [
+    "logic_changes",
+    "api_changes",
+    "performance_optimization",
+    "security_fixes_complex"
+]
+
+[hybrid_qa.specialists.cleanup_agent]
+# Cleanup Agent configuration
+enabled = true
+
+# Cleanup actions
+actions = [
+    "remove_unused_imports",
+    "remove_dead_code",
+    "fix_formatting",
+    "suggest_optimizations"
+]
+
+# Cleanup thresholds
+remove_unused_imports = true
+remove_dead_code = true
+fix_trailing_whitespace = true
+convert_tabs_to_spaces = true
+
+[hybrid_qa.postchecks]
+# Post-check validation configuration
+enabled = true
+
+# Post-check types to run
+checks = [
+    "code_integrity",
+    "behavior_preservation",
+    "regression_detection",
+    "fix_verification",
+    "security_audit",
+    "performance_impact"
+]
+
+# Code Integrity Checks
+validate_syntax = true
+validate_imports = true
+validate_structure = true
+
+# Behavior Preservation Checks
+preserve_function_signatures = true
+preserve_return_types = true
+preserve_public_api = true
+
+# Regression Detection
+detect_logic_changes = true
+check_complexity_increase = true
+max_line_change_percent = 50
+
+# Fix Verification
+verify_all_fixes_applied = true
+verify_fix_correctness = true
+
+# Security Audit
+security_audit_enabled = true
+block_on_new_vulnerabilities = true
+
+# Performance Check
+check_performance_impact = true
+warn_on_complexity_increase = true
+max_complexity_increase = 5
+
+[hybrid_qa.approval]
+# Approval decision configuration
+
+# Block on critical issues
+block_on_critical = true
+
+# Block on high-priority issues
+block_on_high = true
+
+# AI consensus requirement for approval
+min_ai_consensus = 0.85
+
+# Post-check must pass
+require_postcheck_pass = true
+
+# Auto-approve if all issues fixed
+auto_approve_if_clean = true
+
+[hybrid_qa.issue_severity]
+# Issue severity configuration
+
+# Critical issues (always block)
+critical_patterns = [
+    "hardcoded_password",
+    "hardcoded_api_key",
+    "sql_injection",
+    "command_injection",
+    "eval_or_exec",
+    "pickle_loads"
+]
+
+# High issues (block by default)
+high_patterns = [
+    "unhandled_exception",
+    "silent_exception_catching",
+    "missing_error_handling",
+    "circular_dependency"
+]
+
+# Medium issues (recommend fix)
+medium_patterns = [
+    "high_complexity",
+    "deep_nesting",
+    "long_function",
+    "magic_numbers",
+    "missing_docstring"
+]
+
+# Low issues (nice to fix)
+low_patterns = [
+    "trailing_whitespace",
+    "unused_variable",
+    "code_style_issue",
+    "import_order"
+]
+
+[hybrid_qa.metrics]
+# Metrics and reporting configuration
+
+# Collect metrics
+enabled = true
+
+# Metrics to track
+track = [
+    "issues_found",
+    "issues_fixed",
+    "false_positives",
+    "review_time",
+    "ai_consensus",
+    "postcheck_pass_rate",
+    "approval_rate"
+]
+
+# Report generation
+generate_reports = true
+report_frequency = "daily"
+report_format = "json"
+
+[hybrid_qa.thresholds]
+# Quality thresholds
+
+# Code coverage minimum
+min_code_coverage = 80
+
+# Test pass rate requirement
+min_test_pass_rate = 100
+
+# Max issues per 1000 LOC
+max_issues_per_1k_loc = 10
+
+# Max security issues
+max_security_issues = 0
+
+# Performance regression threshold
+perf_regression_threshold = 10
+
+[hybrid_qa.workflow]
+# Workflow integration configuration
+
+# Integration with workflow manager
+enabled = true
+
+# Workflow stages
+stages = [
+    "analyze",
+    "fix",
+    "postcheck",
+    "approve"
+]
+
+# Create QA approval commit
+create_qa_commit = true
+
+# Auto-commit fixes
+auto_commit_fixes = true
+
+# QA commit message template
+qa_commit_message = "QA: Auto-fixes applied by Hybrid QA System"
+
+# Block merge if QA blocked
+block_on_qa_blocked = true
+
+# Create remediation task on blockers
+create_remediation_task = true
+
+[hybrid_qa.logging]
+# Logging configuration
+
+# Log level: DEBUG, INFO, WARNING, ERROR
+level = "INFO"
+
+# Log QA decisions
+log_decisions = true
+
+# Log specialist analysis
+log_specialist_analysis = false
+
+# Log post-check details
+log_postcheck_details = false
+
+# Log metrics
+log_metrics = true
