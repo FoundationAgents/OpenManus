@@ -9,6 +9,7 @@ from app.ui.panels.workflow_visualizer import WorkflowVisualizerPanel
 from app.ui.panels.command_log import CommandLogPanel
 from app.ui.panels.console import ConsolePanel
 from app.ui.panels.agent_monitor import AgentMonitorPanel
+from app.ui.panels.retrieval_insights import RetrievalInsightsPanel
 from app.ui.panels.backup_panel import BackupPanel
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "CommandLogPanel",
     "ConsolePanel",
     "AgentMonitorPanel",
+    "RetrievalInsightsPanel",
     "BackupPanel",
 ]
