@@ -760,6 +760,12 @@ class AppConfig(BaseModel):
     guardian_validation_config: Optional[GuardianValidationSettings] = Field(
         None, description="Guardian validation and command approval configuration"
     )
+    backup_config: Optional[BackupSettings] = Field(
+        None, description="Backup configuration"
+    )
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
+    )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
     )
