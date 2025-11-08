@@ -1,0 +1,154 @@
+# Component Configuration
+# Defines component loading behavior for the smart startup system
+
+[startup]
+# Enable smart startup system
+enabled = true
+
+# Target startup time in seconds
+target_startup_time = 3.0
+
+# Maximum workers for parallel loading
+max_parallel_workers = 4
+
+# Minimum available memory to keep (MB)
+min_available_memory_mb = 512
+
+# Maximum CPU usage threshold (%)
+max_cpu_percent = 80.0
+
+[monitoring]
+# Enable resource monitoring
+enabled = true
+
+# Resource monitoring interval (seconds)
+interval = 5.0
+
+# Log resource warnings
+log_warnings = true
+
+[components]
+# Core components (always load, highest priority)
+[components.config]
+required = true
+load_priority = 1
+resource_mb = 1
+
+[components.logger]
+required = true
+load_priority = 1
+resource_mb = 1
+
+[components.database]
+required = true
+load_priority = 2
+resource_mb = 10
+
+[components.guardian]
+required = true
+load_priority = 2
+resource_mb = 5
+
+# Essential UI components (load early)
+[components.code_editor]
+required = true
+load_priority = 3
+resource_mb = 20
+
+[components.command_log]
+required = true
+load_priority = 3
+resource_mb = 5
+
+[components.agent_control]
+required = true
+load_priority = 4
+resource_mb = 30
+
+[components.agent_monitor]
+required = true
+load_priority = 4
+resource_mb = 10
+
+# Optional components (load on-demand or based on intent)
+[components.knowledge_graph]
+optional = true
+load_priority = 7
+resource_mb = 100
+lazy_load = true
+
+[components.web_search]
+optional = true
+load_priority = 8
+resource_mb = 10
+lazy_load = true
+
+[components.sandbox]
+optional = true
+load_priority = 8
+resource_mb = 500
+lazy_load = true
+
+[components.browser]
+optional = true
+load_priority = 9
+resource_mb = 500
+lazy_load = true
+
+[components.network]
+optional = true
+load_priority = 5
+resource_mb = 20
+
+[components.workflow]
+optional = true
+load_priority = 6
+resource_mb = 15
+lazy_load = true
+
+[components.backup]
+optional = true
+load_priority = 7
+resource_mb = 50
+lazy_load = true
+
+[components.versioning]
+optional = true
+load_priority = 7
+resource_mb = 20
+lazy_load = true
+
+[components.resource_catalog]
+optional = true
+load_priority = 7
+resource_mb = 10
+lazy_load = true
+
+[components.mcp_bridge]
+optional = true
+load_priority = 6
+resource_mb = 30
+lazy_load = true
+
+[error_handling]
+# Maximum retry attempts for failed components
+max_retries = 3
+
+# Continue startup even if optional components fail
+continue_on_optional_failure = true
+
+# Show error dialog for failed components
+show_error_dialog = true
+
+[profiling]
+# Enable startup profiling
+enabled = true
+
+# Save profiles to disk
+save_profiles = true
+
+# Profile directory
+profile_directory = "./data/profiles"
+
+# Keep last N profiles
+keep_last_profiles = 10

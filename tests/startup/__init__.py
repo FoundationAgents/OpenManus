@@ -1,0 +1,3 @@
+"""
+Startup system tests.
+"""
