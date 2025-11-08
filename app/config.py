@@ -33,6 +33,102 @@ class LLMSettings(BaseModel):
     supports_vision: bool = Field(False, description="Whether this provider supports vision input")
 
 
+class FallbackEndpointSettings(BaseModel):
+    """Settings for a fallback LLM API endpoint."""
+    endpoint: str = Field(..., description="Fallback endpoint URL")
+    model: str = Field(..., description="Model name for this endpoint")
+    priority: int = Field(default=10, description="Priority (lower = higher priority)")
+    api_key: Optional[str] = Field(None, description="API key for this endpoint")
+
+
+class LLMAPISettings(BaseModel):
+    """Settings for OpenAI-compatible API integration."""
+    endpoint: str = Field(
+        default="https://gpt4free.pro/v1/vibingfox/chat/completions",
+        description="Primary API endpoint URL"
+    )
+    model: str = Field(
+        default="claude-sonnet-4.5",
+        description="Model name to use"
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="API key (optional for free endpoints)"
+    )
+    context_window: int = Field(
+        default=8000,
+        description="Maximum tokens to keep in context"
+    )
+    max_tokens_per_request: int = Field(
+        default=2000,
+        description="Maximum tokens per request"
+    )
+    temperature: float = Field(
+        default=0.7,
+        description="Sampling temperature"
+    )
+    top_p: float = Field(
+        default=0.9,
+        description="Nucleus sampling parameter"
+    )
+    max_requests_per_minute: int = Field(
+        default=5,
+        description="Rate limit (requests per minute)"
+    )
+    request_timeout: int = Field(
+        default=120,
+        description="Request timeout in seconds"
+    )
+    enable_health_check: bool = Field(
+        default=True,
+        description="Enable periodic health checks"
+    )
+    health_check_interval: int = Field(
+        default=300,
+        description="Health check interval in seconds"
+    )
+    health_check_timeout: int = Field(
+        default=10,
+        description="Health check timeout in seconds"
+    )
+    fallbacks: List[FallbackEndpointSettings] = Field(
+        default_factory=list,
+        description="Fallback endpoints"
+    )
+    retry_attempts: int = Field(
+        default=3,
+        description="Number of retry attempts"
+    )
+    retry_backoff_multiplier: float = Field(
+        default=2.0,
+        description="Exponential backoff multiplier"
+    )
+    enable_token_tracking: bool = Field(
+        default=True,
+        description="Enable token usage tracking"
+    )
+    daily_token_budget: int = Field(
+        default=0,
+        description="Daily token budget (0 = unlimited)"
+    )
+    token_warning_threshold: float = Field(
+        default=0.8,
+        description="Alert threshold for token usage (0-1)"
+    )
+    enable_response_cache: bool = Field(
+        default=True,
+        description="Cache API responses"
+    )
+    cache_ttl: int = Field(
+        default=3600,
+        description="Cache TTL in seconds"
+    )
+    enable_streaming: bool = Field(
+        default=True,
+        description="Enable response streaming"
+    )
+
+
 class ProxySettings(BaseModel):
     server: str = Field(None, description="Proxy server address")
     username: Optional[str] = Field(None, description="Proxy username")
@@ -1093,6 +1189,9 @@ class AppConfig(BaseModel):
     tool_calling_config: Optional[ToolCallingSettings] = Field(
         None, description="Tool calling emulation configuration"
     )
+    llm_api_config: Optional[LLMAPISettings] = Field(
+        None, description="LLM API configuration"
+    )
 
     class Config:
         arbitrary_types_allowed = True
@@ -1370,6 +1469,19 @@ class Config:
         else:
             resilience_settings = ResilienceSettings()
 
+        # Load LLM API configuration
+        llm_api_config = raw_config.get("llm_api", {})
+        if llm_api_config:
+            llm_api_settings = LLMAPISettings(**llm_api_config)
+        else:
+            llm_api_settings = LLMAPISettings()
+
+        tool_calling_config = raw_config.get("tool_calling", {})
+        if tool_calling_config:
+            tool_calling_settings = ToolCallingSettings(**tool_calling_config)
+        else:
+            tool_calling_settings = ToolCallingSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -1408,10 +1520,8 @@ class Config:
             "vector_store_config": vector_store_settings,
             "embedding_config": embedding_settings,
             "resource_catalog_config": resource_catalog_settings,
-            "vector_store_config": vector_store_settings,
-            "embedding_config": embedding_settings,
-            "knowledge_graph_config": knowledge_graph_settings,
-            "resilience_config": resilience_settings,
+            "llm_api_config": llm_api_settings,
+            "tool_calling_config": tool_calling_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -1575,6 +1685,11 @@ class Config:
     def tool_calling(self) -> ToolCallingSettings:
         """Get the tool calling configuration"""
         return self._config.tool_calling_config
+
+    @property
+    def llm_api(self) -> LLMAPISettings:
+        """Get the LLM API configuration"""
+        return self._config.llm_api_config
 
 
 config = Config()
