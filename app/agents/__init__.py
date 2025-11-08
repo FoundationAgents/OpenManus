@@ -1,11 +1,20 @@
 """
-Agent Resilience and Management System
+Legacy Agent Management Module
 
-Provides monitoring, health checking, automatic replacement,
-and pool management for agents in the multi-agent environment.
+DEPRECATED: This module is maintained for backward compatibility only.
+All code has been consolidated into app.agent (singular).
+
+New code should import directly from app.agent instead:
+    from app.agent import PoolManager, AgentResilienceManager
+    from app.agent.resilience import AgentHealthMonitor
+
+This module will be removed in a future version.
 """
 
-from .resilience import (
+import warnings
+
+# Redirect all imports to consolidated location in app.agent
+from app.agent.resilience import (
     AgentHealthMonitor,
     AgentResilienceManager,
     AgentTelemetry,
@@ -15,7 +24,7 @@ from .resilience import (
     AgentFactory
 )
 
-from .pool_manager import (
+from app.agent.pool_manager import (
     PoolManager,
     TaskAssignment,
     PoolMetrics,
@@ -23,6 +32,12 @@ from .pool_manager import (
     LoadBalancingStrategy,
     TaskComplexity,
     get_pool_manager
+)
+
+warnings.warn(
+    "app.agents is deprecated. Use app.agent instead.",
+    DeprecationWarning,
+    stacklevel=2
 )
 
 __all__ = [

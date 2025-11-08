@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from pydantic import Field
 
 from app.agent.approval_workflow import ApprovalWorkflow
-from app.agent.communication_context import ContextManager
+from app.agent.communication_context import ConversationThreadManager
 from app.agent.communication_escalation import EscalationManager
 from app.agent.info_extraction import InformationExtractor
 from app.agent.models.communication import (

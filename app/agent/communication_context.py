@@ -8,8 +8,14 @@ from app.agent.models.communication import ConversationContext, Email, Message
 from app.logger import logger
 
 
-class ContextManager(BaseModel):
-    """Manages context for conversations and email threads."""
+class ConversationThreadManager(BaseModel):
+    """Manages context for conversations and email threads.
+    
+    Note: Renamed from ContextManager to avoid conflict with LLM's ContextManager
+    in app.llm.context_manager (which manages token/context windows).
+    
+    For backward compatibility, ContextManager is aliased to this class.
+    """
 
     contexts: Dict[str, ConversationContext] = Field(
         default_factory=dict, description="Active conversation contexts"
@@ -268,3 +274,7 @@ class ContextManager(BaseModel):
             }
             for tid, ctx in self.contexts.items()
         }
+
+
+# Backward compatibility alias
+ContextManager = ConversationThreadManager

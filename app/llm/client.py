@@ -1,3 +1,15 @@
+"""
+Unified LLM Client - consolidation of legacy llm.py and modern llm/ modules.
+
+This is the primary interface for LLM interactions with:
+- Multi-provider support (OpenAI, Azure, AWS Bedrock, Ollama, custom)
+- Token counting and limit checking
+- Streaming and non-streaming responses
+- Tool/function calling
+- Image support (multimodal)
+- Retry logic with exponential backoff
+"""
+
 import math
 from typing import Dict, List, Optional, Union
 
@@ -21,7 +33,7 @@ from tenacity import (
 from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
-from app.logger import logger  # Assuming a logger is set up in your app
+from app.logger import logger
 from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
@@ -42,7 +54,12 @@ MULTIMODAL_MODELS = [
 ]
 
 
-class TokenCounter:
+class UnifiedTokenCounter:
+    """
+    Unified token counter supporting both text and image tokens.
+    Consolidates TokenCounter from legacy llm.py.
+    """
+
     # Token constants
     BASE_MESSAGE_TOKENS = 4
     FORMAT_TOKENS = 2
@@ -111,9 +128,7 @@ class TokenCounter:
         total_tiles = tiles_x * tiles_y
 
         # Step 4: Calculate final token count
-        return (
-            total_tiles * self.HIGH_DETAIL_TILE_TOKENS
-        ) + self.LOW_DETAIL_IMAGE_TOKENS
+        return (total_tiles * self.HIGH_DETAIL_TILE_TOKENS) + self.LOW_DETAIL_IMAGE_TOKENS
 
     def count_content(self, content: Union[str, List[Union[str, dict]]]) -> int:
         """Calculate tokens for message content"""
@@ -172,6 +187,34 @@ class TokenCounter:
 
 
 class LLM:
+    """
+    Unified LLM Client with singleton pattern per configuration.
+
+    Provides consolidated interface for:
+    - Multiple LLM providers (OpenAI, Azure, AWS, Ollama, custom)
+    - Token counting and limit checking
+    - Streaming and non-streaming modes
+    - Tool/function calling
+    - Multimodal input (text + images)
+    - Automatic retry with exponential backoff
+
+    Usage:
+        llm = LLM()  # Uses default config
+        response = await llm.ask([{"role": "user", "content": "Hello"}])
+
+        # With images
+        response = await llm.ask_with_images(
+            [{"role": "user", "content": "What's in this image?"}],
+            images=["https://example.com/image.jpg"]
+        )
+
+        # With tools
+        response = await llm.ask_tool(
+            messages=[{"role": "user", "content": "Get the weather"}],
+            tools=[{"type": "function", "function": {...}}]
+        )
+    """
+
     _instances: Dict[str, "LLM"] = {}
 
     def __new__(
@@ -221,15 +264,15 @@ class LLM:
             # Initialize client with enhanced support for different providers
             self.client = self._initialize_client(llm_config)
 
-            self.token_counter = TokenCounter(self.tokenizer)
+            self.token_counter = UnifiedTokenCounter(self.tokenizer)
 
     def _initialize_client(self, llm_config):
         """Initialize the appropriate client based on API type and configuration."""
-        
+
         # Check if API key is required but not provided
         if self.requires_api_key and not self.api_key:
             raise ValueError(f"API key is required for {self.api_type} provider")
-        
+
         # For providers that don't require API keys, use a placeholder
         api_key = self.api_key
         if not api_key:
@@ -389,9 +432,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),
     )
     async def ask(
         self,
@@ -516,9 +557,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),
     )
     async def ask_with_images(
         self,
@@ -672,9 +711,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception_type((OpenAIError, Exception, ValueError)),
     )
     async def ask_tool(
         self,

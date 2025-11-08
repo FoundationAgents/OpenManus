@@ -18,7 +18,7 @@ except ImportError:
         return default
 
 from app.agent.base import BaseAgent
-from app.agent.swe_agent import SWEAgent
+from app.agent.swe import SWEAgent
 from app.flow.base import BaseFlow
 from app.llm import LLM
 from app.logger import logger
