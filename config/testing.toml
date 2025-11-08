@@ -1,0 +1,118 @@
+# Testing & Validation Pipeline Configuration
+
+[testing]
+enabled = true
+auto_generate_tests = true
+run_all_levels = true  # smoke, unit, integration, e2e
+enable_e2e = true
+enable_performance = true
+enable_security = true
+
+[testing.coverage]
+enforce = true
+threshold_overall = 80      # Minimum overall code coverage %
+threshold_new_code = 90     # New code must have higher coverage
+threshold_critical = 95     # Critical paths (auth, payments) must be higher
+measure_branch_coverage = true
+measure_function_coverage = true
+measure_path_coverage = false  # expensive for large codebases
+identify_dead_code = true
+html_report = true
+
+[testing.performance]
+benchmark = true
+enabled = true
+baseline_storage = "cache/performance_baselines.json"
+threshold_latency_regression = 10      # % increase is failure
+threshold_memory_regression = 20       # % increase is failure
+threshold_throughput_regression = 5    # % decrease is failure
+cpu_profiling = true
+memory_profiling = true
+io_profiling = true
+generate_flamegraphs = false  # requires expensive deps
+
+[testing.security]
+sast_enabled = true                    # Static analysis
+dast_enabled = false                   # Dynamic testing (can be expensive)
+dependency_scan = true
+scan_for_sql_injection = true
+scan_for_command_injection = true
+scan_for_xss = true
+scan_for_xxe = true
+scan_for_unsafe_deserialization = true
+scan_for_path_traversal = true
+scan_for_hardcoded_secrets = true
+scan_for_weak_crypto = true
+block_on_critical = true
+block_on_high = false
+
+[testing.mutation]
+enabled = true
+num_mutants_per_function = 5
+mutation_timeout = 30  # seconds per mutant test
+kill_timeout = 5
+coverage_gap_threshold = 10  # % of lines with no mutation kill
+
+[testing.quality]
+mutation_testing = true
+flaky_test_detection = true
+doc_testing = true
+min_test_quality_score = 70
+test_isolation_check = true
+test_determinism_check = true
+test_performance_check = true
+
+[testing.flaky]
+enabled = true
+num_runs = 3  # run each test this many times
+flakiness_threshold = 50  # % inconsistency threshold
+cache_location = "cache/flaky_tests.json"
+report_location = "reports/flaky_tests.html"
+
+[testing.execution]
+timeout_per_test = 30       # seconds
+timeout_per_level = {
+    smoke = 300,            # 5 min
+    unit = 900,             # 15 min
+    integration = 1800,     # 30 min
+    e2e = 2700,             # 45 min
+    performance = 3600,     # 60 min
+    security = 1200,        # 20 min
+}
+parallel_workers = 4
+retry_flaky = true
+retry_count = 2
+capture_screenshots_on_ui_failure = true
+capture_performance_profile = true
+
+[testing.test_generation]
+enabled = true
+generate_unit_tests = true
+generate_integration_tests = true
+generate_e2e_tests = false  # can be expensive
+generate_property_tests = false
+generate_performance_tests = false
+use_llm_for_test_logic = true
+detect_edge_cases = true
+generate_fixtures = true
+parametrized_tests = true
+
+[testing.reporting]
+generate_html_report = true
+generate_json_report = true
+junit_format = true
+coverage_html_report = true
+performance_comparison = true
+security_report = true
+mutation_report = true
+quality_scorecard = true
+persist_reports = true
+report_storage = "reports/test_reports"
+link_to_commits = true
+track_trends = true
+
+[testing.documentation]
+test_code_samples = true
+verify_api_docs = true
+update_docs = false  # don't auto-update, just verify
+report_mismatches = true
