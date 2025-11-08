@@ -19,6 +19,13 @@ except ImportError:
     PYQT6_AVAILABLE = False
     class QWidget:
         pass
+    def pyqtSignal(*args, **kwargs):
+        class DummySignal:
+            def emit(self, *args):
+                pass
+            def connect(self, *args):
+                pass
+        return DummySignal()
 
 
 class AgentMonitorPanel(QWidget):

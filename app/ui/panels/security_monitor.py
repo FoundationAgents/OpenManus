@@ -16,6 +16,17 @@ try:
     PYQT6_AVAILABLE = True
 except ImportError:
     PYQT6_AVAILABLE = False
+    class QWidget:
+        pass
+    class QThread:
+        pass
+    def pyqtSignal(*args, **kwargs):
+        class DummySignal:
+            def emit(self, *args):
+                pass
+            def connect(self, *args):
+                pass
+        return DummySignal()
 
 if PYQT6_AVAILABLE:
     from app.system_integration.integration_service import system_integration
