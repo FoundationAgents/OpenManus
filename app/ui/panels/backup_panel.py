@@ -3,21 +3,9 @@ Backup Panel
 Displays and manages system backups
 """
 
-from typing import Dict, List, Any, Optional
-
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-        QLabel, QPushButton, QLineEdit, QTextEdit, QSplitter,
-        QGroupBox, QHeaderView, QMessageBox, QComboBox,
-        QProgressBar, QCheckBox
-    )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
-"""Backup management panel for the UI."""
-
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List, Any
 
 try:
     from PyQt6.QtWidgets import (
@@ -30,6 +18,17 @@ try:
     PYQT6_AVAILABLE = True
 except ImportError:
     PYQT6_AVAILABLE = False
+    class QWidget:
+        pass
+    class QThread:
+        pass
+    def pyqtSignal(*args, **kwargs):
+        class DummySignal:
+            def emit(self, *args):
+                pass
+            def connect(self, *args):
+                pass
+        return DummySignal()
 
 if PYQT6_AVAILABLE:
     from app.system_integration.integration_service import system_integration
