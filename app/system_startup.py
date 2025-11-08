@@ -14,6 +14,10 @@ from app.system_integration.integration_service import system_integration
 from app.ui.main_window import MainWindow
 from PyQt6.QtWidgets import QApplication
 
+# Smart startup system
+from app.core.smart_startup import get_smart_startup
+from app.profiling.startup_profiler import get_startup_profiler
+
 
 class SystemApplication:
     """Main application class that coordinates system startup and shutdown"""
@@ -21,6 +25,8 @@ class SystemApplication:
     def __init__(self):
         self.qt_app = None
         self.main_window = None
+        self.smart_startup = get_smart_startup()
+        self.startup_profiler = get_startup_profiler()
         self._setup_signal_handlers()
     
     def _setup_signal_handlers(self):
@@ -33,11 +39,29 @@ class SystemApplication:
         signal.signal(signal.SIGTERM, signal_handler)
     
     async def initialize_system(self):
-        """Initialize all system components"""
+        """Initialize all system components using smart startup"""
         try:
-            logger.info("Starting OpenManus System Integration...")
+            logger.info("Starting OpenManus System with Smart Startup...")
             
-            # Initialize system integration service
+            # Start profiling
+            self.startup_profiler.start_profiling()
+            
+            # Execute smart startup
+            report = await self.smart_startup.startup_async(
+                on_progress=self._log_startup_progress
+            )
+            
+            # Create and save performance profile
+            profile = self.startup_profiler.create_profile(report.total_duration_ms)
+            logger.info("\n" + self.startup_profiler.format_profile(profile))
+            
+            # Save profile to disk
+            try:
+                self.startup_profiler.save_profile(profile)
+            except Exception as e:
+                logger.warning(f"Failed to save startup profile: {e}")
+            
+            # Initialize system integration service (if not already loaded)
             await system_integration.initialize()
             
             logger.info("System initialization completed successfully")
@@ -45,6 +69,11 @@ class SystemApplication:
         except Exception as e:
             logger.error(f"Failed to initialize system: {e}")
             raise
+    
+    def _log_startup_progress(self, phase: str, progress: float):
+        """Log startup progress."""
+        if progress >= 0:
+            logger.debug(f"Startup: {phase} - {progress:.0f}%")
     
     async def shutdown(self):
         """Shutdown all system components"""
@@ -146,6 +175,7 @@ def main():
     """Main entry point"""
     # Ensure data directories exist
     Path("./data").mkdir(exist_ok=True)
+    Path("./data/profiles").mkdir(exist_ok=True)
     Path("./workspace").mkdir(exist_ok=True)
     Path("./backups").mkdir(exist_ok=True)
     Path("./config").mkdir(exist_ok=True)
