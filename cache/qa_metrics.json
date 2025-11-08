@@ -1,0 +1,19 @@
+{
+  "metrics": [
+    {
+      "timestamp": "2025-11-08T14:26:17.169785",
+      "code_quality_score": 100.0,
+      "issues_per_kloc": 0.0,
+      "auto_fix_rate": 0.0,
+      "false_positive_rate": 0.0,
+      "review_time_avg": 0.0,
+      "issues_by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0
+      }
+    }
+  ],
+  "updated_at": "2025-11-08T14:26:17.169946"
+}
