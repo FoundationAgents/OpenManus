@@ -1,0 +1,27 @@
+# Anti-Replication and Self-Preservation safety configuration
+
+[safety.anti_replication]
+enabled = true
+enforcement_level = "maximum"
+
+[safety.integrity]
+check_interval_seconds = 60
+verification_type = "cryptographic_signature"
+on_violation = "immediate_shutdown"
+
+[safety.replication_detection]
+file_system_monitoring = true
+process_creation_monitoring = true
+network_monitoring = true
+memory_monitoring = true
+git_monitoring = true
+
+[safety.external_audit]
+enabled = false
+endpoint = ""
+frequency = "every_decision"
+
+[safety.user_control]
+kill_switch_active = true
+can_inspect_code = true
+can_revoke_permissions = true

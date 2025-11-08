@@ -2,7 +2,7 @@ import json
 import threading
 import tomllib
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field
 
@@ -1148,6 +1148,45 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP bridge config: {e}")
 
 
+class SafetyIntegritySettings(BaseModel):
+    check_interval_seconds: int = Field(60, ge=1, description="Integrity verification interval in seconds")
+    verification_type: str = Field("cryptographic_signature", description="Type of integrity verification to perform")
+    on_violation: str = Field("immediate_shutdown", description="Action to take when integrity fails")
+
+
+class SafetyReplicationDetectionSettings(BaseModel):
+    file_system_monitoring: bool = Field(True, description="Monitor filesystem for replication attempts")
+    process_creation_monitoring: bool = Field(True, description="Monitor process creation attempts")
+    network_monitoring: bool = Field(True, description="Monitor network activity for replication")
+    memory_monitoring: bool = Field(True, description="Monitor memory write attempts")
+    git_monitoring: bool = Field(True, description="Monitor version control actions")
+
+
+class SafetyExternalAuditSettings(BaseModel):
+    enabled: bool = Field(False, description="Enable external audit logging")
+    endpoint: str = Field("", description="Audit log endpoint URL")
+    frequency: str = Field("every_decision", description="Frequency for audit log transmission")
+
+
+class SafetyUserControlSettings(BaseModel):
+    kill_switch_active: bool = Field(True, description="Whether the kill switch is active by default")
+    can_inspect_code: bool = Field(True, description="Allow the user to inspect code")
+    can_revoke_permissions: bool = Field(True, description="Allow the user to revoke permissions")
+
+
+class SafetyAntiReplicationSettings(BaseModel):
+    enabled: bool = Field(True, description="Enable anti-replication safeguards")
+    enforcement_level: Literal["maximum"] = Field("maximum", description="Enforcement level (fixed to maximum)")
+
+
+class SafetySettings(BaseModel):
+    anti_replication: SafetyAntiReplicationSettings = Field(default_factory=SafetyAntiReplicationSettings)
+    integrity: SafetyIntegritySettings = Field(default_factory=SafetyIntegritySettings)
+    replication_detection: SafetyReplicationDetectionSettings = Field(default_factory=SafetyReplicationDetectionSettings)
+    external_audit: SafetyExternalAuditSettings = Field(default_factory=SafetyExternalAuditSettings)
+    user_control: SafetyUserControlSettings = Field(default_factory=SafetyUserControlSettings)
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -1204,6 +1243,9 @@ class AppConfig(BaseModel):
     )
     monitoring_config: Optional[MonitoringSettings] = Field(
         None, description="Monitoring configuration"
+    )
+    safety_config: Optional[SafetySettings] = Field(
+        None, description="Safety anti-replication configuration"
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
@@ -1285,8 +1327,27 @@ class Config:
         with config_path.open("rb") as f:
             return tomllib.load(f)
 
+    @staticmethod
+    def _load_optional_config(path: Path) -> dict:
+        if not path.exists():
+            return {}
+        with path.open("rb") as handle:
+            return tomllib.load(handle)
+
+    @staticmethod
+    def _deep_merge(base: dict, extra: dict) -> dict:
+        for key, value in extra.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                Config._deep_merge(base[key], value)
+            else:
+                base[key] = value
+        return base
+
     def _load_initial_config(self):
         raw_config = self._load_config()
+        extra_safety = self._load_optional_config(PROJECT_ROOT / "config" / "anti_replication.toml")
+        if extra_safety:
+            self._deep_merge(raw_config, extra_safety)
         base_llm = raw_config.get("llm", {})
         llm_overrides = {
             k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
@@ -1523,6 +1584,12 @@ class Config:
         else:
             resilience_settings = ResilienceSettings()
 
+        safety_config = raw_config.get("safety", {})
+        if safety_config:
+            safety_settings = SafetySettings(**safety_config)
+        else:
+            safety_settings = SafetySettings()
+
         # Load LLM API configuration
         llm_api_config = raw_config.get("llm_api", {})
         if llm_api_config:
@@ -1563,6 +1630,7 @@ class Config:
             "quality_assurance_config": quality_assurance_settings,
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
+            "safety_config": safety_settings,
             "acl_config": acl_settings,
             "guardian_config": guardian_settings,
             "guardian_validation_config": guardian_validation_settings,
@@ -1679,6 +1747,11 @@ class Config:
     def monitoring(self) -> MonitoringSettings:
         """Get the monitoring configuration"""
         return self._config.monitoring_config
+
+    @property
+    def safety(self) -> SafetySettings:
+        """Get the safety configuration"""
+        return self._config.safety_config
 
     @property
     def network(self) -> NetworkSettings:
