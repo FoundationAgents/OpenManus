@@ -19,6 +19,7 @@ from app.backup.backup_scheduler import backup_scheduler
 from app.versioning.versioning_service import versioning_service
 from app.versioning.snapshot_manager import snapshot_manager
 from app.resources.catalog import resource_catalog
+from app.agents.pool_service import pool_service
 from .event_bus import EventBus
 from .service_registry import ServiceRegistry
 
@@ -50,6 +51,7 @@ class SystemIntegrationService:
         self.service_registry.register("versioning", versioning_service)
         self.service_registry.register("snapshot_manager", snapshot_manager)
         self.service_registry.register("resource_catalog", resource_catalog)
+        self.service_registry.register("pool_service", pool_service)
         self.service_registry.register("event_bus", self.event_bus)
     
     def _setup_event_handlers(self):
@@ -69,6 +71,13 @@ class SystemIntegrationService:
         # Knowledge graph events
         self.event_bus.subscribe("knowledge.node_added", self._handle_node_added)
         self.event_bus.subscribe("knowledge.relationship_added", self._handle_relationship_added)
+        
+        # Pool events
+        self.event_bus.subscribe("pool_created", self._handle_pool_created)
+        self.event_bus.subscribe("pool_suspended", self._handle_pool_suspended)
+        self.event_bus.subscribe("pool_resumed", self._handle_pool_resumed)
+        self.event_bus.subscribe("pool_overloaded", self._handle_pool_overloaded)
+        self.event_bus.subscribe("task_assigned", self._handle_task_assigned)
         
         # System events
         self.event_bus.subscribe("system.startup", self._handle_system_startup)
@@ -93,6 +102,9 @@ class SystemIntegrationService:
             await snapshot_manager.initialize()
             await backup_scheduler.start()
             await resource_catalog.initialize()
+            
+            # Initialize pool manager
+            await pool_service.initialize(database_service, self.event_bus)
             
             # Start event processing
             await self.event_bus.start()
@@ -124,6 +136,7 @@ class SystemIntegrationService:
             self._running = False
             
             # Stop services in reverse order
+            await pool_service.shutdown()
             await backup_scheduler.stop()
             await snapshot_manager.stop()
             await resource_catalog.shutdown()
@@ -347,6 +360,48 @@ class SystemIntegrationService:
             
         except Exception as e:
             logger.error(f"Error handling system startup event: {e}")
+    
+    async def _handle_pool_created(self, event_data: Dict[str, Any]):
+        """Handle pool creation events"""
+        try:
+            logger.info(f"Pool created: {event_data}")
+            
+        except Exception as e:
+            logger.error(f"Error handling pool created event: {e}")
+    
+    async def _handle_pool_suspended(self, event_data: Dict[str, Any]):
+        """Handle pool suspension events"""
+        try:
+            logger.warning(f"Pool suspended: {event_data}")
+            
+        except Exception as e:
+            logger.error(f"Error handling pool suspended event: {e}")
+    
+    async def _handle_pool_resumed(self, event_data: Dict[str, Any]):
+        """Handle pool resumption events"""
+        try:
+            logger.info(f"Pool resumed: {event_data}")
+            
+        except Exception as e:
+            logger.error(f"Error handling pool resumed event: {e}")
+    
+    async def _handle_pool_overloaded(self, event_data: Dict[str, Any]):
+        """Handle pool overload events"""
+        try:
+            logger.warning(f"Pool overloaded: {event_data}")
+            
+            # Could trigger auto-scaling, load rebalancing, etc.
+            
+        except Exception as e:
+            logger.error(f"Error handling pool overloaded event: {e}")
+    
+    async def _handle_task_assigned(self, event_data: Dict[str, Any]):
+        """Handle task assignment events"""
+        try:
+            logger.debug(f"Task assigned: {event_data}")
+            
+        except Exception as e:
+            logger.error(f"Error handling task assigned event: {e}")
     
     async def _handle_system_shutdown(self, event_data: Dict[str, Any]):
         """Handle system shutdown events"""

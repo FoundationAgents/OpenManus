@@ -1,8 +1,8 @@
 """
 Agent Resilience and Management System
 
-Provides monitoring, health checking, and automatic replacement
-for agents in the multi-agent environment.
+Provides monitoring, health checking, automatic replacement,
+and pool management for agents in the multi-agent environment.
 """
 
 from .resilience import (
@@ -15,6 +15,16 @@ from .resilience import (
     AgentFactory
 )
 
+from .pool_manager import (
+    PoolManager,
+    TaskAssignment,
+    PoolMetrics,
+    PoolAgent,
+    LoadBalancingStrategy,
+    TaskComplexity,
+    get_pool_manager
+)
+
 __all__ = [
     "AgentHealthMonitor",
     "AgentResilienceManager", 
@@ -22,5 +32,12 @@ __all__ = [
     "HealthStatus",
     "ResilienceEvent",
     "ResilienceConfig",
-    "AgentFactory"
+    "AgentFactory",
+    "PoolManager",
+    "TaskAssignment",
+    "PoolMetrics",
+    "PoolAgent",
+    "LoadBalancingStrategy",
+    "TaskComplexity",
+    "get_pool_manager"
 ]
