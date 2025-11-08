@@ -163,9 +163,9 @@ class BaseAgent(BaseModel, ABC):  # ABC：用于规范子类行为，例如step(
 
                 results.append(f"Step {self.current_step}: {step_result}")
 
+            self.state = AgentState.IDLE
             if self.current_step >= self.max_steps:
                 self.current_step = 0
-                self.state = AgentState.IDLE
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"
