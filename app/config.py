@@ -375,6 +375,43 @@ class UISettings(BaseModel):
     auto_save: bool = Field(True, description="Auto-save conversations")
 
 
+class VectorStoreSettings(BaseModel):
+    """Configuration for vector store (embeddings)"""
+    
+    vector_store_type: str = Field("faiss", description="Type of vector store: faiss or milvus")
+    vector_dimension: int = Field(1536, description="Dimension of embeddings")
+    index_type: str = Field("IVFFlat", description="FAISS index type")
+    nprobe: int = Field(10, description="FAISS nprobe parameter")
+    use_gpu: bool = Field(False, description="Use GPU for FAISS operations")
+    persistence_path: str = Field("data/vectors", description="Path to persist vector store")
+
+
+class EmbeddingSettings(BaseModel):
+    """Configuration for embedding generation"""
+    
+    provider: str = Field("anthropic", description="Embedding provider: anthropic or openai")
+    model: str = Field("claude-3-5-sonnet-20241022", description="Embedding model name")
+    fallback_provider: str = Field("openai", description="Fallback provider if primary fails")
+    fallback_model: str = Field("text-embedding-3-small", description="Fallback embedding model")
+    batch_size: int = Field(10, description="Batch size for embedding requests")
+    rate_limit_rpm: int = Field(3000, description="Requests per minute rate limit")
+    cache_embeddings: bool = Field(True, description="Cache embeddings in memory")
+    cache_max_size: int = Field(10000, description="Maximum cached embeddings")
+
+
+class KnowledgeGraphSettings(BaseModel):
+    """Configuration for knowledge graph"""
+    
+    enable_knowledge_graph: bool = Field(True, description="Enable knowledge graph")
+    storage_path: str = Field("data/knowledge_graph", description="Path for graph storage")
+    db_type: str = Field("sqlite", description="Database type: sqlite or postgresql")
+    persistence_enabled: bool = Field(True, description="Enable graph persistence")
+    max_nodes: Optional[int] = Field(None, description="Maximum nodes in graph (None for unlimited)")
+    enable_versioning: bool = Field(True, description="Enable version tracking for nodes")
+    auto_vacuum: bool = Field(True, description="Enable SQLite auto-vacuum")
+    vacuum_interval_seconds: int = Field(3600, description="Auto-vacuum interval in seconds")
+
+
 class MCPServerConfig(BaseModel):
     """Configuration for a single MCP server"""
 
@@ -475,6 +512,15 @@ class AppConfig(BaseModel):
     )
     monitoring_config: Optional[MonitoringSettings] = Field(
         None, description="Monitoring configuration"
+    )
+    vector_store_config: Optional[VectorStoreSettings] = Field(
+        None, description="Vector store configuration"
+    )
+    embedding_config: Optional[EmbeddingSettings] = Field(
+        None, description="Embedding generation configuration"
+    )
+    knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
+        None, description="Knowledge graph configuration"
     )
 
     class Config:
@@ -675,6 +721,24 @@ class Config:
         else:
             monitoring_settings = MonitoringSettings()
 
+        vector_store_config = raw_config.get("vector_store", {})
+        if vector_store_config:
+            vector_store_settings = VectorStoreSettings(**vector_store_config)
+        else:
+            vector_store_settings = VectorStoreSettings()
+
+        embedding_config = raw_config.get("embedding", {})
+        if embedding_config:
+            embedding_settings = EmbeddingSettings(**embedding_config)
+        else:
+            embedding_settings = EmbeddingSettings()
+
+        knowledge_graph_config = raw_config.get("knowledge_graph", {})
+        if knowledge_graph_config:
+            knowledge_graph_settings = KnowledgeGraphSettings(**knowledge_graph_config)
+        else:
+            knowledge_graph_settings = KnowledgeGraphSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -701,6 +765,9 @@ class Config:
             "quality_assurance_config": quality_assurance_settings,
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
+            "vector_store_config": vector_store_settings,
+            "embedding_config": embedding_settings,
+            "knowledge_graph_config": knowledge_graph_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -804,6 +871,21 @@ class Config:
     def monitoring(self) -> MonitoringSettings:
         """Get the monitoring configuration"""
         return self._config.monitoring_config
+
+    @property
+    def vector_store(self) -> VectorStoreSettings:
+        """Get the vector store configuration"""
+        return self._config.vector_store_config
+
+    @property
+    def embedding(self) -> EmbeddingSettings:
+        """Get the embedding generation configuration"""
+        return self._config.embedding_config
+
+    @property
+    def knowledge_graph(self) -> KnowledgeGraphSettings:
+        """Get the knowledge graph configuration"""
+        return self._config.knowledge_graph_config
 
 
 config = Config()
