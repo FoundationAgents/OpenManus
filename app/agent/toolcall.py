@@ -1,10 +1,11 @@
 import asyncio
 import json
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
 from app.agent.react import ReActAgent
+from app.config import config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
@@ -178,7 +179,11 @@ class ToolCallAgent(ReActAgent):
 
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
-            result = await self.available_tools.execute(name=name, tool_input=args)
+            result = await self.available_tools.execute(
+                name=name,
+                tool_input=args,
+                context=self._build_tool_context(),
+            )
 
             # Handle special tools
             await self._handle_special_tool(name=name, result=result)
