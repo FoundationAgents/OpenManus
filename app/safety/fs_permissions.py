@@ -20,17 +20,17 @@ class FilePermissionMatrix:
 
 DEFAULT_MATRIX = FilePermissionMatrix(
     read_only_paths=[
-        Path("/openmanus/app/agent"),
-        Path("/openmanus/app/safety"),
-        Path("/openmanus/app/core"),
+        Path("/ixlinx-agent/app/agent"),
+        Path("/ixlinx-agent/app/safety"),
+        Path("/ixlinx-agent/app/core"),
     ],
     writable_paths=[
-        Path("/openmanus/data"),
-        Path("/openmanus/logs"),
-        Path("/openmanus/cache"),
+        Path("/ixlinx-agent/data"),
+        Path("/ixlinx-agent/logs"),
+        Path("/ixlinx-agent/cache"),
     ],
     forbidden_paths=[
-        Path("/openmanus/system"),
+        Path("/ixlinx-agent/system"),
     ],
 )
 

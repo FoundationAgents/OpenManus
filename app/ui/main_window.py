@@ -469,7 +469,7 @@ def run_gui():
         return
         
     app = QApplication(sys.argv)
-    app.setApplicationName("OpenManus IDE")
+    app.setApplicationName("iXlinx Agent IDE")
     app.setApplicationVersion("1.0.0")
     
     window = MainWindow()

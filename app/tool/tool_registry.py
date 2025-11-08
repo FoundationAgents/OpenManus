@@ -1,6 +1,6 @@
 """Tool registry initialization for MCP compatibility.
 
-This module initializes and registers all OpenManus tools as MCP-compatible,
+This module initializes and registers all iXlinx Agent tools as MCP-compatible,
 ensuring they can be used both locally and through MCP servers.
 """
 

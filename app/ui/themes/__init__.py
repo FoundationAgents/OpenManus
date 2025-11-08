@@ -1,5 +1,5 @@
 """
-Theme Engine for OpenManus IDE.
+Theme Engine for iXlinx Agent IDE.
 
 Provides built-in and custom themes for the application.
 """

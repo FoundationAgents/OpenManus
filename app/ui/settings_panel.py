@@ -306,7 +306,7 @@ class SettingsPanel(QWidget):
         
         try:
             # Save state
-            config_dir = Path.home() / ".openmanus"
+            config_dir = Path.home() / ".ixlinx-agent"
             config_dir.mkdir(parents=True, exist_ok=True)
             
             state_file = config_dir / "state.json"

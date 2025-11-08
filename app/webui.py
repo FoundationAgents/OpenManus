@@ -1,5 +1,5 @@
 """
-Web UI module for the OpenManus agent framework.
+Web UI module for the iXlinx Agent framework.
 Provides a modern web interface using FastAPI and WebSockets.
 """
 
@@ -732,7 +732,7 @@ class WebUI:
             
             ws.onopen = function() {
                 updateStatus(true);
-                addMessage('system', 'Connected to OpenManus server');
+                addMessage('system', 'Connected to iXlinx Agent server');
                 loadProcesses();
                 loadFiles();
             };

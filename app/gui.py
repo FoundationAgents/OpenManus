@@ -1,5 +1,5 @@
 """
-PyQt6 GUI interface for the OpenManus agent framework.
+PyQt6 GUI interface for the iXlinx Agent framework.
 Provides a modern IDE-style interface with multi-pane layout.
 """
 
@@ -25,7 +25,7 @@ def run_gui():
     from app.ui.main_window import MainWindow
     
     app = QApplication(sys.argv)
-    app.setApplicationName("OpenManus IDE")
+    app.setApplicationName("iXlinx Agent IDE")
     app.setApplicationVersion("1.0.0")
     
     window = MainWindow()

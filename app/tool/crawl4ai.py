@@ -1,5 +1,5 @@
 """
-Crawl4AI Web Crawler Tool for OpenManus
+Crawl4AI Web Crawler Tool for iXlinx Agent
 
 This tool integrates Crawl4AI, a high-performance web crawler designed for LLMs and AI agents,
 providing fast, precise, and AI-ready data extraction with clean Markdown generation.

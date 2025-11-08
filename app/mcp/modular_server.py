@@ -20,7 +20,7 @@ class ModularMCPServer:
         self.transport = transport
         self.services: Dict[str, any] = {}
         self.server_info = {
-            "name": "openmanus",
+            "name": "ixlinx-agent",
             "version": "1.0.0",
             "transport": transport,
             "services": {},

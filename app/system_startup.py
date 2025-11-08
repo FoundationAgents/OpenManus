@@ -151,7 +151,7 @@ class SystemApplication:
         try:
             # Create Qt application
             self.qt_app = QApplication(sys.argv)
-            self.qt_app.setApplicationName("OpenManus IDE")
+            self.qt_app.setApplicationName("iXlinx Agent IDE")
             self.qt_app.setApplicationVersion("1.0.0")
             
             # Create main window

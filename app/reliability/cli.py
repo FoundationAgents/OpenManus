@@ -243,7 +243,7 @@ def main():
     cli = ReliabilityCLI()
 
     if len(sys.argv) < 2:
-        print("OpenManus Reliability CLI")
+        print("iXlinx Agent Reliability CLI")
         print("\nUsage: python -m app.reliability.cli <command> [options]")
         print("\nCommands:")
         print("  health              - Show system health status")

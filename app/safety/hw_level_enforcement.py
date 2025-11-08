@@ -48,7 +48,7 @@ DEFAULT_CONSTRAINTS: Dict[Platform, Constraint] = {
     Platform.WINDOWS: Constraint(
         allowed_file_roots=[Path("data"), Path("logs"), Path("cache")],
         read_only_roots=[Path("app")],
-        allowed_network_endpoints=["monitor.openmanus.local"],
+        allowed_network_endpoints=["monitor.ixlinx-agent.local"],
         max_memory_mb=1024,
         allow_child_processes=False,
         sandbox_escape_allowed=False,
@@ -56,14 +56,14 @@ DEFAULT_CONSTRAINTS: Dict[Platform, Constraint] = {
     ),
     Platform.LINUX: Constraint(
         allowed_file_roots=[Path("data"), Path("logs"), Path("cache")],
-        read_only_roots=[Path("/"), Path("/openmanus/app"), Path("/openmanus/app/safety")],
-        allowed_network_endpoints=["monitor.openmanus.local"],
+        read_only_roots=[Path("/"), Path("/ixlinx-agent/app"), Path("/ixlinx-agent/app/safety")],
+        allowed_network_endpoints=["monitor.ixlinx-agent.local"],
         max_memory_mb=1024,
     ),
     Platform.MACOS: Constraint(
         allowed_file_roots=[Path("data"), Path("logs"), Path("cache")],
-        read_only_roots=[Path("/Applications/OpenManus.app")],
-        allowed_network_endpoints=["monitor.openmanus.local"],
+        read_only_roots=[Path("/Applications/iXlinx-Agent.app")],
+        allowed_network_endpoints=["monitor.ixlinx-agent.local"],
         max_memory_mb=1024,
     ),
 }

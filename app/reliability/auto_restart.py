@@ -189,7 +189,7 @@ class AutoRestartService:
 class ServiceManager:
     """Windows Service management"""
 
-    SERVICE_NAME = "openmanus"
+    SERVICE_NAME = "ixlinx-agent"
 
     @staticmethod
     def install_service(script_path: str) -> bool:

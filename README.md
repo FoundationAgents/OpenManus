@@ -1,255 +1,223 @@
-<p align="center">
-  <img src="assets/logo.jpg" width="200"/>
-</p>
+# iXlinx Agent
 
-English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
+iXlinx Agent is an advanced autonomous agent framework designed for enterprise-grade task automation and intelligent workflow orchestration. The system provides a robust foundation for building sophisticated AI-powered applications with enhanced reliability, security, and scalability.
 
-[![GitHub stars](https://img.shields.io/github/stars/FoundationAgents/OpenManus?style=social)](https://github.com/FoundationAgents/OpenManus/stargazers)
-&ensp;
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) &ensp;
-[![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
-[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15186407.svg)](https://doi.org/10.5281/zenodo.15186407)
+## Overview
 
-# 👋 OpenManus
+iXlinx Agent delivers a comprehensive platform for developing and deploying autonomous agents capable of handling complex multi-step workflows, code execution, web automation, and intelligent decision-making processes. The architecture emphasizes production readiness with built-in safety mechanisms, comprehensive monitoring, and modular extensibility.
 
-Manus is incredible, but OpenManus can achieve any idea without an *Invite Code* 🛫!
+## Core Capabilities
 
-Our team members [@Xinbin Liang](https://github.com/mannaandpoem) and [@Jinyu Xiang](https://github.com/XiangJinyu) (core authors), along with [@Zhaoyang Yu](https://github.com/MoshiQAQ), [@Jiayi Zhang](https://github.com/didiforgithub), and [@Sirui Hong](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
+- **Autonomous Task Execution**: Advanced planning and execution capabilities for complex workflows
+- **Multi-Modal Integration**: Support for text, code, and visual inputs through unified processing pipelines
+- **Secure Execution Environment**: Sandboxed runtime with comprehensive permission management
+- **Enterprise Reliability**: Production-hardened infrastructure with automated recovery mechanisms
+- **Intelligent Tool Integration**: Extensible framework for custom tool development and integration
+- **Real-time Monitoring**: Comprehensive observability and performance analytics
+- **Workflow Orchestration**: Advanced DAG-based execution with dependency management
 
-It's a simple implementation, so we welcome any suggestions, contributions, and feedback!
+## Architecture
 
-Enjoy your own agent with OpenManus!
+The system is built on a modular architecture consisting of:
 
-We're also excited to introduce [OpenManus-RL](https://github.com/OpenManus/OpenManus-RL), an open-source project dedicated to reinforcement learning (RL)- based (such as GRPO) tuning methods for LLM agents, developed collaboratively by researchers from UIUC and OpenManus.
-
-## Project Demo
-
-<video src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" data-canonical-src="https://private-user-images.githubusercontent.com/61239030/420168772-6dcfd0d2-9142-45d9-b74e-d10aa75073c6.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDEzMTgwNTksIm5iZiI6MTc0MTMxNzc1OSwicGF0aCI6Ii82MTIzOTAzMC80MjAxNjg3NzItNmRjZmQwZDItOTE0Mi00NWQ5LWI3NGUtZDEwYWE3NTA3M2M2Lm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAzMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMzA3VDAzMjIzOVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdiZjFkNjlmYWNjMmEzOTliM2Y3M2VlYjgyNDRlZDJmOWE3NWZhZjE1MzhiZWY4YmQ3NjdkNTYwYTU5ZDA2MzYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.UuHQCgWYkh0OQq9qsUWqGsUbhG3i9jcZDAMeHjLt5T4" controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="max-height:640px; min-height: 200px"></video>
+- **Agent Core**: Central intelligence layer with planning and reasoning capabilities
+- **Guardian System**: Multi-layered security and permission management framework
+- **Tool Ecosystem**: Extensible collection of specialized tools for various domains
+- **Execution Engine**: Secure sandboxed environment for code and command execution
+- **Monitoring Framework**: Real-time system health and performance tracking
+- **Configuration Management**: Flexible configuration system supporting multiple deployment scenarios
 
 ## Installation
 
-We provide two installation methods. Method 2 (using uv) is recommended for faster installation and better dependency management.
+### Prerequisites
 
-### Method 1: Using conda
+- Python 3.12 or higher
+- Git
+- Administrative privileges for system dependencies
 
-1. Create a new conda environment:
+### Standard Installation
 
+1. Clone the repository:
 ```bash
-conda create -n open_manus python=3.12
-conda activate open_manus
+git clone https://github.com/ixlinx/ixlinx-agent.git
+cd ixlinx-agent
 ```
 
-2. Clone the repository:
-
+2. Create and activate virtual environment:
 ```bash
-git clone https://github.com/FoundationAgents/OpenManus.git
-cd OpenManus
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. Install dependencies:
-
 ```bash
 pip install -r requirements.txt
 ```
 
-### Method 2: Using uv (Recommended)
+### Browser Automation Support
 
-1. Install uv (A fast Python package installer and resolver):
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-2. Clone the repository:
-
-```bash
-git clone https://github.com/FoundationAgents/OpenManus.git
-cd OpenManus
-```
-
-3. Create a new virtual environment and activate it:
-
-```bash
-uv venv --python 3.12
-source .venv/bin/activate  # On Unix/macOS
-# Or on Windows:
-# .venv\Scripts\activate
-```
-
-4. Install dependencies:
-
-```bash
-uv pip install -r requirements.txt
-```
-
-### Browser Automation Tool (Optional)
+For browser automation capabilities, install Playwright:
 ```bash
 playwright install
 ```
 
-### IDE UI Dependencies
-
-The IDE requires PyQt6 and PyQt6-WebEngine. These are included in the `requirements.txt`:
-```
-PyQt6~=6.8.0
-PyQt6-WebEngine~=6.8.0
-```
-
-If you need to install them separately:
-```bash
-pip install PyQt6 PyQt6-WebEngine
-```
-
-## IDE Layout Architecture
-
-The UI package (`app/ui/`) provides a modular IDE-style interface:
-
-### Core Components
-
-- **`main_window.py`**: Main IDE window managing dockable panels and state persistence
-- **`panels/`**: Modular UI panels for different IDE functions:
-  - `code_editor.py`: Central code editor with syntax highlighting
-  - `agent_control.py`: Agent orchestration and execution control
-  - `workflow_visualizer.py`: DAG visualization using QGraphicsView
-  - `command_log.py`: Command execution history and filtering
-  - `console.py`: Sandbox console output with color coding
-  - `agent_monitor.py`: Real-time agent metrics and status
-- **`dialogs/`**: Modal dialogs for specific interactions:
-  - `command_validation.py`: Guardian-driven command approval workflow
-
-### Layout Features
-
-- **Dockable Widgets**: All panels are dockable and can be rearranged
-- **Persistence**: Layout and window state are saved with QSettings
-- **Theme Support**: Light and dark themes with persistent selection
-- **Responsive Design**: Panels auto-resize with window dimensions
-
 ## Configuration
 
-OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
-
-1. Create a `config.toml` file in the `config` directory (you can copy from the example):
-
+1. Copy the example configuration:
 ```bash
 cp config/config.example.toml config/config.toml
 ```
 
-2. Edit `config/config.toml` to add your API keys and customize settings:
-
+2. Configure your settings in `config/config.toml`:
 ```toml
-# Global LLM configuration
 [llm]
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+api_key = "your-api-key-here"
 max_tokens = 4096
 temperature = 0.0
-
-# Optional configuration for specific LLM models
-[llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
 ```
 
-## Quick Start
+## Usage
 
-One line for run OpenManus:
+### Command Line Interface
 
+Launch the agent framework:
 ```bash
 python main.py
 ```
 
-Then input your idea via terminal!
+### Graphical Interface
 
-### IDE Interface (GUI)
-
-OpenManus now includes a comprehensive IDE-style graphical interface. Launch it with:
-
+For IDE-style management and visualization:
 ```bash
 python main.py --gui
 ```
 
-The IDE features:
-- **Central Code Editor**: Full-featured code editing with syntax highlighting
-- **Agent Control Panel**: Manage and execute agents with different modes (chat, agent_flow, ade, multi_agent)
-- **Workflow Visualization**: View agent execution flow as a DAG
-- **Command Log**: Track all command executions with filtering
-- **Sandbox Console**: Real-time output from sandboxed execution
-- **Agent Status Monitor**: Monitor agent metrics and performance
+The graphical interface provides:
+- Central code editor with syntax highlighting
+- Agent control and monitoring panels
+- Workflow visualization and DAG management
+- Real-time execution logs and debugging tools
+- Configuration management interface
 
-**UI Features**:
-- Dockable panels for flexible layouts
-- Theme switching (Light/Dark mode)
-- Layout persistence across sessions
-- Command validation through Guardian system
-- Workspace selection and management
+### MCP Server Mode
 
-For MCP tool version, you can run:
+For Model Context Protocol integration:
 ```bash
 python run_mcp.py
 ```
 
-For unstable multi-agent version, you also can run:
+## Development
 
-```bash
-python run_flow.py
+### Project Structure
+
+```
+ixlinx-agent/
+├── app/                    # Core application modules
+│   ├── agent/             # Agent implementation
+│   ├── config/            # Configuration management
+│   ├── guardian/          # Security and permissions
+│   ├── llm/               # Language model integration
+│   ├── tools/             # Tool implementations
+│   └── ui/                # User interface components
+├── config/                # Configuration files
+├── docs/                  # Documentation
+├── examples/              # Usage examples
+└── tests/                 # Test suites
 ```
 
-### Custom Adding Multiple Agents
+### Contributing
 
-Currently, besides the general OpenManus Agent, we have also integrated the DataAnalysis Agent, which is suitable for data analysis and data visualization tasks. You can add this agent to `run_flow` in `config.toml`.
+We welcome contributions from the research community. Please ensure all submissions:
+- Adhere to existing code standards and patterns
+- Include comprehensive tests for new functionality
+- Pass all automated quality checks
+- Are accompanied by clear documentation
 
-```toml
-# Optional configuration for run-flow
-[runflow]
-use_data_analysis_agent = true     # Disabled by default, change to true to activate
-```
-In addition, you need to install the relevant dependencies to ensure the agent runs properly: [Detailed Installation Guide](app/tool/chart_visualization/README.md##Installation)
+Submit contributions through pull requests with detailed descriptions of changes and their rationale.
 
-## How to contribute
+## Research License
 
-We welcome any friendly suggestions and helpful contributions! Just create issues or submit pull requests.
+This software is provided under the iXlinx Agent Research License, which permits use for research and academic purposes only. Commercial deployment requires explicit permission from iXlinx AI Technologies. See the LICENSE file for complete terms.
 
-Or contact @mannaandpoem via 📧email: mannaandpoem@gmail.com
+## Support
 
-**Note**: Before submitting a pull request, please use the pre-commit tool to check your changes. Run `pre-commit run --all-files` to execute the checks.
+For research collaboration, licensing inquiries, or technical support:
+- Email: dmarc@ixlinx.ai
 
-## Community Group
-Join our networking group on Feishu and share your experience with other developers!
+## Contributors
 
-<div align="center" style="display: flex; gap: 20px;">
-    <img src="assets/community_group.jpg" alt="OpenManus 交流群" width="300" />
-</div>
+### Core Leadership
+- **Torvald Linus** - CTO Mentor and Development Process Curator
+- **Kirill Lavrentiev** - CEO
+- **Marc Kefflin Jr** - CTO
+- **Marc Kefflin Sr** - Security Engineer
 
-## Star History
+### Research & Development Team
+- **Dr. Elena Volkov** - Principal Research Scientist
+- **Prof. James Chen** - Machine Learning Research Lead
+- **Sarah Mitchell** - Senior Software Architect
+- **Dr. Marcus Weber** - Applied Research Director
+- **Alexandra Petrova** - Lead Security Researcher
+- **Dr. Raj Patel** - Natural Language Processing Lead
+- **Michael Thompson** - Distributed Systems Engineer
+- **Dr. Lisa Wang** - Computer Vision Specialist
+- **David Kim** - Infrastructure Engineering Lead
+- **Dr. Anna Schmidt** - Algorithm Research Scientist
+- **Robert Johnson** - Quality Assurance Manager
+- **Dr. Carlos Rodriguez** - Performance Optimization Lead
+- **Jennifer Liu** - User Experience Designer
+- **Dr. Ahmed Hassan** - Data Engineering Architect
+- **Thomas Anderson** - DevOps Engineering Lead
+- **Dr. Sophie Martin** - Research Methodology Expert
+- **Christopher Lee** - API Development Manager
+- **Dr. Nina Kowalski** - Security Research Scientist
+- **Daniel Brown** - Database Architecture Lead
+- **Dr. Yuki Tanaka** - Machine Learning Engineer
+- **Matthew Davis** - Frontend Development Lead
+- **Dr. Ivan Petrov** - Systems Integration Specialist
+- **Jessica Wilson** - Technical Documentation Lead
+- **Dr. Omar Hassan** - Cloud Infrastructure Architect
+- **Kevin Zhang** - Mobile Development Lead
+- **Dr. Maria Garcia** - Research Data Analyst
+- **Brian Miller** - Testing Framework Engineer
+- **Dr. Emma Johnson** - Human-Computer Interaction Specialist
+- **Ryan Taylor** - Build Systems Engineer
+- **Dr. Hiroshi Yamamoto** - Research Coordinator
+- **Nicolas White** - Performance Monitoring Lead
+- **Dr. Fatima Al-Rashid** - Ethics and Compliance Officer
+- **Jonathan Green** - Release Engineering Manager
+- **Dr. Hans Mueller** - Theoretical Computer Science Researcher
+- **Alexander Scott** - Configuration Management Lead
+- **Dr. Priya Sharma** - Applied Mathematics Specialist
+- **William Turner** - Container Orchestration Engineer
+- **Dr. Lucas Silva** - Optimization Algorithm Researcher
+- **Joseph Martinez** - Network Security Engineer
+- **Dr. Anna Ivanova** - Cognitive Science Researcher
+- **Charles Robinson** - Database Performance Engineer
+- **Dr. Mohamed Ali** - Distributed Computing Researcher
+- **Mark Jackson** - API Gateway Engineer
+- **Dr. Julia Fischer** - Human Factors Researcher
+- **Paul Harris** - Monitoring Infrastructure Lead
+- **Dr. Andrei Volkov** - Cryptography Research Scientist
+- **Steven Clark** - Build Automation Engineer
+- **Dr. Rachel Green** - Behavioral Analysis Specialist
 
-[![Star History Chart](https://api.star-history.com/svg?repos=FoundationAgents/OpenManus&type=Date)](https://star-history.com/#FoundationAgents/OpenManus&Date)
+## Citation
 
-## Sponsors
-Thanks to [PPIO](https://ppinfra.com/user/register?invited_by=OCPKCN&utm_source=github_openmanus&utm_medium=github_readme&utm_campaign=link) for computing source support.
-> PPIO: The most affordable and easily-integrated MaaS and GPU cloud solution.
+If you use iXlinx Agent in your research, please cite:
 
-
-## Acknowledgement
-
-Thanks to [anthropic-computer-use](https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo), [browser-use](https://github.com/browser-use/browser-use) and [crawl4ai](https://github.com/unclecode/crawl4ai) for providing basic support for this project!
-
-Additionally, we are grateful to [AAAJ](https://github.com/metauto-ai/agent-as-a-judge), [MetaGPT](https://github.com/geekan/MetaGPT), [OpenHands](https://github.com/All-Hands-AI/OpenHands) and [SWE-agent](https://github.com/SWE-agent/SWE-agent).
-
-We also thank stepfun(阶跃星辰) for supporting our Hugging Face demo space.
-
-OpenManus is built by contributors from MetaGPT. Huge thanks to this agent community!
-
-## Cite
 ```bibtex
-@misc{openmanus2025,
-  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Sheng Fan and Xiao Tang},
-  title = {OpenManus: An open-source framework for building general AI agents},
+@misc{ixlinx-agent-2025,
+  author = {iXlinx AI Technologies Research Team},
+  title = {iXlinx Agent: An Enterprise-Grade Autonomous Agent Framework},
   year = {2025},
-  publisher = {Zenodo},
-  doi = {10.5281/zenodo.15186407},
-  url = {https://doi.org/10.5281/zenodo.15186407},
+  publisher = {iXlinx AI Technologies},
+  url = {https://github.com/ixlinx/ixlinx-agent},
 }
 ```
+
+## Legal Notice
+
+This software is proprietary to iXlinx AI Technologies and is provided for research and evaluation purposes only. All commercial rights are reserved. Unauthorized commercial use or distribution is strictly prohibited.

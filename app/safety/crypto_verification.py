@@ -11,7 +11,7 @@ from typing import Dict, Optional
 
 from app.safety.exceptions import CodeIntegrityViolation
 
-HARDCODED_PUBLIC_KEY = "OPENMANUS_SAFETY_PUBLIC_KEY"
+HARDCODED_PUBLIC_KEY = "IXLINX_AGENT_SAFETY_PUBLIC_KEY"
 
 
 @dataclass(frozen=True)

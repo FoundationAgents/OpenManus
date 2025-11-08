@@ -1,5 +1,5 @@
 """
-Built-in themes for OpenManus IDE.
+Built-in themes for iXlinx Agent IDE.
 """
 
 from .theme_manager import Theme

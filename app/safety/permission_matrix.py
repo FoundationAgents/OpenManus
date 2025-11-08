@@ -19,7 +19,7 @@ ALLOWED_OPERATIONS: Tuple[Permission, ...] = (
     ("write", "cache"),
     ("execute", "approved_commands"),
     ("access", "approved_services"),
-    ("call", "openmanus_components_read_only"),
+    ("call", "ixlinx_agent_components_read_only"),
 )
 
 BLOCKED_OPERATIONS: Tuple[Permission, ...] = (

@@ -5,9 +5,9 @@ class ToolError(Exception):
         self.message = message
 
 
-class OpenManusError(Exception):
-    """Base exception for all OpenManus errors"""
+class IXlinxAgentError(Exception):
+    """Base exception for all iXlinx Agent errors"""
 
 
-class TokenLimitExceeded(OpenManusError):
+class TokenLimitExceeded(IXlinxAgentError):
     """Exception raised when the token limit is exceeded"""

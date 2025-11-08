@@ -14,7 +14,7 @@ from app.mcp.modular_server import ModularMCPServer
 class MCPServer:
     """Legacy MCP Server class - redirects to modular implementation."""
     
-    def __init__(self, name: str = "openmanus"):
+    def __init__(self, name: str = "ixlinx-agent"):
         logger.warning("MCPServer is deprecated, use ModularMCPServer instead")
         self.modular_server = ModularMCPServer()
         self.name = name
@@ -29,7 +29,7 @@ class MCPServer:
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="OpenManus Legacy MCP Server")
+    parser = argparse.ArgumentParser(description="iXlinx Agent Legacy MCP Server")
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse"],

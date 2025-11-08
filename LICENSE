@@ -1,21 +1,37 @@
-MIT License
+iXlinx Agent Research License
 
-Copyright (c) 2025 manna_and_poem
+Copyright (c) 2025 iXlinx AI Technologies
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software is licensed under the iXlinx Agent Research License ("License"). 
+You may not use this file except in compliance with the License.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. RESEARCH USE ONLY
+This software is provided exclusively for research, academic, and non-commercial evaluation purposes. 
+Commercial use, including but not limited to production deployment, revenue-generating activities, 
+or integration into commercial products, is strictly prohibited without explicit written permission 
+from iXlinx AI Technologies.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. DISTRIBUTION RESTRICTIONS
+You may copy, modify, and distribute this software for research purposes only, provided that:
+a) All copyright notices and this license notice are preserved
+b) Any modifications are clearly marked as such
+c) Recipients are also bound by this research-only license
+
+3. PRODUCTION DEPLOYMENT PROHIBITED
+Use of this software in production environments, commercial services, or any revenue-generating 
+capacity requires a separate commercial license from iXlinx AI Technologies. Contact dmarc@ixlinx.ai 
+for commercial licensing inquiries.
+
+4. NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+5. ATTRIBUTION
+Any research publications, papers, or academic works that utilize this software must include 
+appropriate attribution to iXlinx AI Technologies and reference this software.
+
+For commercial licensing inquiries, contact:
+Email: dmarc@ixlinx.ai

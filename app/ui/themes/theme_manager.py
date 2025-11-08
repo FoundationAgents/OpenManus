@@ -56,7 +56,7 @@ class ThemeManager:
     def __init__(self):
         self.themes: Dict[str, Theme] = {}
         self.current_theme: Optional[Theme] = None
-        self.themes_dir = Path.home() / ".openmanus" / "themes"
+        self.themes_dir = Path.home() / ".ixlinx-agent" / "themes"
         self.themes_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info("Theme manager initialized")

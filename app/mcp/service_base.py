@@ -13,7 +13,7 @@ from app.tool.base import BaseTool
 class MCPServiceBase(ABC):
     """Base class for MCP services."""
 
-    def __init__(self, name: str, namespace: str = "openmanus"):
+    def __init__(self, name: str, namespace: str = "ixlinx-agent"):
         self.name = name
         self.namespace = namespace
         self.server = FastMCP(f"{namespace}.{name}")
