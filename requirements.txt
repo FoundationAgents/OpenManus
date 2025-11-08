@@ -10,7 +10,7 @@ tiktoken~=0.9.0
 
 html2text~=2024.2.26
 gymnasium~=1.1.1
-pillow~=11.1.0
+pillow
 browsergym~=0.13.3
 uvicorn~=0.34.0
 unidiff~=0.7.5
@@ -49,3 +49,4 @@ psutil~=6.1.0
 subprocess32~=3.5.4;python_version<'3.3'
 pywin32>=306;sys_platform=='win32'
 wmi>=1.5.1;sys_platform=='win32'
+APScheduler~=3.10.4

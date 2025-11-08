@@ -400,6 +400,97 @@ class SpecializedAgent(BaseAgent):
         """Execute role-specific task logic"""
         pass
     
+    async def retrieve_knowledge(
+        self,
+        query: str,
+        top_k: int = 5,
+        strategy: str = "balanced"
+    ) -> List[Dict]:
+        """
+        Retrieve contextual knowledge using hybrid RAG.
+        
+        Args:
+            query: Search query
+            top_k: Number of results
+            strategy: Retrieval strategy
+        
+        Returns:
+            List of retrieved context items
+        """
+        try:
+            from app.memory import get_retriever_service
+            retriever_service = get_retriever_service()
+            
+            context = retriever_service.retrieve(
+                agent_id=self.name,
+                query=query,
+                top_k=top_k,
+                strategy=strategy
+            )
+            
+            self.add_thought(f"Retrieved {len(context.results)} knowledge items for: {query}")
+            
+            return [r.to_dict() for r in context.results]
+        except Exception as e:
+            logger.error(f"Knowledge retrieval failed: {str(e)}")
+            return []
+    
+    async def refine_knowledge(
+        self,
+        query: str,
+        max_iterations: int = 3,
+        strategy: str = "balanced"
+    ) -> List[List[Dict]]:
+        """
+        Iteratively refine knowledge retrieval.
+        
+        Args:
+            query: Initial query
+            max_iterations: Max refinement iterations
+            strategy: Retrieval strategy
+        
+        Returns:
+            List of retrieval results from each iteration
+        """
+        try:
+            from app.memory import get_retriever_service
+            retriever_service = get_retriever_service()
+            
+            contexts = retriever_service.retrieve_iterative(
+                agent_id=self.name,
+                query=query,
+                max_iterations=max_iterations,
+                strategy=strategy
+            )
+            
+            self.add_thought(
+                f"Refined knowledge through {len(contexts)} iterations, "
+                f"found {sum(len(c.results) for c in contexts)} total results"
+            )
+            
+            return [[r.to_dict() for r in c.results] for c in contexts]
+        except Exception as e:
+            logger.error(f"Knowledge refinement failed: {str(e)}")
+            return []
+    
+    def inject_context(self, context_items: List[Dict]) -> None:
+        """
+        Inject retrieved context into the agent's reasoning.
+        
+        Args:
+            context_items: Retrieved context items to inject
+        """
+        if context_items:
+            context_text = "\n".join([
+                f"- [{item['source']}] {item['content'][:100]}..."
+                for item in context_items[:5]
+            ])
+            
+            context_prompt = f"Consider the following context in your reasoning:\n{context_text}"
+            self.add_thought(f"Injecting {len(context_items)} context items into reasoning")
+            
+            self.update_memory("system", context_prompt)
+
     async def step(self) -> str:
         """Execute a single step in the agent's workflow"""
         # Check for new messages

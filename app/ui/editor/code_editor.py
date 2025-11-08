@@ -275,10 +275,28 @@ if PYQT6_AVAILABLE:
                 return False
             
             try:
+                content = self.get_content()
                 with open(self.file_path, 'w', encoding='utf-8') as f:
-                    f.write(self.get_content())
+                    f.write(content)
                 self._modified = False
-                self._last_saved_content = self.get_content()
+                self._last_saved_content = content
+                
+                # Create version if versioning is enabled
+                try:
+                    from app.storage.service import get_versioning_service
+                    versioning_service = get_versioning_service()
+                    versioning_service.on_file_save(
+                        self.file_path,
+                        content,
+                        agent="editor",
+                        reason="File saved from editor"
+                    )
+                except ImportError:
+                    # Versioning service not available
+                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to create version for {self.file_path}: {e}")
+                
                 logger.info(f"Saved file: {self.file_path}")
                 return True
             except Exception as e:
