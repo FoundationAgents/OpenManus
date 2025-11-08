@@ -1,0 +1,174 @@
+metadata:
+  name: Data Processing Pipeline
+  description: Example workflow demonstrating agents, tools, conditions, and retries
+  version: 1.0.0
+  author: Workflow System
+  tags:
+    - example
+    - data-processing
+    - multi-agent
+
+variables:
+  data_source: "database"
+  processing_mode: "batch"
+  max_retries: 3
+
+nodes:
+  # Initial data collection
+  - id: collect_data
+    type: agent
+    name: Data Collection Agent
+    description: Collect data from source
+    target: data_collector_agent
+    params:
+      source: $data_source
+      batch_size: 1000
+    retry_policy:
+      max_attempts: 3
+      backoff_factor: 2.0
+      initial_delay: 1.0
+      max_delay: 30.0
+    timeout: 300
+
+  # Data validation
+  - id: validate_data
+    type: tool
+    name: Data Validator
+    description: Validate collected data
+    target: validation_tool
+    depends_on:
+      - collect_data
+    params:
+      strict_mode: true
+      data: $node_collect_data_output
+    retry_policy:
+      max_attempts: 2
+      initial_delay: 0.5
+
+  # Quality check
+  - id: quality_check
+    type: agent
+    name: Quality Check Agent
+    description: Perform quality checks on data
+    target: quality_agent
+    depends_on:
+      - validate_data
+    params:
+      threshold: 0.95
+      data: $node_validate_data_output
+    condition:
+      expression: "node_validate_data_output.get('valid', False) == True"
+      context_vars:
+        - node_validate_data_output
+
+  # Parallel processing branches
+  - id: process_branch_1
+    type: agent
+    name: Processing Branch 1
+    description: First processing branch
+    target: processor_agent
+    depends_on:
+      - quality_check
+    params:
+      mode: "transform"
+      data: $node_quality_check_output
+    retry_policy:
+      max_attempts: 3
+      backoff_factor: 2.0
+      initial_delay: 2.0
+
+  - id: process_branch_2
+    type: agent
+    name: Processing Branch 2
+    description: Second processing branch
+    target: processor_agent
+    depends_on:
+      - quality_check
+    params:
+      mode: "enrich"
+      data: $node_quality_check_output
+    retry_policy:
+      max_attempts: 3
+      backoff_factor: 2.0
+      initial_delay: 2.0
+
+  # Loop processing
+  - id: batch_processor
+    type: agent
+    name: Batch Processor
+    description: Process items in batches
+    target: batch_agent
+    depends_on:
+      - quality_check
+    params:
+      batch_size: 100
+    loop:
+      type: foreach
+      items: node_quality_check_output.batches
+      max_iterations: 50
+      item_var: current_batch
+
+  # Merge results
+  - id: merge_results
+    type: tool
+    name: Result Merger
+    description: Merge results from all branches
+    target: merge_tool
+    depends_on:
+      - process_branch_1
+      - process_branch_2
+      - batch_processor
+    params:
+      branch_1: $node_process_branch_1_output
+      branch_2: $node_process_branch_2_output
+      batches: $node_batch_processor_output
+
+  # Final validation
+  - id: final_validation
+    type: agent
+    name: Final Validation Agent
+    description: Final validation before storage
+    target: validator_agent
+    depends_on:
+      - merge_results
+    params:
+      data: $node_merge_results_output
+    on_failure: stop
+
+  # Store results
+  - id: store_results
+    type: service
+    name: Storage Service
+    description: Store processed results
+    target: storage_service
+    depends_on:
+      - final_validation
+    params:
+      destination: "processed_data"
+      data: $node_final_validation_output
+    retry_policy:
+      max_attempts: 5
+      backoff_factor: 2.0
+      initial_delay: 1.0
+      max_delay: 60.0
+    timeout: 600
+
+  # Notification
+  - id: notify_completion
+    type: service
+    name: Notification Service
+    description: Send completion notification
+    target: notification_service
+    depends_on:
+      - store_results
+    params:
+      message: "Pipeline completed successfully"
+      recipients:
+        - admin
+    on_failure: continue
+
+start_node: collect_data
+end_nodes:
+  - notify_completion
+
+global_timeout: 3600
