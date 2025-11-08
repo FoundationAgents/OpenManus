@@ -1,0 +1,63 @@
+# LLM API Configuration
+# This file configures the OpenAI-compatible API integration
+
+[llm_api]
+# Primary endpoint (default: vibingfox, free, no API key)
+endpoint = "https://gpt4free.pro/v1/vibingfox/chat/completions"
+model = "claude-sonnet-4.5"
+
+# Optional: Use own API key if you have it
+# api_key = ""  # leave empty for free endpoints
+
+# Context and limits
+context_window = 8000
+max_tokens_per_request = 2000
+temperature = 0.7
+top_p = 0.9
+
+# Rate limiting (vibingfox has ~5 req/min free)
+max_requests_per_minute = 5
+request_timeout = 120
+
+# Health check settings
+enable_health_check = true
+health_check_interval = 300  # seconds (5 minutes)
+health_check_timeout = 10    # seconds
+
+# Fallback chain
+[[llm_api.fallbacks]]
+endpoint = "https://api.openai.com/v1/chat/completions"
+model = "gpt-4"
+priority = 2
+# api_key = "sk-..."  # Optional: provide your own OpenAI API key
+
+# Retry strategy
+retry_attempts = 3
+retry_backoff_multiplier = 2  # exponential backoff
+
+# Token tracking
+enable_token_tracking = true
+daily_token_budget = 1000000  # tokens per day (unlimited if 0)
+token_warning_threshold = 0.8  # Alert at 80% of budget
+
+# Response caching
+enable_response_cache = true
+cache_ttl = 3600  # seconds
+
+# Streaming
+enable_streaming = true
+stream_chunk_size = 50  # characters per stream chunk
+
+# System prompts
+[llm_api.system_prompts]
+default = "You are a helpful assistant."
+analysis = "You are an expert analyst. Provide detailed, structured analysis."
+planning = "You are a strategic planner. Create comprehensive plans with clear steps."
+coding = "You are an expert software developer. Write clean, efficient code with explanations."
+
+# Message compression
+[llm_api.compression]
+enable_compression = true
+compression_threshold = 0.9  # Compress when context is 90% full
+compress_to_ratio = 0.6     # Compress context to 60% of max
+min_messages_to_keep = 5    # Always keep at least N recent messages
