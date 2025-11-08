@@ -138,6 +138,23 @@ class StrReplaceEditor(BaseTool):
                 raise ToolError("Parameter `file_text` is required for command: create")
             await operator.write_file(path, file_text)
             self._file_history[path].append(file_text)
+            
+            # Create version if versioning is enabled
+            try:
+                from app.storage.service import get_versioning_service
+                versioning_service = get_versioning_service()
+                versioning_service.on_file_save(
+                    path,
+                    file_text,
+                    agent="tool",
+                    reason="File created via str_replace_editor tool"
+                )
+            except ImportError:
+                # Versioning service not available
+                pass
+            except Exception as e:
+                logger.warning(f"Failed to create version for {path}: {e}")
+            
             result = ToolResult(output=f"File created successfully at: {path}")
         elif command == "str_replace":
             if old_str is None:
@@ -319,6 +336,23 @@ class StrReplaceEditor(BaseTool):
         # Write the new content to the file
         await operator.write_file(path, new_file_content)
 
+        # Create version if versioning is enabled
+        try:
+            from app.storage.service import get_versioning_service
+            versioning_service = get_versioning_service()
+            versioning_service.on_file_edit(
+                path,
+                file_content,
+                new_file_content,
+                agent="tool",
+                reason="File edited via str_replace_editor tool"
+            )
+        except ImportError:
+            # Versioning service not available
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to create version for {path}: {e}")
+
         # Save the original content to history
         self._file_history[path].append(file_content)
 
@@ -378,6 +412,24 @@ class StrReplaceEditor(BaseTool):
         snippet = "\n".join(snippet_lines)
 
         await operator.write_file(path, new_file_text)
+        
+        # Create version if versioning is enabled
+        try:
+            from app.storage.service import get_versioning_service
+            versioning_service = get_versioning_service()
+            versioning_service.on_file_edit(
+                path,
+                file_text,
+                new_file_text,
+                agent="tool",
+                reason="File edited via str_replace_editor tool (insert)"
+            )
+        except ImportError:
+            # Versioning service not available
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to create version for {path}: {e}")
+        
         self._file_history[path].append(file_text)
 
         # Prepare success message
