@@ -6,6 +6,7 @@ from typing import Any, DefaultDict, List, Literal, Optional, get_args
 
 from app.config import config
 from app.exceptions import ToolError
+from app.logger import logger
 from app.tool import BaseTool
 from app.tool.base import CLIResult, ToolResult
 from app.tool.file_operators import (

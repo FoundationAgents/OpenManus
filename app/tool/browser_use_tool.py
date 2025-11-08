@@ -8,6 +8,7 @@ from browser_use import Browser
 from browser_use import Controller
 from browser_use.dom.service import DomService
 from browser_use import BrowserContextConfig
+from browser_use.browser.config import BrowserConfig
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 

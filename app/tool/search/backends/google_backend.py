@@ -2,6 +2,7 @@
 Google Custom Search API backend implementation with HTTP/2 support.
 """
 
+import asyncio
 import json
 from typing import Any, Dict, List
 
