@@ -1,0 +1,58 @@
+{
+    "defaultTransport": "stdio",
+    "enableFallback": true,
+    "fallbackDetection": {
+        "checkSupportsTools": true,
+        "checkApiType": true,
+        "unsupportedApiTypes": ["ollama", "custom"]
+    },
+    "internalServers": {
+        "tools": {
+            "type": "stdio",
+            "command": "python",
+            "args": ["-m", "app.mcp.server"],
+            "namespace": "openmanus.tools",
+            "enabled": true,
+            "autoStart": true
+        },
+        "knowledge_base": {
+            "type": "stdio", 
+            "command": "python",
+            "args": ["-m", "app.mcp.knowledge_server"],
+            "namespace": "openmanus.knowledge",
+            "enabled": false,
+            "autoStart": false
+        },
+        "memory": {
+            "type": "stdio",
+            "command": "python", 
+            "args": ["-m", "app.mcp.memory_server"],
+            "namespace": "openmanus.memory",
+            "enabled": false,
+            "autoStart": false
+        }
+    },
+    "externalServers": {
+        "example": {
+            "type": "sse",
+            "url": "http://localhost:8080/sse",
+            "namespace": "external.example",
+            "enabled": false,
+            "auth": {
+                "type": "bearer",
+                "token": "${EXAMPLE_TOKEN}"
+            }
+        }
+    },
+    "connectionPool": {
+        "maxConnections": 10,
+        "connectionTimeout": 30,
+        "retryAttempts": 3,
+        "retryDelay": 1.0
+    },
+    "logging": {
+        "level": "INFO",
+        "logToolCalls": true,
+        "logFallbacks": true
+    }
+}
