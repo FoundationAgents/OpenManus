@@ -22,7 +22,6 @@ from app.ui.async_ui_updates import get_task_manager, AsyncTaskManager, run_asyn
 from app.ui.error_dialogs import (
     show_error, show_warning, show_info, ask_yes_no, ErrorHandler
 )
-from app.ui.keyboard_navigation import KeyboardNavigationManager, KeySequences
 
 __all__ = [
     # Main window
@@ -50,6 +49,4 @@ __all__ = [
     "show_info",
     "ask_yes_no",
     "ErrorHandler",
-    "KeyboardNavigationManager",
-    "KeySequences",
 ]

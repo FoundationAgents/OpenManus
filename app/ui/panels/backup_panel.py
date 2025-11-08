@@ -42,33 +42,90 @@ class BackupWorker(QThread):
     update_signal = pyqtSignal(dict)
     error_signal = pyqtSignal(str)
     backup_result_signal = pyqtSignal(object)
+    finished = pyqtSignal(bool, str)  # success, message
+    progress = pyqtSignal(str)
     
-    def __init__(self):
+    def __init__(self, operation: str = None, backup_id: Optional[str] = None):
         super().__init__()
         self._running = False
         self._tasks = []
+        self.operation = operation
+        self.backup_id = backup_id
     
     def run(self):
         """Main worker loop"""
         self._running = True
         
-        while self._running:
-            try:
-                # Process any pending tasks
-                if self._tasks:
-                    task = self._tasks.pop(0)
-                    self._process_task(task)
+        try:
+            # If operation is specified, handle it directly
+            if self.operation:
+                self._handle_operation()
+            else:
+                # Otherwise run the monitoring loop
+                while self._running:
+                    try:
+                        # Process any pending tasks
+                        if self._tasks:
+                            task = self._tasks.pop(0)
+                            self._process_task(task)
+                        
+                        # Regular update every 5 seconds
+                        import asyncio
+                        stats = asyncio.run(backup_service.get_backup_statistics())
+                        self.update_signal.emit(stats)
+                        
+                        self.msleep(5000)  # 5 seconds
+                        
+                    except Exception as e:
+                        self.error_signal.emit(str(e))
+                        self.msleep(10000)  # Wait longer on error
+        except Exception as e:
+            self.error_signal.emit(str(e))
+    
+    def _handle_operation(self):
+        """Handle a specific backup operation"""
+        try:
+            import asyncio
+            
+            if self.operation == "create_backup":
+                # Create a default backup config
+                backup_config = {
+                    "name": f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    "backup_type": "full",
+                    "compress": True,
+                    "include_config": True
+                }
+                result = asyncio.run(backup_service.create_backup(backup_config))
+                self.backup_result_signal.emit(result)
+                self.finished.emit(True, "Backup created successfully")
                 
-                # Regular update every 5 seconds
-                import asyncio
-                stats = asyncio.run(backup_service.get_backup_statistics())
-                self.update_signal.emit(stats)
+            elif self.operation == "restore_backup":
+                if not self.backup_id:
+                    self.finished.emit(False, "Backup ID required for restore")
+                    return
+                result = asyncio.run(backup_service.restore_backup(self.backup_id))
+                self.backup_result_signal.emit(result)
+                self.finished.emit(True, "Backup restored successfully")
                 
-                self.msleep(5000)  # 5 seconds
+            elif self.operation == "delete_backup":
+                if not self.backup_id:
+                    self.finished.emit(False, "Backup ID required for delete")
+                    return
+                success = asyncio.run(backup_service.delete_backup(self.backup_id))
+                self.backup_result_signal.emit({'success': success, 'backup_id': self.backup_id})
+                self.finished.emit(success, f"Backup {self.backup_id} {'deleted' if success else 'failed to delete'}")
                 
-            except Exception as e:
-                self.error_signal.emit(str(e))
-                self.msleep(10000)  # Wait longer on error
+            elif self.operation == "archive":
+                # Archive old backups
+                result = asyncio.run(backup_service.archive_old_backups())
+                self.backup_result_signal.emit(result)
+                self.finished.emit(True, "Old backups archived")
+                
+            else:
+                self.finished.emit(False, f"Unknown operation: {self.operation}")
+                
+        except Exception as e:
+            self.finished.emit(False, f"Operation failed: {str(e)}")
     
     def _process_task(self, task: Dict[str, Any]):
         """Process a specific task"""
