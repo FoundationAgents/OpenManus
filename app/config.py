@@ -2,7 +2,7 @@ import json
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -699,16 +699,62 @@ class MCPServerConfig(BaseModel):
 class MCPSettings(BaseModel):
     """Configuration for MCP (Model Context Protocol)"""
 
+    # Legacy settings for backward compatibility
     server_reference: str = Field(
-        "app.mcp.server", description="Module reference for the MCP server"
+        "app.mcp.modular_server", description="Module reference for the MCP server"
     )
     servers: Dict[str, MCPServerConfig] = Field(
-        default_factory=dict, description="MCP server configurations"
+        default_factory=dict, description="Legacy MCP server configurations"
+    )
+    
+    # New bridge configuration
+    default_transport: str = Field("stdio", description="Default transport: stdio or sse")
+    enable_fallback: bool = Field(True, description="Enable stdio fallback when tools not supported")
+    
+    # Fallback detection settings
+    fallback_detection: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "checkSupportsTools": True,
+            "checkApiType": True,
+            "unsupportedApiTypes": ["ollama", "custom"]
+        },
+        description="Settings for detecting when to use fallback"
+    )
+    
+    # Internal server configurations
+    internal_servers: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="Internal MCP server configurations"
+    )
+    
+    # External server configurations  
+    external_servers: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="External MCP server configurations"
+    )
+    
+    # Connection pool settings
+    connection_pool: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "maxConnections": 10,
+            "connectionTimeout": 30,
+            "retryAttempts": 3,
+            "retryDelay": 1.0
+        },
+        description="Connection pool settings"
+    )
+    
+    # Logging settings
+    logging: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "level": "INFO",
+            "logToolCalls": True,
+            "logFallbacks": True
+        },
+        description="Logging configuration"
     )
 
     @classmethod
     def load_server_config(cls) -> Dict[str, MCPServerConfig]:
-        """Load MCP server configuration from JSON file"""
+        """Load MCP server configuration from JSON file (legacy support)"""
         config_path = PROJECT_ROOT / "config" / "mcp.json"
 
         try:
@@ -720,6 +766,7 @@ class MCPSettings(BaseModel):
                 data = json.load(f)
                 servers = {}
 
+                # Load legacy mcpServers
                 for server_id, server_config in data.get("mcpServers", {}).items():
                     servers[server_id] = MCPServerConfig(
                         type=server_config["type"],
@@ -727,9 +774,44 @@ class MCPSettings(BaseModel):
                         command=server_config.get("command"),
                         args=server_config.get("args", []),
                     )
+                
+                # Load internal servers
+                for server_id, server_config in data.get("internalServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                
+                # Load external servers
+                for server_id, server_config in data.get("externalServers", {}).items():
+                    servers[server_id] = MCPServerConfig(
+                        type=server_config["type"],
+                        url=server_config.get("url"),
+                        command=server_config.get("command"),
+                        args=server_config.get("args", []),
+                    )
+                
                 return servers
         except Exception as e:
             raise ValueError(f"Failed to load MCP server config: {e}")
+    
+    @classmethod
+    def load_bridge_config(cls) -> Dict[str, Any]:
+        """Load complete bridge configuration from JSON file"""
+        config_path = PROJECT_ROOT / "config" / "mcp.json"
+
+        try:
+            config_file = config_path if config_path.exists() else None
+            if not config_file:
+                return {}
+
+            with config_file.open() as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            raise ValueError(f"Failed to load MCP bridge config: {e}")
 
 
 class AppConfig(BaseModel):
@@ -788,6 +870,7 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    ),
     )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
@@ -800,6 +883,10 @@ class AppConfig(BaseModel):
     )
     backup_config: Optional[BackupSettings] = Field(
         None, description="Backup configuration"
+    ),
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
+    ),
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
@@ -812,12 +899,15 @@ class AppConfig(BaseModel):
     )
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
-    )
+    ),
     embedding_config: Optional[EmbeddingSettings] = Field(
         None, description="Embedding generation configuration"
-    )
+    ),
     knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
         None, description="Knowledge graph configuration"
+    ),
+    network_config: Optional[NetworkSettings] = Field(
+        None, description="Network configuration"
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Resilience configuration"
@@ -962,9 +1052,21 @@ class Config:
         if mcp_config:
             # Load server configurations from JSON
             mcp_config["servers"] = MCPSettings.load_server_config()
+            
+            # Load bridge configuration from JSON if not in TOML
+            if "internal_servers" not in mcp_config:
+                bridge_config = MCPSettings.load_bridge_config()
+                mcp_config.update(bridge_config)
+            
             mcp_settings = MCPSettings(**mcp_config)
         else:
-            mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
+            # Load from JSON only
+            bridge_config = MCPSettings.load_bridge_config()
+            if bridge_config:
+                bridge_config["servers"] = MCPSettings.load_server_config()
+                mcp_settings = MCPSettings(**bridge_config)
+            else:
+                mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
         run_flow_config = raw_config.get("runflow")
         if run_flow_config:
