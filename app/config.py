@@ -104,6 +104,35 @@ class AgentPoolSettings(BaseModel):
     researcher: int = Field(default=2, description="Number of researcher agents")
 
 
+class SpecializedPoolConfig(BaseModel):
+    """Configuration for a specialized agent pool"""
+    
+    pool_id: str = Field(..., description="Unique pool identifier")
+    name: str = Field(..., description="Pool name")
+    description: Optional[str] = Field(None, description="Pool description")
+    size: int = Field(default=5, description="Number of agents in the pool")
+    capabilities: List[str] = Field(default_factory=list, description="List of capabilities")
+    priority: int = Field(default=100, description="Pool priority for task assignment (higher = more likely to receive tasks)")
+    roles: List[str] = Field(default_factory=list, description="Agent roles in this pool")
+    max_queue_size: int = Field(default=100, description="Maximum task queue size")
+    timeout_seconds: int = Field(default=300, description="Task timeout in seconds")
+    enabled: bool = Field(default=True, description="Whether the pool is enabled")
+
+
+class PoolManagerSettings(BaseModel):
+    """Configuration for the agent pool manager"""
+    
+    enable_pool_manager: bool = Field(default=True, description="Enable the pool manager")
+    pools: List[SpecializedPoolConfig] = Field(default_factory=list, description="Pool configurations")
+    max_concurrent_tasks: int = Field(default=50, description="Maximum concurrent tasks across all pools")
+    load_balancer_strategy: str = Field(default="round_robin", description="Load balancing strategy: round_robin, least_loaded, priority_based")
+    rebalance_interval_seconds: int = Field(default=30, description="How often to rebalance tasks")
+    metrics_retention_days: int = Field(default=7, description="How long to retain metrics in database")
+    enable_auto_scaling: bool = Field(default=False, description="Enable automatic pool scaling based on load")
+    min_pool_size: int = Field(default=1, description="Minimum pool size for auto-scaling")
+    max_pool_size: int = Field(default=20, description="Maximum pool size for auto-scaling")
+
+
 class BlackboardSettings(BaseModel):
     """Configuration for blackboard communication system"""
     
@@ -850,6 +879,9 @@ class AppConfig(BaseModel):
     agent_pools_config: Optional[AgentPoolSettings] = Field(
         None, description="Agent pool configuration"
     )
+    pool_manager_config: Optional[PoolManagerSettings] = Field(
+        None, description="Pool manager configuration"
+    )
     blackboard_config: Optional[BlackboardSettings] = Field(
         None, description="Blackboard configuration"
     )
@@ -870,7 +902,6 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
-    ),
     )
     acl_config: Optional[ACLSettings] = Field(
         None, description="Access control layer configuration"
@@ -883,13 +914,6 @@ class AppConfig(BaseModel):
     )
     backup_config: Optional[BackupSettings] = Field(
         None, description="Backup configuration"
-    ),
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Agent resilience configuration"
-    ),
-    )
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Agent resilience configuration"
     )
     resilience_config: Optional[ResilienceSettings] = Field(
         None, description="Agent resilience configuration"
@@ -899,18 +923,15 @@ class AppConfig(BaseModel):
     )
     vector_store_config: Optional[VectorStoreSettings] = Field(
         None, description="Vector store configuration"
-    ),
+    )
     embedding_config: Optional[EmbeddingSettings] = Field(
         None, description="Embedding generation configuration"
-    ),
+    )
     knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
         None, description="Knowledge graph configuration"
-    ),
+    )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network configuration"
-    )
-    resilience_config: Optional[ResilienceSettings] = Field(
-        None, description="Resilience configuration"
     )
 
     class Config:
@@ -1081,6 +1102,12 @@ class Config:
         else:
             agent_pools_settings = AgentPoolSettings()
 
+        pool_manager_config = raw_config.get("pool_manager", {})
+        if pool_manager_config:
+            pool_manager_settings = PoolManagerSettings(**pool_manager_config)
+        else:
+            pool_manager_settings = PoolManagerSettings()
+
         blackboard_config = raw_config.get("blackboard", {})
         if blackboard_config:
             blackboard_settings = BlackboardSettings(**blackboard_config)
@@ -1203,6 +1230,7 @@ class Config:
             "versioning_config": versioning_settings,
             "ui_config": ui_settings,
             "agent_pools_config": agent_pools_settings,
+            "pool_manager_config": pool_manager_settings,
             "blackboard_config": blackboard_settings,
             "interaction_config": interaction_settings,
             "project_management_config": project_management_settings,
@@ -1352,6 +1380,13 @@ class Config:
     def versioning(self) -> VersioningSettings:
         """Get the versioning configuration"""
         return self._config.versioning_config
+
+    @property
+    def pool_manager(self) -> PoolManagerSettings:
+        """Get the pool manager configuration"""
+        return self._config.pool_manager_config
+
+    @property
     def resource_catalog(self) -> ResourceCatalogSettings:
         """Get the system resource catalog configuration"""
         return self._config.resource_catalog_config

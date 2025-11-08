@@ -268,6 +268,72 @@ class MigrationManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Agent Pool Manager tables
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS agent_pools (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pool_id TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                size INTEGER NOT NULL,
+                priority INTEGER DEFAULT 100,
+                capabilities TEXT,
+                roles TEXT,
+                max_queue_size INTEGER DEFAULT 100,
+                timeout_seconds INTEGER DEFAULT 300,
+                enabled BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS pool_agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pool_id TEXT NOT NULL,
+                agent_id TEXT UNIQUE NOT NULL,
+                agent_role TEXT,
+                status TEXT DEFAULT 'idle',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (pool_id) REFERENCES agent_pools(pool_id)
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS pool_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pool_id TEXT NOT NULL,
+                queue_length INTEGER DEFAULT 0,
+                active_agents INTEGER DEFAULT 0,
+                total_tasks INTEGER DEFAULT 0,
+                completed_tasks INTEGER DEFAULT 0,
+                failed_tasks INTEGER DEFAULT 0,
+                success_rate REAL DEFAULT 1.0,
+                avg_task_duration REAL DEFAULT 0.0,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (pool_id) REFERENCES agent_pools(pool_id)
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS task_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT UNIQUE NOT NULL,
+                pool_id TEXT NOT NULL,
+                assigned_agent_id TEXT,
+                task_type TEXT,
+                priority INTEGER DEFAULT 2,
+                complexity TEXT,
+                status TEXT DEFAULT 'pending',
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                result TEXT,
+                error TEXT,
+                FOREIGN KEY (pool_id) REFERENCES agent_pools(pool_id)
+            )
+        """)
     
     async def get_applied_migrations(self) -> List[str]:
         """Get list of applied migration versions"""
@@ -389,14 +455,11 @@ def register_default_migrations(manager: MigrationManager):
              CREATE INDEX IF NOT EXISTS idx_permissions_audit_agent ON permissions_audit(agent_id);
              CREATE INDEX IF NOT EXISTS idx_permissions_audit_action ON permissions_audit(action);
              CREATE INDEX IF NOT EXISTS idx_permissions_audit_created ON permissions_audit(created_at);
-            """,
-            CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
-            CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
-            
-            -- Resource catalog indexes
-            CREATE INDEX IF NOT EXISTS idx_resources_catalog_type ON resources_catalog(resource_type);
-            CREATE INDEX IF NOT EXISTS idx_resources_catalog_available ON resources_catalog(available);
-            CREATE INDEX IF NOT EXISTS idx_resources_catalog_name ON resources_catalog(name);
+             
+             -- Resource catalog indexes
+             CREATE INDEX IF NOT EXISTS idx_resources_catalog_type ON resources_catalog(resource_type);
+             CREATE INDEX IF NOT EXISTS idx_resources_catalog_available ON resources_catalog(available);
+             CREATE INDEX IF NOT EXISTS idx_resources_catalog_name ON resources_catalog(name);
         """,
         down_sql="""
             DROP INDEX IF EXISTS idx_acl_users_username;

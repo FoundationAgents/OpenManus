@@ -5,23 +5,24 @@ Provides monitoring, health checking, and automatic replacement
 for agents in the multi-agent environment.
 """
 
+from __future__ import annotations
+
 import asyncio
 import time
 import threading
 from enum import Enum
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import json
 
 from pydantic import BaseModel, Field
 from app.logger import logger
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.flow.multi_agent_environment import (
-        AgentPool, 
-        SpecializedAgent, 
+        AgentPool,
+        SpecializedAgent,
         DevelopmentTask,
         AgentRole,
         BlackboardMessage,

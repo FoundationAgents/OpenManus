@@ -1,0 +1,77 @@
+# Agent Pool Manager Configuration
+# Defines specialized agent pools with dynamic load balancing
+
+[pool_manager]
+enable_pool_manager = true
+load_balancer_strategy = "priority_based"  # Options: round_robin, least_loaded, priority_based
+rebalance_interval_seconds = 30
+metrics_retention_days = 7
+max_concurrent_tasks = 50
+enable_auto_scaling = false
+min_pool_size = 1
+max_pool_size = 20
+
+# Main Agent Pool - General purpose agents
+[[pool_manager.pools]]
+pool_id = "main"
+name = "Main Agent Pool"
+description = "General purpose agent pool for standard tasks"
+size = 5
+priority = 100
+roles = ["developer", "architect"]
+capabilities = ["general_coding", "architecture", "design"]
+max_queue_size = 100
+timeout_seconds = 300
+enabled = true
+
+# GameDev Pool - Game development specialists
+[[pool_manager.pools]]
+pool_id = "gamedev"
+name = "GameDev Pool"
+description = "Specialized pool for game development tasks"
+size = 3
+priority = 90
+roles = ["developer"]
+capabilities = ["game_development", "graphics", "physics", "gameplay"]
+max_queue_size = 50
+timeout_seconds = 600
+enabled = true
+
+# Reverse Engineering Pool - Security and analysis specialists
+[[pool_manager.pools]]
+pool_id = "reverse_engineering"
+name = "Reverse Engineering Pool"
+description = "Specialized pool for reverse engineering and security analysis"
+size = 3
+priority = 80
+roles = ["security", "developer"]
+capabilities = ["reverse_engineering", "binary_analysis", "malware_analysis"]
+max_queue_size = 50
+timeout_seconds = 900
+enabled = true
+
+# Low Level Pool - Systems programming specialists
+[[pool_manager.pools]]
+pool_id = "low_level"
+name = "Low Level Pool"
+description = "Specialized pool for low-level systems programming"
+size = 3
+priority = 85
+roles = ["developer"]
+capabilities = ["systems_programming", "kernel", "c_cpp", "assembly"]
+max_queue_size = 50
+timeout_seconds = 600
+enabled = true
+
+# Network Pool - Network and infrastructure specialists
+[[pool_manager.pools]]
+pool_id = "network"
+name = "Network Pool"
+description = "Specialized pool for network and infrastructure tasks"
+size = 4
+priority = 95
+roles = ["devops", "developer"]
+capabilities = ["networking", "devops", "infrastructure", "cloud"]
+max_queue_size = 75
+timeout_seconds = 500
+enabled = true
