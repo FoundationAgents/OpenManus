@@ -1,0 +1,237 @@
+# Team & Human Management System Configuration
+
+[team]
+# Enable/disable team management features
+enabled = true
+description = "Manage mixed human/AI teams"
+
+# Team settings
+max_team_size = 50
+enable_async_first = true
+default_timezone = "UTC"
+
+[work_distribution]
+# Work distribution settings
+enabled = true
+skill_match_weight = 0.4
+role_match_weight = 0.3
+availability_weight = 0.2
+workload_weight = 0.1
+
+# Capacity thresholds
+workload_caution_threshold = 80.0  # percentage
+workload_critical_threshold = 95.0  # percentage
+default_capacity_hours_per_week = 40.0
+
+# Task assignment
+require_skill_match = false
+allow_overload = false
+auto_suggest_support = true
+min_support_threshold_score = 0.3
+
+[progress_tracking]
+# Progress tracking settings
+enabled = true
+default_standup_frequency = "daily"
+progress_update_frequency = "daily"
+
+# Risk assessment
+high_risk_threshold = 50
+critical_risk_threshold = 70
+behind_schedule_margin_percent = 10
+
+# Velocity calculation
+velocity_lookback_days = 7
+default_estimated_velocity = 10.0  # percent per day
+
+[meetings]
+# Meeting optimization settings
+enabled = true
+default_meeting_duration = 30
+
+# Meeting thresholds
+recommended_standup_frequency = "async"
+max_meetings_per_day = 5
+max_consecutive_meetings = 3
+min_break_between_meetings = 15
+
+# Context switching
+track_context_switching = true
+warn_high_context_switching = true
+
+[conflict_resolution]
+# Conflict resolution settings
+enabled = true
+auto_detect_conflicts = true
+
+# Severity thresholds
+low_severity_impact = "minimal"
+high_severity_impact = "team_productivity"
+critical_severity_impact = "project_delivery"
+
+# Escalation
+escalation_threshold_severity = "high"
+auto_escalate_after_days = 7
+
+[learning_and_development]
+# Learning settings
+enabled = true
+track_skill_gaps = true
+auto_suggest_learning = true
+
+# Learning plan settings
+default_learning_plan_weeks = 4
+max_concurrent_learning_plans = 3
+pair_programming_enabled = true
+default_pairing_duration = 60  # minutes
+
+# Resource recommendation
+recommend_resources = true
+default_resource_limit = 3
+prefer_free_resources = true
+
+[wellbeing]
+# Wellbeing monitoring
+enabled = true
+track_work_hours = true
+alert_on_burnout_risk = true
+auto_suggest_breaks = true
+
+# Thresholds
+hours_per_week_caution = 50.0
+hours_per_week_critical = 60.0
+max_consecutive_overtime_weeks = 2
+max_days_without_break = 60
+max_weekend_work_per_month = 2
+
+# Vacation tracking
+track_vacation_days = true
+default_vacation_days_per_year = 20
+minimum_vacation_days = 2
+
+[collaboration]
+# AI-Human collaboration
+enabled = true
+track_collaboration = true
+analyze_patterns = true
+
+# Collaboration patterns
+preferred_pattern = "sequential"  # sequential, parallel, human_lead_ai_support, ai_lead_human_review, iterative
+
+# Roles
+human_strengths = [
+    "decision_making",
+    "creativity",
+    "judgment",
+    "communication",
+    "relationship_building"
+]
+
+ai_strengths = [
+    "implementation",
+    "optimization",
+    "repetitive_work",
+    "documentation",
+    "analysis"
+]
+
+[async_communication]
+# Async-first communication
+enabled = true
+prefer_async_over_sync = true
+
+# Standup settings
+daily_standup_enabled = true
+standup_format = "written"  # written, voice, video
+standup_optional = false
+
+# Decision documentation
+require_decision_documentation = true
+decision_review_period_days = 14
+
+# Channel settings
+default_channel = "general"
+max_channel_message_length = 5000
+thread_replies_enabled = true
+
+[recognition]
+# Recognition and motivation
+enabled = true
+track_accomplishments = true
+auto_suggest_recognition = true
+
+# Recognition types
+enable_all_recognition_types = true
+favorite_recognition_types = [
+    "going_above_and_beyond",
+    "teamwork",
+    "innovation"
+]
+
+# Celebration settings
+celebrate_milestones = true
+recognition_report_frequency = "monthly"
+public_recognition_preferred = true
+
+# Reward tracking
+track_rewards = true
+enable_peer_recognition = true
+
+[notifications]
+# Alert and notification settings
+high_risk_alert = true
+burnout_risk_alert = true
+conflict_alert = true
+blocker_alert = true
+milestone_notification = true
+
+# Alert frequency
+daily_summary_enabled = true
+weekly_report_enabled = true
+monthly_report_enabled = true
+
+[reporting]
+# Reporting settings
+generate_reports = true
+
+# Report types
+daily_report = true
+weekly_report = true
+monthly_report = true
+quarterly_report = true
+
+# Report content
+include_progress = true
+include_risks = true
+include_wellbeing = true
+include_recognition = true
+include_recommendations = true
+
+# Storage
+reports_dir = "reports/team_management"
+retention_days = 90
+
+[integration]
+# Integration with other systems
+guardian_integration = true
+qa_integration = true
+workflow_integration = true
+
+# External tools
+slack_integration = false
+email_integration = true
+calendar_integration = false
+jira_integration = false
+
+[database]
+# Database settings
+db_type = "sqlite"
+db_path = "cache/team_management.db"
+backup_enabled = true
+backup_frequency = "daily"
+
+[logging]
+# Logging settings
+log_level = "INFO"
+log_file = "logs/team_management.log"
+log_retention_days = 30
