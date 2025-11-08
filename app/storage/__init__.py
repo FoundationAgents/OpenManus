@@ -5,6 +5,7 @@ from app.storage.versioning import VersioningEngine, FileVersion, get_versioning
 from app.storage.guardian import Guardian, GuardianDecision, get_guardian
 from app.storage.backup import BackupManager, BackupMetadata, get_backup_manager
 
+
 __all__ = [
     "AuditLogger",
     "AuditEvent",
@@ -18,4 +19,5 @@ __all__ = [
     "BackupManager",
     "BackupMetadata",
     "get_backup_manager",
+    "VersioningEngine", "get_versioning_engine",
 ]
