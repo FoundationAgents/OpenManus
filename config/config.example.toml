@@ -162,28 +162,6 @@ alert_channels = ["log", "ui"]        # Alert notification channels
 quarantine_suspicious = true          # Quarantine suspicious activities
 security_rules_file = "config/security_rules.json"  # Security rules file
 
-# Versioning and configuration management
-[versioning]
-enable_versioning = true              # Enable version management system
-max_versions_per_file = 100           # Maximum versions to keep per file
-auto_snapshot = true                   # Enable automatic snapshots
-snapshot_interval = 3600              # Snapshot interval (seconds)
-compression = true                     # Compress version data
-storage_backend = "sqlite"             # Storage backend: sqlite, postgresql, mysql
-retention_days = 90                   # Version retention period (days)
-
-# Backup management configuration
-[backup]
-enable_backups = true                  # Enable backup system
-backup_interval = 86400               # Backup interval (seconds, 24 hours)
-max_backups = 30                       # Maximum number of backups to keep
-compression = true                     # Compress backup files
-encryption = false                     # Encrypt backup files
-backup_locations = ["./backups"]       # Backup storage locations
-include_workspace = true               # Include workspace in backups
-include_config = true                 # Include configuration in backups
-include_database = true               # Include database in backups
-
 # Knowledge graph configuration
 [knowledge_graph]
 enable_knowledge_graph = true         # Enable knowledge graph system
