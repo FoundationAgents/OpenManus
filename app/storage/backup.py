@@ -14,7 +14,7 @@ from app.config import PROJECT_ROOT, config
 from app.logger import logger
 from app.storage.audit import audit_logger, AuditEventType
 from app.storage.guardian import get_guardian
-from app.storage.versioning import get_versioning_engine, FileVersion
+from app.storage.versioning import get_versioning_engine
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -172,11 +172,17 @@ class BackupManager:
                 files_count = 0
                 
                 if include_versions:
-                    versions_dir = self._versioning._versions_dir
-                    if versions_dir.exists():
-                        tar.add(versions_dir, arcname="versions")
-                        files_count += sum(1 for _ in versions_dir.rglob("*") if _.is_file())
-                        logger.debug(f"Added versions directory to backup")
+                    storage_dir = self._versioning.storage_path
+                    if storage_dir.exists():
+                        tar.add(storage_dir, arcname="versioning/storage")
+                        files_count += sum(1 for _ in storage_dir.rglob("*") if _.is_file())
+                        logger.debug("Added version storage directory to backup")
+
+                    db_path = self._versioning.db_path
+                    if db_path.exists():
+                        tar.add(db_path, arcname=f"versioning/{db_path.name}")
+                        files_count += 1
+                        logger.debug("Added versioning database to backup")
                 
                 if include_workflows:
                     workflows_dir = PROJECT_ROOT / "data" / "workflows"
