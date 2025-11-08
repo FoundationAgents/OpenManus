@@ -116,6 +116,27 @@ process_timeout = 300                 # Process timeout in seconds
 enable_network = true                 # Enable network access
 allowed_commands = ["python", "pip", "git", "npm", "node", "bash", "cmd", "powershell"]
 
+# Backup configuration
+[backup]
+enable_backups = true                 # Enable backup system
+backup_frequency = "daily"            # Backup frequency: hourly, daily, weekly
+backup_time = "02:00"                 # Time for daily backups (HH:MM)
+retention_days = 90                   # Number of days to retain backups
+archive_threshold_days = 30           # Days before archiving old backups
+keep_minimum_count = 10               # Minimum number of recent backups to keep
+auto_backup_enabled = true            # Enable automatic scheduled backups
+include_versions = true               # Include version history in backups
+include_workflows = false             # Include workflow snapshots in backups
+compression_level = 6                 # Compression level (0-9)
+archive_path = "data/archives"        # Path for archived backups
+backup_path = "data/backups"          # Path for active backups
+cloud_backup_enabled = false          # Enable cloud backup
+# cloud_provider = "s3"               # Cloud provider: s3, azure, gcs
+# cloud_bucket = "my-backups"         # Cloud bucket/container name
+# cloud_access_key = ""               # Cloud access key
+# cloud_secret_key = ""               # Cloud secret key
+# cloud_region = "us-east-1"          # Cloud region
+
 # UI configuration
 [ui]
 enable_gui = true                     # Enable PyQt6 GUI
