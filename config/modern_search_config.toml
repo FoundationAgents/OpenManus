@@ -1,0 +1,115 @@
+# Modern Web Search Configuration
+# This file demonstrates the new configuration options for modern web search
+
+[search]
+# Legacy settings (for backward compatibility)
+engine = "Google"
+fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+retry_delay = 60
+max_retries = 3
+lang = "en"
+country = "us"
+
+# Modern web search settings
+search_backend = "serpapi"  # Options: serpapi, brave, duckduckgo, google
+search_rag_enabled = true
+search_batch_size = 5
+search_cache_ttl = 3600
+search_timeout = 30.0
+search_max_retries = 3
+
+# HTTP/2 and modern protocol settings
+enable_http2 = true
+enable_connection_pooling = true
+max_connections_per_backend = 10
+enable_request_compression = true
+enable_response_compression = true
+
+# Structured results parsing
+enable_structured_results = true
+enable_query_expansion = true
+enable_query_disambiguation = true
+
+# RAG Helper settings
+rag_max_iterations = 3
+rag_context_window = 4000
+rag_similarity_threshold = 0.7
+rag_enable_reasoning_trace = true
+
+# API Keys (replace with your actual keys)
+serpapi_key = "your_serpapi_key_here"
+brave_api_key = "your_brave_api_key_here"
+google_api_key = "your_google_api_key_here"
+google_search_engine_id = "your_google_search_engine_id_here"
+
+# User-Agent rotation for reliability
+enable_user_agent_rotation = true
+user_agents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0"
+]
+
+[network]
+# Network settings for modern search
+enable_networking = true
+max_connections = 100
+connection_timeout = 30
+retry_attempts = 3
+bandwidth_limit = null
+enable_proxy = false
+proxy_url = null
+enable_ssl_verification = true
+trusted_certificates = []
+
+# HTTP Client settings
+enable_http_cache = true
+http_cache_max_size = 1000
+http_cache_max_memory_mb = 100
+http_cache_default_ttl = 3600
+http_cache_persist = false
+http_timeout = 30.0
+http_max_retries = 3
+http_verify_ssl = true
+
+# Rate limiting
+enable_rate_limiting = true
+rate_limit_per_second = 10.0
+rate_limit_burst = 20
+
+# WebSocket settings (not used for search but available)
+websocket_heartbeat_interval = 30.0
+websocket_ping_interval = 20.0
+websocket_max_reconnect = 5
+
+# Diagnostics
+enable_diagnostics = true
+ping_count = 4
+traceroute_max_hops = 30
+
+# API Manager
+api_profiles_dir = "config/api_profiles"
+
+[guardian]
+# Guardian security settings for search
+enable_guardian = true
+threat_detection = true
+anomaly_threshold = 0.8
+scan_interval = 60
+alert_channels = ["log", "ui"]
+quarantine_suspicious = true
+security_rules_file = "config/security_rules.json"
+
+[guardian_validation]
+# Guardian validation settings
+enable_command_validation = true
+auto_approval_threshold = 70.0
+approval_timeout = 300
+policies_file = "config/security/guardian.json"
+audit_db_path = "./data/guardian.db"
+require_user_approval = true
+log_all_commands = true
+enable_sandbox_validation = true
+block_dangerous_patterns = true
