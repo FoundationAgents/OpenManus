@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 from app.agent.base import BaseAgent
 from app.llm import LLM
 from app.logger import logger
+from app.agents.resilience import AgentResilienceManager, ResilienceConfig
+from app.config import ResilienceSettings
 
 
 class AgentRole(str, Enum):
@@ -272,6 +274,7 @@ class SpecializedAgent(BaseAgent):
         self.current_task: Optional[DevelopmentTask] = None
         self.collaboration_partners: Set[str] = set()
         self.knowledge_base: Dict[str, Any] = {}
+        self.resilience_manager = None  # Will be set by environment
         
         # Role-specific system prompts
         role_prompts = {
@@ -304,6 +307,10 @@ class SpecializedAgent(BaseAgent):
             MessageType.ERROR,
             MessageType.WARNING
         ])
+    
+    def set_resilience_manager(self, resilience_manager):
+        """Set the resilience manager for this agent"""
+        self.resilience_manager = resilience_manager
     
     def add_thought(self, thought: str):
         """Add a thought to the agent's thinking process"""
@@ -352,17 +359,29 @@ class SpecializedAgent(BaseAgent):
         """Execute a development task"""
         self.current_task = task
         self.add_thought(f"Starting task: {task.title}")
+        start_time = time.time()
         
         try:
             # Role-specific task execution
             result = await self._execute_role_specific_task(task)
             
-            self.add_thought(f"Completed task: {task.title}")
+            execution_time = time.time() - start_time
+            self.add_thought(f"Completed task: {task.title} in {execution_time:.2f}s")
+            
+            # Update resilience telemetry
+            if self.resilience_manager:
+                self.resilience_manager.update_agent_success(self.name, execution_time)
+            
             return result
             
         except Exception as e:
+            execution_time = time.time() - start_time
             error_msg = f"Task execution failed: {str(e)}"
             self.add_thought(error_msg)
+            
+            # Update resilience telemetry
+            if self.resilience_manager:
+                self.resilience_manager.update_agent_error(self.name, error_msg)
             
             # Post error to blackboard
             self.blackboard.post_message(BlackboardMessage(
@@ -381,6 +400,97 @@ class SpecializedAgent(BaseAgent):
         """Execute role-specific task logic"""
         pass
     
+    async def retrieve_knowledge(
+        self,
+        query: str,
+        top_k: int = 5,
+        strategy: str = "balanced"
+    ) -> List[Dict]:
+        """
+        Retrieve contextual knowledge using hybrid RAG.
+        
+        Args:
+            query: Search query
+            top_k: Number of results
+            strategy: Retrieval strategy
+        
+        Returns:
+            List of retrieved context items
+        """
+        try:
+            from app.memory import get_retriever_service
+            retriever_service = get_retriever_service()
+            
+            context = retriever_service.retrieve(
+                agent_id=self.name,
+                query=query,
+                top_k=top_k,
+                strategy=strategy
+            )
+            
+            self.add_thought(f"Retrieved {len(context.results)} knowledge items for: {query}")
+            
+            return [r.to_dict() for r in context.results]
+        except Exception as e:
+            logger.error(f"Knowledge retrieval failed: {str(e)}")
+            return []
+    
+    async def refine_knowledge(
+        self,
+        query: str,
+        max_iterations: int = 3,
+        strategy: str = "balanced"
+    ) -> List[List[Dict]]:
+        """
+        Iteratively refine knowledge retrieval.
+        
+        Args:
+            query: Initial query
+            max_iterations: Max refinement iterations
+            strategy: Retrieval strategy
+        
+        Returns:
+            List of retrieval results from each iteration
+        """
+        try:
+            from app.memory import get_retriever_service
+            retriever_service = get_retriever_service()
+            
+            contexts = retriever_service.retrieve_iterative(
+                agent_id=self.name,
+                query=query,
+                max_iterations=max_iterations,
+                strategy=strategy
+            )
+            
+            self.add_thought(
+                f"Refined knowledge through {len(contexts)} iterations, "
+                f"found {sum(len(c.results) for c in contexts)} total results"
+            )
+            
+            return [[r.to_dict() for r in c.results] for c in contexts]
+        except Exception as e:
+            logger.error(f"Knowledge refinement failed: {str(e)}")
+            return []
+    
+    def inject_context(self, context_items: List[Dict]) -> None:
+        """
+        Inject retrieved context into the agent's reasoning.
+        
+        Args:
+            context_items: Retrieved context items to inject
+        """
+        if context_items:
+            context_text = "\n".join([
+                f"- [{item['source']}] {item['content'][:100]}..."
+                for item in context_items[:5]
+            ])
+            
+            context_prompt = f"Consider the following context in your reasoning:\n{context_text}"
+            self.add_thought(f"Injecting {len(context_items)} context items into reasoning")
+            
+            self.update_memory("system", context_prompt)
+
     async def step(self) -> str:
         """Execute a single step in the agent's workflow"""
         # Check for new messages
@@ -415,7 +525,7 @@ class SpecializedAgent(BaseAgent):
 class AutonomousMultiAgentEnvironment:
     """Main multi-agent environment that replaces entire development teams"""
     
-    def __init__(self):
+    def __init__(self, resilience_config: Optional[ResilienceSettings] = None):
         self.blackboard = Blackboard()
         self.agent_pools: Dict[AgentRole, AgentPool] = {}
         self.agents: Dict[str, SpecializedAgent] = {}
@@ -431,11 +541,22 @@ class AutonomousMultiAgentEnvironment:
         # Create specialized agents
         self._create_specialized_agents()
         
+        # Initialize resilience manager
+        self.resilience_config = resilience_config or ResilienceSettings()
+        self.resilience_manager = AgentResilienceManager(
+            self.agent_pools, 
+            self.blackboard,
+            ResilienceConfig(**self.resilience_config.dict())
+        )
+        
+        # Register agents with resilience manager
+        self._register_agents_with_resilience()
+        
         # Start background coordination
         self.coordination_thread = threading.Thread(target=self._coordination_loop, daemon=True)
         self.coordination_thread.start()
         
-        logger.info("Autonomous Multi-Agent Environment initialized")
+        logger.info("Autonomous Multi-Agent Environment initialized with resilience layer")
     
     def _initialize_agent_pools(self):
         """Initialize agent pools for different roles"""
@@ -456,6 +577,13 @@ class AutonomousMultiAgentEnvironment:
         
         for role, max_workers in pool_config.items():
             self.agent_pools[role] = AgentPool(role, max_workers)
+    
+    def _register_agents_with_resilience(self):
+        """Register all agents with resilience manager"""
+        for agent in self.agents.values():
+            agent.set_resilience_manager(self.resilience_manager)
+            self.resilience_manager.register_agent(agent)
+        logger.info(f"Registered {len(self.agents)} agents with resilience manager")
     
     def _create_specialized_agents(self):
         """Create specialized agents for each role"""
@@ -777,8 +905,19 @@ The system is now ready for production deployment and continuous improvement.
             "tasks": {task_id: task.to_dict() for task_id, task in self.tasks.items()},
             "agent_pools": {role.value: pool.get_status() for role, pool in self.agent_pools.items()},
             "roadmap": self.project_roadmap,
-            "current_phase": len(self.project_roadmap) + 1
+            "current_phase": len(self.project_roadmap) + 1,
+            "resilience_status": self.resilience_manager.get_resilience_status() if self.resilience_manager else None
         }
+    
+    def get_resilience_manager(self) -> Optional[AgentResilienceManager]:
+        """Get the resilience manager for external access"""
+        return self.resilience_manager
+    
+    def shutdown(self):
+        """Shutdown the environment and cleanup resources"""
+        if self.resilience_manager:
+            self.resilience_manager.shutdown()
+        logger.info("Autonomous Multi-Agent Environment shutdown")
 
 
 # Import specialized agent implementations

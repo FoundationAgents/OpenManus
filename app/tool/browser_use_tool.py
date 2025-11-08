@@ -7,6 +7,7 @@ from browser_use import Agent as BrowserUseBrowser
 from browser_use import Browser
 from browser_use import Controller
 from browser_use.dom.service import DomService
+from browser_use import BrowserContextConfig
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
@@ -123,7 +124,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
     lock: asyncio.Lock = Field(default_factory=asyncio.Lock)
     browser: Optional[BrowserUseBrowser] = Field(default=None, exclude=True)
-    context: Optional[BrowserContext] = Field(default=None, exclude=True)
+    context: Optional[BrowserContextConfig] = Field(default=None, exclude=True)
     dom_service: Optional[DomService] = Field(default=None, exclude=True)
     web_search_tool: WebSearch = Field(default_factory=WebSearch, exclude=True)
 
@@ -138,7 +139,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             raise ValueError("Parameters cannot be empty")
         return v
 
-    async def _ensure_browser_initialized(self) -> BrowserContext:
+    async def _ensure_browser_initialized(self) -> BrowserContextConfig:
         """Ensure browser and context are initialized."""
         if self.browser is None:
             browser_config_kwargs = {"headless": False, "disable_security": True}
@@ -477,7 +478,7 @@ Page content:
                 return ToolResult(error=f"Browser action '{action}' failed: {str(e)}")
 
     async def get_current_state(
-        self, context: Optional[BrowserContext] = None
+        self, context: Optional[BrowserContextConfig] = None
     ) -> ToolResult:
         """
         Get the current browser state as a ToolResult.

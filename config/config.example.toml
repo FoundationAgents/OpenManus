@@ -116,6 +116,56 @@ process_timeout = 300                 # Process timeout in seconds
 enable_network = true                 # Enable network access
 allowed_commands = ["python", "pip", "git", "npm", "node", "bash", "cmd", "powershell"]
 
+# Backup configuration
+[backup]
+enable_backups = true                 # Enable backup system
+backup_frequency = "daily"            # Backup frequency: hourly, daily, weekly
+backup_time = "02:00"                 # Time for daily backups (HH:MM)
+retention_days = 90                   # Number of days to retain backups
+archive_threshold_days = 30           # Days before archiving old backups
+keep_minimum_count = 10               # Minimum number of recent backups to keep
+auto_backup_enabled = true            # Enable automatic scheduled backups
+include_versions = true               # Include version history in backups
+include_workflows = false             # Include workflow snapshots in backups
+compression_level = 6                 # Compression level (0-9)
+archive_path = "data/archives"        # Path for archived backups
+backup_path = "data/backups"          # Path for active backups
+cloud_backup_enabled = false          # Enable cloud backup
+# cloud_provider = "s3"               # Cloud provider: s3, azure, gcs
+# cloud_bucket = "my-backups"         # Cloud bucket/container name
+# cloud_access_key = ""               # Cloud access key
+# cloud_secret_key = ""               # Cloud secret key
+# cloud_region = "us-east-1"          # Cloud region
+# Editor configuration
+[editor]
+enable_editor = true                  # Enable code editor
+default_language = "python"            # Default language for new files
+default_theme = "default"             # Default editor theme
+auto_save = true                      # Auto-save files
+auto_save_interval = 60                # Auto-save interval in seconds
+line_numbers = true                    # Show line numbers
+syntax_highlighting = true              # Enable syntax highlighting
+tab_size = 4                          # Tab size in spaces
+use_spaces = true                      # Use spaces instead of tabs
+font_size = 10                         # Editor font size
+font_family = "Courier New"            # Editor font family
+languages_config_dir = "config/languages"  # Directory for language definitions
+
+# Versioning configuration
+[versioning]
+enable_versioning = true               # Enable file versioning
+database_path = "workspace/.versions/versions.db"  # SQLite database path
+storage_path = "workspace/.versions/storage"        # Content storage directory
+auto_version = true                   # Automatically create versions on file saves
+retention_days = 30                   # Default retention period for versions in days
+max_storage_mb = 1024                  # Maximum storage size in MB
+cleanup_interval_hours = 24            # Cleanup interval in hours
+track_file_patterns = ["*.py", "*.js", "*.ts", "*.go", "*.rs", "*.sql", "*.sh", "*.md"]
+exclude_patterns = [".git/*", "node_modules/*", "__pycache__/*", ".pytest_cache/*"]
+enable_snapshots = true                 # Enable snapshot functionality
+max_snapshots = 100                    # Maximum number of snapshots to keep
+enable_guardian_checks = true           # Enable Guardian checks on rollback operations
+
 # UI configuration
 [ui]
 enable_gui = true                     # Enable PyQt6 GUI

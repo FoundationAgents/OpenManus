@@ -1,0 +1,34 @@
+metadata:
+  name: Simple Sequential Workflow
+  description: A simple workflow with sequential execution
+  version: 1.0.0
+
+nodes:
+  - id: step1
+    type: agent
+    name: First Step
+    target: agent1
+    params:
+      message: "Starting workflow"
+
+  - id: step2
+    type: agent
+    name: Second Step
+    target: agent2
+    depends_on:
+      - step1
+    params:
+      input: $node_step1_output
+
+  - id: step3
+    type: agent
+    name: Final Step
+    target: agent3
+    depends_on:
+      - step2
+    params:
+      input: $node_step2_output
+
+start_node: step1
+end_nodes:
+  - step3
