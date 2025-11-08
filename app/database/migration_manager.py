@@ -145,6 +145,27 @@ class MigrationManager:
             )
         """)
         
+        # Resource catalog table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS resources_catalog (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                version TEXT,
+                install_path TEXT,
+                dependencies TEXT,
+                min_requirements TEXT,
+                max_requirements TEXT,
+                capability_tags TEXT,
+                metadata TEXT,
+                discovery_source TEXT,
+                available BOOLEAN NOT NULL DEFAULT TRUE,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(name, install_path)
+            )
+        """)
+        
         # Audit logs tables
         await db.execute("""
             CREATE TABLE IF NOT EXISTS audit_logs (
@@ -334,6 +355,14 @@ def register_default_migrations(manager: MigrationManager):
              CREATE INDEX IF NOT EXISTS idx_permissions_audit_action ON permissions_audit(action);
              CREATE INDEX IF NOT EXISTS idx_permissions_audit_created ON permissions_audit(created_at);
             """,
+            CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name);
+            CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp);
+            
+            -- Resource catalog indexes
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_type ON resources_catalog(resource_type);
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_available ON resources_catalog(available);
+            CREATE INDEX IF NOT EXISTS idx_resources_catalog_name ON resources_catalog(name);
+        """,
         down_sql="""
             DROP INDEX IF EXISTS idx_acl_users_username;
             DROP INDEX IF EXISTS idx_acl_permissions_user_resource;
@@ -358,6 +387,9 @@ def register_default_migrations(manager: MigrationManager):
             DROP INDEX IF EXISTS idx_permissions_audit_agent;
             DROP INDEX IF EXISTS idx_permissions_audit_action;
             DROP INDEX IF EXISTS idx_permissions_audit_created;
+            DROP INDEX IF EXISTS idx_resources_catalog_type;
+            DROP INDEX IF EXISTS idx_resources_catalog_available;
+            DROP INDEX IF EXISTS idx_resources_catalog_name;
         """
     )
     

@@ -1,0 +1,107 @@
+{
+  "whitelist": [
+    "^(ls|cat|echo|pwd|cd|mkdir|touch|cp|mv|rm|grep|find|sort|uniq|wc|head|tail)(\\s|$)",
+    "^(python|node|npm|pip|git|curl|wget|tar|zip|unzip)(\\s|$)",
+    "^(docker|docker-compose)(\\s|$)",
+    "^(apt-get|brew|yum)(\\s+install)?(\\s|$)",
+    "^(npm|pip)(\\s+install)(\\s|$)",
+    "^(git)(\\s+clone|\\s+pull|\\s+push|\\s+commit|\\s+add)(\\s|$)"
+  ],
+  "blacklist": [
+    {
+      "pattern": "rm\\s+-rf\\s+/",
+      "description": "Recursive deletion from root - CRITICAL"
+    },
+    {
+      "pattern": "rm\\s+-rf\\s+/\\*",
+      "description": "Recursive deletion from root with glob - CRITICAL"
+    },
+    {
+      "pattern": ">>/etc/sudoers",
+      "description": "Modifying sudoers file - CRITICAL"
+    },
+    {
+      "pattern": "chmod\\s+777\\s+/",
+      "description": "Changing permissions on root - HIGH"
+    },
+    {
+      "pattern": "dd\\s+if=.*\\s+of=/dev/sda",
+      "description": "Direct disk write - CRITICAL"
+    },
+    {
+      "pattern": "mkfs",
+      "description": "Filesystem creation/formatting - CRITICAL"
+    }
+  ],
+  "dangerous_patterns": [
+    {
+      "pattern": "fork\\s*\\(\\s*\\)",
+      "description": "Process forking",
+      "weight": 30.0
+    },
+    {
+      "pattern": ">>/etc/passwd",
+      "description": "Modifying passwd file",
+      "weight": 70.0
+    },
+    {
+      "pattern": "chmod\\s+.*\\s+/",
+      "description": "Changing root permissions",
+      "weight": 60.0
+    },
+    {
+      "pattern": "chown\\s+root:root",
+      "description": "Changing ownership to root",
+      "weight": 50.0
+    },
+    {
+      "pattern": ":(){:|:&};\\s*:",
+      "description": "Bash fork bomb",
+      "weight": 80.0
+    },
+    {
+      "pattern": "nc\\s+-l",
+      "description": "Network listener",
+      "weight": 40.0
+    },
+    {
+      "pattern": "curl\\s+-.*\\s+-X\\s+DELETE",
+      "description": "DELETE HTTP request",
+      "weight": 45.0
+    }
+  ],
+  "filesystem_boundaries": {
+    "workspace": "./workspace",
+    "temp": "/tmp",
+    "home": "${HOME}"
+  },
+  "network_policies": {
+    "blocked_domains": [
+      "localhost",
+      "127.0.0.1",
+      "169.254",
+      "224.0.0.0/4"
+    ],
+    "blocked_ports": [22, 23, 3389],
+    "risky_protocols": ["telnet", "ftp"],
+    "safe_protocols": ["https", "http"],
+    "rate_limits": {
+      "requests_per_second": 100,
+      "connections_per_minute": 60
+    }
+  },
+  "acl_rules": {
+    "default_permission": "deny",
+    "admin_bypass": true,
+    "user_groups": {
+      "developers": {
+        "allowed_commands": ["python", "npm", "git", "docker"],
+        "allowed_resources": ["workspace", "temp"]
+      },
+      "ops": {
+        "allowed_commands": ["docker", "docker-compose", "curl", "wget"],
+        "allowed_resources": ["workspace", "temp", "logs"]
+      }
+    }
+  }
+}

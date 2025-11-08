@@ -1,0 +1,31 @@
+# Guardian Validation Configuration Example
+
+[guardian_validation]
+# Enable command validation for all execution paths
+enable_command_validation = true
+
+# Risk score threshold for auto-approval (0-100)
+# Commands with score >= threshold are auto-approved
+# 70 = low risk auto-approve
+auto_approval_threshold = 70.0
+
+# Timeout for user approval in seconds
+approval_timeout = 300
+
+# Path to Guardian security policies file
+policies_file = "config/security/guardian.json"
+
+# Path to Guardian audit database
+audit_db_path = "./data/guardian.db"
+
+# Require explicit user approval for risky commands
+require_user_approval = true
+
+# Log all command validations (safe and unsafe)
+log_all_commands = true
+
+# Enable validation in sandbox environment
+enable_sandbox_validation = true
+
+# Block dangerous patterns automatically (don't ask user)
+block_dangerous_patterns = true

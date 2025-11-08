@@ -13,6 +13,7 @@ from app.ui.panels.security_monitor import SecurityMonitorPanel
 from app.ui.panels.knowledge_graph_panel import KnowledgeGraphPanel
 from app.ui.panels.retrieval_insights import RetrievalInsightsPanel
 from app.ui.panels.backup_panel import BackupPanel
+from app.ui.panels.resource_catalog_panel import ResourceCatalogPanel
 
 __all__ = [
     "CodeEditorPanel",
@@ -25,4 +26,5 @@ __all__ = [
     "KnowledgeGraphPanel",
     "RetrievalInsightsPanel",
     "BackupPanel",
+    "ResourceCatalogPanel",
 ]

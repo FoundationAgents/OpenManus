@@ -44,6 +44,12 @@ from app.agent.manus import Manus
 from app.flow.flow_factory import FlowFactory, FlowType
 from app.cli_tool import cli_tool
 from app.local_service import local_service
+from app.resources.catalog import (
+    ResourceMetadata,
+    ResourceRequirements,
+    ResourceType,
+    resource_catalog,
+)
 
 
 class ConnectionManager:
@@ -111,6 +117,15 @@ class WebUI:
         
     def setup_routes(self):
         """Setup FastAPI routes."""
+        
+        def serialize_resource(resource: ResourceMetadata) -> Dict[str, Any]:
+            data = resource.dict()
+            data["resource_type"] = resource.resource_type.value
+            if resource.first_seen:
+                data["first_seen"] = resource.first_seen.isoformat()
+            if resource.last_seen:
+                data["last_seen"] = resource.last_seen.isoformat()
+            return data
         
         @self.app.get("/", response_class=HTMLResponse)
         async def get_index():
@@ -201,7 +216,81 @@ class WebUI:
                     "allowed_commands": config.local_service.allowed_commands
                 }
             }
-            
+        
+        @self.app.get("/api/resources")
+        async def list_resources(
+            resource_type: Optional[str] = None,
+            capability: Optional[str] = None,
+            name: Optional[str] = None,
+            available_only: bool = True,
+        ):
+            normalized_type = resource_type.lower() if resource_type else None
+            normalized_capability = capability.lower() if capability else None
+            resources = await resource_catalog.get_resources(
+                resource_type=normalized_type,
+                capability=normalized_capability,
+                name=name,
+                available_only=available_only,
+            )
+            return {"resources": [serialize_resource(res) for res in resources]}
+
+        @self.app.get("/api/resources/{resource_name}")
+        async def get_resource_detail(resource_name: str):
+            try:
+                resource = await resource_catalog.get_resource(resource_name)
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Resource not found")
+            return serialize_resource(resource)
+
+        @self.app.post("/api/resources/refresh")
+        async def refresh_resources():
+            result = await resource_catalog.refresh(force=True)
+            return result
+
+        @self.app.post("/api/resources")
+        async def register_resource(payload: Dict[str, Any]):
+            try:
+                resource_type_value = ResourceType(payload["resource_type"])
+                name = payload["name"]
+            except KeyError as exc:
+                raise HTTPException(status_code=400, detail=f"Missing field: {exc.args[0]}")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid resource_type")
+
+            min_requirements = payload.get("min_requirements")
+            max_requirements = payload.get("max_requirements")
+
+            metadata = ResourceMetadata(
+                name=name,
+                resource_type=resource_type_value,
+                version=payload.get("version"),
+                install_path=payload.get("install_path"),
+                dependencies=payload.get("dependencies") or [],
+                min_requirements=ResourceRequirements(**min_requirements) if min_requirements else None,
+                max_requirements=ResourceRequirements(**max_requirements) if max_requirements else None,
+                capability_tags=payload.get("capability_tags") or [],
+                discovery_source=payload.get("discovery_source", "manual"),
+                metadata=payload.get("metadata") or {},
+            )
+
+            await resource_catalog.register_custom_resource(
+                metadata, override=payload.get("override", True)
+            )
+
+            stored_resources = await resource_catalog.get_resources(
+                name=name,
+                available_only=False,
+            )
+            stored = next(
+                (
+                    item
+                    for item in stored_resources
+                    if item.install_path == metadata.install_path
+                ),
+                stored_resources[0] if stored_resources else metadata,
+            )
+            return serialize_resource(stored)
+        
     async def handle_message(self, client_id: str, message: dict):
         """Handle incoming WebSocket messages."""
         message_type = message.get("type")
