@@ -226,6 +226,171 @@ class MonitoringSettings(BaseModel):
     )
 
 
+class ACLSettings(BaseModel):
+    """Configuration for Access Control Layer"""
+    
+    enable_acl: bool = Field(True, description="Enable access control")
+    default_permission: str = Field("read", description="Default permission level")
+    admin_roles: List[str] = Field(
+        default_factory=lambda: ["admin", "superuser"], 
+        description="Roles with administrative access"
+    )
+    permission_cache_ttl: int = Field(
+        300, description="Permission cache TTL in seconds"
+    )
+    audit_access: bool = Field(True, description="Audit all access attempts")
+    max_failed_attempts: int = Field(5, description="Max failed login attempts")
+    lockout_duration: int = Field(900, description="Account lockout duration in seconds")
+
+
+class GuardianSettings(BaseModel):
+    """Configuration for Guardian security monitoring"""
+    
+    enable_guardian: bool = Field(True, description="Enable Guardian security system")
+    threat_detection: bool = Field(True, description="Enable automatic threat detection")
+    anomaly_threshold: float = Field(0.8, description="Anomaly detection threshold")
+    scan_interval: int = Field(60, description="Security scan interval in seconds")
+    alert_channels: List[str] = Field(
+        default_factory=lambda: ["log", "ui"], 
+        description="Alert notification channels"
+    )
+    quarantine_suspicious: bool = Field(True, description="Quarantine suspicious activities")
+    security_rules_file: str = Field("config/security_rules.json", description="Security rules file")
+
+
+class VersioningSettings(BaseModel):
+    """Configuration for version control and management"""
+    
+    enable_versioning: bool = Field(True, description="Enable version management")
+    max_versions_per_file: int = Field(100, description="Maximum versions to keep per file")
+    auto_snapshot: bool = Field(True, description="Enable automatic snapshots")
+    snapshot_interval: int = Field(3600, description="Snapshot interval in seconds")
+    compression: bool = Field(True, description="Compress version data")
+    storage_backend: str = Field("sqlite", description="Storage backend: sqlite, postgresql, mysql")
+    retention_days: int = Field(90, description="Version retention period in days")
+
+
+class BackupSettings(BaseModel):
+    """Configuration for backup management"""
+    
+    enable_backups: bool = Field(True, description="Enable backup system")
+    backup_interval: int = Field(86400, description="Backup interval in seconds (24 hours)")
+    max_backups: int = Field(30, description="Maximum number of backups to keep")
+    compression: bool = Field(True, description="Compress backup files")
+    encryption: bool = Field(False, description="Encrypt backup files")
+    backup_locations: List[str] = Field(
+        default_factory=lambda: ["./backups"], 
+        description="Backup storage locations"
+    )
+    include_workspace: bool = Field(True, description="Include workspace in backups")
+    include_config: bool = Field(True, description="Include configuration in backups")
+    include_database: bool = Field(True, description="Include database in backups")
+
+
+class KnowledgeGraphSettings(BaseModel):
+    """Configuration for knowledge graph management"""
+    
+    enable_knowledge_graph: bool = Field(True, description="Enable knowledge graph")
+    vector_db_type: str = Field("faiss", description="Vector database: faiss, milvus, chroma")
+    embedding_model: str = Field("text-embedding-ada-002", description="Embedding model")
+    max_nodes: int = Field(10000, description="Maximum nodes in graph")
+    max_relationships: int = Field(50000, description="Maximum relationships")
+    auto_update: bool = Field(True, description="Auto-update graph from interactions")
+    similarity_threshold: float = Field(0.7, description="Similarity threshold for connections")
+    persist_to_disk: bool = Field(True, description="Persist graph to disk")
+    graph_storage_path: str = Field("./data/knowledge_graph", description="Graph storage path")
+
+
+class NetworkSettings(BaseModel):
+    """Configuration for network management"""
+    
+    enable_networking: bool = Field(True, description="Enable networking features")
+    max_connections: int = Field(100, description="Maximum concurrent connections")
+    connection_timeout: int = Field(30, description="Connection timeout in seconds")
+    retry_attempts: int = Field(3, description="Max retry attempts for failed connections")
+    bandwidth_limit: Optional[int] = Field(None, description="Bandwidth limit in bytes/s")
+    enable_proxy: bool = Field(False, description="Enable proxy support")
+    proxy_url: Optional[str] = Field(None, description="Proxy server URL")
+    enable_ssl_verification: bool = Field(True, description="Enable SSL certificate verification")
+    trusted_certificates: List[str] = Field(
+        default_factory=list, description="Trusted certificate paths"
+    )
+
+
+class ResilienceSettings(BaseModel):
+    """Configuration for resilience and fault tolerance"""
+    
+    enable_resilience: bool = Field(True, description="Enable resilience features")
+    circuit_breaker_threshold: int = Field(5, description="Circuit breaker failure threshold")
+    circuit_breaker_timeout: int = Field(60, description="Circuit breaker timeout in seconds")
+    retry_base_delay: float = Field(1.0, description="Base delay for retries in seconds")
+    retry_max_delay: float = Field(60.0, description="Maximum delay for retries")
+    retry_jitter: bool = Field(True, description="Add jitter to retry delays")
+    bulkhead_limit: int = Field(10, description="Bulkhead pattern limit")
+    timeout_threshold: float = Field(30.0, description="Operation timeout threshold")
+    health_check_interval: int = Field(30, description="Health check interval in seconds")
+class ResilienceSettings(BaseModel):
+    """Configuration for agent resilience and health monitoring"""
+    
+    # Health monitoring settings
+    health_check_interval: float = Field(
+        default=30.0, description="Health check interval in seconds"
+    )
+    heartbeat_timeout: float = Field(
+        default=120.0, description="Heartbeat timeout in seconds"
+    )
+    inactivity_threshold: float = Field(
+        default=300.0, description="Inactivity threshold in seconds"
+    )
+    
+    # Failure detection thresholds
+    max_consecutive_errors: int = Field(
+        default=3, description="Maximum consecutive errors before replacement"
+    )
+    max_error_rate: float = Field(
+        default=0.3, description="Maximum error rate (0.0 to 1.0)"
+    )
+    max_latency: float = Field(
+        default=10.0, description="Maximum average latency in seconds"
+    )
+    min_health_score: float = Field(
+        default=0.3, description="Minimum health score before replacement"
+    )
+    
+    # Replacement settings
+    enable_auto_replacement: bool = Field(
+        default=True, description="Enable automatic agent replacement"
+    )
+    replacement_delay: float = Field(
+        default=5.0, description="Delay before replacement in seconds"
+    )
+    max_replacements_per_hour: int = Field(
+        default=5, description="Maximum replacements per hour per role"
+    )
+    
+    # Context transfer settings
+    context_retention_tasks: int = Field(
+        default=10, description="Number of recent tasks to retain"
+    )
+    context_retention_messages: int = Field(
+        default=50, description="Number of recent messages to retain"
+    )
+    context_retention_time: float = Field(
+        default=3600.0, description="Context retention time in seconds"
+    )
+    
+    # Recovery settings
+    enable_recovery_attempts: bool = Field(
+        default=True, description="Enable recovery attempts before replacement"
+    )
+    max_recovery_attempts: int = Field(
+        default=2, description="Maximum recovery attempts"
+    )
+    recovery_timeout: float = Field(
+        default=60.0, description="Recovery attempt timeout"
+    )
+
+
 class BrowserSettings(BaseModel):
     headless: bool = Field(False, description="Whether to run browser in headless mode")
     disable_security: bool = Field(
@@ -299,6 +464,29 @@ class LocalServiceSettings(BaseModel):
     )
 
 
+class BackupSettings(BaseModel):
+    """Configuration for backup system"""
+    
+    enable_backups: bool = Field(True, description="Enable backup system")
+    backup_frequency: str = Field("daily", description="Backup frequency: hourly, daily, weekly")
+    backup_time: str = Field("02:00", description="Time for daily backups (HH:MM)")
+    retention_days: int = Field(90, description="Number of days to retain backups")
+    archive_threshold_days: int = Field(30, description="Days before archiving old backups")
+    keep_minimum_count: int = Field(10, description="Minimum number of recent backups to keep")
+    auto_backup_enabled: bool = Field(True, description="Enable automatic scheduled backups")
+    include_versions: bool = Field(True, description="Include version history in backups")
+    include_workflows: bool = Field(False, description="Include workflow snapshots in backups")
+    compression_level: int = Field(6, description="Compression level (0-9)")
+    archive_path: str = Field("data/archives", description="Path for archived backups")
+    backup_path: str = Field("data/backups", description="Path for active backups")
+    cloud_backup_enabled: bool = Field(False, description="Enable cloud backup")
+    cloud_provider: Optional[str] = Field(None, description="Cloud provider: s3, azure, gcs")
+    cloud_bucket: Optional[str] = Field(None, description="Cloud bucket/container name")
+    cloud_access_key: Optional[str] = Field(None, description="Cloud access key")
+    cloud_secret_key: Optional[str] = Field(None, description="Cloud secret key")
+    cloud_region: Optional[str] = Field(None, description="Cloud region")
+
+
 class EditorSettings(BaseModel):
     """Configuration for code editor"""
     
@@ -346,6 +534,27 @@ class NetworkSettings(BaseModel):
     
     # API Manager
     api_profiles_dir: str = Field("config/api_profiles", description="API profiles storage directory")
+class VersioningSettings(BaseModel):
+    """Configuration for versioning engine"""
+    
+    enable_versioning: bool = Field(True, description="Enable file versioning")
+    database_path: str = Field("workspace/.versions/versions.db", description="SQLite database path")
+    storage_path: str = Field("workspace/.versions/storage", description="Content storage directory")
+    auto_version: bool = Field(True, description="Automatically create versions on file saves")
+    retention_days: int = Field(30, description="Default retention period for versions in days")
+    max_storage_mb: int = Field(1024, description="Maximum storage size in MB")
+    cleanup_interval_hours: int = Field(24, description="Cleanup interval in hours")
+    track_file_patterns: List[str] = Field(
+        default_factory=lambda: ["**/*.py", "**/*.js", "**/*.ts", "**/*.go", "**/*.rs", "**/*.sql", "**/*.sh", "**/*.md"],
+        description="File patterns to track for versioning"
+    )
+    exclude_patterns: List[str] = Field(
+        default_factory=lambda: ["**/.git/**", "**/node_modules/**", "**/__pycache__/**", "**/.pytest_cache/**"],
+        description="File patterns to exclude from versioning"
+    )
+    enable_snapshots: bool = Field(True, description="Enable snapshot functionality")
+    max_snapshots: int = Field(100, description="Maximum number of snapshots to keep")
+    enable_guardian_checks: bool = Field(True, description="Enable Guardian checks on rollback operations")
 
 
 class UISettings(BaseModel):
@@ -359,6 +568,43 @@ class UISettings(BaseModel):
     window_width: int = Field(1200, description="Default window width")
     window_height: int = Field(800, description="Default window height")
     auto_save: bool = Field(True, description="Auto-save conversations")
+
+
+class VectorStoreSettings(BaseModel):
+    """Configuration for vector store (embeddings)"""
+    
+    vector_store_type: str = Field("faiss", description="Type of vector store: faiss or milvus")
+    vector_dimension: int = Field(1536, description="Dimension of embeddings")
+    index_type: str = Field("IVFFlat", description="FAISS index type")
+    nprobe: int = Field(10, description="FAISS nprobe parameter")
+    use_gpu: bool = Field(False, description="Use GPU for FAISS operations")
+    persistence_path: str = Field("data/vectors", description="Path to persist vector store")
+
+
+class EmbeddingSettings(BaseModel):
+    """Configuration for embedding generation"""
+    
+    provider: str = Field("anthropic", description="Embedding provider: anthropic or openai")
+    model: str = Field("claude-3-5-sonnet-20241022", description="Embedding model name")
+    fallback_provider: str = Field("openai", description="Fallback provider if primary fails")
+    fallback_model: str = Field("text-embedding-3-small", description="Fallback embedding model")
+    batch_size: int = Field(10, description="Batch size for embedding requests")
+    rate_limit_rpm: int = Field(3000, description="Requests per minute rate limit")
+    cache_embeddings: bool = Field(True, description="Cache embeddings in memory")
+    cache_max_size: int = Field(10000, description="Maximum cached embeddings")
+
+
+class KnowledgeGraphSettings(BaseModel):
+    """Configuration for knowledge graph"""
+    
+    enable_knowledge_graph: bool = Field(True, description="Enable knowledge graph")
+    storage_path: str = Field("data/knowledge_graph", description="Path for graph storage")
+    db_type: str = Field("sqlite", description="Database type: sqlite or postgresql")
+    persistence_enabled: bool = Field(True, description="Enable graph persistence")
+    max_nodes: Optional[int] = Field(None, description="Maximum nodes in graph (None for unlimited)")
+    enable_versioning: bool = Field(True, description="Enable version tracking for nodes")
+    auto_vacuum: bool = Field(True, description="Enable SQLite auto-vacuum")
+    vacuum_interval_seconds: int = Field(3600, description="Auto-vacuum interval in seconds")
 
 
 class MCPServerConfig(BaseModel):
@@ -429,8 +675,14 @@ class AppConfig(BaseModel):
     local_service_config: Optional[LocalServiceSettings] = Field(
         None, description="Local service configuration"
     )
+    backup_config: Optional[BackupSettings] = Field(
+        None, description="Backup configuration"
+    )
     editor_config: Optional[EditorSettings] = Field(
         None, description="Code editor configuration"
+    )
+    versioning_config: Optional[VersioningSettings] = Field(
+        None, description="Versioning engine configuration"
     )
     ui_config: Optional[UISettings] = Field(
         None, description="UI configuration"
@@ -458,6 +710,33 @@ class AppConfig(BaseModel):
     )
     network_config: Optional[NetworkSettings] = Field(
         None, description="Network toolkit configuration"
+    acl_config: Optional[ACLSettings] = Field(
+        None, description="Access control layer configuration"
+    )
+    guardian_config: Optional[GuardianSettings] = Field(
+        None, description="Guardian security monitoring configuration"
+    )
+    versioning_config: Optional[VersioningSettings] = Field(
+        None, description="Versioning configuration"
+    )
+    backup_config: Optional[BackupSettings] = Field(
+        None, description="Backup configuration"
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Agent resilience configuration"
+    vector_store_config: Optional[VectorStoreSettings] = Field(
+        None, description="Vector store configuration"
+    )
+    embedding_config: Optional[EmbeddingSettings] = Field(
+        None, description="Embedding generation configuration"
+    )
+    knowledge_graph_config: Optional[KnowledgeGraphSettings] = Field(
+        None, description="Knowledge graph configuration"
+    )
+    network_config: Optional[NetworkSettings] = Field(
+        None, description="Network configuration"
+    )
+    resilience_config: Optional[ResilienceSettings] = Field(
+        None, description="Resilience configuration"
     )
 
     class Config:
@@ -576,11 +855,23 @@ class Config:
         else:
             local_service_settings = LocalServiceSettings()
 
+        backup_config = raw_config.get("backup", {})
+        if backup_config:
+            backup_settings = BackupSettings(**backup_config)
+        else:
+            backup_settings = BackupSettings()
+
         editor_config = raw_config.get("editor", {})
         if editor_config:
             editor_settings = EditorSettings(**editor_config)
         else:
             editor_settings = EditorSettings()
+
+        versioning_config = raw_config.get("versioning", {})
+        if versioning_config:
+            versioning_settings = VersioningSettings(**versioning_config)
+        else:
+            versioning_settings = VersioningSettings()
 
         ui_config = raw_config.get("ui", {})
         if ui_config:
@@ -646,11 +937,59 @@ class Config:
         else:
             monitoring_settings = MonitoringSettings()
 
+        # Load new system integration configurations
+        acl_config = raw_config.get("acl", {})
+        if acl_config:
+            acl_settings = ACLSettings(**acl_config)
+        else:
+            acl_settings = ACLSettings()
+
+        guardian_config = raw_config.get("guardian", {})
+        if guardian_config:
+            guardian_settings = GuardianSettings(**guardian_config)
+        else:
+            guardian_settings = GuardianSettings()
+
+        versioning_config = raw_config.get("versioning", {})
+        if versioning_config:
+            versioning_settings = VersioningSettings(**versioning_config)
+        else:
+            versioning_settings = VersioningSettings()
+
+        backup_config = raw_config.get("backup", {})
+        if backup_config:
+            backup_settings = BackupSettings(**backup_config)
+        else:
+            backup_settings = BackupSettings()
+        vector_store_config = raw_config.get("vector_store", {})
+        if vector_store_config:
+            vector_store_settings = VectorStoreSettings(**vector_store_config)
+        else:
+            vector_store_settings = VectorStoreSettings()
+
+        embedding_config = raw_config.get("embedding", {})
+        if embedding_config:
+            embedding_settings = EmbeddingSettings(**embedding_config)
+        else:
+            embedding_settings = EmbeddingSettings()
+
+        knowledge_graph_config = raw_config.get("knowledge_graph", {})
+        if knowledge_graph_config:
+            knowledge_graph_settings = KnowledgeGraphSettings(**knowledge_graph_config)
+        else:
+            knowledge_graph_settings = KnowledgeGraphSettings()
+
         network_config = raw_config.get("network", {})
         if network_config:
             network_settings = NetworkSettings(**network_config)
         else:
             network_settings = NetworkSettings()
+
+        resilience_config = raw_config.get("resilience", {})
+        if resilience_config:
+            resilience_settings = ResilienceSettings(**resilience_config)
+        else:
+            resilience_settings = ResilienceSettings()
 
         config_dict = {
             "llm": {
@@ -667,7 +1006,9 @@ class Config:
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
             "local_service_config": local_service_settings,
+            "backup_config": backup_settings,
             "editor_config": editor_settings,
+            "versioning_config": versioning_settings,
             "ui_config": ui_settings,
             "agent_pools_config": agent_pools_settings,
             "blackboard_config": blackboard_settings,
@@ -677,6 +1018,16 @@ class Config:
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
             "network_config": network_settings,
+            "acl_config": acl_settings,
+            "guardian_config": guardian_settings,
+            "versioning_config": versioning_settings,
+            "backup_config": backup_settings,
+            "knowledge_graph_config": knowledge_graph_settings,
+            "network_config": network_settings,
+            "resilience_config": resilience_settings,
+            "vector_store_config": vector_store_settings,
+            "embedding_config": embedding_settings,
+            "knowledge_graph_config": knowledge_graph_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -727,9 +1078,19 @@ class Config:
         return self._config.local_service_config
 
     @property
+    def backup(self) -> BackupSettings:
+        """Get the backup configuration"""
+        return self._config.backup_config
+
+    @property
     def editor(self) -> EditorSettings:
         """Get the editor configuration"""
         return self._config.editor_config
+
+    @property
+    def versioning(self) -> VersioningSettings:
+        """Get the versioning configuration"""
+        return self._config.versioning_config
 
     @property
     def ui(self) -> UISettings:
@@ -772,9 +1133,47 @@ class Config:
         return self._config.monitoring_config
 
     @property
+    def acl(self) -> ACLSettings:
+        """Get the ACL configuration"""
+        return self._config.acl_config
+
+    @property
+    def guardian(self) -> GuardianSettings:
+        """Get the Guardian configuration"""
+        return self._config.guardian_config
+
+    @property
+    def versioning(self) -> VersioningSettings:
+        """Get the versioning configuration"""
+        return self._config.versioning_config
+
+    @property
+    def backup(self) -> BackupSettings:
+        """Get the backup configuration"""
+        return self._config.backup_config
+    def vector_store(self) -> VectorStoreSettings:
+        """Get the vector store configuration"""
+        return self._config.vector_store_config
+
+    @property
+    def embedding(self) -> EmbeddingSettings:
+        """Get the embedding generation configuration"""
+        return self._config.embedding_config
+
+    @property
+    def knowledge_graph(self) -> KnowledgeGraphSettings:
+        """Get the knowledge graph configuration"""
+        return self._config.knowledge_graph_config
+
+    @property
     def network(self) -> NetworkSettings:
         """Get the network configuration"""
         return self._config.network_config
+
+    @property
+    def resilience(self) -> ResilienceSettings:
+        """Get the resilience configuration"""
+        return self._config.resilience_config
 
 
 config = Config()

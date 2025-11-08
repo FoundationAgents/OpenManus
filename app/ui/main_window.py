@@ -33,7 +33,8 @@ except ImportError:
 
 from app.ui.panels import (
     CodeEditorPanel, AgentControlPanel, WorkflowVisualizerPanel,
-    CommandLogPanel, ConsolePanel, AgentMonitorPanel
+    CommandLogPanel, ConsolePanel, AgentMonitorPanel,
+    SecurityMonitorPanel, KnowledgeGraphPanel, BackupPanel
 )
 from app.ui.dialogs import CommandValidationDialog
 from app.config import config
@@ -225,9 +226,29 @@ class MainWindow(QMainWindow):
         self.monitor_dock.setWidget(self.monitor_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.monitor_dock)
         
+        # Security Monitor Dock
+        self.security_dock = QDockWidget("Security Monitor", self)
+        self.security_panel = SecurityMonitorPanel()
+        self.security_dock.setWidget(self.security_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.security_dock)
+        
+        # Knowledge Graph Dock
+        self.knowledge_dock = QDockWidget("Knowledge Graph", self)
+        self.knowledge_panel = KnowledgeGraphPanel()
+        self.knowledge_dock.setWidget(self.knowledge_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.knowledge_dock)
+        
+        # Backup Dock
+        self.backup_dock = QDockWidget("Backup Management", self)
+        self.backup_panel = BackupPanel()
+        self.backup_dock.setWidget(self.backup_panel)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.backup_dock)
+        
         # Tab the right docks together
         self.tabifyDockWidget(self.agent_dock, self.workflow_dock)
         self.tabifyDockWidget(self.workflow_dock, self.monitor_dock)
+        self.tabifyDockWidget(self.monitor_dock, self.security_dock)
+        self.tabifyDockWidget(self.security_dock, self.knowledge_dock)
         
         # Tab the bottom docks together
         self.tabifyDockWidget(self.log_dock, self.console_dock)
