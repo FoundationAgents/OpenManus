@@ -1,0 +1,34 @@
+# Network Toolkit Configuration Example
+# 
+# This file demonstrates how to configure the Network Toolkit
+# for HTTP/HTTPS with caching, WebSocket, DNS/ICMP diagnostics,
+# and API integrations with Guardian policy enforcement.
+
+[network]
+# HTTP Client Settings
+enable_http_cache = true                   # Enable HTTP response caching
+http_cache_max_size = 1000                 # Maximum cache entries
+http_cache_max_memory_mb = 100             # Maximum cache memory in MB
+http_cache_default_ttl = 3600              # Default cache TTL in seconds (1 hour)
+http_cache_persist = false                 # Enable cache persistence to disk
+http_timeout = 30.0                        # HTTP request timeout in seconds
+http_max_retries = 3                       # Maximum HTTP retry attempts
+http_verify_ssl = true                     # Verify SSL certificates
+
+# Rate Limiting Settings
+enable_rate_limiting = true                # Enable rate limiting
+rate_limit_per_second = 10.0               # Requests per second limit (global)
+rate_limit_burst = 20                      # Burst size for rate limiting
+
+# WebSocket Settings
+websocket_heartbeat_interval = 30.0        # WebSocket heartbeat interval in seconds
+websocket_ping_interval = 20.0             # WebSocket ping interval in seconds
+websocket_max_reconnect = 5                # Max WebSocket reconnect attempts
+
+# Network Diagnostics Settings
+enable_diagnostics = true                  # Enable network diagnostics (DNS, ICMP)
+ping_count = 4                             # Default ping packet count
+traceroute_max_hops = 30                   # Maximum traceroute hops
+
+# API Manager Settings
+api_profiles_dir = "config/api_profiles"   # API profiles storage directory

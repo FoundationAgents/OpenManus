@@ -316,6 +316,38 @@ class EditorSettings(BaseModel):
     languages_config_dir: str = Field("config/languages", description="Directory for language definitions")
 
 
+class NetworkSettings(BaseModel):
+    """Configuration for network toolkit"""
+    
+    # HTTP Client
+    enable_http_cache: bool = Field(True, description="Enable HTTP response caching")
+    http_cache_max_size: int = Field(1000, description="Maximum cache entries")
+    http_cache_max_memory_mb: int = Field(100, description="Maximum cache memory in MB")
+    http_cache_default_ttl: int = Field(3600, description="Default cache TTL in seconds")
+    http_cache_persist: bool = Field(False, description="Enable cache persistence")
+    http_timeout: float = Field(30.0, description="HTTP request timeout in seconds")
+    http_max_retries: int = Field(3, description="Maximum HTTP retry attempts")
+    http_verify_ssl: bool = Field(True, description="Verify SSL certificates")
+    
+    # Rate Limiting
+    enable_rate_limiting: bool = Field(True, description="Enable rate limiting")
+    rate_limit_per_second: float = Field(10.0, description="Requests per second limit")
+    rate_limit_burst: int = Field(20, description="Burst size for rate limiting")
+    
+    # WebSocket
+    websocket_heartbeat_interval: float = Field(30.0, description="WebSocket heartbeat interval")
+    websocket_ping_interval: float = Field(20.0, description="WebSocket ping interval")
+    websocket_max_reconnect: int = Field(5, description="Max WebSocket reconnect attempts")
+    
+    # Diagnostics
+    enable_diagnostics: bool = Field(True, description="Enable network diagnostics")
+    ping_count: int = Field(4, description="Default ping packet count")
+    traceroute_max_hops: int = Field(30, description="Maximum traceroute hops")
+    
+    # API Manager
+    api_profiles_dir: str = Field("config/api_profiles", description="API profiles storage directory")
+
+
 class UISettings(BaseModel):
     """Configuration for user interface"""
     
@@ -423,6 +455,9 @@ class AppConfig(BaseModel):
     )
     monitoring_config: Optional[MonitoringSettings] = Field(
         None, description="Monitoring configuration"
+    )
+    network_config: Optional[NetworkSettings] = Field(
+        None, description="Network toolkit configuration"
     )
 
     class Config:
@@ -611,6 +646,12 @@ class Config:
         else:
             monitoring_settings = MonitoringSettings()
 
+        network_config = raw_config.get("network", {})
+        if network_config:
+            network_settings = NetworkSettings(**network_config)
+        else:
+            network_settings = NetworkSettings()
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -635,6 +676,7 @@ class Config:
             "quality_assurance_config": quality_assurance_settings,
             "deployment_config": deployment_settings,
             "monitoring_config": monitoring_settings,
+            "network_config": network_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -728,6 +770,11 @@ class Config:
     def monitoring(self) -> MonitoringSettings:
         """Get the monitoring configuration"""
         return self._config.monitoring_config
+
+    @property
+    def network(self) -> NetworkSettings:
+        """Get the network configuration"""
+        return self._config.network_config
 
 
 config = Config()
