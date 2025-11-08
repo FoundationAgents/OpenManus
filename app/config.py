@@ -736,6 +736,58 @@ class BrowserSettings(BaseModel):
     max_content_length: int = Field(
         2000, description="Maximum length for content retrieval operations"
     )
+    
+    # Embedded browser configuration
+    browser_mode: str = Field(
+        default="auto",
+        description="Browser mode: embedded, chrome, firefox, edge, or auto",
+    )
+    browser_pool_size: int = Field(
+        default=3,
+        description="Number of concurrent browser instances",
+    )
+    browser_timeout: float = Field(
+        default=30.0,
+        description="Default timeout for browser operations in seconds",
+    )
+    embedded_cache_dir: str = Field(
+        default="./cache/browser",
+        description="Cache directory for embedded browser",
+    )
+    embedded_enable_dev_tools: bool = Field(
+        default=True,
+        description="Enable developer tools for embedded browser",
+    )
+    
+    # External browser configuration
+    external_browser_path: Optional[str] = Field(
+        default=None,
+        description="Path to external browser (auto-detect if None)",
+    )
+    external_use_webdriver_bidi: bool = Field(
+        default=True,
+        description="Use WebDriver BiDi protocol for Firefox",
+    )
+    
+    # RAG helper configuration
+    rag_helper_enabled: bool = Field(
+        default=True,
+        description="Enable RAG helper for semantic page understanding",
+    )
+    rag_cache_ttl: int = Field(
+        default=3600,
+        description="Cache TTL for RAG responses in seconds",
+    )
+    rag_semantic_depth: str = Field(
+        default="normal",
+        description="Semantic depth: minimal, normal, or detailed",
+    )
+    
+    # Guardian integration
+    enable_guardian: bool = Field(
+        default=True,
+        description="Enable Guardian URL/JS safety checks",
+    )
 
 
 class SandboxSettings(BaseModel):
