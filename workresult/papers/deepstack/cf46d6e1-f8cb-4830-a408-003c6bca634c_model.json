@@ -1,0 +1,2962 @@
+[
+    [
+        {
+            "type": "title",
+            "bbox": [
+                0.214,
+                0.136,
+                0.784,
+                0.189
+            ],
+            "angle": 0,
+            "content": "DeepStack: Deeply Stacking Visual Tokens is Surprisingly Simple and Effective for LMMs"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.279,
+                0.232,
+                0.705,
+                0.263
+            ],
+            "angle": 0,
+            "content": "Lingchen Meng \\(^{1,2*}\\) Jianwei Yang \\(^{3*}\\) Rui Tian \\(^{1,2}\\) Xiyang Dai \\(^{3}\\) Zuxuan Wu \\(^{1,2\\dagger}\\) Jianfeng Gao \\(^{3\\dagger}\\) Yu-Gang Jiang \\(^{1,2}\\)"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.24,
+                0.264,
+                0.759,
+                0.279
+            ],
+            "angle": 0,
+            "content": "<sup>1</sup>Shanghai Key Lab of Intell. Info. Processing, School of CS, Fudan University"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.251,
+                0.279,
+                0.748,
+                0.295
+            ],
+            "angle": 0,
+            "content": "\\(^{2}\\)Shanghai Collaborative Innovation Center of Intelligent Visual Computing"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.422,
+                0.295,
+                0.58,
+                0.309
+            ],
+            "angle": 0,
+            "content": "<sup>3</sup>Microsoft Corporation"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.362,
+                0.315,
+                0.633,
+                0.33
+            ],
+            "angle": 0,
+            "content": "https://deepstack-v1.github.io/"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.174,
+                0.344,
+                0.825,
+                0.515
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.17,
+                0.524,
+                0.828,
+                0.637
+            ],
+            "angle": 0,
+            "content": "Figure 1: Left: Conventional large multimodal models (LMMs) string all visual tokens into a sequence for high- and low-resolution images. Middle: Our DeepStack LMMs stack the tokens into a grid and infuse them into the first and middle transformer layers from bottom to top (↑↑↑↑) simply using a residual connection. With no architecture modification and context length increasing, our model can handle multiple times more visual tokens as inputs. Right: We apply DeepStack separately to Vicuna-7B (DeepStack-L) and CLIP ViT-L (DeepStack-V). Our models can take \\(4 \\times\\) more visual tokens, and significantly outperforms the sequence LMM with same context length and rival the one using a much longer context, over a wide range of benchmarks."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.46,
+                0.652,
+                0.538,
+                0.668
+            ],
+            "angle": 0,
+            "content": "Abstract"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.23,
+                0.683,
+                0.769,
+                0.879
+            ],
+            "angle": 0,
+            "content": "Most large multimodal models (LMMs) are implemented by feeding visual tokens as a sequence into the first layer of a large language model (LLM). The resulting architecture is simple but significantly increases computation and memory costs, as it has to handle a large number of additional tokens in its input layer. This paper presents a new architecture DeepStack for LMMs. Considering \\(N\\) layers in the language and vision transformer of LMMs, we stack the visual tokens into \\(N\\) groups and feed each group to its aligned transformer layer from bottom to top, as illustrated in Fig. 1. Surprisingly, this simple method greatly enhances the power of LMMs to model interactions among visual tokens across layers but with minimal additional cost. We apply DeepStack to both language and vision transformer in LMMs, and validate the effectiveness of DeepStack LMMs with extensive empirical results. Using the same context length, our DeepStack 7B and 13B parameters surpass their counterparts by 2.7 and 2.9 on average across 9 benchmarks, respectively. Using only one-fifth of the context length, DeepStack rivals closely to the counterparts"
+        },
+        {
+            "type": "page_footnote",
+            "bbox": [
+                0.2,
+                0.887,
+                0.484,
+                0.902
+            ],
+            "angle": 0,
+            "content": "* Equal contributions; † Corresponding authors."
+        },
+        {
+            "type": "footer",
+            "bbox": [
+                0.172,
+                0.923,
+                0.315,
+                0.937
+            ],
+            "angle": 0,
+            "content": "Preprint. Under review."
+        },
+        {
+            "type": "aside_text",
+            "bbox": [
+                0.023,
+                0.272,
+                0.059,
+                0.701
+            ],
+            "angle": 270,
+            "content": "arXiv:2406.04334v1 [cs.CV] 6 Jun 2024"
+        }
+    ],
+    [
+        {
+            "type": "text",
+            "bbox": [
+                0.23,
+                0.092,
+                0.768,
+                0.162
+            ],
+            "angle": 0,
+            "content": "that use the full context length. These gains are particularly pronounced on high-resolution tasks, e.g., 4.2, 11.0, and 4.0 improvements on TextVQA, DocVQA, and InfoVQA compared to LLaVA-1.5-7B, respectively. We further apply DeepStack to vision transformer layers, which brings us a similar amount of improvements, 3.8 on average compared with LLaVA-1.5-7B."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.173,
+                0.191,
+                0.313,
+                0.208
+            ],
+            "angle": 0,
+            "content": "1 Introduction"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.223,
+                0.827,
+                0.321
+            ],
+            "angle": 0,
+            "content": "With the tremendous advancements in large language models (LLMs) [62, 63, 87, 6, 6, 65, 59], we have witnessed a surge of efforts of developing large multimodal models (LMMs) [51, 88]. To connect vision and language models for LMMs, a conventional way is transforming images into a number of visual features using pretrained vision encoders (e.g., CLIP [61]), and flattening them to a sequence of \"language tokens\" which are then fed into an LLM. With sufficient alignment and instruction tuning, the entire system can demonstrate a broad conversational capability for multimodal inputs [51]."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.327,
+                0.828,
+                0.534
+            ],
+            "angle": 0,
+            "content": "To incorporate visual inputs, it usually requires the LMMs to handle a large number of visual tokens as the prefix tokens in addition to the original language prompts. This inevitably introduces a tremendous memory and compute overhead into the LLMs, which is particularly significant when it comes to high-resolution images and multi-frame videos. Several previous works attempt to mitigate this issue by proposing various token compression strategies. A straightforward way is to reduce the number of tokens with spatial grouping [70, 47]. Instead of pooling vision tokens, a few work instead to concatenate local tokens along the feature dimension to preserve visual information [11, 48]. Moreover, other works seek more sophisticated token resampling, such as Q-Former [43], Perceiver [4] and Abstractor [8], etc. In MM1 [57], the researchers performed an extensive analysis of these approaches and found no significant discrepancies among them. Despite the huge effort, all these works inherently sacrifice fine-grained visual information to reach the trade-off between the compute overhead and the information flow into LLMs, which is arguably problematic for high-resolution images and videos. Most recently, a few works [22, 48, 50, 19, 20] proposed multi-crop strategies and string several times more visual tokens to support high-resolution scenarios, while at the cost of substantial overhead."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.54,
+                0.828,
+                0.72
+            ],
+            "angle": 0,
+            "content": "All current efforts to wire vision with LLMs follow the routine in which visual tokens are always rolled together as a 1d sequence, and fed into the first layer of LLMs as inputs. In this work, we step outside the box and question whether we can find a better strategy to handle the large number of visual tokens regarding both efficacy and efficiency. Instead of examining the LLMs in a traditional left-to-right orientation, we adopt a novel bottom-to-top perspective, revealing that they constitute a hierarchical arrangement of transformer layers. Based on this observation, we propose DeepStack, a simple, yet novel way of feeding visual tokens into LLMs. As shown in Fig. 1, instead of putting the long sequence of visual tokens from left to right, we restructure the visual tokens into a layered stack, where each layer of the stack is connected to one layer in the LLMs by simple residual connection. As a result, with the context length unchanged, we can feed into LLMs several times more visual tokens to handle complex visual inputs. Meanwhile, the combination of per-layer parallel attention and layer-by-layer progression can effectively leverage the LLMs' capacity for modeling the dependencies of visual tokens."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.726,
+                0.828,
+                0.81
+            ],
+            "angle": 0,
+            "content": "To examine the effectiveness of our method, we apply it to two representative LMMs, LLaVA-1.5 [51] and LLaVA-Next [50]. Extensive empirical results demonstrate the effectiveness of our method. More specifically, with the same setting of LLaVA-1.5, our model can achieve significant performance gain across a wide range of benchmarks. In particular, our model brings 4.2, 11.0, and 4.0 performance gains on TextVQA, DocVQA, and InfoVQA compared to LLaVA-1.5-7B, respectively. To summarize, our main contributions are three-fold:"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.172,
+                0.822,
+                0.825,
+                0.864
+            ],
+            "angle": 0,
+            "content": "- We propose a simple yet effective DeepStack strategy for connecting vision and language in the context of LMMs. This new strategy introduces no architecture change while significantly increasing the number of tokens LLMs can take."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.172,
+                0.87,
+                0.825,
+                0.912
+            ],
+            "angle": 0,
+            "content": "- With the DeepStack strategy, we present our new model DeepStack, and compare it with LMMs across a wide range of multimodal tasks. Our model demonstrates consistent improvement over the baseline methods, in particular for high-resolution tasks."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.172,
+                0.822,
+                0.825,
+                0.912
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.506,
+                0.948
+            ],
+            "angle": 0,
+            "content": "2"
+        }
+    ],
+    [
+        {
+            "type": "text",
+            "bbox": [
+                0.172,
+                0.092,
+                0.825,
+                0.12
+            ],
+            "angle": 0,
+            "content": "- We further conduct comprehensive ablation studies on different aspects of our proposed method, which provide useful guidance and insights behind the design choices."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.141,
+                0.825,
+                0.198
+            ],
+            "angle": 0,
+            "content": "Finally, although we only demonstrate the effectiveness of our proposed method in the context of LMMs, we note that this simple strategy could be generalized to any models or tasks built on top of transformer layers. We hope this new design could shield new lights and open up new exploratory directions regarding how to wire vision encoders and LLMs in large multimodal models."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.236,
+                0.332,
+                0.254
+            ],
+            "angle": 0,
+            "content": "2 Related Works"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.279,
+                0.827,
+                0.599
+            ],
+            "angle": 0,
+            "content": "Large Language Models (LLMs). Recently, natural language processing (NLP) has witnessed significant progress, particularly with the advent of large language models (LLMs) [74, 87, 64, 6]. Building on the foundational architecture of Transformers [75], language models [18, 74, 87, 64, 6, 39] have demonstrated strong scalability through the pretraining-then-finetuning paradigm. Specifically, BERT [18] utilizes the transformer encoder and introduces a masked language modeling task to pre-train the model on vast unlabelled data, showing excellent performance after fine-tuning on downstream tasks. Other follow-ups [39, 36] continue along the lines of BERT, constantly refining and optimizing its performance. The T5 [64] series further unifies different NLP tasks within an encoder-decoder architecture, demonstrating effectiveness across dozens of language understanding tasks. Meanwhile, the GPT [62, 63, 4] series employs simple decoder-only transformers to pretrain the language model using a unified next-token prediction paradigm. This approach shows remarkable scalability in terms of both model size and data scale. To enhance instruction-following abilities, InstructGPT [59] and ChatGPT emphasize the importance of instruction tuning and Reinforcement Learning from Human Feedback (RLHF). These models exhibit excellent capabilities in open-domain conversation tasks, ranging from text generation to question answering. In response to ChatGPT, recent works [74, 15, 38] have made significant efforts in developing an open-source LLMs community. Building on the success of the LLaMA [74] series foundation model, Alpaca [71], Vicuna [15], and GPT-4-LLM [60] showcase the improvements brought by higher-quality instruction datasets. Other works [24, 27, 1, 86] take a different approach, aiming to achieve comparable performance with a much smaller set of parameters. The Phi [24, 27, 1] series revisits the importance of the pre-training corpus and achieves success with models containing around 3 billion parameters. In this paper, we develop our model based on Vicuna [15] and Phi-3 [1], aiming to equip the well-trained LLMs with informative visual tokens and a relatively small training effect."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.608,
+                0.827,
+                0.913
+            ],
+            "angle": 0,
+            "content": "Large Multi-modal Models (LMMs). The success of CLIP [61] and its follow-ups [66, 28, 77] demonstrates the effectiveness of aligning vision and language modalities into a unified semantic space, showcasing promising capabilities in zero-shot classification tasks. More recently, Flamingo [3] and BLIP [44] have utilized visual perceivers [26] to resample visual tokens from image features as inputs for language models through cross-attention. BLIP-2 [42] and Instruct-BLIP [16] further incorporate this mechanism into large language models for tasks such as visual captioning and question-answering. Although visual perceivers can translate image features into a fixed set of visual tokens, they face constraints related to convergence costs and data requirements. In parallel, LLaVA and its follow-ups [13, 76, 47, 50, 49] achieved success in connecting vision and language using a simple projection module. It greatly simplifies the difficulties of alignment tasks and even achieves better performance with less training effort. However, due to the rigorous input resolution of pre-trained models, these directions meet difficulties on downstream tasks requiring finer-grained visual information, e.g. tasks relevant to OCR and documents. To alleviate this problem, recent works [48, 22, 21, 73, 89] utilize a mixture of experts (MOE) schemes to leverage different pretrained vision models, typically assembling the visual tokens along the feature dimension. Other attempts [85, 19, 50] split high-resolution images into multi-crop patches and merge them into a longer sequence, which significantly increases the training and evaluation cost. In this work, we conduct experiments on the projector-based connection framework and revisit the connection scheme that utilizes projected visual tokens for the input layer of LLMs. We find that the early layers of LLMs can also well process visual token inputs. Besides that, we propose a DeepStack scheme to stack finer-grained visual tokens to the early layers of LLMs, enhancing visual capabilities without introducing extra input tokens."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.506,
+                0.948
+            ],
+            "angle": 0,
+            "content": "3"
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "bbox": [
+                0.179,
+                0.093,
+                0.495,
+                0.266
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.506,
+                0.092,
+                0.821,
+                0.267
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.17,
+                0.282,
+                0.825,
+                0.36
+            ],
+            "angle": 0,
+            "content": "Figure 2: Architecture of DeepStack. The main innovation lies in the DeepStack strategy that infuses visual tokens into different layers. Left: DeepStack for LLMs. Given an input image, we feed the tokens extracted from the low-resolution version to the input layer of LLM. Considering the 2D nature of images, we extra the neighbors from the high-resolution version and reorganize them into DeepStack, which are then fed to the consequent layers in LLMs. Right: DeepStack for ViTs. We apply similar sampling strategy but feed the visual tokens into the ViT layers of vision encoder."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.381,
+                0.296,
+                0.399
+            ],
+            "angle": 0,
+            "content": "3 DeepStack"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.411,
+                0.827,
+                0.523
+            ],
+            "angle": 0,
+            "content": "DeepStack is a versatile strategy that provides finer-grained visual information without increasing the visual context length for LMMs. It achieves this by dividing image feature extraction into two streams: a global-view stream that captures global information, and a high-resolution stream that enhances the global information by stacking dilated high-resolution image features across different layers of the LLMs. This dual-stream approach offers LMMs detailed visual features while maintaining efficiency. By leveraging this simple yet effective method, we build DeepStack, which significantly improves the ability of LMMs to process and comprehend fine-grained visual details. We illustrate DeepStack in Fig. 2 and propose a pseudo-code implementation in Algorithm. 1."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.171,
+                0.538,
+                0.485,
+                0.552
+            ],
+            "angle": 0,
+            "content": "3.1 Preliminary: Large Multimodal Model"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.563,
+                0.825,
+                0.618
+            ],
+            "angle": 0,
+            "content": "Large Language Models (LLMs). LLMs [2, 11, 70, 74] are typically pre-trained on a huge amount of unlabeled text corpus using a transformer decoder-only architecture. The primary pre-training task is next-token prediction driving their learning process. Formally, the learning objective can be formulated as:"
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.402,
+                0.621,
+                0.826,
+                0.661
+            ],
+            "angle": 0,
+            "content": "\\[\n\\mathcal {L} = \\sum_ {t = 1} ^ {N} \\log \\mathcal {P} _ {\\theta} \\left(x _ {t + 1} \\mid x _ {1: t}\\right) \\tag {1}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.664,
+                0.825,
+                0.707
+            ],
+            "angle": 0,
+            "content": "where \\(\\mathcal{P}\\) represents the large language model and \\(\\theta\\) is the trainable parameters of the model, with the training objective to maximize the probability of \\(x_{t + 1}\\) as the next token, given the previous tokens \\(x_{1:t} = x_1,\\ldots ,x_t\\)."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.717,
+                0.825,
+                0.746
+            ],
+            "angle": 0,
+            "content": "Language Multi-modal Models (LMMs). LMMs extend pre-trained LLMs to generate responses conditioned on input images. This is achieved by using visual tokens as a prefix:"
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.392,
+                0.749,
+                0.826,
+                0.791
+            ],
+            "angle": 0,
+            "content": "\\[\n\\mathcal {L} = \\sum_ {t = 1} ^ {N} \\log \\mathcal {P} _ {\\theta} \\left(x _ {t + 1} \\mid x _ {1: t}, \\mathbf {X}\\right) \\tag {2}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.794,
+                0.825,
+                0.823
+            ],
+            "angle": 0,
+            "content": "where \\(\\mathbf{X} \\in \\mathbb{R}^{l \\times c}\\) represents the sequence of visual tokens [43, 51, 4], with \\(l\\) being the sequence length and \\(c\\) the hidden dimension of the LLM."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.834,
+                0.825,
+                0.89
+            ],
+            "angle": 0,
+            "content": "Image Tokenization. Previous works [45, 43, 51] widely explored how to encode input images into visual tokens. The tokenization schemes usually leverage a vision-language pre-trained image encoder \\(\\mathcal{F}^v\\), e.g. CLIP [61], to extract image features \\(\\mathbf{f}^{\\mathbf{v}}\\) from an input image \\(\\mathbf{I}\\). Then, the image features are converted into visual tokens using a connection module \\(\\mathcal{M}\\) as follows:"
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.405,
+                0.894,
+                0.826,
+                0.911
+            ],
+            "angle": 0,
+            "content": "\\[\n\\mathbf {X} = \\mathcal {M} \\left(\\mathbf {f} ^ {\\mathbf {v}}\\right); \\quad \\mathbf {f} ^ {\\mathbf {v}} = \\mathcal {F} ^ {v} (\\mathbf {I}) \\tag {3}\n\\]"
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.505,
+                0.948
+            ],
+            "angle": 0,
+            "content": "4"
+        }
+    ],
+    [
+        {
+            "type": "code_caption",
+            "bbox": [
+                0.184,
+                0.095,
+                0.497,
+                0.11
+            ],
+            "angle": 0,
+            "content": "Algorithm 1: DeepStack PyTorch pseudocode."
+        },
+        {
+            "type": "code",
+            "bbox": [
+                0.182,
+                0.113,
+                0.681,
+                0.251
+            ],
+            "angle": 0,
+            "content": "\\(\\# \\mathbf{H}_0\\) : Input embeddings for LLM (Original inputs args for traditional LMM); #vis_pos: the location of visual tokens; #X, \\(\\mathbf{X}^{\\mathrm{stack}}\\) : Original visual tokens, Extra high-resolution visual token list; # \\(l_{start}\\) n: Index of starting layer, and layer interval for stacking.   \n1 def forward(Ho, Xstack, \\(l_{start}\\) , n, vis_pos):   \n2 H = H0   \n3 for (idx, TransformerLayer) in enumerate(self.layers): # DeepStack: if idx >= \\(l_{start}\\& (idx - l_{start})\\% n == 0\\) .. \\(\\begin{array}{r}\\bigstar\\mathbf{H}[vis\\_pos] + = \\mathbf{X}^{\\mathrm{stack}}[(idx - l_{start}) / / n] \\end{array}\\)   \n4   \n5   \n6 # Original Transformer: H = TransformerLayer(H)"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.269,
+                0.828,
+                0.395
+            ],
+            "angle": 0,
+            "content": "The connection module \\(\\mathcal{M}\\) can take various forms, mainly divided into projection modules [51, 49] and perceiver resamplers [4, 43]. In the former, \\(\\mathcal{M}\\) is implemented as either a single-layer linear projection [51] or a multi-layer MLP [49], directly projecting dense image features into the hidden space of the LLM. In the latter, \\(\\mathcal{M}\\) utilizes a cross-attention mechanism with a set of fixed-length learnable queries to extract image features, similar to the approach in [7]. They transform dense image features into sparse image queries, which are then used as input tokens for the language model. However, the resamplers-based methods easily struggle with hallucinations on spatial reasoning tasks [17]. In this paper, we mainly focus on the projection-based connection module for its efficiency and effectiveness."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.41,
+                0.523,
+                0.425
+            ],
+            "angle": 0,
+            "content": "3.2 DeepStack for Improved Image Tokenization"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.435,
+                0.825,
+                0.478
+            ],
+            "angle": 0,
+            "content": "Now that we obtain the visual tokens for LMMs using a projection-based connection module, the following challenge is how to provide informative visual tokens while keeping the multi-modal processing effective."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.483,
+                0.827,
+                0.555
+            ],
+            "angle": 0,
+            "content": "Scaling Visual Tokens. Based on the projection-based connection module, many follow-up attempts to increase the visual capability by introducing multiple image crops [50, 73] for scaling up the resolution or involving multiple vision encoders to serve as a mixture of visual experts [89, 73, 21]. For these approaches, the visual tokens from different image crops or vision encoders are concatenated together along the axis of the sequence or the dimension before projection."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.563,
+                0.827,
+                0.687
+            ],
+            "angle": 0,
+            "content": "DeepStack Strategy. In order to incorporate fine-grained image information while maintaining efficiency, we enhance the input visual tokens \\(\\mathbf{X}\\) by stacking high-resolution visual tokens into different LLM decoder layers. In practice, we first upsample the input image according to its aspect ratio and simultaneously tokenize it to obtain high-resolution visual tokens. To prepare the tokens for hierarchy stacking, we split the high-resolution visual tokens into different token sets \\(\\mathbf{X}^{\\mathrm{stack}^i}\\) with spatial dilation [80, 14]. This sampling approach ensures that the visual tokens \\(\\mathbf{X}^{\\mathrm{stack}^i}\\) have the same length as the global visual tokens \\(\\mathbf{X}\\). Additionally, token \\(\\mathbf{X}^{\\mathrm{stack}^i}\\) corresponds to the nearest neighbor of \\(\\mathbf{X}\\) in spatial."
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.351,
+                0.689,
+                0.643,
+                0.731
+            ],
+            "angle": 0,
+            "content": "\\[\n\\begin{array}{l} \\mathbf {X} ^ {\\text {s t a c k}} = \\left\\{\\mathbf {X} ^ {\\text {s t a c k} ^ {1}}, \\mathbf {X} ^ {\\text {s t a c k} ^ {2}}, \\dots , \\mathbf {X} ^ {\\text {s t a c k} ^ {\\mathbf {S}}} \\right\\} \\\\ = \\text {S a m p l i n g 2 D} \\left(\\mathcal {M} \\left(\\mathcal {F} ^ {v} \\left(\\mathbf {I} ^ {\\text {h i r e s}}\\right)\\right)\\right) \\\\ \\end{array}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.742,
+                0.828,
+                0.846
+            ],
+            "angle": 0,
+            "content": "As shown in Fig. 2, given an LLM of \\(L\\) decoder layers, the LLM is first split into different blocks. Specifically, DeepStack split the early layers of LLM \\(\\mathcal{P}\\) into a set of deepstack blocks \\(\\mathcal{B}^V = \\{\\mathcal{P}^{V^1},\\mathcal{P}^{V^2},\\dots,\\mathcal{P}^{V^n}\\}\\) for stacking visual tokens, and the later layers into a plain block \\(\\mathcal{P}^{\\mathbb{L}}\\) for original prefix sequential modeling. We denote that each deepstack block \\(\\mathcal{P}^{V^i}\\) ends at the \\(N^{V^i}\\)-th layer of \\(\\mathcal{P}\\), while the plain block \\(\\mathcal{P}^{\\mathbb{L}}\\) ends at the last layer. We use \\(\\mathbf{H}^i\\) to represent the hidden states of visual tokens after the \\(i\\)-th transformer decoder layer, with \\(\\mathbf{H}^L\\) being the visual hidden states after the final decoder layer. Formally, the output of each block can be formulated as follows:"
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.39,
+                0.85,
+                0.825,
+                0.916
+            ],
+            "angle": 0,
+            "content": "\\[\n\\begin{array}{l} \\mathbf {H} ^ {V ^ {1}} = \\mathcal {P} ^ {V ^ {1}} (\\mathbf {X}) + \\mathbf {X} ^ {\\text {s t a c k} ^ {1}} \\\\ \\mathbf {H} ^ {V ^ {2}} = \\mathcal {P} ^ {V ^ {2}} \\left(\\mathbf {H} ^ {V ^ {1}}\\right) + \\mathbf {X} ^ {\\text {s t a c k} ^ {2}} \\tag {5} \\\\ \\mathbf {H} ^ {L} = \\mathcal {P} ^ {\\mathbb {L}} \\left(\\mathbf {H} ^ {V ^ {n}}\\right) \\\\ \\end{array}\n\\]"
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.504,
+                0.948
+            ],
+            "angle": 0,
+            "content": "5"
+        }
+    ],
+    [
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.092,
+                0.825,
+                0.121
+            ],
+            "angle": 0,
+            "content": "Specifically, we divide the layers into equally sized deepstack blocks, with the block length of 1 by default."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.131,
+                0.827,
+                0.215
+            ],
+            "angle": 0,
+            "content": "DeepStack for Vision Transformers (ViTs). Our DeepStack can be also applied to ViTs for better feature extraction and image tokenization as illustrated in Fig. 2 (DeepStack-V). In contrast to LMM, we use the patch embedding layers PatchEmbedding and the first several ViT encoder layers for tokenization and the reset ViT encoder layers for DeepStack. Formally, we replace the \\(\\mathcal{F}\\) and \\(\\mathcal{M}\\) in Eq. (4) with the Patch Embedding Layers and the first several encoder layers, and utilize the rest of encoders layers as \\(\\mathcal{P}\\) in Eq. (5). Please refer to Sec. 4.3 for more details."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.225,
+                0.825,
+                0.295
+            ],
+            "angle": 0,
+            "content": "Comparison with Other Visual Token Enhancement Strategies. To provide a deeper understanding of the DeepStack mechanism, we compare our strategy with previous visual token enhancement strategies by examining the hidden states of visual tokens after the final LLM decoder layer, denoted as \\(\\mathbf{H}^L\\). Previous methods can be broadly categorized into two approaches: Sequence Concatenation and Dimension Concatenation."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.301,
+                0.826,
+                0.344
+            ],
+            "angle": 0,
+            "content": "As for the former, visual tokens from the entire image and local crops are concatenated sequentially, significantly increasing the overall sequence length the computation cost. The LLM decoder processes these concatenated visual tokens as a longer visual prefix, directly modeling the extended sequence."
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.394,
+                0.359,
+                0.826,
+                0.379
+            ],
+            "angle": 0,
+            "content": "\\[\n\\mathbf {H} ^ {L} = \\mathcal {P} (\\operatorname {S e q C a t} [ \\mathbf {X}, \\mathbf {X} ^ {\\mathbf {s t a c k}} ]) \\tag {6}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.394,
+                0.825,
+                0.436
+            ],
+            "angle": 0,
+            "content": "As for the latter, visual tokens are concatenated along the feature dimension, keeping the sequence length constant. When using a projection module as the connection module, the enhanced visual tokens can be viewed as the sum of features from two individual projection modules."
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.382,
+                0.451,
+                0.826,
+                0.491
+            ],
+            "angle": 0,
+            "content": "\\[\n\\begin{array}{l} \\begin{array}{l} \\mathbf {H} ^ {L} = \\mathcal {P} \\left(\\mathcal {M} (\\text {D i m C a t} [ \\mathbf {f}, \\mathbf {f} ^ {\\text {h i r e s}} ])\\right) \\\\ \\mathcal {P} (1 + 1 (x), \\dots , 1 + 3 (x h i r e s)) \\end{array} \\tag {7} \\\\ \\approx \\mathcal {P} \\left(\\mathcal {M} ^ {1} (\\mathbf {f}) + \\mathcal {M} ^ {2} \\left(\\mathbf {f} ^ {\\mathrm {h i r e s}}\\right)\\right) \\\\ \\end{array}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.506,
+                0.825,
+                0.617
+            ],
+            "angle": 0,
+            "content": "In our DeepStack, we employ a unique approach where enhancement occurs from bottom to top layer by layer. The processing of \\(\\mathbf{H}^L\\) in DeepStack unfolds in two phases. In the early layers of the decoder, the layers function similarly to an encoder, recurrently enhancing the input visual tokens by adding high-resolution visual tokens residually; In the later layers, the decoder performs plain sequence modeling as usual. This dual-phase processing fully leverages the LLM's capabilities by combining both encoding and sequence modeling. By integrating high-resolution visual information at multiple layers, DeepStack effectively enhances visual token representation without increasing visual context length, demonstrating its superiority over previous methods."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.313,
+                0.625,
+                0.6,
+                0.639
+            ],
+            "angle": 0,
+            "content": "Deep layers for LLM sequence modeling"
+        },
+        {
+            "type": "equation",
+            "bbox": [
+                0.245,
+                0.64,
+                0.826,
+                0.684
+            ],
+            "angle": 0,
+            "content": "\\[\n\\mathbf {H} ^ {L} = \\overbrace {\\mathcal {P} ^ {\\mathbb {L}}} ^ {\\downarrow} \\left(\\overbrace {\\mathcal {P} ^ {V ^ {n}} \\left(\\dots \\left(\\mathcal {P} ^ {V 1} \\left(\\mathbf {X} + \\mathbf {X} ^ {\\mathbf {s t a c k} ^ {1}}\\right) + \\mathbf {X} ^ {\\mathbf {s t a c k} ^ {2}}\\right) \\dots\\right) + \\mathbf {X} ^ {\\mathbf {s t a c k} ^ {n}}}\\right)\\left. \\right. \\tag {8}\n\\]"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.405,
+                0.685,
+                0.685,
+                0.7
+            ],
+            "angle": 0,
+            "content": "Early layers for visual tokens encoding"
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.732,
+                0.314,
+                0.75
+            ],
+            "angle": 0,
+            "content": "4 Experiments"
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.763,
+                0.378,
+                0.779
+            ],
+            "angle": 0,
+            "content": "4.1 Implementation Details"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.79,
+                0.825,
+                0.86
+            ],
+            "angle": 0,
+            "content": "We mainly follow the training recipe of Llava [51], of which the training pipeline consists of two stages, i.e. pre-training (PT) stage and supervised-finetuning (SFT) stage. We utilize pre-trained CLIP-large-336 [61] as our default image encoder. To obtain high-resolution feature maps, we split the high-resolution image into patches to comply with the resolution requirement and mosaic the image feature together as whole-image features."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.87,
+                0.827,
+                0.913
+            ],
+            "angle": 0,
+            "content": "Pre-training dataset. We utilize LCS-558k [51] as pre-training data for both experiments based on LLaVA-1.5 and LLaVA-Next, which contain 558k samples from LAION [66], CC [9] and SBU [84], captioned by BLIP [45]."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.937,
+                0.505,
+                0.948
+            ],
+            "angle": 0,
+            "content": "6"
+        }
+    ],
+    [
+        {
+            "type": "table",
+            "bbox": [
+                0.175,
+                0.089,
+                0.825,
+                0.304
+            ],
+            "angle": 0,
+            "content": "<table><tr><td rowspan=\"2\">Method</td><td rowspan=\"2\">LLM</td><td rowspan=\"2\">Eff. Res.</td><td rowspan=\"2\">Vis. Tok.</td><td rowspan=\"2\">Cxt. Len.</td><td rowspan=\"2\">PT</td><td rowspan=\"2\">SFT</td><td colspan=\"2\">General VQA</td><td colspan=\"3\">Text-oriented VQA</td><td colspan=\"4\">LMM benchmarks</td></tr><tr><td>VQAV2</td><td>GQA</td><td>Text VQA‡</td><td>Doc VQA‡</td><td>Info VQA‡</td><td>SEED (all)</td><td>POPE (all)</td><td>MM MU‡</td><td>MM Vet</td></tr><tr><td>BLIP-2 [43]</td><td>Vicuna-13B</td><td>224</td><td>32</td><td>32</td><td>129M</td><td>-</td><td>41.0</td><td>41.0</td><td>42.5</td><td></td><td></td><td>46.4</td><td>85.3</td><td>-</td><td></td></tr><tr><td>InstructBLIP [16]</td><td>Vicuna-7B</td><td>224</td><td>32</td><td>32</td><td>129M</td><td>1.2M</td><td>-</td><td>49.2</td><td>50.1</td><td>-</td><td>-</td><td>53.4</td><td>-</td><td>-</td><td>-</td></tr><tr><td>InstructBLIP [16]</td><td>Vicuna-13B</td><td>224</td><td>32</td><td>32</td><td>129M</td><td>1.2M</td><td>-</td><td>49.5</td><td>50.7</td><td>-</td><td>-</td><td>78.9</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Shikra [12]</td><td>Vicuna-13B</td><td>224</td><td>-</td><td>-</td><td>600K</td><td>5.5M</td><td>77.4*</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>IDEFICS-9B [37]</td><td>LLaMA-7B</td><td>224</td><td>-</td><td>-</td><td>353M</td><td>1M</td><td></td><td>50.9</td><td>38.4</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>IDEFICS-80B [37]</td><td>LLaMA-65B</td><td>224</td><td>-</td><td>-</td><td>353M</td><td>1M</td><td>60.0</td><td>45.2</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Qwen-VL [5]</td><td>Qwen-7B</td><td>448</td><td>256</td><td>256</td><td>1.4B</td><td>50M</td><td>78.8*</td><td>59.3*</td><td>63.8</td><td>-</td><td>-</td><td>56.3</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Qwen-VL-Chat [5]</td><td>Qwen-7B</td><td>448</td><td>256</td><td>256</td><td>1.4B</td><td>50M</td><td>78.2*</td><td>57.5*</td><td>61.5</td><td>-</td><td>-</td><td>58.2</td><td>-</td><td>-</td><td>-</td></tr><tr><td>VILA [47]</td><td>Llama2-7B</td><td>336</td><td>576</td><td>576</td><td>50M</td><td>1M</td><td>79.9*</td><td>62.3*</td><td>64.4</td><td>-</td><td>-</td><td>61.1</td><td>85.5</td><td>-</td><td>34.9</td></tr><tr><td>VILA [47]</td><td>Llama2-13B</td><td>336</td><td>576</td><td>576</td><td>50M</td><td>1M</td><td>80.8</td><td>63.3*</td><td>66.6</td><td>-</td><td>-</td><td>62.8</td><td>84.2</td><td>-</td><td>38.8</td></tr><tr><td>LLaVA-1.5 [49]</td><td>Vicuna-7B</td><td>336</td><td>576</td><td>576</td><td>558K</td><td>665K</td><td>78.5*</td><td>62.0*</td><td>58.2</td><td>28.1</td><td>25.8</td><td>58.6</td><td>85.9</td><td>35.3</td><td>30.5</td></tr><tr><td>LLaVA-1.5 [49]</td><td>Vicuna-13B</td><td>672</td><td>576</td><td>576</td><td>558K</td><td>665K</td><td>80.0*</td><td>63.3*</td><td>61.3</td><td>30.3</td><td>28.4</td><td>61.6</td><td>85.9</td><td>34.8</td><td>35.4</td></tr><tr><td>LLaVA-Next [50]</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>2880</td><td>558K</td><td>765K</td><td>81.8*</td><td>64.2*</td><td>64.9</td><td>74.4*</td><td>37.1*</td><td>64.7</td><td>86.5</td><td>35.1</td><td>44.1</td></tr><tr><td>LLaVA-Next [50]</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>2880</td><td>558K</td><td>765K</td><td>82.8*</td><td>65.4*</td><td>66.9</td><td>77.5*</td><td>44.5*</td><td>65.6</td><td>86.2</td><td>35.9</td><td>49.1</td></tr><tr><td>DeepStack-V</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>80.4*</td><td>64.1*</td><td>63.5</td><td>41.0</td><td>30.0</td><td>62.3</td><td>87.6</td><td>34.9</td><td>33.0</td></tr><tr><td>DeepStack-V</td><td>Vicuna-13B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>81.1</td><td>64.2*</td><td>63.9</td><td>41.7</td><td>33.1</td><td>63.0</td><td>86.6</td><td>34.7</td><td>31.1</td></tr><tr><td>DeepStack-L</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>79.5*</td><td>63.1*</td><td>62.4</td><td>39.1</td><td>29.8</td><td>60.6</td><td>86.7</td><td>35.7</td><td>29.9</td></tr><tr><td>DeepStack-L</td><td>Vicuna-13B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>80.9*</td><td>64.2*</td><td>64.6</td><td>41.5</td><td>33.0</td><td>63.5</td><td>87.7</td><td>35.2</td><td>35.9</td></tr><tr><td>DeepStack-L-HD†</td><td>Vicuna-7B</td><td>1344</td><td>14400</td><td>2880</td><td>558K</td><td>748K</td><td>82.0*</td><td>65.2*</td><td>66.7</td><td>78.8*</td><td>41.2*</td><td>63.6</td><td>86.5</td><td>35.6</td><td>37.5</td></tr><tr><td>DeepStack-L-HD†</td><td>Vicuna-13B</td><td>1344</td><td>14400</td><td>2880</td><td>558K</td><td>748K</td><td>83.0*</td><td>66.2*</td><td>68.7</td><td>81.0*</td><td>45.2*</td><td>65.1</td><td>86.7</td><td>33.4</td><td>39.3</td></tr></table>"
+        },
+        {
+            "type": "table_footnote",
+            "bbox": [
+                0.17,
+                0.304,
+                0.827,
+                0.419
+            ],
+            "angle": 0,
+            "content": "Table 1: Comparison with other LMMs on 9 benchmarks. Eff. Res. indicates the effective image resolution taken by each method. Vis. Tok. indicates the number of visual tokens used for LLMs (not only for the input layers); Cxt. Len. indicates the input visual context length of LLMs. Previous methods feed the visual tokens as the input embeddings, thus the Vis. Tok. = Cxt. Len. all the time. For comparison with LLaVA-Next, since 765K instruction tuning data is not available, our model is fine-tuned on our 748K data. † indicates that our model is fine-tuned from LLaVA-Next. * The training images of the datasets are observed during training. ‡ denotes we report the performance on validation sets. We unfreeze the vision encoder in DeepStack-V and DeepStack-L-HD while freezing it in DeepStack-L for a fair comparison with previous methods. We fine-tuning the vision encoder can bring further improvement on DeepStack-L (please refer to Sec. 4.3 and Supp.)"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.435,
+                0.828,
+                0.492
+            ],
+            "angle": 0,
+            "content": "Fine-tuning datasets. We utilize LLaVA-mixed-665k [51] as instruction-following data for both experiments based on LLaVA-1.5. However, the SFT dataset used in Llava-Next is not publicly available, we thus combine an SFT dataset of 748K samples following the guidance [50]. In contrast, we do not involve the user images uploaded to their website."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.501,
+                0.828,
+                0.587
+            ],
+            "angle": 0,
+            "content": "Training configuration. We train our model with only the projection model tuned in the PT stage. In SFT stage, we unfreeze LLM. For Experiments on DeepStack-V and DeepStack-HD, we tune the image encoder with a learning rate of 1e-6 following [50]. Otherwise, we freeze our vision encoder for a fair comparison. We use \\(16 \\times\\) V100 for experiments with Phi-3 [1] and \\(8 \\times\\) H100 for experiments with Vicuna [15]. Please refer to our supplementary material for more detailed training hyper-parameters."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.601,
+                0.345,
+                0.617
+            ],
+            "angle": 0,
+            "content": "4.2 Quantitative Results"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.626,
+                0.829,
+                0.711
+            ],
+            "angle": 0,
+            "content": "We evaluate DeepStack on a range of benchmarks, encompassing both academic task-oriented evaluations and recent large multi-modal language model (LMM) benchmarks. Specifically, we focus on text-oriented datasets, including ChartVQA [54], DocVQA [56], InfoVQA [55], MultiDocVQA [72], TextVQA [69], to demonstrate effectiveness in high-resolution scenarios. Additionally, we perform zero-shot evaluations of DeepStack on commonly used video understanding benchmarks to assess its performance on finer-grained tasks."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.72,
+                0.828,
+                0.86
+            ],
+            "angle": 0,
+            "content": "General VQA and LMM benchmarks. We assess DeepStack on two classic general VQA benchmarks, VQAv2 [23] and GQA [25], as well as five recent LMM benchmarks: SEED [40], POPE [46], MMMU [83], and MM-Vet [81]. As presented in Tab. 1, DeepStack outperforms its direct baseline model, LLaVA, on both VQAv2 and GQA, showcasing state-of-the-art performance in traditional VQA tasks. Furthermore, DeepStack consistently surpasses other methods on the recent LMM benchmarks. DeepStack achieves comparable performance on MM-Vet on the experiments based on LLaVA-1.5. However, due to we lack of fancy instruction-following data used in LLaVA-mix-765K, our experiments with LLaVA-Next lag behind the LLaVA-Next. Notably, the significant performance boost on the POPE benchmark suggests that our DeepStack strategy effectively alleviates visual hallucination by providing rich and detailed visual information for visual understanding."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.87,
+                0.828,
+                0.914
+            ],
+            "angle": 0,
+            "content": "Text-Oriented benchmarks. To further validate the effectiveness of DeepStack, we evaluate it on more text-oriented benchmarks, including ChartQA [54], DocVQA [56], InfoVQA [55], MultiDocVQA [72], and TextVQA [69]. These benchmarks contain high-resolution images and typically"
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.506,
+                0.948
+            ],
+            "angle": 0,
+            "content": "7"
+        }
+    ],
+    [
+        {
+            "type": "table",
+            "bbox": [
+                0.191,
+                0.089,
+                0.805,
+                0.232
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Method</td><td>LLM</td><td>Vis. Tok.</td><td>Cxt. Len.</td><td>PT</td><td>IT</td><td>Chart QA‡</td><td>Doc VQA‡</td><td>Info VQA‡</td><td>MultiDoc VQA‡</td><td>Text VQA‡</td></tr><tr><td>LLaVA-1.5 [49]</td><td>Vicuna-7B</td><td>576</td><td>576</td><td>558K</td><td>665K</td><td>18.2</td><td>28.1</td><td>25.8</td><td>16.7 / 7.2</td><td>58.2*</td></tr><tr><td>LLaVA-1.5 [49]</td><td>Vicuna-13B</td><td>576</td><td>576</td><td>558K</td><td>665K</td><td>18.2</td><td>30.3</td><td>29.4</td><td>18.3 / 8.0</td><td>61.2*</td></tr><tr><td>LLaVA-Next [50]</td><td>Vicuna-7B</td><td>2880</td><td>2880</td><td>558K</td><td>765K</td><td>54.8</td><td>74.4</td><td>37.1</td><td>44.4 / 31.3</td><td>64.9</td></tr><tr><td>LLaVA-Next [50]</td><td>Vicuna-13B</td><td>2880</td><td>2880</td><td>558K</td><td>765K</td><td>62.2</td><td>77.5</td><td>44.5</td><td>46.3 / 32.6</td><td>66.9</td></tr><tr><td>DeepStack-V</td><td>Vicuna-7B</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>20.6</td><td>41.0</td><td>30.0</td><td>23.0 / 11.0</td><td>63.5*</td></tr><tr><td>DeepStack-V</td><td>Vicuna-13B</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>20.2</td><td>41.7</td><td>33.1</td><td>23.5 / 11.2</td><td>63.9*</td></tr><tr><td>DeepStack-L</td><td>Vicuna-7B</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>21.0</td><td>39.3</td><td>30.1</td><td>22.2 / 10.5</td><td>64.5*</td></tr><tr><td>DeepStack-L</td><td>Vicuna-13B</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>21.2</td><td>43.1</td><td>34.0</td><td>24.8 / 12.2</td><td>65.2*</td></tr><tr><td>DeepStack-HD†</td><td>Vicuna-7B</td><td>14400</td><td>2880</td><td>558K</td><td>748K</td><td>56.3</td><td>78.8</td><td>41.2</td><td>48.2 / 37.7</td><td>66.7</td></tr><tr><td>DeepStack-HD†</td><td>Vicuna-13B</td><td>14400</td><td>2880</td><td>748K</td><td>748K</td><td>64.0</td><td>81.0</td><td>45.2</td><td>49.4 / 39.1</td><td>68.7</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.172,
+                0.233,
+                0.825,
+                0.26
+            ],
+            "angle": 0,
+            "content": "Table 2: Results on Text-Oriented benchmarks, where high resolution is essential. * denotes we use OCR tokens for TextVQA following LLaVA-1.5. ‡ denotes we report the performance on validation sets."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.287,
+                0.827,
+                0.331
+            ],
+            "angle": 0,
+            "content": "require the model to answer questions based on fine-grained visual inputs. As shown in Tab. 2, equipping our model with DeepStack results in consistent gains across all benchmarks. This strongly demonstrates that DeepStack enhances visual token even without increasing sequence length."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.34,
+                0.825,
+                0.424
+            ],
+            "angle": 0,
+            "content": "Zero-shot performance on Video QA benchmarks. We also conduct zero-shot evaluations on video QA benchmarks, including EgoSchema [52] and Next-QA [78] for multiple-choice VQA, and MSVD-QA [10, 79] and ActivityNet-QA [82] for open-ended VQA. Inspired by [33], we sample frames from each video uniformly and mosaic the frames into images to adapt video QA tasks to the image domain. Thanks to the higher effective resolution brought by refined visual tokens, DeepStack effectively handles zero-shot video QA tasks even without being fine-tuned on any video data."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.243,
+                0.442,
+                0.756,
+                0.514
+            ],
+            "angle": 0,
+            "content": "<table><tr><td rowspan=\"3\">Method</td><td colspan=\"5\">Multi-choice VQA</td><td colspan=\"4\">Open-ended VQA</td></tr><tr><td rowspan=\"2\">EgoSchema</td><td rowspan=\"2\">Cas.</td><td colspan=\"2\">Next-QA</td><td rowspan=\"2\">Acc.</td><td colspan=\"2\">MSVD</td><td colspan=\"2\">ActivityNet</td></tr><tr><td>Des.</td><td>Tem.</td><td>Acc.</td><td>Score</td><td>Acc.</td><td>Score</td></tr><tr><td>LLaVA-1.5-7B</td><td>35.4</td><td>59.5</td><td>68.9</td><td>55.5</td><td>59.6</td><td>75.5</td><td>4.0</td><td>48.6</td><td>3.2</td></tr><tr><td>DeepStack-L-7B</td><td>38.4</td><td>61.9</td><td>69.4</td><td>55.5</td><td>61.0</td><td>76.0</td><td>4.0</td><td>49.3</td><td>3.1</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.171,
+                0.515,
+                0.825,
+                0.556
+            ],
+            "angle": 0,
+            "content": "Table 3: Zero-shot evaluation on Video QA benchmarks. We collate 6 frames uniformly sampled from each video into \\(2 \\times 3\\) grid and resize the resulting image to saquare. Our model clearly outperforms the baseline because more visual information is included with the same context length. We mark the best performance bold."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.603,
+                0.336,
+                0.619
+            ],
+            "angle": 0,
+            "content": "4.3 Model Inspection"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.631,
+                0.827,
+                0.714
+            ],
+            "angle": 0,
+            "content": "We further conduct sufficient experiments to give in-depth inspiration on the mechanism of DeepStack. In this section, we experiment with phi-3 [1] as the language backbone for the training efficiency. We report the performance on 7 benchmarks, including 1 general VQA (GQA), 2 multi-modal benchmarks (POPE and SEED), and 4 text-oriented VQA (TextVQA, DocVQA, ChartQA and InforVQA). We can evaluate the model performance by comparing the average scores over the 7 benchmarks."
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.218,
+                0.734,
+                0.41,
+                0.747
+            ],
+            "angle": 0,
+            "content": "(a) Starting layer to insert visual tokens"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.206,
+                0.751,
+                0.38,
+                0.846
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.42,
+                0.735,
+                0.577,
+                0.747
+            ],
+            "angle": 0,
+            "content": "(b) Layer interval for DeepStack"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.404,
+                0.751,
+                0.577,
+                0.845
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.612,
+                0.735,
+                0.786,
+                0.747
+            ],
+            "angle": 0,
+            "content": "(c) Number of layers for DeepStack"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.602,
+                0.75,
+                0.775,
+                0.845
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.171,
+                0.857,
+                0.825,
+                0.909
+            ],
+            "angle": 0,
+            "content": "Figure 3: Analysis on using LLM layers to process visual tokens. (a) We insert the visual tokens into different starting layers and initialize the correspondence input embeddings as zero; (b) We fix the first layer to insert global visual tokens and ablation on the interval \\( s \\) for stacking high-resolution tokens; (c) We ablation number of layers for token stacking."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.504,
+                0.948
+            ],
+            "angle": 0,
+            "content": "8"
+        }
+    ],
+    [
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.092,
+                0.828,
+                0.273
+            ],
+            "angle": 0,
+            "content": "LLMs can well process visual tokens in the early decoder layers. To understand why earlier layers of LLMs are suitable for processing visual tokens, we conducted an experiment on the insertion layer for visual tokens. Traditionally, visual tokens are inserted at the input layer, e.g. 0-th layer. We progressively insert them deeper, initializing the corresponding input embeddings to zero. As shown in Fig. 3 (a), inserting visual tokens before the 8th of 32 decoder layers in Phi-3 results in acceptable performance variations. However, inserting them beyond the midpoint leads to a significant performance drop. This confirms that earlier layers efficiently handle initial visual information integration. We also explore the impact of inserting visual tokens at non-consecutive layers. In Fig. 3 (b), we fixed global visual tokens at the input layer and varied the interval between two decoder layers for stacking high-resolution tokens. All stacking settings consistently improved performance. Finally, we explored the number of layers used for stacking high-resolution tokens. As shown in Fig. 3 (c), increasing the layers for stacking consistently enhances overall performance, with the best results achieved using four layers."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.282,
+                0.615,
+                0.392
+            ],
+            "angle": 0,
+            "content": "DeepStack can also boost Vision Transformers (ViT). To further explore the potential of DeepStack for vision transformers, we utilize the DeepStack on ViT. Specifically, we use the patch embedding layers and the first \\(N\\) ViT encoder layers to extract visual tokens, including the original tokens and \\(4 \\times\\) extra high-resolution tokens, and then stack the high-resolution tokens into the next 4 encoder layers, respectively. We need to unfreeze the vision encoder to adapt the pre-trained encoder to our DeepStack. As shown in Tab. 4"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.393,
+                0.825,
+                0.435
+            ],
+            "angle": 0,
+            "content": "and Sec. 4.3, when using the first 16 ViT encoder layers (total 24 layers for our ViT-Large) to extract visual tokens before DeepStack, DeepStack-V surpass the baseline model. And the performance keeps increasing when using more encoder layers before DeepStack."
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.629,
+                0.284,
+                0.807,
+                0.389
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.174,
+                0.457,
+                0.825,
+                0.569
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Tok. Enhance</td><td>N Layers before DeepStack</td><td>Ft Enc.</td><td>GQA</td><td>POPE</td><td>SEED</td><td>TextVQA</td><td>DocVQA</td><td>ChartQA</td><td>InfoVQA</td><td>AVG</td></tr><tr><td>None</td><td>None</td><td></td><td>62.5</td><td>85.5</td><td>63.5</td><td>56.7</td><td>31.7</td><td>15.8</td><td>28.3</td><td>49.1</td></tr><tr><td>None</td><td>None</td><td>✓</td><td>62.4</td><td>85.8</td><td>64.0</td><td>56.1</td><td>27.5</td><td>15.3</td><td>28.3</td><td>48.5</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+0 Enc. Layers</td><td>✓</td><td>56.9</td><td>80.8</td><td>54.9</td><td>44.4</td><td>13.7</td><td>12.3</td><td>25.3</td><td>41.2</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+4 Enc. Layers</td><td>✓</td><td>58.7</td><td>83.1</td><td>57.4</td><td>48.2</td><td>17.0</td><td>13.2</td><td>26.1</td><td>43.4</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+8 Enc. Layers</td><td>✓</td><td>60.4</td><td>84.2</td><td>59.7</td><td>51.8</td><td>23.1</td><td>14.7</td><td>26.6</td><td>45.8</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+12 Enc. Layers</td><td>✓</td><td>61.8</td><td>85.5</td><td>62.1</td><td>55.5</td><td>29.3</td><td>16.0</td><td>26.2</td><td>48.1</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+16 Enc. Layers</td><td>✓</td><td>62.9</td><td>86.3</td><td>63.9</td><td>59.1</td><td>36.9</td><td>18.2</td><td>29.3</td><td>50.9</td></tr><tr><td>DeepStack-V</td><td>PatchEmbed+20 Enc. Layers</td><td>✓</td><td>62.8</td><td>86.1</td><td>64.0</td><td>60.1</td><td>38.4</td><td>17.1</td><td>30.6</td><td>51.3</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.265,
+                0.569,
+                0.733,
+                0.582
+            ],
+            "angle": 0,
+            "content": "Table 4: Ablations on the number of ViT encoder layers for DeepStack-V."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.6,
+                0.584,
+                0.71
+            ],
+            "angle": 0,
+            "content": "Better spatial consistency leads to better performance. Different sampling strategies may lead to different results. In Tab. 5, we compare our default strategy with two other variants for organizing the visual tokens. As shown in Fig. 5, 2d Grid use each of the local crop as a layer and 1d Sequence simply flatten the visual tokens to one-dimensional and then reshape them into a layer stack. Accordingly, keeping the spatial coherence, i.e. 2d Spatial, as in our default setting could achieve"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.598,
+                0.603,
+                0.822,
+                0.663
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.593,
+                0.668,
+                0.826,
+                0.695
+            ],
+            "angle": 0,
+            "content": "Figure 5: Visualization of three sampling methods for DeepStack."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.203,
+                0.733,
+                0.797,
+                0.822
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Consistent</td><td>Sampling</td><td>GQA</td><td>POPE</td><td>SEED</td><td>TextVQA</td><td>DocVQA</td><td>ChartQA</td><td>InfoVQA</td><td>AVG</td></tr><tr><td>None</td><td>None</td><td>62.5</td><td>85.5</td><td>63.5</td><td>56.7</td><td>31.7</td><td>15.8</td><td>28.3</td><td>49.1</td></tr><tr><td>X</td><td>2d Spatial</td><td>62.2</td><td>85.1</td><td>62.3</td><td>58.1</td><td>35.1</td><td>16.4</td><td>30.1</td><td>49.9</td></tr><tr><td>✓</td><td>2d Spatial</td><td>63.0</td><td>86.4</td><td>62.9</td><td>58.8</td><td>38.7</td><td>17.2</td><td>30.8</td><td>51.1</td></tr><tr><td>✓</td><td>2d Grid</td><td>60.6</td><td>86.2</td><td>61.2</td><td>57.1</td><td>33.2</td><td>16.4</td><td>28.6</td><td>49.0</td></tr><tr><td>✓</td><td>1d Sequential</td><td>61.6</td><td>86.2</td><td>61.9</td><td>57.1</td><td>33.1</td><td>15.2</td><td>30.0</td><td>49.3</td></tr></table>"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.823,
+                0.825,
+                0.899
+            ],
+            "angle": 0,
+            "content": "Table 5: Ablations on image consistency and sampling method. We apply the Resize transformation to both the original image and the high-resolution image for consistency. For inconsistency, we use Resize on the original image and Pad-Resize on the high-resolution image. 2d Spatial refers to sampling based on spatial locations, such as using a 4-neighbor method. 2d Grid means the visual tokens are divided into 2d grids, with each grid stacked per layer. 1d Sequential indicates that the high-resolution visual tokens are first flattened into a sequence and then uniformly sampled for each layer. Please refer to Fig. 5 for better understanding."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.494,
+                0.936,
+                0.504,
+                0.948
+            ],
+            "angle": 0,
+            "content": "9"
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "bbox": [
+                0.179,
+                0.091,
+                0.316,
+                0.17
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.182,
+                0.173,
+                0.327,
+                0.191
+            ],
+            "angle": 0,
+            "content": "Q: What does it say in the bottom right corner?"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.346,
+                0.091,
+                0.498,
+                0.17
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.346,
+                0.173,
+                0.498,
+                0.191
+            ],
+            "angle": 0,
+            "content": "Q: How many stars can you see on the white board?"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.519,
+                0.091,
+                0.653,
+                0.17
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.519,
+                0.173,
+                0.663,
+                0.191
+            ],
+            "angle": 0,
+            "content": "Q: What candy bar is down there on the bottom?"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.682,
+                0.092,
+                0.815,
+                0.17
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.685,
+                0.173,
+                0.806,
+                0.191
+            ],
+            "angle": 0,
+            "content": "Q: What brand is the mobile phone?"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.181,
+                0.193,
+                0.307,
+                0.204
+            ],
+            "angle": 0,
+            "content": "LLaVA-1.5: 'Congratulations'"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.346,
+                0.193,
+                0.408,
+                0.203
+            ],
+            "angle": 0,
+            "content": "LLaVA-1.5: 1"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.519,
+                0.193,
+                0.628,
+                0.204
+            ],
+            "angle": 0,
+            "content": "LLaVA-1.5: Honey maid"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.685,
+                0.193,
+                0.782,
+                0.204
+            ],
+            "angle": 0,
+            "content": "LLaVA-1.5: Samsung"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.18,
+                0.206,
+                0.282,
+                0.215
+            ],
+            "angle": 0,
+            "content": "DeepStack: 'Postcode'"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.346,
+                0.206,
+                0.408,
+                0.215
+            ],
+            "angle": 0,
+            "content": "DeepStack: 3"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.519,
+                0.206,
+                0.619,
+                0.215
+            ],
+            "angle": 0,
+            "content": "DeepStack: Hershey's"
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.685,
+                0.206,
+                0.762,
+                0.215
+            ],
+            "angle": 0,
+            "content": "DeepStack: HTC"
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.177,
+                0.239,
+                0.406,
+                0.362
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.416,
+                0.222,
+                0.8,
+                0.247
+            ],
+            "angle": 0,
+            "content": "Q: Please describe in as much detail as possible what each person in the picture is doing.  \nLLaVA-1.5:"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.417,
+                0.247,
+                0.815,
+                0.318
+            ],
+            "angle": 0,
+            "content": "In the image, there is a group of people gathered around a cow in a grassy field. A woman is standing next to the cow, possibly petting it or tending to it. Another woman is standing nearby, possibly observing the scene or waiting for her turn to interact with the cow. There are several other people in the background, some of whom are standing closer to the cow, while others are further away. A few individuals are wearing ties, which suggests a more formal or professional setting. In the scene, there are also a couple of chairs and a dining table, indicating that this gathering might be a social event or a meeting. A handbag can be seen placed on the ground, possibly belonging to one of the attendees."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.417,
+                0.321,
+                0.471,
+                0.331
+            ],
+            "angle": 0,
+            "content": "DeepStack:"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.417,
+                0.333,
+                0.816,
+                0.387
+            ],
+            "angle": 0,
+            "content": "In the image, there is a group of people gathered around a brown and white cow. A woman is standing next to the cow, holding its halter, while a man is standing nearby, possibly observing the scene. Other people are also present in the area, some standing closer to the cow and others further away. There are a few chairs scattered around the scene, with one near the center and two others closer to the right side. A truck can be seen in the background possibly indicating that the event is taking place at a fair or similar outdoor venue."
+        },
+        {
+            "type": "image",
+            "bbox": [
+                0.177,
+                0.395,
+                0.412,
+                0.555
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.416,
+                0.399,
+                0.645,
+                0.409
+            ],
+            "angle": 0,
+            "content": "Q: Please describe the image as detailed as possible."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.417,
+                0.412,
+                0.468,
+                0.421
+            ],
+            "angle": 0,
+            "content": "LLaVA-1.5:"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.417,
+                0.422,
+                0.817,
+                0.476
+            ],
+            "angle": 0,
+            "content": "The image displays a graph with a central circle that represents a VOQA (Voice over QAM) system. The circle is divided into four quadrants, each representing a different aspect of the system. The quadrants are labeled with the acronyms VOQA, POP, GAOA, and TEX. The graph also includes several smaller circles scattered around the main circle, which are likely related to the VOQA system as well. These smaller circles are positioned at various distances from the main circle, indicating the different levels of the system."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.417,
+                0.481,
+                0.471,
+                0.491
+            ],
+            "angle": 0,
+            "content": "DeepStack:"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.417,
+                0.493,
+                0.814,
+                0.555
+            ],
+            "angle": 0,
+            "content": "The image features a circular diagram with various labels and numbers. The diagram is divided into different sections, each with its own set of labels and numbers. The central section of the diagram is labeled \"VQA2,\" while the surrounding sections are labeled \"Pope,\" \"GQA,\" \"Seed,\" \"InfoVQA,\" \"DocVQA,\" and \"Sequence.\" There are several numbers in the diagram, with some located in the central section and others scattered throughout the different sections. The numbers are likely used to represent data or information related to the various labels and sections of the diagram."
+        },
+        {
+            "type": "image_caption",
+            "bbox": [
+                0.171,
+                0.569,
+                0.825,
+                0.62
+            ],
+            "angle": 0,
+            "content": "Figure 4: Visualization. Both LLaVA-1.5 and DeepStack use 576 visual context length for a fair comparison. Top: We mark the area corresponding to each question with a red circle. DeepStack can well answer the questions which need high-resolution and fine-grained understanding. Bottom: DeepStack demonstrates a more accurate visual understanding in detailed visual captioning."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.648,
+                0.825,
+                0.718
+            ],
+            "angle": 0,
+            "content": "DeepStack boosts LMMs from high-resolution tokens, not residual connections. We experiment to assess the impact of high-resolution images and residual connections in DeepStack by stacking original visual tokens into different layers. As shown in Tab. 6, stacking repeated original tokens (dummy tokens) does not improve performance. This indicates that the performance boost in DeepStack comes from the high-resolution tokens, not from the residual connections."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.202,
+                0.731,
+                0.795,
+                0.793
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Tok. Enhance</td><td>Stack Tok.</td><td>GQA</td><td>POPE</td><td>SEED</td><td>TextVQA</td><td>DocVQA</td><td>ChartQA</td><td>InfoVQA</td><td>AVG</td></tr><tr><td>None</td><td>None</td><td>62.5</td><td>85.5</td><td>63.5</td><td>56.7</td><td>31.7</td><td>15.8</td><td>28.3</td><td>49.1</td></tr><tr><td>DeepStack</td><td>Dummy</td><td>62.2</td><td>85.3</td><td>63.8</td><td>56.9</td><td>31.2</td><td>15.4</td><td>28.8</td><td>49.1</td></tr><tr><td>DeepStack</td><td>Hi-Res</td><td>63.0</td><td>86.4</td><td>62.9</td><td>58.8</td><td>38.7</td><td>17.2</td><td>30.8</td><td>51.1</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.171,
+                0.794,
+                0.825,
+                0.82
+            ],
+            "angle": 0,
+            "content": "Table 6: Ablations on high-resolution visual tokens for stacking. Dummy refers to repeating the original visual tokens for token stacking; Hi-Res is our default setting that uses high-resolution visual tokens for stacking."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.856,
+                0.827,
+                0.913
+            ],
+            "angle": 0,
+            "content": "DeepStack achieves a better trade-off between performance and effectiveness. We compare DeepStack with other token enhancement strategies, including dimension-wise concatenation, sequence-wise with high-resolution visual tokens, and string both global visual and high-resolution tokens. As shown in Tab. 7, although string-based methods can bring significant improvement on some"
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.509,
+                0.948
+            ],
+            "angle": 0,
+            "content": "10"
+        }
+    ],
+    [
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.092,
+                0.825,
+                0.135
+            ],
+            "angle": 0,
+            "content": "benchmarks, they increase the number of tokens at the same time, which will increase the training and inference cost. Meanwhile, DeepStack achieves the best trade-off between performance and effectiveness without introducing extra visual tokens."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.174,
+                0.146,
+                0.825,
+                0.232
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Tok. Enhance</td><td>N Tok.</td><td>Eff. Tok.</td><td>GQA</td><td>POPE</td><td>SEED</td><td>TextVQA</td><td>DocVQA</td><td>ChartQA</td><td>InfoVQA</td><td>AVG</td></tr><tr><td>None</td><td>576</td><td>576</td><td>62.5</td><td>85.5</td><td>63.5</td><td>56.7</td><td>31.7</td><td>15.8</td><td>28.3</td><td>49.1</td></tr><tr><td>Dimension Concat</td><td>576</td><td>2880</td><td>59.5</td><td>86.3</td><td>62.9</td><td>56.4</td><td>35.9</td><td>16.4</td><td>28.5</td><td>49.4</td></tr><tr><td>Hi-Res String</td><td>2304</td><td>2304</td><td>61.8</td><td>86.2</td><td>62.1</td><td>55.0</td><td>43.5</td><td>16.2</td><td>30.4</td><td>50.7</td></tr><tr><td>Global+ Hi-Res String</td><td>2880</td><td>2880</td><td>62.3</td><td>86.4</td><td>62.6</td><td>54.7</td><td>43.3</td><td>16.7</td><td>31.2</td><td>51.0</td></tr><tr><td>DeepStack</td><td>576</td><td>2880</td><td>63.0</td><td>86.4</td><td>62.9</td><td>58.8</td><td>38.7</td><td>17.2</td><td>30.8</td><td>51.1</td></tr></table>"
+        },
+        {
+            "type": "table_footnote",
+            "bbox": [
+                0.171,
+                0.233,
+                0.825,
+                0.271
+            ],
+            "angle": 0,
+            "content": "Table 7: Ablations on different token enhancement strategies. Dimension Concat refers to concatenate X and \\( \\mathbf{X}^{\\text{stack}} \\) via the channel of features hidden space; Hi-Res String and Global+Hi-Res String refers to string \\( \\mathbf{X}^{\\text{stack}} \\) and \\( [\\mathbf{X},\\mathbf{X}^{\\text{stack}}] \\) via sequence, respectively."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.299,
+                0.827,
+                0.385
+            ],
+            "angle": 0,
+            "content": "DeepStack unleashes the power after fine-tuning the image encoder. We further experiment with how DeepStack compared coporated with fine-tuning backbones. As shown in Tab. 4, DeepStack achieves the best performance when fine-tuning the backbone. It is worth noticing that when fine-tuning the backbone without DeepStack, the improvement is limited. After combining backbone fietuning with DeepStack, the performance significantly increases among different benchmarks. It is because of the deep interaction between visual tokens and the LLM decoder."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.209,
+                0.395,
+                0.79,
+                0.472
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Tok. Enhance</td><td>Ft Enc.</td><td>GQA</td><td>POPE</td><td>SEED</td><td>TextVQA</td><td>DocVQA</td><td>ChartQA</td><td>InfoVQA</td><td>AVG</td></tr><tr><td>None</td><td></td><td>62.5</td><td>85.5</td><td>63.5</td><td>56.7</td><td>31.7</td><td>15.8</td><td>28.3</td><td>49.1</td></tr><tr><td>None</td><td>✓</td><td>62.4</td><td>85.8</td><td>64.0</td><td>56.1</td><td>27.5</td><td>15.3</td><td>28.3</td><td>48.5</td></tr><tr><td>DeepStack</td><td></td><td>63.0</td><td>86.4</td><td>62.9</td><td>58.8</td><td>38.7</td><td>17.2</td><td>30.8</td><td>51.1</td></tr><tr><td>DeepStack</td><td>✓</td><td>63.1</td><td>86.8</td><td>63.9</td><td>61.1</td><td>41.2</td><td>18.9</td><td>31.5</td><td>52.4</td></tr></table>"
+        },
+        {
+            "type": "table_footnote",
+            "bbox": [
+                0.171,
+                0.472,
+                0.825,
+                0.497
+            ],
+            "angle": 0,
+            "content": "Table 8: Ablations on fine-tuning vision encoder. DeepStack achieves best performance after fine-tuning vision encoder."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.535,
+                0.303,
+                0.551
+            ],
+            "angle": 0,
+            "content": "5 Conclusion"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.567,
+                0.827,
+                0.706
+            ],
+            "angle": 0,
+            "content": "In this work, we had presented DeepStack, a simple yet effective way to connect vision and language in the context of LMMs. Unlike previous works that always string (compressed) visual tokens into a sequence, we alternatively introduced a new perspective on transformer decoder layers in LLMs, and proposed a DeepStack strategy to feed different visual tokens into different layers of LLMs. This strategy significantly mitigates the efficiency overhead introduced by visual tokens and makes it possible to convey more visual information to LLMs. As a result, our DeepStack demonstrated consistent improvements over two baseline models across a wide range of benchmarks. The benefits are particularly significant on tasks that inherently require more tokens, such as high-resolution image understanding. We hope this new DeepStack strategy could open up new ideas on how to connect vision and language for faster and better multimodal models in the regime of LMMs."
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.17,
+                0.711,
+                0.825,
+                0.795
+            ],
+            "angle": 0,
+            "content": "Limitation and Future Works. Our current DeepStack simply inserts the visual tokens into middle LLMs layers via a residual connection in a heuristic manner. Though it already exhibits promising results, we may find a more powerful way to infuse the visual information, e.g., through gated function or layer-wise positional embeddings. Meanwhile, how to systematically decide the starting layer and number of layers also deserves more study. We leave these as promising directions to explore in the future."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.508,
+                0.948
+            ],
+            "angle": 0,
+            "content": "11"
+        }
+    ],
+    [
+        {
+            "type": "title",
+            "bbox": [
+                0.174,
+                0.09,
+                0.27,
+                0.107
+            ],
+            "angle": 0,
+            "content": "References"
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.113,
+                0.826,
+                0.152
+            ],
+            "angle": 0,
+            "content": "[1] M. Abdin, S. A. Jacobs, A. A. Awan, J. Aneja, A. Awadallah, H. Awadalla, N. Bach, A. Bahree, A. Bakhtiari, H. Behl, et al. Phi-3 technical report: A highly capable language model locally on your phone. arXiv preprint arXiv:2404.14219, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.161,
+                0.826,
+                0.188
+            ],
+            "angle": 0,
+            "content": "[2] J. Achiam, S. Adler, S. Agarwal, L. Ahmad, I. Akkaya, F. L. Aleman, D. Almeida, J. Altenschmidt, S. Altman, S. Anadkat, et al. Gpt-4 technical report. arXiv preprint arXiv:2303.08774, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.197,
+                0.826,
+                0.223
+            ],
+            "angle": 0,
+            "content": "[3] J.-B. Alayrac, J. Donahue, P. Luc, A. Miech, I. Barr, Y. Hasson, K. Lenc, A. Mensch, K. Millican, M. Reynolds, et al. Flamingo: a visual language model for few-shot learning. NeurIPS, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.231,
+                0.826,
+                0.309
+            ],
+            "angle": 0,
+            "content": "[4] J.-B. Alayrac, J. Donahue, P. Luc, A. Miech, I. Barr, Y. Hasson, K. Lenc, A. Mensch, K. Millican, M. Reynolds, R. Ring, E. Rutherford, S. Cabi, T. Han, Z. Gong, S. Samangooei, M. Monteiro, J. L. Menick, S. Borgeaud, A. Brock, A. Nematzadeh, S. Sharifzadeh, M. a. Binkowski, R. Barreira, O. Vinyals, A. Zisserman, and K. Simonyan. Flamingo: a visual language model for few-shot learning. In S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh, editors, Adv. Neural Inform. Process. Syst., volume 35, pages 23716-23736. Curran Associates, Inc., 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.318,
+                0.826,
+                0.344
+            ],
+            "angle": 0,
+            "content": "[5] J. Bai, S. Bai, S. Yang, S. Wang, S. Tan, P. Wang, J. Lin, C. Zhou, and J. Zhou. Qwen-vl: A frontier large vision-language model with versatile abilities. arXiv preprint arXiv:2308.12966, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.353,
+                0.826,
+                0.379
+            ],
+            "angle": 0,
+            "content": "[6] T. Brown, B. Mann, N. Ryder, M. Subbiah, J. D. Kaplan, P. Dhariwal, A. Neelakantan, P. Shyam, G. Sastry, A. Askell, et al. Language models are few-shot learners. NeurIPS, 2020."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.388,
+                0.826,
+                0.414
+            ],
+            "angle": 0,
+            "content": "[7] N. Carion, F. Massa, G. Synnaeve, N. Usunier, A. Kirillov, and S. Zagoruyko. End-to-end object detection with transformers. In ECCV, 2020."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.423,
+                0.826,
+                0.438
+            ],
+            "angle": 0,
+            "content": "[8] J. Cha, W. Kang, J. Mun, and B. Roh. Honeybee: Locality-enhanced projector for multimodal llm, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.182,
+                0.447,
+                0.826,
+                0.473
+            ],
+            "angle": 0,
+            "content": "[9] S. Changpinyo, P. Sharma, N. Ding, and R. Soricut. Conceptual 12m: Pushing web-scale image-text pre-training to recognize long-tail visual concepts. In CVPR, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.482,
+                0.79,
+                0.496
+            ],
+            "angle": 0,
+            "content": "[10] D. Chen and W. B. Dolan. Collecting highly parallel data for paraphrase evaluation. In ACL, 2011."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.505,
+                0.826,
+                0.543
+            ],
+            "angle": 0,
+            "content": "[11] J. Chen, D. Zhu, X. Shen, X. Li, Z. Liu, P. Zhang, R. Krishnamoorthi, V. Chandra, Y. Xiong, and M. Elhoseiny. Minigpt-v2: large language model as a unified interface for vision-language multi-task learning, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.552,
+                0.826,
+                0.579
+            ],
+            "angle": 0,
+            "content": "[12] K. Chen, Z. Zhang, W. Zeng, R. Zhang, F. Zhu, and R. Zhao. Shikra: Unleashing multimodal llm's referential dialogue magic. arXiv preprint arXiv:2306.15195, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.588,
+                0.826,
+                0.614
+            ],
+            "angle": 0,
+            "content": "[13] L. Chen, J. Li, X. Dong, P. Zhang, C. He, J. Wang, F. Zhao, and D. Lin. Sharegpt4v: Improving large multi-modal models with better captions. arXiv preprint arXiv:2311.12793, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.623,
+                0.826,
+                0.65
+            ],
+            "angle": 0,
+            "content": "[14] L.-C. Chen, G. Papandreou, I. Kokkinos, K. Murphy, and A. L. Yuille. Deeplab: Semantic image segmentation with deep convolutional nets, atrous convolution, and fully connected crfs. TPAMI, 2017."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.659,
+                0.826,
+                0.696
+            ],
+            "angle": 0,
+            "content": "[15] W.-L. Chiang, Z. Li, Z. Lin, Y. Sheng, Z. Wu, H. Zhang, L. Zheng, S. Zhuang, Y. Zhuang, J. E. Gonzalez, I. Stoica, and E. P. Xing. Vicuna: An open-source chatbot impressing gpt-4 with \\(90\\%\\) * chatgpt quality, March 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.706,
+                0.826,
+                0.733
+            ],
+            "angle": 0,
+            "content": "[16] W. Dai, J. Li, D. Li, A. M. H. Tiong, J. Zhao, W. Wang, B. Li, P. N. Fung, and S. Hoi. Instructblip: Towards general-purpose vision-language models with instruction tuning. NeurIPS, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.742,
+                0.826,
+                0.769
+            ],
+            "angle": 0,
+            "content": "[17] W. Dai, J. Li, D. Li, A. M. H. Tiong, J. Zhao, W. Wang, B. A. Li, P. Fung, and S. C. H. Hoi. Instructblip: Towards general-purpose vision-language models with instruction tuning. ArXiv, abs/2305.06500, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.777,
+                0.826,
+                0.803
+            ],
+            "angle": 0,
+            "content": "[18] J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova. Bert: Pre-training of deep bidirectional transformers for language understanding. arXiv preprint arXiv:1810.04805, 2018."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.812,
+                0.826,
+                0.851
+            ],
+            "angle": 0,
+            "content": "[19] X. Dong, P. Zhang, Y. Zang, Y. Cao, B. Wang, L. Ouyang, S. Zhang, H. Duan, W. Zhang, Y. Li, et al. Internlm-xcomposer2-4khd: A pioneering large vision-language model handling resolutions from 336 pixels to 4k hd. arXiv preprint arXiv:2404.06512, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.86,
+                0.826,
+                0.912
+            ],
+            "angle": 0,
+            "content": "[20] X. Dong, P. Zhang, Y. Zang, Y. Cao, B. Wang, L. Ouyang, S. Zhang, H. Duan, W. Zhang, Y. Li, H. Yan, Y. Gao, Z. Chen, X. Zhang, W. Li, J. Li, W. Wang, K. Chen, C. He, X. Zhang, J. Dai, Y. Qiao, D. Lin, and J. Wang. Internlm-xcomposer2-4khd: A pioneering large vision-language model handling resolutions from 336 pixels to 4k hd, 2024."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.174,
+                0.113,
+                0.826,
+                0.912
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.509,
+                0.948
+            ],
+            "angle": 0,
+            "content": "12"
+        }
+    ],
+    [
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.092,
+                0.826,
+                0.12
+            ],
+            "angle": 0,
+            "content": "[21] X. Fan, T. Ji, C. Jiang, S. Li, S. Jin, S. Song, J. Wang, B. Hong, L. Chen, G. Zheng, et al. Mousi: Poly-visual-expert vision-language models. arXiv preprint arXiv:2401.17221, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.127,
+                0.827,
+                0.166
+            ],
+            "angle": 0,
+            "content": "[22] P. Gao, R. Zhang, C. Liu, L. Qiu, S. Huang, W. Lin, S. Zhao, S. Geng, Z. Lin, P. Jin, et al. *Sphinx-x: Scaling data and parameters for a family of multi-modal large language models.* arXiv preprint arXiv:2402.05935, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.176,
+                0.825,
+                0.203
+            ],
+            "angle": 0,
+            "content": "[23] Y. Goyal, T. Khot, D. Summers-Stay, D. Batra, and D. Parikh. Making the v in vqa matter: Elevating the role of image understanding in visual question answering. In CVPR, 2017."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.211,
+                0.826,
+                0.238
+            ],
+            "angle": 0,
+            "content": "[24] S. Gunasekar, Y. Zhang, J. Aneja, C. C. T. Mendes, A. Del Giorno, S. Gopi, M. Javaheripi, P. Kauffmann, G. de Rosa, O. Saarikivi, et al. Textbooks are all you need. arXiv preprint arXiv:2306.11644, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.246,
+                0.824,
+                0.273
+            ],
+            "angle": 0,
+            "content": "[25] D. A. Hudson and C. D. Manning. Gqa: A new dataset for real-world visual reasoning and compositional question answering. In CVPR, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.282,
+                0.824,
+                0.308
+            ],
+            "angle": 0,
+            "content": "[26] A. Jaegle, F. Gimeno, A. Brock, O. Vinyals, A. Zisserman, and J. Carreira. Perceiver: General perception with iterative attention. In ICML, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.317,
+                0.827,
+                0.355
+            ],
+            "angle": 0,
+            "content": "[27] M. Javaheripi, S. Bubeck, M. Abdin, J. Aneja, S. Bubeck, C. C. T. Mendes, W. Chen, A. Del Giorno, R. Eldan, S. Gopi, et al. Phi-2: The surprising power of small language models. *Microsoft Research Blog*, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.365,
+                0.824,
+                0.392
+            ],
+            "angle": 0,
+            "content": "[28] C. Jia, Y. Yang, Y. Xia, Y.-T. Chen, Z. Parekh, H. Pham, Q. Le, Y.-H. Sung, Z. Li, and T. Duerig. Scaling up visual and vision-language representation learning with noisy text supervision. In ICML, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.4,
+                0.824,
+                0.427
+            ],
+            "angle": 0,
+            "content": "[29] K. Kafle, B. Price, S. Cohen, and C. Kanan. Dvqa: Understanding data visualizations via question answering. In CVPR, 2018."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.436,
+                0.824,
+                0.462
+            ],
+            "angle": 0,
+            "content": "[30] S. Kazemzadeh, V. Ordonez, M. Matten, and T. Berg. Referitgame: Referring to objects in photographs of natural scenes. In EMNLP, 2014."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.471,
+                0.824,
+                0.498
+            ],
+            "angle": 0,
+            "content": "[31] A. Kembhavi, M. Salvato, E. Kolve, M. Seo, H. Hajishirzi, and A. Farhadi. A diagram is worth a dozen images. In ECCV, 2016."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.506,
+                0.824,
+                0.533
+            ],
+            "angle": 0,
+            "content": "[32] G. Kim, T. Hong, M. Yim, J. Nam, J. Park, J. Yim, W. Hwang, S. Yun, D. Han, and S. Park. Ocr-free document understanding transformer. In ECCV, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.542,
+                0.824,
+                0.568
+            ],
+            "angle": 0,
+            "content": "[33] W. Kim, C. Choi, W. Lee, and W. Rhee. An image grid can be worth a video: Zero-shot video question answering using a vlm. arXiv preprint arXiv:2403.18406, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.577,
+                0.827,
+                0.616
+            ],
+            "angle": 0,
+            "content": "[34] R. Krishna, Y. Zhu, O. Groth, J. Johnson, K. Hata, J. Kravitz, S. Chen, Y. Kalantidis, L.-J. Li, D. A. Shamma, et al. Visual genome: Connecting language and vision using crowdsourced dense image annotations. IJCV, 2017."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.625,
+                0.622,
+                0.64
+            ],
+            "angle": 0,
+            "content": "[35] LAION-4V. https://huggingface.co/datasets/laion/gpt4v-dataset, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.648,
+                0.824,
+                0.675
+            ],
+            "angle": 0,
+            "content": "[36] Z. Lan, M. Chen, S. Goodman, K. Gimpel, P. Sharma, and R. Soricut. Albert: A lite bert for self-supervised learning of language representations. arXiv preprint arXiv:1909.11942, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.683,
+                0.827,
+                0.722
+            ],
+            "angle": 0,
+            "content": "[37] H. Laurencon, D. van Strien, S. Bekman, L. Tronchon, L. Saulnier, T. Wang, S. Karamcheti, A. Singh, G. Pistilli, Y. Jernite, et al. Introducing idefics: An open reproduction of state-of-the-art visual language model, 2023. URL https://huggingface.co/blog/idefics.Accessed, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.731,
+                0.827,
+                0.758
+            ],
+            "angle": 0,
+            "content": "[38] T. Le Scao, A. Fan, C. Akiki, E. Pavlick, S. Ilic, D. Hesslow, R. Castagné, A. S. Luccioni, F. Yvon, M. Galle, et al. Bloom: A 176b-parameter open-access multilingual language model. 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.766,
+                0.827,
+                0.806
+            ],
+            "angle": 0,
+            "content": "[39] M. Lewis, Y. Liu, N. Goyal, M. Ghazvininejad, A. Mohamed, O. Levy, V. Stoyanov, and L. Zettlemoyer. Bart: Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension. arXiv preprint arXiv:1910.13461, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.814,
+                0.824,
+                0.842
+            ],
+            "angle": 0,
+            "content": "[40] B. Li, R. Wang, G. Wang, Y. Ge, Y. Ge, and Y. Shan. Seed-bench: Benchmarking multimodal llms with generative comprehension. arXiv preprint arXiv:2307.16125, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.85,
+                0.825,
+                0.877
+            ],
+            "angle": 0,
+            "content": "[41] B. Li, P. Zhang, K. Zhang, F. Pu, X. Du, Y. Dong, H. Liu, Y. Zhang, G. Zhang, C. Li, and Z. Liu. Lmms-eval: Accelerating the development of large multimodal models, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.885,
+                0.824,
+                0.912
+            ],
+            "angle": 0,
+            "content": "[42] J. Li, D. Li, S. Savarese, and S. Hoi. Blip-2: Bootstrapping language-image pre-training with frozen image encoders and large language models. In ICML, 2023."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.174,
+                0.092,
+                0.827,
+                0.912
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.508,
+                0.947
+            ],
+            "angle": 0,
+            "content": "13"
+        }
+    ],
+    [
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.092,
+                0.826,
+                0.12
+            ],
+            "angle": 0,
+            "content": "[43] J. Li, D. Li, S. Savarese, and S. C. H. Hoi. Blip-2: Bootstrapping language-image pre-training with frozen image encoders and large language models. In ICML, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.128,
+                0.827,
+                0.155
+            ],
+            "angle": 0,
+            "content": "[44] J. Li, D. Li, C. Xiong, and S. Hoi. Blip: Bootstrapping language-image pre-training for unified vision-language understanding and generation. In ICML, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.164,
+                0.825,
+                0.192
+            ],
+            "angle": 0,
+            "content": "[45] J. Li, D. Li, C. Xiong, and S. C. H. Hoi. Blip: Bootstrapping language-image pre-training for unified vision-language understanding and generation. In ICML, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.2,
+                0.825,
+                0.227
+            ],
+            "angle": 0,
+            "content": "[46] Y. Li, Y. Du, K. Zhou, J. Wang, W. X. Zhao, and J.-R. Wen. Evaluating object hallucination in large vision-language models. arXiv preprint arXiv:2305.10355, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.236,
+                0.825,
+                0.263
+            ],
+            "angle": 0,
+            "content": "[47] J. Lin, H. Yin, W. Ping, Y. Lu, P. Molchanov, A. Tao, H. Mao, J. Kautz, M. Shoeybi, and S. Han. Vila: On pre-training for visual language models. arXiv preprint arXiv:2312.07533, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.272,
+                0.825,
+                0.311
+            ],
+            "angle": 0,
+            "content": "[48] Z. Lin, C. Liu, R. Zhang, P. Gao, L. Qiu, H. Xiao, H. Qiu, C. Lin, W. Shao, K. Chen, et al. Sphinx: The joint mixing of weights, tasks, and visual embeddings for multi-modal large language models. arXiv preprint arXiv:2311.07575, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.321,
+                0.826,
+                0.347
+            ],
+            "angle": 0,
+            "content": "[49] H. Liu, C. Li, Y. Li, and Y. J. Lee. Improved baselines with visual instruction tuning. ArXiv, abs/2310.03744, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.357,
+                0.825,
+                0.383
+            ],
+            "angle": 0,
+            "content": "[50] H. Liu, C. Li, Y. Li, B. Li, Y. Zhang, S. Shen, and Y. J. Lee. Llava-last: Improved reasoning,OCR, and world knowledge, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.393,
+                0.684,
+                0.407
+            ],
+            "angle": 0,
+            "content": "[51] H. Liu, C. Li, Q. Wu, and Y. J. Lee. Visual instruction tuning. In NeurIPS, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.416,
+                0.825,
+                0.443
+            ],
+            "angle": 0,
+            "content": "[52] K. Mangalam, R. Akshulakov, and J. Malik. Egoschema: A diagnostic benchmark for very long-form video language understanding. NeurIPS, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.452,
+                0.825,
+                0.479
+            ],
+            "angle": 0,
+            "content": "[53] K. Marino, M. Rastegari, A. Farhadi, and R. Mottaghi. Ok-vqa: A visual question answering benchmark requiring external knowledge. In CVPR, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.488,
+                0.825,
+                0.515
+            ],
+            "angle": 0,
+            "content": "[54] A. Masy, D. X. Long, J. Q. Tan, S. Joty, and E. Hoque. Chartqa: A benchmark for question answering about charts with visual and logical reasoning. arXiv preprint arXiv:2203.10244, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.524,
+                0.827,
+                0.539
+            ],
+            "angle": 0,
+            "content": "[55] M. Mathew, V. Bagal, R. Tito, D. Karatzas, E. Valveny, and C. Jawahar. Infographicvqa. In WACV, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.548,
+                0.827,
+                0.573
+            ],
+            "angle": 0,
+            "content": "[56] M. Mathew, D. Karatzas, and C. Jawahar. Docvqa: A dataset for vqa on document images. In WACV, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.583,
+                0.827,
+                0.636
+            ],
+            "angle": 0,
+            "content": "[57] B. McKinzie, Z. Gan, J.-P. Fauconnier, S. Dodge, B. Zhang, P. Dufter, D. Shah, X. Du, F. Peng, F. Weers, A. Belyi, H. Zhang, K. Singh, D. Kang, A. Jain, H. He, M. Schwarzer, T. Gunter, X. Kong, A. Zhang, J. Wang, C. Wang, N. Du, T. Lei, S. Wiseman, G. Yin, M. Lee, Z. Wang, R. Pang, P. Grasch, A. Toshev, and Y. Yang. Mm1: Methods, analysis & insights from multimodal llm pre-training, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.644,
+                0.825,
+                0.671
+            ],
+            "angle": 0,
+            "content": "[58] A. Mishra, S. Shekhar, A. K. Singh, and A. Chakraborty. Ocr-vqa: Visual question answering by reading text in images. In ICDAR, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.681,
+                0.827,
+                0.707
+            ],
+            "angle": 0,
+            "content": "[59] L. Ouyang, J. Wu, X. Jiang, D. Almeida, C. Wainwright, P. Mishkin, C. Zhang, S. Agarwal, K. Slama, A. Ray, et al. Training language models to follow instructions with human feedback. NeurIPS, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.716,
+                0.827,
+                0.742
+            ],
+            "angle": 0,
+            "content": "[60] B. Peng, C. Li, P. He, M. Galley, and J. Gao. Instruction tuning with gpt-4. arXiv preprint arXiv:2304.03277, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.753,
+                0.827,
+                0.791
+            ],
+            "angle": 0,
+            "content": "[61] A. Radford, J. W. Kim, C. Hallacy, A. Ramesh, G. Goh, S. Agarwal, G. Sastry, A. Askell, P. Mishkin, J. Clark, G. Krueger, and I. Sutskever. Learning transferable visual models from natural language supervision, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.801,
+                0.825,
+                0.828
+            ],
+            "angle": 0,
+            "content": "[62] A. Radford, K. Narasimhan, T. Salimans, I. Sutskever, et al. Improving language understanding by generative pre-training. 2018."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.837,
+                0.825,
+                0.863
+            ],
+            "angle": 0,
+            "content": "[63] A. Radford, J. Wu, R. Child, D. Luan, D. Amodei, I. Sutskever, et al. Language models are unsupervised multitask learners. OpenAI blog, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.873,
+                0.827,
+                0.91
+            ],
+            "angle": 0,
+            "content": "[64] C. Raffel, N. Shazeer, A. Roberts, K. Lee, S. Narang, M. Matena, Y. Zhou, W. Li, and P. J. Liu. Exploring the limits of transfer learning with a unified text-to-text transformer. Journal of machine learning research, 2020."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.174,
+                0.092,
+                0.827,
+                0.91
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.509,
+                0.948
+            ],
+            "angle": 0,
+            "content": "14"
+        }
+    ],
+    [
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.092,
+                0.826,
+                0.131
+            ],
+            "angle": 0,
+            "content": "[65] T. L. Scao, A. Fan, C. Akiki, E. Pavlick, S. Ili'c, D. Hesslow, R. Castagn'e, A. S. Luccioni, F. Yvon, and M. G. et al. Bloom: A 176b-parameter open-access multilingual language model. arXiv preprint arXiv:2211.05100, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.14,
+                0.827,
+                0.192
+            ],
+            "angle": 0,
+            "content": "[66] C. Schuhmann, R. Beaumont, R. Vencu, C. W. Gordon, R. Wightman, M. Cherti, T. Coombes, A. Katta, C. Mullis, M. Wortsman, P. Schramowski, S. R. Kundurthy, K. Crowson, L. Schmidt, R. Kaczmarczyk, and J. Jitsev. LAION-5b: An open large-scale dataset for training next generation image-text models. In NeurIPS, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.201,
+                0.825,
+                0.229
+            ],
+            "angle": 0,
+            "content": "[67] D. Schwenk, A. Khandelwal, C. Clark, K. Marino, and R. Mottaghi. A-okvqa: A benchmark for visual question answering using world knowledge. In ECCV, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.238,
+                0.483,
+                0.252
+            ],
+            "angle": 0,
+            "content": "[68] ShareGPT. https://sharegpt.com/, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.261,
+                0.825,
+                0.287
+            ],
+            "angle": 0,
+            "content": "[69] A. Singh, V. Natarajan, M. Shah, Y. Jiang, X. Chen, D. Batra, D. Parikh, and M. Rohrbach. Towards vqa models that can read. In CVPR, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.297,
+                0.826,
+                0.323
+            ],
+            "angle": 0,
+            "content": "[70] Q. Sun, Y. Cui, X. Zhang, F. Zhang, Q. Yu, Z. Luo, Y. Wang, Y. Rao, J. Liu, T. Huang, and X. Wang. Generative multimodal models are in-context learners, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.333,
+                0.827,
+                0.373
+            ],
+            "angle": 0,
+            "content": "[71] R. Taori, I. Gulrajani, T. Zhang, Y. Dubois, X. Li, C. Guestrin, P. Liang, and T. B. Hashimoto. Alpaca: A strong, replicable instruction-following model. Stanford Center for Research on Foundation Models. https://crfm.stanford.edu/2023/03/13/alpaca.html, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.381,
+                0.825,
+                0.408
+            ],
+            "angle": 0,
+            "content": "[72] R. Tito, D. Karatzas, and E. Valveny. Hierarchical multimodal transformers for multipage docvqa. Pattern Recognition, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.417,
+                0.825,
+                0.444
+            ],
+            "angle": 0,
+            "content": "[73] S. Tong, Z. Liu, Y. Zhai, Y. Ma, Y. LeCun, and S. Xie. Eyes wide shut? exploring the visual shortcomings of multimodal llms. arXiv preprint arXiv:2401.06209, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.453,
+                0.827,
+                0.491
+            ],
+            "angle": 0,
+            "content": "[74] H. Touvron, T. Lavril, G. Izacard, X. Martinet, M.-A. Lachaux, T. Lacroix, B. Roziere, N. Goyal, E. Hambro, F. Azhar, et al. Llama: Open and efficient foundation language models. arXiv preprint arXiv:2302.13971, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.501,
+                0.827,
+                0.528
+            ],
+            "angle": 0,
+            "content": "[75] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin. Attention is all you need. NeurIPS, 2017."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.537,
+                0.825,
+                0.564
+            ],
+            "angle": 0,
+            "content": "[76] J. Wang, L. Meng, Z. Weng, B. He, Z. Wu, and Y.-G. Jiang. To see is to believe: Prompting gpt-4v for better visual instruction tuning. arXiv preprint arXiv:2311.07574, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.573,
+                0.825,
+                0.601
+            ],
+            "angle": 0,
+            "content": "[77] Z. Wu, Z. Weng, W. Peng, X. Yang, A. Li, L. S. Davis, and Y.-G. Jiang. Building an open-vocabulary video clip model with better architectures, optimization and data. TPAMI, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.609,
+                0.825,
+                0.636
+            ],
+            "angle": 0,
+            "content": "[78] J. Xiao, X. Shang, A. Yao, and T.-S. Chua. Next-qa: Next phase of question-answering to explaining temporal actions. In CVPR, 2021."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.644,
+                0.825,
+                0.672
+            ],
+            "angle": 0,
+            "content": "[79] D. Xu, Z. Zhao, J. Xiao, F. Wu, H. Zhang, X. He, and Y. Zhuang. Video question answering via gradually refined attention over appearance and motion. In MM, 2017."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.681,
+                0.825,
+                0.707
+            ],
+            "angle": 0,
+            "content": "[80] F. Yu and V. Koltun. Multi-scale context aggregation by dilated convolutions. arXiv preprint arXiv:1511.07122, 2015."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.716,
+                0.825,
+                0.744
+            ],
+            "angle": 0,
+            "content": "[81] W. Yu, Z. Yang, L. Li, J. Wang, K. Lin, Z. Liu, X. Wang, and L. Wang. Mm-vet: Evaluating large multimodal models for integrated capabilities. arXiv preprint arXiv:2308.02490, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.753,
+                0.825,
+                0.779
+            ],
+            "angle": 0,
+            "content": "[82] Z. Yu, D. Xu, J. Yu, T. Yu, Z. Zhao, Y. Zhuang, and D. Tao. Activitynet-qa: A dataset for understanding complex web videos via question answering. In AAAI, 2019."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.788,
+                0.825,
+                0.828
+            ],
+            "angle": 0,
+            "content": "[83] X. Yue, Y. Ni, K. Zhang, T. Zheng, R. Liu, G. Zhang, S. Stevens, D. Jiang, W. Ren, Y. Sun, et al. Mmmu: A massive multi-discipline multimodal understanding and reasoning benchmark for expert agi. arXiv preprint arXiv:2311.16502, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.837,
+                0.825,
+                0.864
+            ],
+            "angle": 0,
+            "content": "[84] K. Yun, J. Honorio, D. Chattopadhyay, T. L. Berg, and D. Samaras. Two-person interaction detection using body-pose features and multiple instance learning. In CVPR, 2012."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.873,
+                0.825,
+                0.912
+            ],
+            "angle": 0,
+            "content": "[85] P. Zhang, X. D. B. Wang, Y. Cao, C. Xu, L. Ouyang, Z. Zhao, S. Ding, S. Zhang, H. Duan, H. Yan, et al. Internlm-xcomposer: A vision-language large model for advanced text-image comprehension and composition. arXiv preprint arXiv:2309.15112, 2023."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.174,
+                0.092,
+                0.827,
+                0.912
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.508,
+                0.948
+            ],
+            "angle": 0,
+            "content": "15"
+        }
+    ],
+    [
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.092,
+                0.826,
+                0.118
+            ],
+            "angle": 0,
+            "content": "[86] P. Zhang, G. Zeng, T. Wang, and W. Lu. Tinyllama: An open-source small language model. arXiv preprint arXiv:2401.02385, 2024."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.127,
+                0.827,
+                0.155
+            ],
+            "angle": 0,
+            "content": "[87] S. Zhang, S. Roller, N. Goyal, M. Artetxe, M. Chen, S. Chen, C. Dewan, M. Diab, X. Li, X. V. Lin, et al. Opt: Open pre-trained transformer language models. arXiv preprint arXiv:2205.01068, 2022."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.175,
+                0.163,
+                0.825,
+                0.19
+            ],
+            "angle": 0,
+            "content": "[88] D. Zhu, J. Chen, X. Shen, X. Li, and M. Elhoseiny. Minigpt-4: Enhancing vision-language understanding with advanced large language models. ArXiv, abs/2304.10592, 2023."
+        },
+        {
+            "type": "ref_text",
+            "bbox": [
+                0.174,
+                0.198,
+                0.825,
+                0.225
+            ],
+            "angle": 0,
+            "content": "[89] Z. Zong, B. Ma, D. Shen, G. Song, H. Shao, D. Jiang, H. Li, and Y. Liu. Mova: Adapting mixture of vision experts to multimodal context. arXiv preprint arXiv:2404.13046, 2024."
+        },
+        {
+            "type": "list",
+            "bbox": [
+                0.174,
+                0.092,
+                0.827,
+                0.225
+            ],
+            "angle": 0,
+            "content": null
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.509,
+                0.948
+            ],
+            "angle": 0,
+            "content": "16"
+        }
+    ],
+    [
+        {
+            "type": "title",
+            "bbox": [
+                0.173,
+                0.09,
+                0.347,
+                0.108
+            ],
+            "angle": 0,
+            "content": "A Training Details"
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.121,
+                0.49,
+                0.137
+            ],
+            "angle": 0,
+            "content": "A.1 Custom Supervised Finetuning Dataset"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.146,
+                0.828,
+                0.217
+            ],
+            "angle": 0,
+            "content": "We follow LLaVA-Next [50] to combine a custom data mixture containing 748K SFT data shown in Tab. 9. Following [51, 50], our 748K training data mixture contains (1) LLM instruction following data, e.g. ShareGPT [68]; (2) GPT4/GPT4V generated data, e.g. LLaVA-instruct [51], ShareGPT4V [13], LAION-GPT4V [35]; (3) academic-task-oriented data, e.g. VQAv2 [23], GQA [25], etc."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.233,
+                0.228,
+                0.768,
+                0.442
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Dataset</td><td>Size</td><td>Task Prompt</td></tr><tr><td>ShareGPT [68]</td><td>40K</td><td></td></tr><tr><td>LLaVA-instruct [51]</td><td>158K</td><td></td></tr><tr><td>ShareGPT4V [13]</td><td>39K</td><td></td></tr><tr><td>LAION-GPT4V [35]</td><td>11K</td><td></td></tr><tr><td>VQAv2 [23]</td><td>83K</td><td></td></tr><tr><td>GQA [25]</td><td>72K</td><td></td></tr><tr><td>OKVQA [53]</td><td>9K</td><td></td></tr><tr><td>OCRVQA [58]</td><td>80K</td><td></td></tr><tr><td>ChartQA [54]</td><td>7K</td><td>“Answer the question using a single word or phrase.”</td></tr><tr><td>DVQA [29]</td><td>16K</td><td></td></tr><tr><td>DocVQA [56]</td><td>10K</td><td></td></tr><tr><td>AI2D [31]</td><td>2K</td><td></td></tr><tr><td>SynthDog-EN [32]</td><td>20K</td><td></td></tr><tr><td>A-OKVQA [67]</td><td>66K</td><td>“Answer with the option&#x27;s letter from the given choices directly.”</td></tr><tr><td>RefCOCO [30]</td><td>48K</td><td>“Provide a short description for this region.”</td></tr><tr><td>VG [34]</td><td>86K</td><td>“Provide the bounding box coordinate of the region this sentence describes”</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.348,
+                0.442,
+                0.651,
+                0.455
+            ],
+            "angle": 0,
+            "content": "Table 9: Data combination of our 748K SFT data."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.489,
+                0.442,
+                0.506
+            ],
+            "angle": 0,
+            "content": "A.2 Detailed Training Configuration"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.515,
+                0.825,
+                0.543
+            ],
+            "angle": 0,
+            "content": "We list the detailed training hyper-parameters as follows. For evaluation, we utilize LLMs-Eval [41] for evaluation on several benchmarks."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.255,
+                0.553,
+                0.744,
+                0.65
+            ],
+            "angle": 0,
+            "content": "<table><tr><td>Hypter-param</td><td>PT</td><td>DeepStack SFT</td><td>DeepStack-V SFT</td><td>DeepStack-HD SFT</td></tr><tr><td>global batch size</td><td>256</td><td>128</td><td>128</td><td>128</td></tr><tr><td>lr</td><td>1e-3</td><td>2e-5</td><td>2e-5</td><td>2e-5</td></tr><tr><td>backbone lr</td><td>freeze</td><td>freeze</td><td>2e-6</td><td>2e-6</td></tr><tr><td>lr schedule</td><td>cosine decay</td><td>cosine decay</td><td>cosine decay</td><td>cosine decay</td></tr><tr><td>lr warmup ratio</td><td>0.03</td><td>0.03</td><td>0.03</td><td>0.03</td></tr><tr><td>epoch</td><td>1</td><td>1</td><td>1</td><td>1</td></tr><tr><td>optimizer</td><td>AdamW</td><td>AdamW</td><td>AdamW</td><td>AdamW</td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.383,
+                0.65,
+                0.612,
+                0.664
+            ],
+            "angle": 0,
+            "content": "Table 10: Training hyper-parameters."
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.703,
+                0.367,
+                0.721
+            ],
+            "angle": 0,
+            "content": "B More Experiments"
+        },
+        {
+            "type": "title",
+            "bbox": [
+                0.172,
+                0.734,
+                0.599,
+                0.75
+            ],
+            "angle": 0,
+            "content": "B.1 Improved DeepStack-L with Fintuning Vision Encoder"
+        },
+        {
+            "type": "text",
+            "bbox": [
+                0.171,
+                0.759,
+                0.827,
+                0.79
+            ],
+            "angle": 0,
+            "content": "As shown in Tab. 11, after finetuning the vision encoder, our DeepStack-L achieves further improvement. This further demonstrates the effectiveness and the potential of our DeepStack strategy."
+        },
+        {
+            "type": "table",
+            "bbox": [
+                0.175,
+                0.8,
+                0.825,
+                0.88
+            ],
+            "angle": 0,
+            "content": "<table><tr><td rowspan=\"2\">Method</td><td rowspan=\"2\">LLM</td><td rowspan=\"2\">Eff. Res.</td><td rowspan=\"2\">Vis. Tok.</td><td rowspan=\"2\">Cxt. Len.</td><td rowspan=\"2\">PT</td><td rowspan=\"2\">SFT</td><td rowspan=\"2\">General VQA VQA\\( ^{v2} \\)</td><td rowspan=\"2\">GQA</td><td colspan=\"4\">Text-oriented VQA</td><td colspan=\"4\">LMM benchmarks</td></tr><tr><td>Text VQA\\( ^{\\ddagger} \\)</td><td>Doc VQA\\( ^{\\ddagger} \\)</td><td>Info VQA\\( ^{\\ddagger} \\)</td><td>SEED (all)</td><td>POPE (all)</td><td>MM MU\\( ^{\\ddagger} \\)</td><td>MM Vet</td><td></td></tr><tr><td>DeepStack-L</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>79.5*</td><td>63.1*</td><td>62.4</td><td>39.1</td><td>29.8</td><td>60.6</td><td>86.7</td><td>35.7</td><td>29.9</td><td></td></tr><tr><td>DeepStack-L★</td><td>Vicuna-7B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>81.1*</td><td>63.9*</td><td>64.5</td><td>39.3</td><td>30.1</td><td>63.3</td><td>86.7</td><td>37.1</td><td>29.8</td><td></td></tr><tr><td>DeepStack-L</td><td>Vicuna-13B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>80.9*</td><td>64.2*</td><td>64.6</td><td>41.5</td><td>33.0</td><td>63.5</td><td>87.7</td><td>35.2</td><td>35.9</td><td></td></tr><tr><td>DeepStack-L★</td><td>Vicuna-13B</td><td>672</td><td>2880</td><td>576</td><td>558K</td><td>665K</td><td>82.1*</td><td>65.1*</td><td>65.2</td><td>43.1</td><td>34.0</td><td>64.4</td><td>86.6</td><td>34.7</td><td>36.2</td><td></td></tr></table>"
+        },
+        {
+            "type": "table_caption",
+            "bbox": [
+                0.304,
+                0.88,
+                0.692,
+                0.892
+            ],
+            "angle": 0,
+            "content": "Table 11: Improved DeepStack-L with fintuning vision encoder."
+        },
+        {
+            "type": "page_number",
+            "bbox": [
+                0.491,
+                0.936,
+                0.509,
+                0.948
+            ],
+            "angle": 0,
+            "content": "17"
+        }
+    ]
+]

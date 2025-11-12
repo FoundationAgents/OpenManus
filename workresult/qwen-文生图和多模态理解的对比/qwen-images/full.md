@@ -1,0 +1,988 @@
+# Qwen-Image Technical Report
+
+# Qwen Team
+
+![](images/32e8a6077b27a5d50713c88701680623ddc9c8ccc997a1214b09aff5ea4a3443.jpg)
+
+https://qwen.ai
+
+![](images/0c92928fdc6df47d704f22886fac8e3aaf4e369880400f8704638ac64dc9ab83.jpg)
+
+https://huggingface.co/Qwen/Qwen-Image
+
+![](images/4ab36c342586e6802881c99c100e3994d035e66fb80f631a2a2dadf6e5187ef6.jpg)
+
+https://modelscope.cn/models/Qwen/Qwen-Image
+
+https://github.com/QwenLM/Qwen-Image
+
+# Abstract
+
+We present Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing. To address the challenges of complex text rendering, we design a comprehensive data pipeline that includes large-scale data collection, filtering, annotation, synthesis, and balancing. Moreover, we adopt a progressive training strategy that starts with nontext-to-text rendering, evolves from simple to complex textual inputs, and gradually scales up to paragraph-level descriptions. This curriculum learning approach substantially enhances the model's native text rendering capabilities. As a result, Qwen-Image not only performs exceptionally well in alphabetic languages such as English, but also achieves remarkable progress on more challenging logographic languages like Chinese. To enhance image editing consistency, we introduce an improved multi-task training paradigm that incorporates not only traditional text-to-image (T2I) and text-image-to-image (TI2I) tasks but also image-to-image (I2I) reconstruction, effectively aligning the latent representations between Qwen2.5-VL and MMDiT. Furthermore, we separately feed the original image into Qwen2.5-VL and the VAE encoder to obtain semantic and reconstructive representations, respectively. This dual-encoding mechanism enables the editing module to strike a balance between preserving semantic consistency and maintaining visual fidelity. We present a comprehensive evaluation of Qwen-Image across multiple public benchmarks, including GenEval, DPG, and OneIG-Bench for general image generation, as well as GEdit, ImgEdit, and GSO for image editing. Qwen-Image achieves state-of-the-art performance, demonstrating its strong capabilities in both image generation and editing. Furthermore, results on LongText-Bench, ChineseWord, and CVTG-2K show that it excels in text rendering—particularly in Chinese text generation—outperforming existing state-of-the-art models by a significant margin. This highlights Qwen-Image's unique position as a leading image generation model that combines broad general capability with exceptional text rendering precision.
+
+![](images/87b603d6cf7ac87ea62d6ebf296b541208d64680a9b138acde0ebd1e66b0688d.jpg)  
+(a) Image generation and editing benchmarks  
+Figure 1: Qwen-Image exhibits strong general capabilities in both image generation and editing, while demonstrating exceptional capability in text rendering, especially Chinese.
+
+![](images/743731736688762ca908248f4802eae775c0e54cf09ac3d3910058779bfdfd19.jpg)  
+(b) Text rendering benchmarks
+
+![](images/a64410abff6f603ed408936de5da47697c65d711bd680e6b0f87e388ac1f2c1e.jpg)  
+Figure 2: Showcase of Qwen-Image in complex text rendering, including multi-line layouts, paragraph-level semantics, and fine-grained details. Qwen-Image supports both alphabetic languages (e.g., English) and logographic languages (e.g., Chinese) with high fidelity.
+
+![](images/5636125a6ee444894c4a404a196349f837be2f1b7267fe2f20bfbb0209bd2b6f.jpg)
+
+![](images/280beeee3e55065e9436276adfdb0afd9f4c3345dd2614bed2c2e4806ffd042e.jpg)
+
+![](images/40e1f290014b04fcbc5d9aaddc51f280736003bba45b2f72963e08cdcd64551a.jpg)
+
+![](images/d8971d96b7635665e60a2c7ae665ea65749f31abdb5d1cbd5e052dd00edcca58.jpg)
+
+![](images/c7bd8be1c4981422b561f4a23986f3a2918107ebf25b5fb3593fb2ce68d396ce.jpg)
+
+![](images/a798d3880ce07ae0d8984c496205fca128d625e5152b0e2a4a40107894c0d845.jpg)
+
+![](images/8cf01f4440ddf2bdaff6c5dfdd76b0c59b7119c44da389569d1fd72d7fcbedfa.jpg)
+
+![](images/0d07c8cbc03ce651ddf635bed33b292e9bd7c3a7edb01311720d936689054346.jpg)
+
+![](images/0f1cf13ce4f6e786ce0340efe5f7fc3380332eb8324f8e4c39cde775850bcf09.jpg)
+
+![](images/698f5be5330e39a5fce2d4745750d2a0339218cf0f28b83b8ba88929f2d1c0aa.jpg)
+
+![](images/7a852759a62b5e8475754db805793e63cc3c7b63158dca4f2e0e66b2738e911c.jpg)
+
+![](images/64aaa3f4a361c211afaad2d4ff217faa8373aeebbe5ee1fcbf67f56b4dc5b975.jpg)
+
+![](images/b23079733fd7de2cbf9cc32d61558205d05391fa941ac99cc66e3ffd188d4ca1.jpg)
+
+![](images/2f3d339040b24dc80b8019170117bfe97f3b7512004913f7defd25c42b6ac62e.jpg)  
+Figure 3: Showcase of Qwen-Image in general image generation, supporting diverse artistic styles.
+
+![](images/0db8701a96830aa65c0cb896d57260d04ab5a6885b872e4de887f6246c90c00e.jpg)  
+Figure 4: Showcase of Qwen-Image in general image editing, including style transfer, text editing, background change, object addition, removal, and replacement, pose manipulation, and more.
+
+![](images/4486f5ddd579031c6ed91c78d7beef20fa595294e48f62398427ccda9078d7e3.jpg)  
+Figure 5: Showcase of Qwen-Image in general image understanding tasks, including detection, segmentation, depth/canny estimation, novel view synthesis, and super resolution—tasks that can all be viewed as specialized forms of image editing.
+
+# 1 Introduction
+
+Image generation models—encompassing both text-to-image generation (T2I) (Rombach et al., 2021; Wu et al., 2022; Liang et al., 2022; OpenAI, 2023; Podell et al., 2023; Chen et al., 2024c; Li et al., 2024b; Esser et al., 2024; BlackForest, 2024; Gao et al., 2025; Gong et al., 2025; Cai et al., 2025) and image editing (TI2I) (Brooks et al., 2023; Zhang et al., 2023; Wang et al., 2025; Deng et al., 2025; Labs et al., 2025; Wu et al., 2025b; Liu et al., 2025b; Cai et al., 2025; OpenAI, 2025)—have emerged as a fundamental component of modern artificial intelligence, enabling machines to synthesize or modify visually compelling and semantically coherent content from text prompts. Over the past few years, remarkable progress has been achieved in this domain, particularly with the advent of diffusion-based architectures (Ho et al., 2020; Liu et al., 2022) that enable high-resolution image generation while capturing fine-grained semantic details.
+
+Despite these advances, two critical challenges persist. First, for text-to-image generation, aligning model outputs with complex, multifaceted prompts remains a significant hurdle. Our evaluation reveals that even state-of-the-art commercial models such as GPT Image 1 (OpenAI, 2025) and Seeddream 3.0 (Gao et al., 2025) struggle when faced with tasks requiring multi-line text rendering, non-alphabetic languages rendering (e.g., Chinese), localized text insertions, or seamless integration of text and visual elements. Second, for image editing, achieving precise alignment between the edited output and the original image poses dual challenges: (i) visual consistency, where only targeted regions should be modified while preserving all other visual details (e.g., changing hair color without altering facial details) and (ii) semantic coherence, where global semantics must be preserved during structural changes (e.g., modifying a person's pose while maintaining identity and scene coherence).
+
+In this work, we introduce Qwen-Image, a novel image generation model within the Qwen series, designed to overcome these challenges through comprehensive data engineering, progressive learning strategies, enhanced multi-task training paradigms, and scalable infrastructure optimization.
+
+To address the challenge of complex prompt alignment, we develop a robust data pipeline encompassing large-scale collection, annotation, filtering, synthetic augmentation, and class balancing. We further adopt a curriculum learning strategy, starting from basic text rendering tasks and progressively advancing to paragraph-level and layout-sensitive descriptions. This approach significantly enhances the model's ability to follow diverse languages, especially logographic languages like Chinese.
+
+To address the challenge of image alignment, we propose an enhanced multi-task learning framework that seamlessly integrates T2I,I2I and TI2I objectives within a shared latent space. Specifically, the input image is encoded into two distinct yet complementary feature representations: semantic features are extracted via Qwen-VL (Bai et al., 2025), capturing high-level scene understanding and contextual meaning, while reconstructive features are obtained through the VAE encoder, preserving low-level visual details. Both sets of features are then jointly fed into the MMDiT architecture (Esser et al., 2024) as conditioning signals. This dual-conditioning design enables the model to simultaneously maintain semantic coherence and visual consistency.
+
+To ensure training efficiency and stability at scale, we design a Producer-Consumer framework leveraging TensorPipe for distributed data loading and preprocessing. The Producer handles preprocessing tasks such as VAE encoding and data I/O, while the Consumer focuses on distributed model training using the Megatron (Shoeybi et al., 2019) framework. We also implement extensive monitoring tools to ensure reliable convergence and debugging capabilities throughout large-scale training.
+
+Qwen-Image demonstrates significant advances in both generating high-quality images from complex textual prompts and performing accurate, context-aware image editing. The model is capable of interpreting intricate linguistic structures and producing visually compelling outputs that align with both semantic intent and visual constraints. To validate its effectiveness, we evaluate Qwen-Image across a diverse set of tasks, including text-to-image generation and image editing.
+
+The key contributions of Qwen-Image can be summarized as follows:
+
+- Superior Text Rendering: Qwen-Image excels at complex text rendering, including multi-line layouts, paragraph-level semantics, and fine-grained details. It supports both alphabetic languages (e.g., English) and logographic languages (e.g., Chinese) with high fidelity.  
+- Consistent Image Editing: Through our enhanced multi-task training paradigm, Qwen-Image achieves exceptional performance in preserving both semantic meaning and visual realism during editing operations.  
+- Strong Cross-Benchmark Performance: Evaluated on multiple benchmarks, Qwen-Image consistently outperforms existing models across diverse generation and editing tasks, establishing a strong foundation model for image generation.
+
+![](images/c918457360698aa242b6dbee43c763eca1f8cce655e8291fb169070fd9cdf6f6.jpg)  
+Figure 6: Overview of the Qwen-Image architecture. It adopts a standard double-stream MMDiT architecture. The input representations are provided by a frozen Qwen2.5-VL and a VAE encoder. The model employs RMSNorm (Zhang &Sennrich, 2019) for QK-Norm, while all other normalization layers use LayerNorm. Additionally, we design a new positional encoding scheme, MSRoPE (Multimodal Scalable RoPE), to jointly encode positional information for both image and text modalities.
+
+# 2 Model
+
+In this section, we present the architectural design of the Qwen-Image model, along with a comprehensive overview of the training data and training details.
+
+# 2.1 Model Architecture
+
+As shown in Figure 6, the Qwen-Image architecture is built upon three core components that work in concert to enable high-fidelity text-to-image generation. First, a Multimodal Large Language Model (MLLM) serves as the condition encoder, responsible extracting feature from textual inputs. Second, a Variational AutoEncoder (VAE) acts as the image tokenizer, compressing input images into compact latent representations and decoding them back during inference. Third, a Multimodal Diffusion Transformer (MMDiT) functions as the backbone diffusion model, modeling the complex joint distribution between noise and image latents under text guidance. While this section outlines their general roles, the specific model choices and architectural details are elaborated in the following sections.
+
+# 2.2 Multimodal Large Language Model
+
+Qwen-Image employs the Qwen2.5-VL model (Bai et al., 2025) as the feature extraction module for textual inputs, owing to three key reasons: (1) The language and visual spaces of Qwen2.5-VL have already been aligned, which makes it more suitable for text-to-image tasks compared to language-based models like Qwen3 (Yang et al., 2025); (2) Qwen2.5-VL retains strong language modeling capabilities, without significant degradation compared to language models; (3) Qwen2.5-VL supports multimodal inputs, thereby enabling Qwen-Image to unlock a broader range of functionalities, e.g., image editing (Labs et al., 2025). Let  $x$  and  $y$  denote the image and textual inputs, respectively. Given the user inputs, such as prompts and images, we adopt the Qwen2.5-VL model to extract features. To better guide the model in generating the refined representation latent, while accounting for the varying input modalities across different tasks, we design distinct system prompts tailored for pure text input and text-and-image input, respectively. We illustrate the system template in Figure 7 and Figure 15. Finally, we utilize the latent of the last layer's hidden state from Qwen2.5-VL language model backbone as the representation of the user input.
+
+# System Prompt for T2I task
+
+<|im_start|>system  
+Describe the image by detailing the color, quantity, text, shape, size, texture, spatial relationships of the objects and background: <|im_end|>  
+<|im_start|>user  
+<|user_text|><|im_end|>  
+<|im_start|>assistant
+
+Figure 7: System prompt for Text-to-Image generation task, where  $<|user_text|>$  is the user input prompt.
+
+# 2.3 Variational AutoEncoder
+
+A strong VAE representation is crucial for building a powerful image foundation model. Current image foundation models typically train an image VAE with 2D convolutions on massive image datasets to obtain a high-quality image representation. In contrast, our work aims to develop a more general visual representation compatible with both images and videos. However, existing joint image-video VAEs, such as Wan-2.1-VAE (Wan et al., 2025), typically suffer a performance trade-off that results in degraded image reconstruction capabilities. To this end, we leverage a single-encoder, dual-decoder architecture. This design utilizes a shared encoder compatible with both images and videos, alongside separate, specialized decoders for each modality, which enables our image foundation model to serve as a backbone for future video models. Specifically, we adopt the architecture of Wan-2.1-VAE, freeze its encoder, and exclusively fine-tune the image decoder.
+
+To enhance reconstruction fidelity, particularly for small texts and fine-grained details, we train the decoder on an in-house corpus of text-rich images. The dataset consists of real-world documents (PDFs, PowerPoint slides, posters) alongside synthetic paragraphs, covering both alphabetic (e.g., English) and logographic (e.g., Chinese) languages. During training, we observe that: (1) Balancing reconstruction loss with perceptual loss effectively reduces grid artifacts, which are often observed in repetitive textures like bushes. (2) As reconstruction quality increases, adversarial loss becomes ineffective because the discriminator is unable to provide effective guidance. Based on these observations, we use only reconstruction and perceptual losses, dynamically adjusting their ratio during fine-tuning. Interestingly, we find that finetuning only the decoder can effectively enhance details and improve the rendering of small text, thereby building a solid foundation for Qwen-Image's text rendering abilities. Quantitative and qualitative results are presented in Section 5.2.1.
+
+# 2.4 Multimodal Diffusion Transformer
+
+Qwen-Image adopts Multimodal Diffusion Transformer (MMDiT) (Esser et al., 2024) to jointly model text and images. This approach has proven effective in a range of works, such as the FLUX (BlackForest, 2024; Labs et al., 2025) series and the Seeddream (Gong et al., 2025; Gao et al., 2025) series.
+
+Within each block, we introduce a novel positional encoding method: Multimodal Scalable RoPE (MSRoPE) As illustrated in Figure 8, we compare various text-image joint positional encoding strategies. In the traditional MMDiT block, text tokens are directly concatenated after the flattened image positional embeddings. Furthermore, Seedream 3.0 (Gao et al., 2025) introduces Scaling RoPE, where the image positional encoding is shifted to the central region of the image, and text tokens are considered as 2D tokens with a shape of [1, L]. Then, 2D RoPE (Heo et al., 2024) is used for image-text joint positional encoding. Although this adjustment facilitates resolution scale training, certain rows of positional encodings for text and image, e.g., the 0-th middle row in Figure 8 (B), become isomorphic, making it harder for the model to distinguish between text tokens and the image latent tokens in the 0-th middle row. Yet, it is also non-trivial to determine an appropriate image row to concatenate the text tokens. To address the aforementioned challenges, we introduce Multimodal Scalable RoPE (MSRoPE). In this approach, text inputs are treated as 2D tensors with identical position IDs applied across both dimensions. As depicted in Figure 8 (C), the text is conceptualized as being concatenated along the diagonal of the image. This design allows MSRoPE to leverage resolution scaling advantages on the image side while maintaining functional equivalence to 1D-RoPE on the text side, thereby obviating the need to determine the optimal positional encoding for text. We show the architecture and configuration of Qwen-Image in Table 1.
+
+![](images/f06f637a6f31037c6a13c9e6963c7b1b980030f7c1c76f6a321329a198b31047.jpg)  
+Figure 8: Comparison of different image-text joint positional encoding strategies. We design the Multimodal Scalable RoPE (MSRoPE) strategy, which starts encoding from the image center and positions textual encodings along the diagonal of the grid, enabling better image resolution scaling and improved text-image alignment.
+
+Table 1: Configuration of Qwen-Image architecture.  
+
+<table><tr><td rowspan="2">Configuration</td><td colspan="2">VLM</td><td colspan="2">VAE</td><td rowspan="2">MMDiT</td></tr><tr><td>ViT</td><td>LLM</td><td>Enc</td><td>Dec</td></tr><tr><td># Layers</td><td>32</td><td>28</td><td>11</td><td>15</td><td>60</td></tr><tr><td># Num Heads (Q / KV)</td><td>16 / 16</td><td>28 / 4</td><td>-</td><td>-</td><td>24 / 24</td></tr><tr><td>Head Size</td><td>80</td><td>128</td><td>-</td><td>-</td><td>128</td></tr><tr><td>Intermediate Size</td><td>3,456</td><td>18,944</td><td>-</td><td>-</td><td>12,288</td></tr><tr><td>Patch / Scale Factor</td><td>14</td><td>-</td><td>8x8</td><td>8x8</td><td>2</td></tr><tr><td>Channel Size</td><td>-</td><td>-</td><td>16</td><td>16</td><td>-</td></tr><tr><td># Parameters</td><td colspan="2">7B</td><td>54M</td><td>73M</td><td>20B</td></tr></table>
+
+# 3 Data
+
+# 3.1 Data Collection
+
+We systematically collected and annotated billions of image-text pairs to support the training of our image generation model. Rather than focusing solely on the scale of raw dataset, we prioritize data quality and balanced data distribution, aiming to construct a well-balanced and representative dataset that closely mirrors real-world scenarios. As illustrated in Figure 9, the dataset is organized into four primary domains: Nature, Design, People and Synthetic Data.
+
+Among these categories, Nature category constitutes the largest proportion, accounting for approximately  $55\%$  of the dataset. This category includes diverse subcategories such as Objects, Landscape, Cityscape, Plants, Animals, Indoor, and Food categories. Additionally, content that does not clearly belong to the People or Design categories is also classified under Nature category. This broad, general-purpose category serves as a crucial foundation for improving the model's ability to generate realistic and diverse natural images.
+
+The second largest category is the Design category, comprising around  $27\%$  of the dataset. It primarily includes structured visual content such as Posters, User Interfaces, and Presentation Slides, as well as various forms of art including paintings, sculptures, art crafts, and digital arts. These types of data often contain rich textual elements, complex layouts, and design-specific visual semantics. This category is particularly important for enhancing the model's capabilities in following intricate prompts about artistic styles, text rendering, and layout design.
+
+Next, the People category makes up about  $13\%$  of the dataset, encompassing subcategories such as Portrait,
+
+![](images/abb27ecbe11b0993caecec324c901df27b24ab6c02f790d6d20e984836afa7ca.jpg)  
+Figure 9: Overview of Data Collection. The dataset includes four main categories: Nature (general-purpose generation), People (human-centric generation), Design (artistic styles, text rendering, and complex layouts), and Synthetic Data (text rendering enhancement). Our collection strategy balances diversity and quality while training, ensuring broad coverage and high-fidelity annotations to support robust model training.
+
+Sports, and Human Activities. It comprises a wide range of human-related images, including Portrait, Sports, Activities, and so on. This category is essential for improving the model's ability to generate realistic and diverse human images, to ensure satisfactory user experiences and practical applicability.
+
+Finally, the Synthetic Data category accounts for approximately  $5\%$  of the dataset. It is important to clarify that the synthetic data discussed here does not include images generated by other AI models, but rather data synthesized through controlled text rendering techniques (described in  $\S\S 3.4$ ). This excludes images synthesized by other AI models, which often introduce significant risks such as visual artifacts, text distortions, biases, and hallucinations. We adopt a conservative stance toward such data, as training on low-fidelity or misleading images may weaken the model's generalization capabilities and undermine its reliability.
+
+# 3.2 Data Filtering
+
+To curate high-quality training data throughout the iterative development of our image generation model, we propose a multi-stage filtering pipeline comprising seven sequential stages, as depicted in Figure 10. These stages are progressively applied throughout the training process, with data distributions continuously refined over time. Notably, synthetic data are introduced from Stage 4, when the foundational model has reached a certain level of stability. The following section presents a comprehensive description of each stage.
+
+Stage 1: Initial Pre-training Data Curation At this early stage, the model is trained on images resized to 256p (256×256 pixels with various aspect ratios including 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 1:3 and 3:1). To improve data quality, a series of filters are applied to remove low-quality or irrelevant images. The Broken Files Filter identifies and discards corrupted or partially damaged files (e.g., truncated images), many of which are also associated with abnormally small file sizes, as detected by the File Size Filter. The Resolution Filter removes images with original resolutions below 256p. The Dedduplication Filter eliminates duplicate or near-duplicate image-text pairs. Furthermore, the NSFW Filter is applied to exclude content containing sexual, violent, or other offensive material.
+
+Stage 2: Image Quality Enhancement In this stage, we focus on systematically improving the image quality of the dataset. The Rotation Filter removes images with significant rotation or flipping, as
+
+![](images/f2b08f32bf2df84c8b4e7a6f3cf63239ee6d75543c06733520a89f0898b139de.jpg)  
+Figure 10: Overview of the multi-stage data filtering pipeline. Our filtering strategy consists of seven sequential stages (S1-S7), each targeting specific aspects of data quality, alignment, and diversity. From initial pre-training data curation to high-resolution refinement and multi-scale training, the pipeline progressively improves dataset quality while maintaining semantic richness and distributional stability.
+
+indicated by the EXIF metadata. The Clarity Filter discards blurry or out-of-focus images, ensuring that only sharp and clear images are retained. The Luma Filter excludes images that are excessively bright or dark, while the Saturation Filter eliminates images with unnaturally high color saturation, which often suggests artificial rendering or unrealistic digital manipulations. Furthermore, the Entropy Filter identifies and removes images with significantly low entropy, typically characterized by large uniform regions or minimal visual content. Finally, the Texture Filter is employed to discard images with overly complex textures, which are often associated with noise or non-semantic patterns. Figure 11 illustrates some examples of the filtering operators used in this stage.
+
+Stage 3: Image-Text Alignment Improvement This stage focuses on improving the alignment between textual descriptions and visual content. To balance the training data distribution, the dataset is divided into three splits based on the source of captions: Raw Caption Split, Recaption Split, and Fused Caption Split. Raw Caption Split includes captions provided by websites as well as metadata such as titles or tags originally associated with the images. Although raw captions may introduce noise, they contribute to the model's robustness in handling short text inputs and serve as a vital source of real-world knowledge (e.g., plant names, cartoon IPs) often absent in datasets with synthesized captions. Recaption Split consists of captions generated by the most advanced Qwen-VL Captioner (Bai et al., 2025), which provides more descriptive and structured annotations. Due to model limitations, not all IPs can be accurately identified. Fused Caption Split combines both raw captions and synthesized captions, offering a blend of general knowledge and detailed descriptions. To further improve alignment, we applied both the Chinese CLIP (Yang et al., 2022) Filter and the SigLIP 2 (Tschannen et al., 2025) Filter to remove mismatched image-text pairs from the Raw Caption Split. Additionally, a Token Length Filter was employed to eliminate excessively long captions, and the Invalid Caption Filter discards captions with abnormal content, such as "Sorry, I cannot provide a caption for this image."
+
+Stage 4: Text Rendering Enhancement In this stage, we focus on improving the model's capability in rendering text within images, which is crucial for generating images with high textual fidelity. To this end, we categorize the dataset based on the presence and language of text within images. Specifically, the dataset from Stage 3 is divided into four splits: English Split, Chinese Split, Other Language Split, and Non-Text Split, to ensure balanced training across different linguistic contexts. To address challenges such as low-frequency characters, mixed-language scenarios, and font diversity, we incorporate synthetic text rendering data, which are generated using the strategies described in §S 3.4. Moreover, the Intensive Text Filter and the Small Character Filter are applied to remove images with overly dense or excessively small text, as such cases are challenging to annotate accurately and difficult to render legibly.
+
+![](images/155314457a5c4ddb73d02ff3f682f90fc5752acb01aa4e295863fc6ee41b1b1f.jpg)
+
+![](images/e68ff937c0113623ca06e9a3b73ab4ccf5a35d505a6c369b4eb5827c68259e95.jpg)
+
+![](images/8dd567a1b845e98758491885ab5c103984eaa369223770360262515c1ee7ff5a.jpg)  
+Figure 11: Examples of some filtering operators used in our pipeline. Extreme values in these operators often indicate atypical or low-quality images. For instance, images with excessively high Luma score typically contain large areas of white or overexposed regions.
+
+![](images/eaf28deb867e7d97469c168715d692b5617681b3d6c187e03284faa19c491124.jpg)
+
+Stage 5: High-Resolution Refinement In this stage, the model transitions to training with images at  $640\mathrm{p}$  resolution, accompanied by further dataset refinement to ensure both high quality and aesthetic appeal. The Image Quality Filter is applied to eliminate images with quality defects such as overexposure, underexposure, blur, or compression artifacts. The Resolution Filter ensures that all images meet the minimum resolution requirements. The Aesthetic Filter is employed to exclude images with poor composition or visual appeal. Finally, the Abnormal Element Filter removes images containing watermarks, QR codes, barcodes, or other elements that can interfere with viewing.
+
+Stage 6: Category Balance and Portrait Augmentation After identifying underperformed categories through careful error analysis, this stage involves recategorizing the dataset into three primary categories: General, Portrait, Text Rendering, to facilitate category-based rebalancing during training. Keyword-based retrieval and image retrieval techniques are employed to augment the dataset with targeted patches, to enhance coverage of underrepresented categories. To further improve the model's ability to generate high-quality portraits, we first retrieve photorealistic portraits, cartoon characters, and celebrity images from the People category. Synthesized captions are then generated to emphasize character-specific details, such as facial features, expressions, and clothing, as well as contextual elements such as background, lighting, and mood. This approach aims to enhance both the quality of generated images and the model's instruction-following capability. Additional filters are applied to remove images with face mosaics or blurs, to avoid potential privacy issues and ensure the model's robustness in handling human subjects.
+
+Stage 7: Balanced Multi-Scale Training In the final stage, the model is trained jointly on images with resolutions of  $640\mathrm{p}$  and  $1328\mathrm{p}$ . Imposing a strict resolution threshold of  $1328\mathrm{p}$  would lead to significant data loss and distort the underlying data distribution. To improve training efficiency and ensure balanced data distribution, we design a hierarchical taxonomy system for image categorization, inspired by the design principles of WordNet (Miller, 1995). All images in Stage 6 are classified according to this hierarchical taxonomy. Within each category, we retain only images with the highest quality and aesthetic appeal. Furthermore, a specialized resampling strategy is employed to balance data containing text rendering, addressing the long-tail distribution of token frequencies. Such balanced multi-scale training allows the model to retain previously learned general knowledge and ensure stable convergence while adapting to higher-resolution inputs, thereby improving detail generation without sacrificing robustness.
+
+# Qwen-Image Annotation Prompt
+
+Image Annotator
+
+You are a professional image annotator. Please complete the following tasks based on the input image.
+
+## Step 1: Create Image Caption
+
+1. Write the caption using natural, descriptive text without structured formats or rich text.  
+2. Enrich caption details by including: object attributes, vision relations between objects, and environmental details.  
+3. Identify the text visible in the image, without translation or explanation, and highlight it in the caption with quotation marks.  
+3. Maintain authenticity and accuracy, avoid generalizations.
+
+## Step 2: Image Quality Assessment
+
+1. Image Type Identification: Return the image type based on its source and usage.  
+2. Image Style Identification: Return the image style based on its overall visual characteristics.  
+3. Watermark Detection: Detect watermarks in the image. Return the detected watermarks in a list format.  
+4. Abnormal Element Detection: Check if any elements affect viewing, such as QR codes or mosaics.
+
+```txt
+## Sample Output Format
+...
+...
+...
+{
+    "Caption": "...",
+    "Image Type": "...",
+    "Image Style": "...",
+    "Watermark List": [], 
+    "Abnormal Element": "yes/no",
+}
+```
+
+Figure 12: Example of the annotation prompt used in Qwen-Image.
+
+# 3.3 Data Annotation
+
+In our data annotation pipeline, we utilize a capable image captioner (e.g., Qwen2.5-VL) to generate not only comprehensive image descriptions, but also structured metadata that captures essential image properties and quality attributes.
+
+Instead of treating captioning and metadata extraction as independent tasks, we designed an annotation framework in which the captioner concurrently describes visual content and generates detailed information in a structured format, such as JSON. Critical details such as object attributes, spatial relationships, environmental context, and verbatim transcriptions of visible text are captured in the caption, while key image properties like type, style, presence of watermarks, and abnormal elements (e.g., QR codes or facial mosaics) are reported in a structured format. With the help of advanced captioner, this methodology transcends traditional image captioning and generate both detailed image descriptions and structured metadata in a single pass, as shown in Figure 12. The annotation pipeline is designed to be efficient and scalable, allowing us to process large-scale datasets without relying on additional models or post-processing steps. In practice, we further refine the above pipeline by integrating initial annotations with expert rules and lightweight classification models for critical tasks, such as watermark verification and content filtering.
+
+Overall, our pipeline not only provides deep insights into image content, but also supports advanced data curation, providing a solid foundation for training robust and reliable image generation models.
+
+# 3.4 Data Synthesis
+
+Given the long-tail distribution of textual content in real-world images, particularly for non-Latin languages such as Chinese, where numerous characters exhibit extremely low frequency, relying solely on naturally occurring text is insufficient to ensure adequate exposure to these rare characters during model training. To address this challenge and improve the robustness of text rendering across diverse contexts, we propose a multi-stage text-aware image synthesis pipeline. This pipeline integrates three complementary strategies: Pure Rendering, Compositional Rendering, and Complex Rendering. The details of each strategy are elaborated below.
+
+![](images/bdadde19c46b08ee55853a026834d45ffdb4fb3d8ce28111cc0e73b2aa6a2381.jpg)  
+Figure 13: Overview of Data Synthesis. We designed three rendering strategies—Pure Rendering, Compositional Rendering, and Complex Rendering—to generate text-only data, text-in-context data, and complex layout data, respectively.
+
+Pure Rendering in Simple Backgrounds This strategy represents the most straightforward and effective method for training the model to recognize and generate characters (e.g., English and Chinese characters). Text paragraphs are extracted from large-scale high-quality corpora and rendered onto clean backgrounds using dynamic layout algorithms that adapt font size and spacing based on canvas size. To ensure high-quality synthesized samples, a rigorous quality control mechanism is employed: if any character within a paragraph cannot be rendered due to limitations (e.g., font unavailability or rendering errors), the entire paragraph is discarded. This strict filtering guarantees that only fully valid and legible samples are included in the training dataset, thereby maintaining high fidelity in character-level text rendering.
+
+Compositional Rendering in Contextual Scenes This strategy focuses on embedding synthetic text into realistic visual contexts, mimicking its appearance in everyday environments. Text is simulated as being written or printed onto various physical media, such as paper or wooden boards, and then seamlessly composited into diverse background images to create visually coherent scenes. We employ the Qwen-VL Captioner to generate descriptive captions for each synthesized image, capturing contextual relationships between the text and its surrounding visual elements. This approach significantly improves the model's ability to comprehend and generate text within real-world scenarios.
+
+Complex Rendering in Structured Templates To improve the model's capacity to follow complex, structured prompts involving layout-sensitive content, we propose a synthesis strategy based on programmatic editing of pre-defined templates, such as PowerPoint slides or User Interface Mockups. A comprehensive rule-based system is designed to automate the substitution of placeholder text while maintaining the integrity of layout structure, alignment, and formatting. These synthetic examples are crucial for helping model understand and execute detailed instructions that involve multi-line text rendering, precise spatial layouts, and control over text font and color.
+
+In conclusion, our data synthesis framework systematically addresses the challenges associated with the scarcity and imbalance of textual content in natural image datasets. By integrating multiple rendering strategies that span simplicity, realism, and structural complexity, the framework synthesize comprehensive and diverse training data. Robustness across various text rendering tasks is achieved, thereby enhancing the model's ability to generate high-quality images that accurately follow complex user prompts about text rendering.
+
+# 4 Training
+
+# 4.1 Pre-training
+
+We adopt a flow matching training objective to pre-train Qwen-Image, which facilitates stable learning dynamics via ordinary differential equations (ODEs) while preserving equivalence to the maximum likelihood objective. Formally, let  $x_0$  denote the latent of the input image. The latent representation  $z$  is obtained by encoding  $x_0$  through the variational autoencoder (VAE) encoder  $\mathcal{E}$ , i.e.,  $z = \mathcal{E}(x)$ , where  $\mathcal{E}: x \mapsto z$ . Next, a random noise vector  $x_1$  is sampled from the standard multivariate normal distribution, i.e.,  $x_1 \sim \mathcal{N}(0, \mathbf{I})$ . For a user input  $S$ , which may comprise text or prompt combined with image, the guidance latent  $h$  is obtained from an MLLM  $\phi$ , i.e.,  $h = \phi(S)$ , where  $\phi: S \mapsto h$ . In addition, a diffusion timestep  $t$  is sampled from a logit-normal distribution with  $t \in [0, 1]$ . According to Rectified Flow (Liu et al., 2022; Esser et al., 2024), the intermediate latent variable at timestep  $t$  and its corresponding velocity  $v_t$  can be calculated as:
+
+$$
+\left\{ \begin{array}{l} x _ {t} = t x _ {0} + (1 - t) x _ {1} \\ v _ {t} = \frac {d x _ {t}}{d t} = x _ {0} - x _ {1} \end{array} . \right. \tag {1}
+$$
+
+Then, the model is trained to predict the target velocity, and the loss function is defined as the mean squared error (MSE) between the predicted output  $f_{\theta}(x_t,t)$  and the ground truth velocity  $v_{t}$ :
+
+$$
+\mathcal {L} = \mathbb {E} _ {\left(x _ {0}, h\right) \sim \mathcal {D}, x _ {1}, t} \left\| v _ {\theta} \left(x _ {t}, t, h\right) - v _ {t} \right\| ^ {2}, \tag {2}
+$$
+
+where  $v_{\theta}(x_t, t, h)$  is velocity predicted by the model and  $\mathcal{D}$  denotes the training dataset.
+
+# 4.1.1 Producer-Consumer Framework
+
+To ensure both high throughput and training stability when scaling to large-scale GPU clusters, we adopt a Ray (Moritz et al., 2018)-inspired Producer-Consumer framework that decouples data preprocessing from model training. This design enables both stages to operate asynchronously and at optimal efficiency, while also supporting on-the-fly updates to the data pipeline without interrupting the ongoing training process. On the Producer side, raw image-caption pairs are first filtered according to our pre-defined criteria, such as image resolution and detection operators. The selected data is then encoded into latent representations using MLLM models (e.g., Qwen2.5 VL) and VAE. Processed images are subsequently grouped by resolution in fast-access cache buckets and stored in a shared, location-aware store, allowing consumers to fetch them immediately without waiting in line. The connection between the Producer and Consumer is achieved by employing a specific HTTP transport layer, which natively supports the RPC semantics required for asynchronous, zero-copy scheduling between the two endpoints. The Consumer is deployed on GPU-dense clusters and is dedicated exclusively to model training. By offloading all data processing to the Producer, the Consumer nodes can devote their entire compute budget to training the MMDiT model. The MMDiT parameters are distributed across these nodes under a 4-way tensor-parallel layout, and every data-parallel group asynchronously pulls pre-processed batches directly from the Producer. Additional consumer-side optimizations are detailed in the following section.
+
+# 4.1.2 Distributed Training Optimization
+
+Given the large parameter size of the Qwen-Image model, using FSDP (Zhao et al., 2023) alone is insufficient to fit the model on each GPU. Therefore, we leverage Megatron-LM (Shoeybi et al., 2019; Korthikanti et al., 2023) for training and apply the following optimizations:
+
+Hybrid Parallelism Strategy We adopted a hybrid parallelism strategy, combining data parallelism and tensor parallelism, to efficiently scale training across large GPU clusters. Specifically, to implement tensor parallelism, we built the MMDiT model using the Transformer-Engine library<sup>1</sup>, which allows seamless and automatic switching between different degrees of tensor parallelism. Furthermore, for the multi-head self-attention blocks, we employ the head-wise parallelism to reduce the synchronization and communication overhead compared to tensor parallelism along the head dimension.
+
+Distributed Optimizer and Activation Checkpointing To alleviate GPU memory pressure with minimal recomputation overhead during backpropagation, we experimented with both distributed optimizers and activation checkpointing. However, activation checkpointing introduces substantial computational overhead in the backward pass, which can significantly degrade training speed. Through empirical
+
+comparison with the 256 multi-resolution image training setup, we observed that enabling activation checkpointing reduced per-GPU memory consumption by  $11.3\%$  (from 71GB to 63GB per GPU), but at the cost of increasing per-iteration time by  $3.75 \times$  (from 2s to 7.5s per iteration). Based on this trade-off, we ultimately opted to disable activation checkpointing and rely solely on distributed optimizers. During training, all-gather operations are performed in bfloat16, while gradient reduce-scatter operations utilize float32, ensuring both computational efficiency and improved numerical stability.
+
+# 4.1.3 Training Strategy
+
+We adopt a multi-stage pre-training strategy aimed at progressively enhancing data quality, image resolution, and model performance. Throughout different training stages, we integrate various training strategies to optimize the learning process. These training strategies are listed below:
+
+Enhancing Resolution: From Low Resolution to High Resolution This strategy progressively upscales the multi-resolution, multi-aspect ratio inputs, starting from an initial resolution of  $256 \times 256$  pixels (with various aspect ratios including 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 1:3 and 3:1), then increasing to  $640 \times 640$  pixels, and finally reaching  $1328 \times 1328$  pixels. By enhancing image resolution, the model can capture more detailed features, leading to better performance. Richer feature spaces facilitate improved generalization to unseen data. For example, transitioning from low-resolution to high-resolution flower images allows the model to discern finer details such as petal textures and color gradients.
+
+Integrating Textual Rendering: From Non-text to Text To address the limited availability of textual content in conventional vision datasets and the consequent suboptimal glyph generation performance, particularly for Chinese characters, we progressively introduce images containing rendered text superimposed on natural backgrounds. This strategy enables the model to initially learn general visual representations and subsequently acquire text rendering capability.
+
+Refining Data Quality: From Massive Data to Refined Data During the early stages of pre-training, we utilize large-scale datasets to enable the model to acquire fundamental visual generation capabilities. As training progresses, we gradually employ increasingly stringent data filtering mechanisms to select higher-quality data. This progressive data refinement ensures that only the most relevant and high-quality samples are leveraged to ensure the training efficiency and model performance.
+
+Balancing Data Distribution: From Unbalanced to Balanced Throughout the training process, we progressively balance the dataset with respect to domain and image resolution distributions. This adjustment mitigates the risk of the model overfitting to particular domains or resolutions, which could otherwise compromise the fidelity and fine-grained details of generated images in underrepresented settings. By maintaining a more uniform data distribution, we promote robust generalization across diverse domains and resolutions.
+
+Augmenting with Synthetic Data: From Real-World Data to Synthetic Data Certain data distributions, such as surrealistic styles or high-resolution images containing extensive textual content, are underrepresented or even absent in real-world datasets. Additionally, the availability of some high-quality data samples is inherently limited. To address these gaps, we employ data synthesis techniques to generate supplementary samples, thereby enriching the dataset and ensuring more comprehensive coverage of diverse visual domains. This augmentation strategy enhances the model's ability to generalize and perform robustly across a wider range of scenarios.
+
+# 4.2 Post-training
+
+In this section, we present the post-training framework for Qwen-Image, which consists of two stages: supervised fine-tuning (SFT) and reinforcement learning (RL) (Kaelbling et al., 1996).
+
+# 4.2.1 Supervised Fine-Tuning (SFT)
+
+During the SFT stage, we construct a hierarchically organized dataset of semantic categories and employ meticulous human annotation to address specific shortcomings of the model. We require selected images to be clear, rich in detail, bright, and photorealistic. This approach is designed to guide the model towards producing content with greater realism and finer details.
+
+# 4.2.2 Reinforcement Learning (RL)
+
+We employ two distinct RL strategies: Direct Preference Optimization (DPO) (Rafailov et al., 2023) and Group Relative Policy Optimization (GRPO) (Shao et al., 2024). DPO excels at flow-matching (one step) online preference modeling and is computationally efficient, whereas GRPO performs on-policy sampling during training and evaluates each trajectory with a reward model. To leverage the scalability advantages of offline preference learning, we conduct relative large-scale RL with DPO and reserve GRPO for small fine-grained RL refinement. Details of both algorithms are provided below.
+
+# (A) Direct Preference Optimization (DPO)
+
+Data Preparation For DPO training data, given the same prompt, multiple images are generated with different random initialization seeds. Human annotators are then tasked with selecting the best and the worst images from these candidates. The data is divided into two categories: prompts associated with reference (gold) images, and prompts without reference images. For data with reference images, annotators first compare the generated outputs to the reference. If there is a significant discrepancy, the annotators are instructed to designate the worst generation as the rejected sample. For prompts without reference images, annotators are asked to select the best and worst samples among the generated images, or to indicate if all generated results are of unsatisfactory quality.
+
+Algorithm Given the text hidden state  $h$ , chosen generated image (or golden image)  $x_0^{win}$  and rejected generated image  $x_0^{lose}$ , we sample timestep  $t \sim (0,1)$  to construct the input latent variable  $x_t^{win}$  and  $x_t^{lose}$  as well as their corresponding velocity  $v_t^{win}$  and  $v_t^{lose}$  following Equation 1. Then, inspired by previous work (Wallace et al., 2024), we construct the DPO objective based on the flow matching training criterion, which can be formulated as follows:
+
+$$
+\left\{ \begin{array}{l} \operatorname {D i f f} _ {\text {p o l i c y}} = \left(\left\| v _ {\theta} \left(x _ {t} ^ {w i n}, h, t\right) - v _ {t} ^ {w i n} \right\| _ {2} ^ {2} - \left\| v _ {\theta} \left(x _ {t} ^ {l o s e}, h, t\right) - v _ {t} ^ {l o s e} \right\| _ {2} ^ {2}\right) \\ \operatorname {D i f f} _ {\text {r e f}} = \left(\left\| v _ {\text {r e f}} \left(x _ {t} ^ {w i n}, h, t\right) - v _ {t} ^ {w i n} \right\| _ {2} ^ {2} - \left\| v _ {\text {r e f}} \left(x _ {t} ^ {l o s e}, h, t\right) - v _ {t} ^ {l o s e} \right\| _ {2} ^ {2}\right) \\ \mathcal {L} _ {D P O} = - \mathbb {E} _ {h, \left(x _ {0} ^ {w i n}, x _ {0} ^ {l o s e}\right) \sim \mathcal {D}, t \sim \mathcal {U} (0, 1)} \left[ \log \sigma \Big (- \beta \left(\operatorname {D i f f} _ {\text {p o l i c y}} - \operatorname {D i f f} _ {\text {r e f}}\right) \Big) \right], \end{array} \right. \tag {3}
+$$
+
+where  $\mathrm{Diff}_{\mathrm{policy}}$  and  $\mathrm{Diff}_{\mathrm{ref}}$  denote the preference differences computed by the policy model and the reference model, respectively,  $\beta$  is a scaling parameter, and  $\sigma(\cdot)$  denotes the sigmoid function.
+
+# (B) Group Relative Policy Optimization (GRPO)
+
+Algorithm After training with DPO, we perform further fine-grained training using GRPO following the Flow-GRPO (Liu et al., 2025a) framework. Given text hidden state  $h$ , the flow model predicts a group of  $G$  images  $\{x_0^i\}_{i=1}^G$  and the corresponding trajectory  $\{x_T^i, x_{T-1}^i, \dots, x_0^i\}_{i=1}^G$ . Within each group, the advantage function can be formulated as:
+
+$$
+A _ {i} = \frac {R \left(x _ {0} ^ {i} , h\right) - m e a n \left(\left\{R \left(x _ {0} ^ {i} , h\right) \right\} _ {i = 1} ^ {G}\right)}{\operatorname {s t d} \left(\left\{R \left(x _ {0} ^ {i} , h\right) \right\} _ {i = 1} ^ {G}\right)}, \tag {4}
+$$
+
+where  $R$  is the reward model. Then, the training objective of GRPO is:
+
+$$
+\begin{array}{l} \mathcal {L} _ {\mathrm {G R P O}} (\theta) = \mathbb {E} _ {h \sim \mathcal {D}, \{x _ {T} ^ {i},..., x _ {0} ^ {i} \} _ {i = 1} ^ {G} \sim \pi_ {\theta}} \\ \frac {1}{G} \sum_ {i = 1} ^ {G} \frac {1}{T} \sum_ {t = 0} ^ {T - 1} \left(\min  \left(r _ {t} ^ {i} (\theta) A _ {i}, \operatorname {c l i p} \left(r _ {t} ^ {i} (\theta), 1 - \epsilon , 1 + \epsilon\right) A _ {i}\right) - \beta D _ {K L} \left(\pi_ {\theta} \| \pi_ {\text {r e f}}\right)\right), \tag {5} \\ \end{array}
+$$
+
+where  $r_t^i (\theta) = \frac{p_\theta(x_{t - 1}^i|x_t^i,h)}{p_{\theta_{\mathrm{old}}}(x_{t - 1}^i|x_t^i,h)}$
+
+When sampling the trajectories  $\{x_T^i,\dots,x_0^i\}_{i = 1}^G\sim \pi_\theta$ , we have  $\mathrm{d}x_{t} = v_{t}\mathrm{d}t$  for flow-matching sampling (following Eq. 1), where  $v_{t} = v_{\theta}(x_{t},t,h)$  is the predicted velocity. However, this sampling strategy exhibits no randomness, which is not suitable for exploration. Thus, we reformulate the sampling process as an SDE process for more randomness. The SDE sampling process can be written as:
+
+$$
+\mathrm {d} x _ {t} = \left(v _ {t} + \frac {\sigma_ {t} ^ {2}}{2 t} (x _ {t} + (1 - t) v _ {t})\right) \mathrm {d} t + \sigma_ {t} \mathrm {d} w, \tag {6}
+$$
+
+![](images/605b20e01202e4df7a3f3fa6654e7f514f877f55b89d9e287448422c693083f1.jpg)  
+Figure 14: Overview of the Image Editing (TI2I) task. Left: Illustration of the TI2I task training input format. The user prompt is "Turn into realistic style" in English. Right: The corresponding modification to MSRoPE for TI2I, where a new dimension (frame) is introduced to distinguish between the images before and after editing.
+
+![](images/3ab25b32fe3d5102b7cf546ad0de1d48cbcacc741e86cfdaea866ec1acbfd4ed.jpg)  
+Figure 15: System prompt for Image Editing (TI2I) task, where  $<\text{user_image}>$  is the user input image and  $<\text{user_text}>$  is the user input prompt.
+
+# System Prompt for TI2I task
+
+```txt
+<|im_start|>system  
+Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate. <|im_end|>  
+<|im_start|>user  
+<|vision_start|><|user_image|><|vision_end|><|user_text|><|im_end|>  
+<|im_start|>assistant
+```
+
+where  $\sigma_t$  denotes the magnitude of randomness. Using Euler-Maruyama discretization, we have
+
+$$
+x _ {t + \Delta t} = x _ {t} + \left[ v _ {\theta} \left(x _ {t}, t, h\right) + \frac {\sigma_ {t} ^ {2}}{2 t} \left(x _ {t} + (1 - t) v _ {\theta} \left(x _ {t}, t, h\right)\right) \right] \Delta t + \sigma_ {t} \sqrt {\Delta t} \epsilon . \tag {7}
+$$
+
+We use the above equation for sampling the trajectories. The KL-divergence in Eq. (5) can be solved in a closed form
+
+$$
+D _ {K L} \left(\pi_ {\theta} \| \pi_ {\text {r e f}}\right) = \frac {\Delta t}{2} \left(\frac {\sigma_ {t} (1 - t)}{2 t} + \frac {1}{\sigma_ {t}}\right) ^ {2} \| v _ {\theta} \left(x _ {t}, t, h\right) - v _ {\text {r e f}} \left(x _ {t}, t, h\right) \| ^ {2}. \tag {8}
+$$
+
+# 4.3 Multi-task training
+
+In addition to text-to-image (T2I) generation, we extend our base model to explore multi-modal image generation tasks that incorporate both text and image inputs, including instruction-based image editing (Wang et al., 2025), novel view synthesis (Wang et al., 2024b), and computer vision tasks such as depth estimation (Bochkovskii et al., 2024). We can broadly regard these as general image editing tasks. Building on the capabilities of Qwen2.5-VL, our model natively supports image inputs: visual patches extracted from the user-provided image are encoded by a Vision Transformer (ViT) and concatenated with text tokens to form the input sequence. We design the system prompt shown in Figure 15 and extract both the input image and textual instructions as inputs to the text stream of Qwen-Image MMDiT.
+
+Inspired by prior work (Labs et al., 2025), which demonstrates that incorporating VAE embeddings helps maintain character and scene consistency, we additionally feed the VAE-encoded latent representation of the input image into the image stream, concatenating it with the noised image latent along the sequence dimension. To enable the model to distinguish between multiple images, we extend MSRoPE by introducing an additional frame dimension, in addition to the height and width used to locate image patches within a single image (see the right part of Figure 14). Empirically, we find that providing the visual semantic embeddings from the MLLM enables better instruction following, while introducing
+
+![](images/2a0184c57e5546ea3508c834a1aca0a287212c1fb289ad7e6eccb55ffbe7af94.jpg)  
+(a) Front end of AI Arena platform
+
+![](images/b3883af850dd8954903c2eae096227b9c956851b41e2f105f256342222c61251.jpg)  
+Figure 16: Comparison of Qwen-Image and leading closed-source APIs on the AI Arena platform. Users can compare images generated by two anonymous models based on the prompt and choose which one is better, both are good, or both are bad. ELo Leaderboard is powered by Qwen3-Coder (Qwen, 2025) from chat.qwen.ai.  
+(b) Text-to-Image Elo Leaderboard
+
+pixel-level VAE embeddings further enhances the model's ability to preserve visual fidelity and maintain structural consistency with the user-provided image.
+
+# 5 Experiments
+
+# 5.1 Human Evaluation
+
+To comprehensively evaluate the general image generation capabilities of Qwen-Image and objectively compare it with state-of-the-art closed-source APIs, we have developed AI Arena², an open benchmarking platform built upon the Elo rating system (Elo &Sloan, 2008), as shown in Figure 16.
+
+AI Arena serves as a fair and dynamic open competition platform. In each round, two images generated by randomly selected models using the same prompt are anonymously presented to users for pairwise comparison. Users vote for the superior image, and the results are used to update personal and global leaderboards through the Elo algorithm, allowing developers, researchers, and users to holistically assess the performance of models. Specifically, we curated about 5,000 diverse prompts that span a wide range of evaluation dimensions, including subject, style, photographic perspective, and more. More than 200 evaluators from various professional backgrounds were invited to participate in the assessment process.
+
+AI Arena is now open to the public. Anyone can participate in the comparison of different models. In the future, the platform will further expand from text-to-image generation to various multimodal generation tasks such as image editing, text-to-audio, text-to-video, and image-to-video generation. The platform strictly adheres to the standards of objectivity and independence, and will detect and eliminate cheating or invalid data through various techniques.
+
+We selected five state-of-the-art closed-source APIs as competitors for Qwen-Image in the arena: Imagen 4 Ultra Preview 0606 (Google, 2025), Seedream 3.0 (Gao et al., 2025), GPT Image 1 [High] (OpenAI, 2025), FLUX.1 Kontext [Pro] (Labs et al., 2025), and Ideogram 3.0 (Ideogram, 2025). To date, each model has participated in at least 10,000 pairwise comparisons, ensuring robustness and fairness in the evaluation. Considering that most closed-source APIs do not reliably support Chinese text generation, we excluded prompts involving Chinese text to maintain objectivity in the comparative results.
+
+As shown in Figure 16, Qwen-Image, as the only open-source image generation model, ranks third in the AI Arena. Although Qwen-Image trails the leadingImagen 4 Ultra Preview 0606 by  $\tilde{3}0$  Elo points, it demonstrates a significant advantage of over 30 Elo points compared to models such as GPT Image 1 [High] and FLUX.1 Kontext [Pro]. These results establish Qwen-Image as a powerful open-source image generation model, providing strong performance and broad utility for developers, researchers, and users.
+
+# 5.2 Quantitative Results
+
+To comprehensively evaluate the visual generation capabilities of our model, we first report its performance on VAE reconstruction in §5.2.1, which serves to demonstrate the upper bound of the model's
+
+Table 2: Quantitative Evaluation results of VAE.  
+
+<table><tr><td rowspan="2">Model</td><td colspan="2"># Params</td><td colspan="2"># Image Params</td><td colspan="2">Imagenet_256x256</td><td colspan="2">Text_256x256</td></tr><tr><td>Enc</td><td>Dec</td><td>Enc</td><td>Dec</td><td>PSNR(↑)</td><td>SSIM(↑)</td><td>PSNR(↑)</td><td>SSIM(↑)</td></tr><tr><td>Wan2.1-VAE (Wan et al., 2025)</td><td>54M</td><td>73M</td><td>19M</td><td>25M</td><td>31.29</td><td>0.8870</td><td>26.77</td><td>0.9386</td></tr><tr><td>Hunyuan-VAE (Kong et al., 2024)</td><td>100M</td><td>146M</td><td>34M</td><td>50M</td><td>33.21</td><td>0.9143</td><td>32.83</td><td>0.9773</td></tr><tr><td>FLUX-VAE (BlackForest, 2024)</td><td>34M</td><td>50M</td><td>34M</td><td>50M</td><td>32.84</td><td>0.9155</td><td>32.65</td><td>0.9792</td></tr><tr><td>Cosmos-CI-VAE (Agarwal et al., 2025)</td><td>31M</td><td>46M</td><td>31M</td><td>46M</td><td>32.23</td><td>0.9010</td><td>30.62</td><td>0.9664</td></tr><tr><td>SD-3.5-VAE (Esser et al., 2024)</td><td>34M</td><td>50M</td><td>34M</td><td>50M</td><td>31.22</td><td>0.8839</td><td>29.93</td><td>0.9658</td></tr><tr><td>Qwen-Image-VAE</td><td>54M</td><td>73M</td><td>19M</td><td>25M</td><td>33.42</td><td>0.9159</td><td>36.63</td><td>0.9839</td></tr></table>
+
+generation quality. We further conduct evaluations on two fundamental visual generation tasks, text-to-image (T2I) in §§ 5.2.2 and image editing (TI2I) in §§ 5.2.3, to provide a thorough assessment of the model's foundational generative abilities.
+
+# 5.2.1 Performance of VAE Reconstruction
+
+We quantitatively evaluate several state-of-the-art image tokenizers, reporting Peak Signal-to-Noise Ratio (PSNR) and Structural Similarity Index Measure (SSIM) to assess reconstruction quality. All compared VAEs operate at an 8x8 compression rate using a latent channel dimension of 16. Notably, FLUX-VAE (BlackForest, 2024), Cosmos-CI-VAE (Agarwal et al., 2025), and SD-3.5-VAE (Esser et al., 2024) are image tokenizers, while Wan2.1-VAE (Wan et al., 2025), Hunyuan-VAE (Kong et al., 2024), and Qwen-Image-VAE function as joint image and video tokenizers. For a fair comparison, we report effective image parameters (see "Image Params" in Table 2). This accounts for converting the 3D convolutions in joint models to equivalent 2D convolutions for image processing. Following prior art, evaluation is conducted on the ImageNet-1k (Deng et al., 2009) validation set at 256x256 resolution for general domain performance. To further evaluate reconstruction capabilities on small texts, we also include reconstruction results on an in-house text-rich corpus covering diverse text sources (PDFs, PPT slides, posters, and synthetic texts) and languages. For improved numerical precision, we evaluate tokenizers using float32. As shown in Table 2, Qwen-Image-VAE achieves state-of-the-art reconstruction performance across all evaluated metrics. Significantly, when processing images, Qwen-Image-VAE activates only 19M parameters in the encoder and 25M in the decoder, achieving an optimal balance between reconstruction quality and computational efficiency.
+
+# 5.2.2 Performance of Text-to-Image Generation
+
+We evaluate Qwen-Image's performance on the text-to-image (T2I) task from two perspectives: general generation capability and text rendering capability. To assess the model's general generation performance, we conduct evaluations on four publicly available benchmarks — DPG (Hu et al., 2024b), GenEval (Ghosh et al., 2023), OneIG-Bench (Chang et al., 2025), and TIIF (Wei et al., 2025). These benchmarks provide a comprehensive measurement of the model's ability to generate high-quality and semantically consistent images from text prompts. To further evaluate the model's text rendering capability, we separately evaluate its performance on English and Chinese text generation. For English text rendering, we use the CVTG-2K (Du et al., 2025) benchmark, which is specifically designed to assess the readability of the rendered English text. To address the lack of standardized evaluation for Chinese text rendering, we introduce a new benchmark named ChineseWord, which evaluates the model's ability to render Chinese characters, allowing us to systematically assess the model's text rendering performance. Furthermore, to fully evaluate Qwen-Image's ability to accurately render long texts, we conducted an evaluation on LongText-Bench (Geng et al., 2025), a benchmark designed to evaluate the performance on rendering longer texts in both English and Chinese.
+
+DPG Table 3 shows the performance comparison on DPG (Hu et al., 2024b). This benchmark consists of 1K dense prompts, enabling fine-grained assessment of different aspects of prompt adherence. In general, Qwen-Image achieves the highest overall score, indicating its superior prompt-following capability. In particular, Qwen-Image excels at interpreting prompts involving attributes and other facets, outperforming all other models in the comparison.
+
+GenEval Table 4 presents a comparison of model performance on the GenEval (Ghosh et al., 2023) benchmark, which focuses on object-centric text-to-image generation using compositional prompts with diverse object attributes. We separately assess the performance of both the SFT model and the RL-
+
+Table 3: Quantitative evaluation results on DPG (Hu et al., 2024b).  
+
+<table><tr><td>Model</td><td>Global</td><td>Entity</td><td>Attribute</td><td>Relation</td><td>Other</td><td>Overall↑</td></tr><tr><td>SD v1.5 (Rombach et al., 2021)</td><td>74.63</td><td>74.23</td><td>75.39</td><td>73.49</td><td>67.81</td><td>63.18</td></tr><tr><td>PixArt-α (Chen et al., 2024c)</td><td>74.97</td><td>79.32</td><td>78.60</td><td>82.57</td><td>76.96</td><td>71.11</td></tr><tr><td>Lumina-Next (Zhuo et al., 2024)</td><td>82.82</td><td>88.65</td><td>86.44</td><td>80.53</td><td>81.82</td><td>74.63</td></tr><tr><td>SDXL (Podell et al., 2023)</td><td>83.27</td><td>82.43</td><td>80.91</td><td>86.76</td><td>80.41</td><td>74.65</td></tr><tr><td>Playground v2.5 (Li et al., 2024a)</td><td>83.06</td><td>82.59</td><td>81.20</td><td>84.08</td><td>83.50</td><td>75.47</td></tr><tr><td>Hunyuan-DiT (Li et al., 2024b)</td><td>84.59</td><td>80.59</td><td>88.01</td><td>74.36</td><td>86.41</td><td>78.87</td></tr><tr><td>Janus (Wu et al., 2025a)</td><td>82.33</td><td>87.38</td><td>87.70</td><td>85.46</td><td>86.41</td><td>79.68</td></tr><tr><td>PixArt-Σ (Chen et al., 2024b)</td><td>86.89</td><td>82.89</td><td>88.94</td><td>86.59</td><td>87.68</td><td>80.54</td></tr><tr><td>Emu3-Gen (Wang et al., 2024a)</td><td>85.21</td><td>86.68</td><td>86.84</td><td>90.22</td><td>83.15</td><td>80.60</td></tr><tr><td>Janus-Pro-1B (Chen et al., 2025b)</td><td>87.58</td><td>88.63</td><td>88.17</td><td>88.98</td><td>88.30</td><td>82.63</td></tr><tr><td>DALL-E 3 (OpenAI, 2023)</td><td>90.97</td><td>89.61</td><td>88.39</td><td>90.58</td><td>89.83</td><td>83.50</td></tr><tr><td>FLUX.1 [Dev] (BlackForest, 2024)</td><td>74.35</td><td>90.00</td><td>88.96</td><td>90.87</td><td>88.33</td><td>83.84</td></tr><tr><td>SD3 Medium (Esser et al., 2024)</td><td>87.90</td><td>91.01</td><td>88.83</td><td>80.70</td><td>88.68</td><td>84.08</td></tr><tr><td>Janus-Pro-7B (Chen et al., 2025b)</td><td>86.90</td><td>88.90</td><td>89.40</td><td>89.32</td><td>89.48</td><td>84.19</td></tr><tr><td>HiDream-I1-Full (Cai et al., 2025)</td><td>76.44</td><td>90.22</td><td>89.48</td><td>93.74</td><td>91.83</td><td>85.89</td></tr><tr><td>Lumina-Image 2.0 (Qin et al., 2025)</td><td>-</td><td>91.97</td><td>90.20</td><td>94.85</td><td>-</td><td>87.20</td></tr><tr><td>Seeddream 3.0 (Gao et al., 2025)</td><td>94.31</td><td>92.65</td><td>91.36</td><td>92.78</td><td>88.24</td><td>88.27</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>88.89</td><td>88.94</td><td>89.84</td><td>92.63</td><td>90.96</td><td>85.15</td></tr><tr><td>Qwen-Image</td><td>91.32</td><td>91.56</td><td>92.02</td><td>94.31</td><td>92.73</td><td>88.32</td></tr></table>
+
+Table 4: Quantitative Evaluation results on GenEval (Ghosh et al., 2023).  
+
+<table><tr><td>Model</td><td>Single Object</td><td>Two Object</td><td>Counting</td><td>Colors</td><td>Position</td><td>Attribute Binding</td><td>Overall↑</td></tr><tr><td>Show-o (Xie et al., 2024)</td><td>0.95</td><td>0.52</td><td>0.49</td><td>0.82</td><td>0.11</td><td>0.28</td><td>0.53</td></tr><tr><td>Emu3-Gen (Wang et al., 2024a)</td><td>0.98</td><td>0.71</td><td>0.34</td><td>0.81</td><td>0.17</td><td>0.21</td><td>0.54</td></tr><tr><td>PixArt-α (Chen et al., 2024c)</td><td>0.98</td><td>0.50</td><td>0.44</td><td>0.80</td><td>0.08</td><td>0.07</td><td>0.48</td></tr><tr><td>SD3 Medium (Esser et al., 2024)</td><td>0.98</td><td>0.74</td><td>0.63</td><td>0.67</td><td>0.34</td><td>0.36</td><td>0.62</td></tr><tr><td>FLUX.1 [Dev] (BlackForest, 2024)</td><td>0.98</td><td>0.81</td><td>0.74</td><td>0.79</td><td>0.22</td><td>0.45</td><td>0.66</td></tr><tr><td>SD3.5 Large (Esser et al., 2024)</td><td>0.98</td><td>0.89</td><td>0.73</td><td>0.83</td><td>0.34</td><td>0.47</td><td>0.71</td></tr><tr><td>JanusFlow (Ma et al., 2025)</td><td>0.97</td><td>0.59</td><td>0.45</td><td>0.83</td><td>0.53</td><td>0.42</td><td>0.63</td></tr><tr><td>Lumina-Image 2.0 (Qin et al., 2025)</td><td>-</td><td>0.87</td><td>0.67</td><td>-</td><td>-</td><td>0.62</td><td>0.73</td></tr><tr><td>Janus-Pro-7B (Chen et al., 2025b)</td><td>0.99</td><td>0.89</td><td>0.59</td><td>0.90</td><td>0.79</td><td>0.66</td><td>0.80</td></tr><tr><td>HiDream-I1-Full (Cai et al., 2025)</td><td>1.00</td><td>0.98</td><td>0.79</td><td>0.91</td><td>0.60</td><td>0.72</td><td>0.83</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>0.99</td><td>0.92</td><td>0.85</td><td>0.92</td><td>0.75</td><td>0.61</td><td>0.84</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>0.99</td><td>0.96</td><td>0.91</td><td>0.93</td><td>0.47</td><td>0.80</td><td>0.84</td></tr><tr><td>Qwen-Image</td><td>0.99</td><td>0.92</td><td>0.89</td><td>0.88</td><td>0.76</td><td>0.77</td><td>0.87</td></tr><tr><td>Qwen-Image-RL</td><td>1.00</td><td>0.95</td><td>0.93</td><td>0.92</td><td>0.87</td><td>0.83</td><td>0.91</td></tr></table>
+
+enhanced model against other leading foundation models. Notably, our base model already surpasses the state of the art, outperforming Seedream 3.0 (Gao et al., 2025) and GPT Image 1 [High] (OpenAI, 2025). Following reinforcement learning (RL) fine-tuning, our model achieves an even higher score of 0.91, making it the only foundation model on the leaderboard to exceed the 0.9 threshold. These results demonstrate the superior controllable generation capabilities of Qwen-Image.
+
+OneIG-Bench Table. 5 and Table. 6 report the quantitative results on OneIG-Bench (Chang et al., 2025), a comprehensive benchmark designed for fine-grained evaluation of T2I models across multiple dimensions. For a fair overall comparison, we average the scores across all dimensions to obtain the final overall score. In general, Qwen-Image achieves the highest overall score on both the Chinese and English tracks, demonstrating its strong general-purpose generation capability. Notably, it ranks first in the Alignment and Text categories, evidencing its superior prompt following and text rendering capabilities.
+
+TIIF Table 7 shows the performance comparison on TIIF Bench mini (Wei et al., 2025), a benchmark designed to systematically evaluate T2I model's ability to interpret and follow intricate textual instructions. Overall, Qwen-Image ranks second, surpassed only by GPT Image 1 (OpenAI, 2025), underscoring its strong instruction-following capabilities.
+
+Table 5: Quantitative evaluation results on OneIG-EN (Chang et al., 2025). The overall score is the average of the five dimensions.  
+
+<table><tr><td>Model</td><td>Alignment</td><td>Text</td><td>Reasoning</td><td>Style</td><td>Diversity</td><td>Overall↑</td></tr><tr><td>Janus-Pro (Chen et al., 2025b)</td><td>0.553</td><td>0.001</td><td>0.139</td><td>0.276</td><td>0.365</td><td>0.267</td></tr><tr><td>BLIP3-o (Chen et al., 2025a)</td><td>0.711</td><td>0.013</td><td>0.223</td><td>0.361</td><td>0.229</td><td>0.307</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>0.769</td><td>0.244</td><td>0.173</td><td>0.367</td><td>0.251</td><td>0.361</td></tr><tr><td>BAGEL+CoT (Deng et al., 2025)</td><td>0.793</td><td>0.020</td><td>0.206</td><td>0.390</td><td>0.209</td><td>0.324</td></tr><tr><td>Show-o2-1.5B (Xie et al., 2025b)</td><td>0.798</td><td>0.002</td><td>0.219</td><td>0.317</td><td>0.186</td><td>0.304</td></tr><tr><td>Show-o2-7B (Xie et al., 2025b)</td><td>0.817</td><td>0.002</td><td>0.226</td><td>0.317</td><td>0.177</td><td>0.308</td></tr><tr><td>OmniGen2 (Wu et al., 2025b)</td><td>0.804</td><td>0.680</td><td>0.271</td><td>0.377</td><td>0.242</td><td>0.475</td></tr><tr><td>SD 1.5 (Rombach et al., 2021)</td><td>0.565</td><td>0.010</td><td>0.207</td><td>0.383</td><td>0.429</td><td>0.319</td></tr><tr><td>SDXL (Podell et al., 2023)</td><td>0.688</td><td>0.029</td><td>0.237</td><td>0.332</td><td>0.296</td><td>0.316</td></tr><tr><td>SD3.5 Large (Esser et al., 2024)</td><td>0.809</td><td>0.629</td><td>0.294</td><td>0.353</td><td>0.225</td><td>0.462</td></tr><tr><td>FLUX.1 [Dev] (BlackForest, 2024)</td><td>0.786</td><td>0.523</td><td>0.253</td><td>0.368</td><td>0.238</td><td>0.434</td></tr><tr><td>CogView4 (Z.ai, 2025)</td><td>0.786</td><td>0.641</td><td>0.246</td><td>0.353</td><td>0.205</td><td>0.446</td></tr><tr><td>SANA-1.5 1.6B (PAG) (Xie et al., 2025a)</td><td>0.762</td><td>0.054</td><td>0.209</td><td>0.387</td><td>0.222</td><td>0.327</td></tr><tr><td>SANA-1.5 4.8B (PAG) (Xie et al., 2025a)</td><td>0.765</td><td>0.069</td><td>0.217</td><td>0.401</td><td>0.216</td><td>0.334</td></tr><tr><td>Lumina-Image 2.0 (Qin et al., 2025)</td><td>0.819</td><td>0.106</td><td>0.270</td><td>0.354</td><td>0.216</td><td>0.353</td></tr><tr><td>HiDream-I1-Full (Cai et al., 2025)</td><td>0.829</td><td>0.707</td><td>0.317</td><td>0.347</td><td>0.186</td><td>0.477</td></tr><tr><td>Imagen3 (Google, 2024)</td><td>0.843</td><td>0.343</td><td>0.313</td><td>0.359</td><td>0.188</td><td>0.409</td></tr><tr><td>Recraft V3 (Recraft, 2024)</td><td>0.810</td><td>0.795</td><td>0.323</td><td>0.378</td><td>0.205</td><td>0.502</td></tr><tr><td>Kolors 2.0 (team, 2025)</td><td>0.820</td><td>0.427</td><td>0.262</td><td>0.360</td><td>0.300</td><td>0.434</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>0.818</td><td>0.865</td><td>0.275</td><td>0.413</td><td>0.277</td><td>0.530</td></tr><tr><td>Imagen4 (Google, 2025)</td><td>0.857</td><td>0.805</td><td>0.338</td><td>0.377</td><td>0.199</td><td>0.515</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>0.851</td><td>0.857</td><td>0.345</td><td>0.462</td><td>0.151</td><td>0.533</td></tr><tr><td>Qwen-Image</td><td>0.882</td><td>0.891</td><td>0.306</td><td>0.418</td><td>0.197</td><td>0.539</td></tr></table>
+
+Table 6: Quantitative evaluation results on OneIG-ZH (Chang et al., 2025). The overall score is the average of the five dimensions.  
+
+<table><tr><td>Model</td><td>Alignment</td><td>Text</td><td>Reasoning</td><td>Style</td><td>Diversity</td><td>Overall↑</td></tr><tr><td>Janus-Pro (Chen et al., 2025b)</td><td>0.324</td><td>0.148</td><td>0.104</td><td>0.264</td><td>0.358</td><td>0.240</td></tr><tr><td>BLIP3-o (Chen et al., 2025a)</td><td>0.608</td><td>0.092</td><td>0.213</td><td>0.369</td><td>0.233</td><td>0.303</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>0.672</td><td>0.365</td><td>0.186</td><td>0.357</td><td>0.268</td><td>0.370</td></tr><tr><td>BAGEL+CoT (Deng et al., 2025)</td><td>0.719</td><td>0.127</td><td>0.219</td><td>0.385</td><td>0.197</td><td>0.329</td></tr><tr><td>Cogview4 (Z.ai, 2025)</td><td>0.700</td><td>0.193</td><td>0.236</td><td>0.348</td><td>0.214</td><td>0.338</td></tr><tr><td>Lumina-Image 2.0 (Qin et al., 2025)</td><td>0.731</td><td>0.136</td><td>0.221</td><td>0.343</td><td>0.240</td><td>0.334</td></tr><tr><td>HiDream-I1-Full (Cai et al., 2025)</td><td>0.620</td><td>0.205</td><td>0.256</td><td>0.304</td><td>0.300</td><td>0.337</td></tr><tr><td>Kolors 2.0 (team, 2025)</td><td>0.738</td><td>0.502</td><td>0.226</td><td>0.331</td><td>0.333</td><td>0.426</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>0.793</td><td>0.928</td><td>0.281</td><td>0.397</td><td>0.243</td><td>0.528</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>0.812</td><td>0.650</td><td>0.300</td><td>0.449</td><td>0.159</td><td>0.474</td></tr><tr><td>Qwen-Image</td><td>0.825</td><td>0.963</td><td>0.267</td><td>0.405</td><td>0.279</td><td>0.548</td></tr></table>
+
+CVTG-2K Table 8 reports the quantitative results of English rendering on CVTG-2K (Du et al., 2025). This benchmark contains 2K prompts, each requiring 2-5 regions of English to be rendered on the generated image. Three metrics: Word Accuracy, NED, CLIPScore are introduced to measure the accuracy of text rendering. As shown in the table, Qwen-Image achieves performance comparable to that of state-of-the-art image generation models, underscoring its powerful English text rendering capability.
+
+ChineseWord Table 9 reports the quantitative results on ChineseWord, our new benchmark for character-level Chinese text rendering. In accordance with the List of Commonly Used Standard Chinese Characters, we group the characters into three difficulty tiers: Level-1 (3500 characters), Level-2 (3000 characters) and Level-3 (1605 characters). We craft several prompt templates that instruct text-to-image models to generate an image containing a single Chinese character. Across all three tiers, Qwen-Image attains the highest rendering accuracy, underscoring its superior ability to render Chinese text.
+
+LongText-Bench Table 10 reports the quantitative results on LongText-Bench (Geng et al., 2025), a benchmark specifically designed to assess a model's ability to precisely render lengthy texts. The dataset contains 160 prompts spanning eight distinct scenarios. As shown in the table, Qwen-Image attains the highest accuracy on long Chinese text and the second-highest accuracy on long English text, illustrating Qwen-Image's superior long text rendering capability.
+
+Table 7: Quantitative evaluation results on TIIF Bench testmini (Wei et al., 2025). The best result is in bold and the second best result is underlined.  
+
+<table><tr><td rowspan="2">Model</td><td colspan="2">Overall</td><td colspan="7">Basic Following</td><td colspan="10">Advanced Following</td><td colspan="2">Designer</td><td></td></tr><tr><td>short long</td><td>Avg short long</td><td>Attribute short long</td><td>Relation short long</td><td>Reasoning short long</td><td>short long</td><td>Avg short long</td><td>Attribute +Relation short long</td><td>Attribute +Reasoning short long</td><td>short long</td><td>Avg short long</td><td>Attribute +Reasoning short long</td><td>Relation +Reasoning short long</td><td>Style short long</td><td>Text short long</td><td>Real World short long</td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>FLUX.1 [dev] (BlackForest, 2024)</td><td>71.09</td><td>71.78</td><td>83.12</td><td>78.65</td><td>87.05</td><td>83.17</td><td>87.25</td><td>80.39</td><td>75.01</td><td>72.39</td><td>65.79</td><td>68.54</td><td>67.07</td><td>73.69</td><td>73.84</td><td>73.34</td><td>69.09</td><td>71.59</td><td>66.67</td><td>43.83</td><td>52.83</td><td></td></tr><tr><td>FLUX.1 [Pro] (BlackForest, 2024)</td><td>67.32</td><td>69.89</td><td>79.08</td><td>78.91</td><td>78.83</td><td>81.33</td><td>82.82</td><td>83.82</td><td>75.57</td><td>71.57</td><td>61.10</td><td>65.37</td><td>62.32</td><td>65.57</td><td>69.84</td><td>71.47</td><td>65.96</td><td>67.72</td><td>63.00</td><td>63.00</td><td>35.83</td><td>55.83</td></tr><tr><td>DALL-E 3 (OpenAI, 2023)</td><td>74.96</td><td>70.81</td><td>78.72</td><td>78.50</td><td>79.50</td><td>79.83</td><td>80.82</td><td>78.82</td><td>75.82</td><td>76.82</td><td>73.39</td><td>67.27</td><td>73.45</td><td>67.20</td><td>72.01</td><td>71.34</td><td>63.59</td><td>60.72</td><td>89.66</td><td>86.67</td><td>66.83</td><td>54.83</td></tr><tr><td>SD 3 (Esser et al., 2024)</td><td>67.46</td><td>66.09</td><td>78.32</td><td>77.75</td><td>83.33</td><td>79.83</td><td>82.07</td><td>78.82</td><td>71.07</td><td>74.07</td><td>61.46</td><td>59.56</td><td>61.07</td><td>64.07</td><td>68.84</td><td>70.34</td><td>50.96</td><td>57.84</td><td>66.67</td><td>76.67</td><td>59.83</td><td>20.83</td></tr><tr><td>PixArt-Σ (Chen et al., 2024b)</td><td>62.00</td><td>58.12</td><td>70.66</td><td>75.25</td><td>69.33</td><td>78.83</td><td>75.07</td><td>77.32</td><td>67.57</td><td>69.57</td><td>57.65</td><td>49.50</td><td>65.20</td><td>56.57</td><td>66.96</td><td>61.72</td><td>66.59</td><td>54.59</td><td>83.33</td><td>70.00</td><td>1.83</td><td>1.83</td></tr><tr><td>Lumina-Next (Zhuo et al., 2024)</td><td>50.93</td><td>52.46</td><td>64.58</td><td>66.08</td><td>56.83</td><td>59.33</td><td>67.57</td><td>71.82</td><td>69.32</td><td>67.07</td><td>44.75</td><td>45.63</td><td>51.44</td><td>43.20</td><td>51.09</td><td>59.72</td><td>44.72</td><td>54.46</td><td>70.00</td><td>66.67</td><td>0.00</td><td>0.83</td></tr><tr><td>Hunyuan-DiT (Li et al., 2024b)</td><td>51.38</td><td>53.28</td><td>69.33</td><td>69.00</td><td>65.83</td><td>69.83</td><td>78.07</td><td>73.82</td><td>64.07</td><td>63.32</td><td>42.62</td><td>45.45</td><td>50.20</td><td>41.57</td><td>59.22</td><td>61.84</td><td>47.84</td><td>51.09</td><td>56.67</td><td>73.33</td><td>0.00</td><td>0.83</td></tr><tr><td>Show-o (Xie et al., 2024)</td><td>59.72</td><td>58.86</td><td>73.08</td><td>75.83</td><td>74.83</td><td>79.83</td><td>78.82</td><td>78.32</td><td>65.57</td><td>69.32</td><td>53.67</td><td>50.38</td><td>60.95</td><td>56.82</td><td>68.59</td><td>68.96</td><td>66.46</td><td>56.22</td><td>63.33</td><td>66.67</td><td>3.83</td><td>2.83</td></tr><tr><td>LightGen (Wu et al., 2025c)</td><td>53.22</td><td>43.41</td><td>66.58</td><td>47.91</td><td>55.83</td><td>47.33</td><td>74.82</td><td>45.82</td><td>69.07</td><td>50.57</td><td>46.74</td><td>41.53</td><td>62.44</td><td>40.82</td><td>61.71</td><td>50.47</td><td>50.34</td><td>45.34</td><td>53.33</td><td>53.33</td><td>0.00</td><td>6.83</td></tr><tr><td>SANA 1.5 (Xie et al., 2025a)</td><td>67.15</td><td>65.73</td><td>79.66</td><td>77.08</td><td>79.83</td><td>77.83</td><td>85.57</td><td>83.57</td><td>73.57</td><td>69.82</td><td>61.50</td><td>60.67</td><td>65.32</td><td>56.57</td><td>69.96</td><td>73.09</td><td>62.96</td><td>65.84</td><td>80.00</td><td>80.00</td><td>17.83</td><td>15.83</td></tr><tr><td>Infinity (Han et al., 2025)</td><td>62.07</td><td>62.32</td><td>73.08</td><td>75.41</td><td>74.33</td><td>76.83</td><td>72.82</td><td>77.57</td><td>72.07</td><td>71.82</td><td>56.64</td><td>54.98</td><td>60.44</td><td>55.57</td><td>74.22</td><td>64.71</td><td>60.22</td><td>59.71</td><td>80.00</td><td>73.33</td><td>10.83</td><td>23.83</td></tr><tr><td>Janus-Pro-7B (Chen et al., 2025b)</td><td>66.50</td><td>65.02</td><td>79.33</td><td>78.25</td><td>79.33</td><td>82.33</td><td>78.32</td><td>73.32</td><td>80.32</td><td>79.07</td><td>59.71</td><td>58.82</td><td>66.07</td><td>56.20</td><td>70.46</td><td>70.84</td><td>67.22</td><td>59.97</td><td>60.00</td><td>70.00</td><td>28.83</td><td>33.83</td></tr><tr><td>MidJourney v7 (Midjourney, 2025)</td><td>68.74</td><td>65.69</td><td>77.41</td><td>76.00</td><td>77.58</td><td>81.83</td><td>82.07</td><td>76.82</td><td>72.57</td><td>69.32</td><td>64.66</td><td>60.53</td><td>67.20</td><td>62.70</td><td>81.22</td><td>71.59</td><td>60.72</td><td>64.59</td><td>83.33</td><td>80.00</td><td>24.83</td><td>20.83</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>86.02</td><td>84.31</td><td>87.07</td><td>84.93</td><td>90.50</td><td>90.00</td><td>89.85</td><td>85.94</td><td>80.86</td><td>78.86</td><td>79.16</td><td>80.60</td><td>79.76</td><td>81.82</td><td>77.23</td><td>78.85</td><td>75.64</td><td>78.64</td><td>100.00</td><td>93.33</td><td>97.17</td><td>87.78</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>89.15</td><td>88.29</td><td>90.75</td><td>89.66</td><td>91.33</td><td>87.08</td><td>84.57</td><td>84.57</td><td>96.32</td><td>97.32</td><td>88.55</td><td>88.35</td><td>87.07</td><td>89.44</td><td>87.22</td><td>83.96</td><td>85.59</td><td>83.21</td><td>90.00</td><td>93.33</td><td>89.83</td><td>86.83</td></tr><tr><td>Qwen-Image</td><td>86.14</td><td>86.83</td><td>86.18</td><td>87.22</td><td>90.50</td><td>91.50</td><td>88.22</td><td>90.78</td><td>79.81</td><td>79.38</td><td>79.30</td><td>80.88</td><td>79.21</td><td>78.94</td><td>78.85</td><td>81.69</td><td>75.57</td><td>78.59</td><td>100.00</td><td>100.00</td><td>92.76</td><td>89.14</td></tr></table>
+
+Table 8: Quantitative evaluation results of English text rendering on CVTG-2K (Du et al., 2025).  
+
+<table><tr><td rowspan="2">Model</td><td colspan="5">Word Accuracy↑</td><td rowspan="2">NED↑</td><td rowspan="2">CLIPScore↑</td></tr><tr><td>2 regions</td><td>3 regions</td><td>4 regions</td><td>5 regions</td><td>average</td></tr><tr><td>SD3.5 Large (Esser et al., 2024)</td><td>0.7293</td><td>0.6825</td><td>0.6574</td><td>0.5940</td><td>0.6548</td><td>0.8470</td><td>0.7797</td></tr><tr><td>FLUX.1 [dev] (BlackForest, 2024)</td><td>0.6089</td><td>0.5531</td><td>0.4661</td><td>0.4316</td><td>0.4965</td><td>0.6879</td><td>0.7401</td></tr><tr><td>AnyText (Tuo et al., 2024)</td><td>0.0513</td><td>0.1739</td><td>0.1948</td><td>0.2249</td><td>0.1804</td><td>0.4675</td><td>0.7432</td></tr><tr><td>TextDiffuser-2 (Chen et al., 2024a)</td><td>0.5322</td><td>0.3255</td><td>0.1787</td><td>0.0809</td><td>0.2326</td><td>0.4353</td><td>0.6765</td></tr><tr><td>RAG-Diffusion (Chen et al., 2024d)</td><td>0.4388</td><td>0.3316</td><td>0.2116</td><td>0.1910</td><td>0.2648</td><td>0.4498</td><td>0.7797</td></tr><tr><td>3DIS (Zhou et al., 2024)</td><td>0.4495</td><td>0.3959</td><td>0.3880</td><td>0.3303</td><td>0.3813</td><td>0.6505</td><td>0.7767</td></tr><tr><td>TextCrafter (Du et al., 2025)</td><td>0.7628</td><td>0.7628</td><td>0.7406</td><td>0.6977</td><td>0.7370</td><td>0.8679</td><td>0.7868</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>0.6282</td><td>0.5962</td><td>0.6043</td><td>0.5610</td><td>0.5924</td><td>0.8537</td><td>0.7821</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>0.8779</td><td>0.8659</td><td>0.8731</td><td>0.8218</td><td>0.8569</td><td>0.9478</td><td>0.7982</td></tr><tr><td>Qwen-Image</td><td>0.8370</td><td>0.8364</td><td>0.8313</td><td>0.8158</td><td>0.8288</td><td>0.9116</td><td>0.8017</td></tr></table>
+
+Table 9: Quantitative comparison results of Chinese text rendering.  
+
+<table><tr><td>Model</td><td>Level-1 Acc</td><td>Level-2 Acc</td><td>Level-3 Acc</td><td>Overall↑</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>53.48</td><td>26.23</td><td>1.25</td><td>33.05</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>68.37</td><td>15.97</td><td>3.55</td><td>36.14</td></tr><tr><td>Qwen-Image</td><td>97.29</td><td>40.53</td><td>6.48</td><td>58.30</td></tr></table>
+
+# 5.2.3 Performance of Image Editing
+
+We further train a multi-task version of Qwen-Image for image editing (TI2I) tasks, seamlessly integrating both text and image as conditioning inputs. We evaluate our model across two categories of TI2I tasks: First, for general-purpose image editing, we assess the instruction-based editing capability of our model on the GEdit (Liu et al., 2025b) and ImgEdit (Ye et al., 2025) benchmarks. These benchmarks test the model's ability to perform open-ended edits based on textual and visual instructions. Second, to evaluate the model's spatial understanding and generative capability in 3D vision tasks, we benchmark its performance on novel view synthesis (Downs et al., 2022) and depth estimation (Bochkovskii et al., 2024). These tasks require the model to infer and generate coherent spatial information conditioned on input images and corresponding textual descriptions. All these tasks can be unified within the TI2I scope, showcasing the general applicability of our approach to diverse multimodal tasks.
+
+GEdit Table 11 reports the results on the GEdit-Bench (Liu et al., 2025b), which evaluates image editing models on real-world user instructions across 11 diverse categories. We adopt three metrics—Semantic Consistency(SQ), Perceptual Quality (PQ), and Overall Score (O)—each ranging from 0 to 10. Qwen-
+
+Table 10: Quantitative evaluation results on LongText-Bench (Geng et al., 2025). The best result is in bold and the second best result is underlined.  
+
+<table><tr><td>Model</td><td>LongText-Bench-EN</td><td>LongText-Bench-ZH</td></tr><tr><td>Janus-Pro (Chen et al., 2025b)</td><td>0.019</td><td>0.006</td></tr><tr><td>BLIP3-o (Chen et al., 2025a)</td><td>0.021</td><td>0.018</td></tr><tr><td>Kolors 2.0 (team, 2025)</td><td>0.258</td><td>0.329</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>0.373</td><td>0.310</td></tr><tr><td>OmniGen2 (Wu et al., 2025b)</td><td>0.561</td><td>0.059</td></tr><tr><td>X-Omni (Geng et al., 2025)</td><td>0.900</td><td>0.814</td></tr><tr><td>HiDream-I1-Full (Cai et al., 2025)</td><td>0.543</td><td>0.024</td></tr><tr><td>FLUX.1 [Dev] (BlackForest, 2024)</td><td>0.607</td><td>0.005</td></tr><tr><td>Seedream 3.0 (Gao et al., 2025)</td><td>0.896</td><td>0.878</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>0.956</td><td>0.619</td></tr><tr><td>Qwen-Image</td><td>0.943</td><td>0.946</td></tr></table>
+
+Table 11: Comparison of Semantic Consistency (G_SC), Perceptual Quality (G_PQ), and Overall Score (G_O) on GEdit-Bench. All metrics are evaluated by GPT-4.1. G_O is computed as the geometric mean of G_SC and G_PQ, averaged over all samples. Note: FLUX.1 Kontext [Pro] underperforms on GEdit-Bench-CN due to its limited Chinese language capability.  
+
+<table><tr><td rowspan="2">Model</td><td colspan="3">GEdit-Bench-EN (Full set)↑</td><td colspan="3">GEdit-Bench-CN (Full set)↑</td></tr><tr><td>G_SC</td><td>G_PQ</td><td>G_O</td><td>G_SC</td><td>G_PQ</td><td>G_O</td></tr><tr><td>Instruct-Pix2Pix (Brooks et al., 2023)</td><td>3.58</td><td>5.49</td><td>3.68</td><td>-</td><td>-</td><td>-</td></tr><tr><td>AnyEdit (Yu et al., 2025)</td><td>3.18</td><td>5.82</td><td>3.21</td><td>-</td><td>-</td><td>-</td></tr><tr><td>MagicBrush (Zhang et al., 2023)</td><td>4.68</td><td>5.66</td><td>4.52</td><td>-</td><td>-</td><td>-</td></tr><tr><td>UniWorld-v1 (Lin et al., 2025)</td><td>4.93</td><td>7.43</td><td>4.85</td><td>-</td><td>-</td><td>-</td></tr><tr><td>OmniGen (Xiao et al., 2025)</td><td>5.96</td><td>5.89</td><td>5.06</td><td>-</td><td>-</td><td>-</td></tr><tr><td>OmniGen2 (Wu et al., 2025b)</td><td>7.16</td><td>6.77</td><td>6.41</td><td>-</td><td>-</td><td>-</td></tr><tr><td>Gemini 2.0 (DeepMind, 2025)</td><td>6.73</td><td>6.61</td><td>6.32</td><td>5.43</td><td>6.78</td><td>5.36</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>7.36</td><td>6.83</td><td>6.52</td><td>7.34</td><td>6.85</td><td>6.50</td></tr><tr><td>FLUX.1 Kontext [Pro] (Labs et al., 2025)</td><td>7.02</td><td>7.60</td><td>6.56</td><td>1.11</td><td>7.36</td><td>1.23</td></tr><tr><td>Step1X-Edit (Liu et al., 2025b)</td><td>7.66</td><td>7.35</td><td>6.97</td><td>7.20</td><td>6.87</td><td>6.86</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>7.85</td><td>7.62</td><td>7.53</td><td>7.67</td><td>7.56</td><td>7.30</td></tr><tr><td>Qwen-Image</td><td>8.00</td><td>7.86</td><td>7.56</td><td>7.82</td><td>7.79</td><td>7.52</td></tr></table>
+
+Table 12: Quantitative comparison results on ImgEdit (Ye et al., 2025). All metrics are evaluated by GPT-4.1. "Overall" is calculated by averaging all scores across tasks.  
+
+<table><tr><td>Model</td><td>Add</td><td>Adjust</td><td>Extract</td><td>Replace</td><td>Remove</td><td>Background</td><td>Style</td><td>Hybrid</td><td>Action</td><td>Overall ↑</td></tr><tr><td>MagicBrush (Zhang et al., 2023)</td><td>2.84</td><td>1.58</td><td>1.51</td><td>1.97</td><td>1.58</td><td>1.75</td><td>2.38</td><td>1.62</td><td>1.22</td><td>1.90</td></tr><tr><td>Instruct-Pix2Pix (Brooks et al., 2023)</td><td>2.45</td><td>1.83</td><td>1.44</td><td>2.01</td><td>1.50</td><td>1.44</td><td>3.55</td><td>1.20</td><td>1.46</td><td>1.88</td></tr><tr><td>AnyEdit (Yu et al., 2025)</td><td>3.18</td><td>2.95</td><td>1.88</td><td>2.47</td><td>2.23</td><td>2.24</td><td>2.85</td><td>1.56</td><td>2.65</td><td>2.45</td></tr><tr><td>UltraEdit (Zhao et al., 2024)</td><td>3.44</td><td>2.81</td><td>2.13</td><td>2.96</td><td>1.45</td><td>2.83</td><td>3.76</td><td>1.91</td><td>2.98</td><td>2.70</td></tr><tr><td>OmniGen (Xiao et al., 2025)</td><td>3.47</td><td>3.04</td><td>1.71</td><td>2.94</td><td>2.43</td><td>3.21</td><td>4.19</td><td>2.24</td><td>3.38</td><td>2.96</td></tr><tr><td>ICEdit (Zhang et al., 2025)</td><td>3.58</td><td>3.39</td><td>1.73</td><td>3.15</td><td>2.93</td><td>3.08</td><td>3.84</td><td>2.04</td><td>3.68</td><td>3.05</td></tr><tr><td>Step1X-Edit (Liu et al., 2025b)</td><td>3.88</td><td>3.14</td><td>1.76</td><td>3.40</td><td>2.41</td><td>3.16</td><td>4.63</td><td>2.64</td><td>2.52</td><td>3.06</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>3.56</td><td>3.31</td><td>1.70</td><td>3.3</td><td>2.62</td><td>3.24</td><td>4.49</td><td>2.38</td><td>4.17</td><td>3.20</td></tr><tr><td>UniWorld-V1 (Lin et al., 2025)</td><td>3.82</td><td>3.64</td><td>2.27</td><td>3.47</td><td>3.24</td><td>2.99</td><td>4.21</td><td>2.96</td><td>2.74</td><td>3.26</td></tr><tr><td>OmniGen2 (Wu et al., 2025b)</td><td>3.57</td><td>3.06</td><td>1.77</td><td>3.74</td><td>3.20</td><td>3.57</td><td>4.81</td><td>2.52</td><td>4.68</td><td>3.44</td></tr><tr><td>FLUX.1 Kontext [Pro] (Labs et al., 2025)</td><td>4.25</td><td>4.15</td><td>2.35</td><td>4.56</td><td>3.57</td><td>4.26</td><td>4.57</td><td>3.68</td><td>4.63</td><td>4.00</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>4.61</td><td>4.33</td><td>2.90</td><td>4.35</td><td>3.66</td><td>4.57</td><td>4.93</td><td>3.96</td><td>4.89</td><td>4.20</td></tr><tr><td>Qwen-Image</td><td>4.38</td><td>4.16</td><td>3.43</td><td>4.66</td><td>4.14</td><td>4.38</td><td>4.81</td><td>3.82</td><td>4.69</td><td>4.27</td></tr></table>
+
+Image ranks at the top of both the English and Chinese leaderboards, demonstrating strong editing capability and generalization to multilingual user instructions.
+
+ImgEdit Table 12 presents the results on the ImgEdit benchmark (Ye et al., 2025), which covers nine common editing tasks across diverse semantic categories with a total of 734 real-world test cases. Evaluation metrics include instruction adherence, image-editing quality, and detail preservation, all scored from 1 to 5. Qwen-Image ranks highest overall, closely followed by GPT Image 1 [High] and demonstrating competitive instruction-based editing performance.
+
+Novel view synthesis Table 13 shows the results of novel view synthesis on GSO (Downs et al., 2022) dataset. We compare the similarity of the generated novel view image of a 3D object given its front view
+
+Table 13: Quantitative comparison of novel view synthesis with both specialized models and general image generation models. We report PSNR, SSIM, LPIPS on the GSO (Downs et al., 2022) dataset.  
+
+<table><tr><td>Model</td><td>PSNR↑</td><td>SSIM↑</td><td>LPIPS↓</td></tr><tr><td>Zero123 (Liu et al., 2023)</td><td>13.48</td><td>0.854</td><td>0.166</td></tr><tr><td>ImageDream (Wang &amp;Shi, 2023)</td><td>15.22</td><td>0.883</td><td>0.164</td></tr><tr><td>CRM (Wang et al., 2024b)</td><td>15.93</td><td>0.891</td><td>0.152</td></tr><tr><td>GPT Image 1 [High] (OpenAI, 2025)</td><td>12.07</td><td>0.804</td><td>0.361</td></tr><tr><td>BAGEL (Deng et al., 2025)</td><td>13.78</td><td>0.825</td><td>0.237</td></tr><tr><td>FLUX.1 Kontext [Pro] (Labs et al., 2025)</td><td>14.50</td><td>0.859</td><td>0.201</td></tr><tr><td>Qwen-Image</td><td>15.11</td><td>0.884</td><td>0.153</td></tr></table>
+
+Table 14: Quantitative comparison of depth estimation with both specialized models and multi-task models on zero-shot datasets. Qwen-Image can perform on par with state-of-the-art models.  
+
+<table><tr><td rowspan="2">Model</td><td colspan="2">KITTI</td><td colspan="2">NYUv2</td><td colspan="2">ScanNet</td><td colspan="2">DIODE</td><td colspan="2">ETH3D</td></tr><tr><td>AbsRel↓</td><td>δ1↑</td><td>AbsRel↓</td><td>δ1↑</td><td>AbsRel↓</td><td>δ1↑</td><td>AbsRel↓</td><td>δ1↑</td><td>AbsRel↓</td><td>δ1↑</td></tr><tr><td>MiDaS (Ranftl et al., 2020)</td><td>0.236</td><td>0.630</td><td>0.111</td><td>0.885</td><td>0.121</td><td>0.846</td><td>0.332</td><td>0.715</td><td>0.184</td><td>0.752</td></tr><tr><td>DPT-large (Ranftl et al., 2021)</td><td>0.100</td><td>0.901</td><td>0.098</td><td>0.903</td><td>0.082</td><td>0.934</td><td>0.182</td><td>0.758</td><td>0.078</td><td>0.946</td></tr><tr><td>DepthAnything (Yang et al., 2024a)</td><td>0.080</td><td>0.946</td><td>0.043</td><td>0.980</td><td>0.043</td><td>0.981</td><td>0.261</td><td>0.759</td><td>0.058</td><td>0.984</td></tr><tr><td>DepthAnything v2 (Yang et al., 2024b)</td><td>0.080</td><td>0.943</td><td>0.043</td><td>0.979</td><td>0.042</td><td>0.979</td><td>0.321</td><td>0.758</td><td>0.066</td><td>0.983</td></tr><tr><td>Depth Pro (Bochkovskii et al., 2024)</td><td>0.055</td><td>0.974</td><td>0.042</td><td>0.977</td><td>0.041</td><td>0.978</td><td>0.217</td><td>0.764</td><td>0.043</td><td>0.974</td></tr><tr><td>Metric3D v2 (Hu et al., 2024a)</td><td>0.052</td><td>0.979</td><td>0.039</td><td>0.979</td><td>0.023</td><td>0.989</td><td>0.147</td><td>0.892</td><td>0.040</td><td>0.983</td></tr><tr><td>GeoWizard (Fu et al., 2024)</td><td>0.097</td><td>0.921</td><td>0.052</td><td>0.966</td><td>0.061</td><td>0.953</td><td>0.297</td><td>0.792</td><td>0.064</td><td>0.961</td></tr><tr><td>DepthFM (Gui et al., 2024)</td><td>0.083</td><td>0.934</td><td>0.065</td><td>0.956</td><td>-</td><td>-</td><td>0.225</td><td>0.800</td><td>-</td><td>-</td></tr><tr><td>Marigold (Ke et al., 2024)</td><td>0.099</td><td>0.916</td><td>0.055</td><td>0.964</td><td>0.064</td><td>0.951</td><td>0.308</td><td>0.773</td><td>0.065</td><td>0.960</td></tr><tr><td>DMP (Lee et al., 2024)</td><td>0.240</td><td>0.622</td><td>0.109</td><td>0.891</td><td>0.146</td><td>0.814</td><td>0.361</td><td>0.706</td><td>0.128</td><td>0.857</td></tr><tr><td>Qwen-Image</td><td>0.078</td><td>0.951</td><td>0.055</td><td>0.967</td><td>0.047</td><td>0.974</td><td>0.197</td><td>0.832</td><td>0.066</td><td>0.962</td></tr></table>
+
+with the ground truth image. We prompt Qwen-Image with prompts like "turn left 90 degrees, a dog" to instruct the model to perform novel view synthesis. Qwen-Image demonstrates highly competitive results among the baselines, achieving state-of-the-art performance of novel view synthesis.
+
+Depth Estimation Table 14 summarizes performance on five widely used datasets: NYUv2 (Nathan Silberman & Fergus, 2012), KITTI (Geiger et al., 2013), ScanNet (Dai et al., 2017), DIODE (Vasiljevic et al., 2019), and ETH3D (Schops et al., 2017). During training, we adopt DepthPro (Bochkovskii et al., 2024) as the teacher model to provide supervisory depth signals, following the protocol used in previous work such as DICEPTION (Zhao et al., 2025). Notably, these results are achieved with standalone supervised fine-tuning (SFT), in order to probe the model's intrinsic task understanding capability. QwenImage demonstrates highly competitive results among diffusion-based models, achieving state-of-the-art performance on several key metrics across these benchmarks.
+
+# 5.3 Qualitative Results
+
+To comprehensively compare the visual generation capabilities of Qwen-Image and state-of-the-art models, we first qualitatively compared the reconstruction performance of VAE on text-rich images in §§ 5.3.1. We further conducted qualitative comparison on two basic visual generation tasks, text-to-image (T2I) generation in §§ 5.3.2 and image editing (TI2I) in §§ 5.3.3, to comprehensively evaluate the basic generation capabilities of the models.
+
+# 5.3.1 Qualitative Results on VAE Reconstruction
+
+Figure 17 presents qualitative results of reconstructing text-rich images with the state-of-the-art image VAEs. The first row illustrates the reconstruction of a PDF image containing English text. In our result, the phrase "double-aspect" remains clearly legible, whereas it is unrecognizable in the reconstructions produced by other models. Overall, Qwen-Image-VAE delivers more precise reconstructions for images with small texts.
+
+# 5.3.2 Qualitative Results on Image Generation
+
+In order to comprehensively evaluate Qwen-Image's text-to-image generation capability, we conduct qualitative evaluation from four aspects: English Text Rendering, Chinese Text Rendering, Multi-Object Generation, and Spatial Relationship Generation. For comparative analysis, we benchmark our model
+
+![](images/c572081b0ef6358b68bb54824487cd55166cba5b5b9cd785f35897462f34263d.jpg)  
+Figure 17: Visualization of VAE reconstruction. We progressively zoom into the details across three rows (black, orange, red) to compare how different VAEs reconstruct small text in dense document images.
+
+against leading Text-to-Image foundation models, including both close-source models (GPT Image 1 [High] (OpenAI, 2025), Seedream 3.0 (Gao et al., 2025), Recraft V3 (Recraft, 2024) and open-source models (Hidream-I1-Full (Cai et al., 2025) and Lumina-Image 2.0 (Qin et al., 2025)).
+
+English Text Rendering Figure 18 and Figure 19 show the qualitative comparison of English text rendering. As shown in Figure 18, Qwen-Image achieves a more realistic visual style and better rendering quality for a long English paragraph. With respect to text rendering, our model demonstrates greater fidelity to the given prompts, effectively avoiding issues such as missing, wrong, or duplicate characters (e.g. wrong "lantern" and "Unfurling" in GPT Image 1 [High], wrong "silver" and "quiet" in Recraft V3, redundant and distorted text in Seedream 3.0). In the upper half of Figure 19, Qwen-Image correctly renders text in seven different locations, demonstrating its complex text rendering capabilities. In contrast, GPT Image 1 misses "The night circus", and the text rendered by Seedream 3.0 and Hidream-I1-Full is distorted. For the bottom half of Figure 19, Qwen-Image not only successfully renders each text segment, but also presents a slide with reasonable layout and visually aesthetic. In comparison, GPT Image 1 misses "Stay Connected", Hidream-I1-Full and seedream 3.0 fail to render correct characters.
+
+Chinese Text Rendering Figure 20 and Figure 21 show a qualitative comparison of Chinese text rendering. In Figure 20, Qwen-Image accurately generates the expected Chinese couplet, faithfully reproducing the content and style of the text, and accurately depicts the required room layout and placement. In contrast, GPT Image 1 and Seedream 3.0 miss or generate distorted characters (missed "远" and "善" in GPT Image 1, missed "智" and "机" in Seedream 3.0), while other models cannot generate correct Chinese couplets. In Figure 21, the upper part shows an anime style scene, where Qwen-Image can correctly generate multiple characters and store plaques, perfectly following the requirements of input prompt for spatial layout and text rendering. Seedream 3.0 encounters difficulties in complex spatial layouts, missing some scenes and characters, while other models cannot correctly understand complex text and spatial instructions. The bottom part shows that Qwen-Image can generate realistic and beautifully typeset handwritten text in complex scenes, which perfectly following the input prompt, while other models struggle to generate structured paragraph text.
+
+Multi-Object Generation As shown in the upper half of Figure 22, Qwen-Image accurately generates all required animals, faithfully preserves their specified positions, and consistently applies the correct plush style. In contrast, GPT Image 1 fails to generate images in the plush style, while Recraft V3 and Seedream 3.0 produce incorrect animals that do not match the prompt. For the bottom part of Figure 22, Qwen-Image not only correctly renders mixed-language texts on the billiards, but also strictly follows the instruction to arrange the billiards in two rows. GPT Image 1 cannot perfectly follow the layout requirements of instruction and also incorrectly generate a Chinese character "發", while other models cannot correctly generate most Chinese characters.
+
+Spatial Relationship Generation In the first part of Figure 23, Qwen-Image generates an image that accurately reflects the prompt, capturing both the correct climbing scene and the specified interaction between the two people. In contrast, GPT Image 1, Seedream 3.0, and Recraft V3 fail to fully follow the prompt: these models produce incorrect interactions between the climbers. This comparison demonstrates the strong ability of Qwen-Image to understand and precisely follow complex prompts. For the remaining
+
+two parts, only Qwen-Image and GPT Image 1 can accurately depict the spatial relationship between the character and the pigeon, as well as the pocket watch and the cup handle.
+
+# 5.3.3 Qualitative Results on Image Editing
+
+To comprehensively assess the image editing (TI2I) capability of Qwen-Image, we conduct a qualitative evaluation focusing on five key aspects: text and material editing, object addition/removal/replacement, pose manipulation, chained editing, and novel view synthesis. For comparative analysis, we benchmark our model against several leading instruction-based image editing models, including SeedEdit 3.0 (Wang et al., 2025)<sup>3</sup>, FLUX.1 Kontext [Pro] (Labs et al., 2025), and GPT Image 1 [High] (OpenAI, 2025).
+
+Text and Material Editing Figure 24 presents a qualitative comparison of text and material editing capabilities. In the top example, which involves editing text with a complex style, Seedream 3.0 fails to change the letter "H" to "Q", and GPT Image 1 [High] does not preserve the original style. Both Qwen-Image and FLUX.1 Kontext [Pro] successfully modify the text while maintaining style consistency. In the lower example, all models except FLUX.1 Kontext [Pro] accurately add the required text and related elements. Notably, Qwen-Image is the only model that correctly generates the requested enamel colored glass art, demonstrating superior material rendering and instruction-following ability.
+
+Object Addition/Removal/Replacement Object addition, removal, and replacement are among the most common tasks in instruction-based image editing. In Figure 25, we compare the performance of various models on challenging real-world scenarios. With the exception of GPT Image 1 [High], which often fails to maintain overall image consistency, all other models generally perform well in preserving unedited regions. In the top case, where the task is to add both a cat and a dog in a cartoon style, the model must ensure that the new objects match the overall artistic style. We observe that FLUX.1 Kontext [Pro] struggles with consistency when editing non-photorealistic images, while both SeedEdit 3.0 and Qwen-Image produce coherent results that align well with the desired cartoon style. For the middle example, which involves removing all people from a crowded scene—a relatively complex instruction—all models complete the task accurately, differing only in minor details. Additionally, we notice occasional zoom-in and zoom-out effects across different models during editing.
+
+Pose Manipulation Figure 26 presents a qualitative comparison of pose manipulation abilities across different models. In the first example, only FLUX.1 Kontext [Pro] and Qwen-Image are able to preserve fine details such as the subject's hair strands during pose editing. In the second case, which requires maintaining clothing consistency and scene stability during pose changes, Qwen-Image is the only model that keeps both the background and character unchanged. Remarkably, Qwen-Image accurately infers from the input that the person is wearing a side-slit dress over silk trousers, and faithfully reveals the silk trousers in the standing pose. In the third example, Qwen-Image again outperforms other models by better preserving the original pose and maintaining consistency in clothing decorations.
+
+Chained Editing Chained editing refers to scenarios where generated images are iteratively used as context for subsequent editing steps. In the first case of Figure 27, the task requires extracting a clothing item and depicting the close-up of its fabric details. We select a Chinese traditional painting as the source image. SeedEdit 3.0 and FLUX.1 Kontext [Pro] fail from the first prompt, while both GPT Image 1 [High] and Qwen-Image accurately extract the paired birds. Qwen-Image can better preserve fine texture details against GPT Image 1 [High]. In the second case, the input image features a boat with a double-opening stern. Both Qwen-Image and FLUX.1 Kontext [Pro] are able to preserve this structural feature throughout the entire chained editing process. However, FLUX.1 Kontext [Pro] fails to add two cargo ships as instructed, whereas Qwen-Image successfully completes the complete editing chain.
+
+Novel View Synthesis Figure 28 evaluates the spatial reasoning and novel view synthesis capabilities of different models. SeedEdit 3.0 and FLUX.1 Kontext [Pro] cannot perform view rotation well under the same instruction. While GPT Image 1 [High] can generate new perspectives when a clear subject is present, it fails to generalize to real-world scenes with complex multiple objects. Only Qwen-Image maintains global consistency—including text fidelity and lighting structure—demonstrating superior spatial and semantic coherence in complex editing tasks.
+
+# Input prompt
+
+A man in a suit is standing in front of the window, looking at the bright moon outside the window. The man is holding a yellowed paper with handwritten words on it: "A lantern moon climbs through the silver night, Unfurling quiet dreams across the sky, Each star a whispered promise wrapped in light, That dawn will bloom, though darkness wanders by." There is a cute cat on the windowsill.
+
+![](images/e862e7b57578c7b7e1e699ebea0b3afdc824b3cf2c41f15749b3b1ad34d3bfc5.jpg)
+
+![](images/8de0edd056d2dfc113f040fdf9cc6858970a9448395077df142ab1ef5b2773f2.jpg)
+
+![](images/23a6222a30c8fff45ba20d6c88b529dbfe8345d1678bfa939491d218f99e52ed.jpg)
+
+![](images/06b3771cfc8711f9885fecabf1ada3cb1b93752ec1f8cc033a482318e344187e.jpg)
+
+![](images/83f336996c9523baa82fdc683c287e74c2ad3f3cbba2c09107e7082db57e6b7f.jpg)  
+Figure 18: Comparison of long English rendering capability in image generation. This case requires rendering a long paragraph, and only Qwen-Image and GPT Image 1 [High] manage to render such a long text clearly and almost perfectly. The other models either omit words or produce duplicates.
+
+![](images/79b6d66c3e95a8ed78b3c336ea13ce79cbc249590ba741f00ba71ba603d15f21.jpg)
+
+# Input prompt
+
+Bookstore window display. A sign displays "New Arrivals This Week". Below, a shelf tag with the text "Best-Selling Novels Here". To the side, a colorful poster advertises "Author Meet And Greet on Saturday" with a central portrait of the author. There are four books on the bookshelf, namely "The light between worlds" "When stars are scattered" "The silent patient" "The night circus"
+
+![](images/3682e412f4e885297751b1ded54a62b81c3a6459f17c97e6dfd3e111c9ad6bbf.jpg)
+
+![](images/01459a6943af60685cdf65b861dee27d805e52d1f44a71714581a356bfcedc1e.jpg)
+
+# Input prompt
+
+A slide featuring artistic, decorative shapes framing neatly arranged textual information styled as an elegant infographic. At the very center, the title "Habits for Emotional Wellbeing" appears clearly, surrounded by a symmetrical floral pattern. On the left upper section, "Practice Mindfulness" appears next to a minimalist lotus flower icon, with the short sentence, "Be present, observe without judging, accept without resisting". Next, moving downward, "Cultivate Gratitude" is written near an open hand illustration, along with the line, "Appreciate simple joys and acknowledge positivity daily". Further down, towards bottom-left, "Stay Connected" accompanied by a minimalistic chat bubble icon reads "Build and maintain meaningful relationships to sustain emotional energy". At bottom right corner, "Prioritize Sleep" is depicted next to a crescent moon illustration, accompanied by the text "Quality sleep benefits both body and mind". Moving upward along the right side, "Regular Physical Activity" is near a jogging runner icon, stating: "Exercise boosts mood and relieves anxiety". Finally, at the top right side, appears "Continuous Learning" paired with a book icon, stating "Engage in new skill and knowledge for growth". The slide layout beautifully balances clarity and artistry, guiding the viewers naturally along each text segment.
+
+![](images/be20d3d0a6950dfcc28be9ad20277f07348d63824d42878058831968142d1a45.jpg)
+
+![](images/76d0890bcc7fbf26a683c4450e3f6a4597600d7d90656984499e0d854989664f.jpg)
+
+![](images/01333aee29d4754b9bdabcf1443aab88012201b0517b3baa49825dfbec1d60be.jpg)  
+Figure 19: Comparison of complex English rendering capability in image generation. We present two cases to illustrate the model's ability to generate multiple English texts in different locations of the real scene and the slide. Only Qwen-image can follow the complex prompts to successfully render the text in reasonable location.
+
+![](images/6fb47bd3a67ea68faf7727ae270e3c9947ded0df9cb6c840c8f07cf9c2171eef.jpg)
+
+# Input prompt
+
+一副典雅庄重的对联悬挂于厅堂之中，房间是个安静古典的中式布置，桌子上放着一些青花瓷，对联上左书“义本生知人机同道善思新”，右书“通云赋智乾坤启数高志远”，横批“智启通义”，字体飘逸，中间挂在一着一副中国风的画作，内容是岳阳楼。
+
+![](images/827f8464e80bf1915517d644b66ea532a5c6349420644eb09c48dc4c9b6e05b3.jpg)
+
+![](images/2459dcd815041ac701b890e810ce1045ddb15796e542ee6f0a06450b7eb50ac0.jpg)
+
+![](images/7813f5bf3a33ab7ed3d1698ee5e5dcb9c631ab5a0df3dfda138f231750ecbbe9.jpg)
+
+![](images/b37ed985fd4e50e53a925ff6939343bf5479799f9e8e734b11a24b7aabd25d8e.jpg)
+
+![](images/955bc046abb792b9cb4c31970c90d6fc52e7779e7d64548eea20956fdf8a1798.jpg)  
+Figure 20: Comparison of Chinese text rendering capability in image generation. Qwen-Image accurately generates the expected Chinese couplet. In contrast, GPT Image 1 [high] and Seedream 3.0 miss or generate distorted characters. While other model in comparison cannot generate correct Chinese couplets.
+
+![](images/449c0d384ebeb44f63bc1f244f2455951886cb44ecfa51a7c7365eaa288c1062.jpg)
+
+# Input prompt
+
+宫崎骏的动漫风格。平视角拍摄，阳光下的古街热闹非凡。一个穿着青衫、手里拿着写着“阿里云”卡片的逍遥派弟子站在中间。旁边两个小孩惊讶的看着他。左边有一家店铺挂着“云存储”的牌子，里面摆放着发光的服务器机箱，门口两个侍卫守护者。右边有两家店铺，其中一家挂着“云计算”的牌子，一个穿着旗袍的美丽女子正看着里面闪闪发光的电脑屏幕；另一家店铺挂着“云模型”的牌子，门口放着一个大酒缸，上面写着“千问”，一位老板娘正在往里面倒发光的代码溶液。
+
+![](images/21eee93c76137c36fdc2087cd5cd0f72dec3f9cfcce92f24acddd087ec00c47b.jpg)
+
+![](images/aab07099f9226f4fcd209468fb7ac46287125cd7e84d0b7364ebc2751847bde5.jpg)
+
+![](images/67ef79e9094838b181462627312222b6677dc6d33b3e36299cd438a1267869b6.jpg)
+
+![](images/2fdaf805bfae47899adf63e638b96fe478bd4d5d893a252da230d000d4053de9.jpg)
+
+# Input prompt
+
+一个穿着"QWEN"标志的T恤的中国美女正拿着黑色的马克笔面相镜头微笑。她身后的玻璃板上手写体写着"一、Qwen-Image的技术路线：探索视觉生成基础模型的极限，开创理解与生成一体化的未来。二、Qwen-Image的模型特色：1、复杂文字渲染。支持中英渲染、自动布局；2、精准图像编辑。支持文字编辑、物体增减、风格变换。三、Qwen-Image的未来愿景：赋能专业内容创作、助力生成式AI发展。"
+
+![](images/17b692e294d43fe572872ae2f7f74d558ff7425a5be6b1f4e14ad39b0bc58a24.jpg)
+
+![](images/c94daad74e5233eb4472b5432743d8303f253a42d09532d716ccd7985100e581.jpg)  
+Figure 21: Comparison of complex Chinese text rendering in image generation: the first case shows that Qwen-Image can render text on multiple objects while maintaining consistency with the real scene, such as aligning text with the depth and tilt of each plaque; the second case demonstrates its ability to render structured paragraph text in a glass panel. Qwen-Image is the only model capable of accurately rendering long text.
+
+![](images/80eb05e7245177e5c5e6a271f90dfb4e75937325bc6dbb826dff4569ad46a0b2.jpg)
+
+![](images/58fa524fee0f90e91db5e7ca5d7e7df193d374e1e0afba62b2b8b77d8f8db8b9.jpg)
+
+# Input prompt
+
+Picture of twelve stuffed toys arranged evenly and neatly, four in each row, for a total of three rows. The first row is: rat, ox, tiger, rabbit. The second row is: dragon, snake, horse, sheep. The third row is: monkey, chicken, dog, pig. Each toy has a gentle and friendly facial expression, and the material has a soft fabric texture, with soft and layered colors. The background is light beige.
+
+![](images/c972e44063b80716709c627dfbc6f1e4da9406bbc38986bbce3f206d63169171.jpg)
+
+![](images/44f8f2e12ad40f00c06b6f8d3135d331f1a94752291c51125cdcb2cdd59f2b3b.jpg)
+
+![](images/c2f6e18f01e5f438bb4e077314ecad428df5135e31325c74d6f692cb281b0026.jpg)
+
+![](images/5d24681082d3a8f31f746ebaa3dbe120beedd579fc395c1a7d29f12b0ff574c5.jpg)
+
+# Input prompt
+
+一个台球桌上放着两排台球，每排5个，第一行的台球上面分别写着“Qwen”“Image”“将“于”“8”，第二排台球上面分别写着“月”“正”“式”“发”“布”。
+
+![](images/6d8790f57cd0c56e3a45747f89085e19085ce5fa2873e96d126406453e0983b7.jpg)
+
+![](images/e89bb4e92e14227f5e444dd3142fc291e418c92731a301f5573e9b025ed0b742.jpg)
+
+![](images/f40cd1420274eec032ac74f479dafd6810cf7172f701db69fa902a07801a15cc.jpg)  
+Figure 22: Comparison of multi-object modeling in image generation: Qwen-Image accurately renders the 12 Chinese zodiac animals and materials in the first case, and handles complex bilingual text across multiple objects in the second.
+
+![](images/1e2ff719efba99e2162b1ea923c811c8492c0239e276276291ed88bca8773949.jpg)
+
+# Input prompt
+
+A twisted pine trunk leans over the cliff edge, a climber woman grips the trunk with two hands, and her partner reaches up, holding onto the woman's safety belt around her waist. Realistic photography.
+
+![](images/d122af8f69d06b3d4b1cfed48286a7fb04a37533178742f8312112bf5f9aca73.jpg)
+
+![](images/1e76080237e17c9b0e23034ca4d436005bcf452a66e1029ba6dfde8bba475103.jpg)
+
+![](images/edfe1b3eb97008cdba90f55fcf30f61ef43ecd23f6257986b2821e8f0d3429aa.jpg)
+
+![](images/dbe819c329b2fd048210dd40fa783ac52d233e41b8d6ffb3bd81ac50405092b0.jpg)
+
+# Input prompt
+
+城市动作摄影，一盏锈迹斑斑的路灯矗立在雨中的人行道上，一名跑酷运动员用一只手挂在灯上，一只鸽子停留在运动员的鞋子上，浅景深，电影般的灯光。
+
+![](images/db1f3fe6109fc5837104dbfc8d3a2e20938b74602be4d4d33dffb5a8cc812fc5.jpg)
+
+![](images/25b42ee97005b53f83219c114427239698723068870cc21e4d641b27e22abee3.jpg)
+
+![](images/f0788fa360a0262bd3063808379a7779a5348971272608426947da33ac31ad8e.jpg)
+
+![](images/f205c8edc15ebec301a25dee8d1175b442bd293fc5a9a56833cd972c6ff0cbec.jpg)
+
+# Input prompt
+
+Realistic still-life studio photography, a vintage wooden table supports an antique typewriter, a steaming porcelain coffee cup sits on top of the typewriter, and a small pocket watch hangs from the cup's handle, dramatic side lighting.
+
+![](images/44159818ba1f3e63a2b4bdafe84b045167f4e35a55aaf676e8ed04b4e5129662.jpg)  
+Figure 23: Comparison of spatial relationship modeling capability in image generation. We present three cases to demonstrate interactions involving multiple people and multiple objects. We find that both Qwen-Image and GPT Image 1 [High] exhibit strong ability to understand relationships.
+
+![](images/9e8d8eb486600e5d716418fecb6d4c3b3bb39b54e4d566fb0e6d13386b0391d8.jpg)
+
+![](images/43f369aa13aa0a5ab6cdef229c52871c5bb5c30fe93276990cf36f76586875e5.jpg)
+
+![](images/62c56570ba7b711a6fca04653f4152539bd7c08e54d1cc0fcdb4c03e658e406a.jpg)
+
+![](images/504bf15485422bb0894ed19797742d0ab6bb5e4f0031e10ae5dc411eb5ab0668.jpg)  
+Input Image  
+Input prompt
+
+![](images/4ec049b3484e3c4c701099e01eb19f37fcf2c739cc1b55004b924bb4d1c2a0f4.jpg)  
+SeedEdit 3.0
+
+![](images/9005edba3a2861ac554ba4017e3f75cef54626ea953d3ed72a949258a5c4c927.jpg)  
+FLUX.1 Kontext [Pro]
+
+Change "Hope" to "Qwen".
+
+![](images/78574eba8abb3ed1204b48a079d3c2443dc147b0f6ee4c8774ab52fe49793e30.jpg)  
+GPT Image 1 [High]
+
+![](images/c752e3ee012072affb0e56ac8a11af4a0585316b82ec6b38bd2a3b42c2c7ae6f.jpg)  
+Qwen-Image  
+FLUX.1 Kontext [Pro]
+
+![](images/4433fb0ed20513c2921b31e4b883b758f85dfaf5429e42cfdaf31b5a23d2def9.jpg)  
+Input Image  
+Input prompt
+
+![](images/7bc40fc4f4b08d7f5f712d517b442d4a738f82c379d119c39c173ad92bf3b542.jpg)  
+SeedEdit 3.0
+
+![](images/62075ede102ad1c3385b452c76846ddf2677695c296515faf61d056f53c2e194.jpg)
+
+Changed to a refrigerator magnet, bright color, enamel colored glass art, cartoonish, with the words "Qwen-Image" written on it, depicting the image of the doll, and decorated with wheat, clouds, waves, etc. on an off white background, displayed from the front.
+
+![](images/04a722c60f27cb4daf8011dc2d9433f7d9155742961b4cdad2ba08eb0efe0b99.jpg)  
+GPT Image 1 [High]  
+Figure 24: Qualitative comparison on text and material modification. Both FLUX.1 Kontext [Pro] and Qwen-Image are able to accurately modify text while preserving the original style. In the example below, Qwen-Image is the only model that successfully presents the enamel material.
+
+![](images/c04aafbe6394a8d8d936377e2c5152d0f6fd933533834253e388cff280a68321.jpg)  
+Qwen-Image
+
+Input prompt  
+Input Image  
+SeedEdit 3.0  
+FLUX.1 Kontext [Pro]  
+GPT Image 1 [High]  
+Qwen-Image  
+![](images/f173b82158a5bf6ef0fe7cfdebe04d59c235fc8835c711af0d88805377f157fb.jpg)  
+Add a dog and a cat playing in the street
+
+![](images/7b06faf09641a97b8b7af682db91448850d496fdb93af2ec96e712d8a3ecb95e.jpg)  
+Input Image  
+Input prompt
+
+![](images/226c4bdc5b56173477e7a7c8b691e970c6b9d6b632fde41c6360184fe54086f7.jpg)  
+SeedEdit 3.0
+
+![](images/c80d194675f9c67d27d5f2e2bd407ec7496afb21e85ef2abc044d7456609fc91.jpg)  
+FLUX.1 Kontext [Pro]
+
+Remove all the people
+
+![](images/abe2d0562fb96fbab886f624fa0a34439ce8b376d56061904f227e20620ddd29.jpg)  
+GPT Image 1 [High]
+
+![](images/7fd8af8e7bb88af7ad05f5a488745a5db8feba7de5ec1f9973d9f280651623da.jpg)  
+Qwen-Image
+
+Input prom  
+Input Image  
+Figure 25: Qualitative comparison on object editing (addition, removal, and replacement): Object editing is a relatively stable capability for all models. Qwen-Image demonstrates superior consistency in unmodified regions and achieves better style alignment for the newly generated objects.  
+![](images/ad8ce0eb3c11c1b178b95fba0f78e7d40e23a35439a5da05444be18cee907155.jpg)  
+Put on a magician's hat
+
+![](images/57c4b4709407d05ec2c747b399a673575e0d20bc17092d897b21979e4df40aea.jpg)  
+SeedEdit 3.0  
+FLUX.1 Kontext [Pro] GPT Image 1 [High]
+
+![](images/3cafe9265bc418c9565b917bcebfd1ccc807a2571473e09c53d8e9e482d992d6.jpg)
+
+![](images/5f76c8559f259a7e66ceb3e6340e1c81f17bfafd849c1aa65b18f9891cefe53f.jpg)
+
+![](images/7780df7f557d180bd89e160775428e5efde3b147a066a62a0c9665e23f4cb165.jpg)  
+Qwen-Image
+
+# Input prompt
+
+# Let her turn her head to look at the camera
+
+# Input Image
+
+# SeedEdit 3.0 FLUX.1 Kontext [Pro] GPT Image 1 [High] Qwen-Image
+
+![](images/4291fb2afbd378a6dc962f6aeab8c27ae2cd4ba9bc5422994924364f42273db4.jpg)
+
+# Input prompt
+
+Let the person in the picture stand up, one hand on her hip, and the background and camera remain the same
+
+# Input Image
+
+# SeedEdit 3.0 FLUX.1 Kontext [Pro]GPT Image 1 [High] Qwen-Image
+
+![](images/b69d709214bc3d61f4cfb0ba05aad990fa9daece53318b180830cd17ec68ab58.jpg)
+
+# Input prompt
+
+# Generate an image of a girl sitting in a stairwell.
+
+# Input Image
+
+# SeedEdit 3.0 FLUX.1 Kontext [Pro]GPT Image 1 [High] Qwen-Image
+
+![](images/0450c945d872255fbb60b02129ccc7a6fbdc3200c2c33a9a28101aeba3cc557a.jpg)  
+Figure 26: Qualitative comparison on pose manipulation. Qwen-Image is able to accurately follow pose manipulation instructions while preserving fine details of the person (such as hair strands) and maintaining consistency in the background (e.g., the stone steps behind the subject).
+
+![](images/023b264665d8c6624d28ae3086ee2e4933f5b1df3fd518b339d96dec06e7cb29.jpg)  
+Input Image
+
+![](images/19030dac968f851d444716d41cba815adcb98c7e9e966371301ad69612b49fc0.jpg)  
+SeedEdit 3.0
+
+![](images/8e5853db5e187876440a47a8a1e32a1227094231b7e571e32d04c2bca36b4b1f.jpg)  
+FLUX.1 Kontext [Pro]
+
+# Input chained prompt 1:
+
+Extract the person's robe product image.
+
+# Input chained prompt 2:
+
+show me an extreme closeup of the fabric.
+
+![](images/fbb5526d5225489d6ba1730dd7dca0cf7868b760df302ab7ffcd7718b3ce39e1.jpg)  
+GPT Image 1 [High]
+
+![](images/e60ffe856eab815db47f8fecbd84b00e6f1502df4544724edf8b6d31cb675318.jpg)  
+Input chained prompt 1:  
+Qwen-Image
+
+![](images/ea9b1496764cced2b72b1b237e69732415862239c83925be32cfc6433b060d1b.jpg)  
+Input Image
+
+Place these two paper boats on the water surface.
+
+# Input chained prompt 2:
+
+Pull back the camera to show that they are floating in the seawater at a dock, with two cargo ships in the left rear background.
+
+![](images/3f6a91b0f9020ace13f5276027d922ce359bce1d7bc3d54dd4cc016b39ea4ed8.jpg)  
+SeedEdit 3.0
+
+![](images/208dacda21b9ac3cd244b2e4024dd366bd76c9ce764a0a70af84fe559d31fc61.jpg)  
+FLUX.1 Kontext [Pro]
+
+![](images/115bb42aba3e16f84254369d0d2ee5b90fcf7062712398ffd0cdb35f31765291.jpg)  
+GPT Image 1 [High]  
+Figure 27: Examples of two types of chained editing: extract + zoom-in (top) and placement + zoom-out (bottom). GPT Image 1 [High] and Qwen-Image correctly understand the extract operation, but only Qwen-Image accurately captures and magnifies the garment's texture. In the second case, Qwen-Image preserves the open-ended stern of the paper boat throughout the entire chained editing process.
+
+![](images/83dae5e0797110053d41644b6bd035596cb183fd9c8ce3cfc66a9caa050abeaf.jpg)  
+Qwen-Image
+
+# Input prompt
+
+# Turn right 90 degrees.
+
+![](images/a6e5ca5ae40c4cdedc31f45bcfaef5ae4a6aa511227426c415633cce8441bc55.jpg)  
+Input Image  
+SeedEdit 3.0 FLUX.1 Kontext [Pro]GPT Image 1 [High] Qwen-Image
+
+# Input prompt
+
+# Turn right 90 degrees.
+
+![](images/927e40092853f0c5c5fabd3621e35a6b5daabe4493989c02ced05af4aadc9f2a.jpg)  
+Input Image  
+SeedEdit 3.0 FLUX.1 Kontext [Pro]GPT Image 1 [High] Qwen-Image
+
+# Input prompt
+
+# Turn right 90 degrees.
+
+![](images/305dafcbb176eda9303ee9de7dae236c007c0eda151a376aaceedc49484cae2f.jpg)  
+Input Image  
+SeedEdit 3.0 FLUX.1 Kontext [Pro] GPT Image 1 [High] Qwen-Image  
+Figure 28: Qualitative comparison on novel view synthesis. We evaluate three progressively challenging rotation tasks under the same text prompt "Turn right 90 degrees": (1) single-person rotation, (2) corotation of person and background, and (3) real-world scenario. In all cases, Qwen-Image achieves the most accurate and consistent results. While other models (e.g., GPT Image 1 [High]) handle basic subject rotation, they fail to rotate the background or preserve scene details.
+
+# 6 Conclusion
+
+In this paper, we introduce Qwen-Image, an image generation foundation model within the Qwen series, achieving major advancements in both complex text rendering and precise image editing. By constructing a comprehensive data pipeline and adopting a progressive curriculum learning strategy, Qwen-Image substantially improves its capability to render intricate text within generated images. Moreover, our improved multi-task training paradigm and dual-encoding mechanism significantly enhance the consistency and quality of image editing, effectively improving both semantic coherence and visual fidelity. Extensive experiments on public benchmarks consistently demonstrate the state-of-the-art performance of Qwen-Image across a wide range of image generation and editing tasks. These results underscore not only the technical robustness of Qwen-Image but also its broad applicability in real-world multimodal scenarios, marking a significant milestone in the evolution of large foundation models.
+
+We now turn to a deeper discussion on the broader implications and significance of Qwen-Image:
+
+Qwen-Image as an "image generation" model, in the context of image generation, redefines the priorities in generative modeling. Rather than merely optimizing for photorealism or aesthetic quality ("AI look"), Qwen-Image emphasizes precise alignment between text and image—especially in the challenging task of text rendering. We envision that by strengthening this capability in foundation models, future interfaces can evolve from purely language-based LUIs (Language User Interfaces) to vision-language VLUIs (Vision-Language User Interfaces). When LLMs struggle to convey visual attributes such as color, spatial relationships, or structural layouts, a VLUI empowered by Qwen-Image can generate richly illustrated, text-integrated imagery—enabling structured visual explanations and effective knowledge externalization, where complex ideas are transformed into comprehensible, multimodal representations.
+
+Qwen-Image as an image "generation" model, in the context of image understanding, demonstrates that generative frameworks can effectively perform classical understanding tasks. For instance, in depth estimation, although Qwen-Image does not surpass specialized discriminative models, it achieves performance remarkably close to them. Crucially, while traditional expert models rely on discriminative understanding—directly mapping inputs to outputs without modeling underlying distributions—Qwen-Image leverages generative understanding: it first constructs a holistic distribution over visual content, from which depth is naturally inferred. This shift from direct inference to distributional reasoning opens new avenues for unified multimodal understanding.
+
+Qwen-Image as an "image" generation model, in the context of 3D and video generation, shows strong generalization beyond 2D image synthesis. Through the lens of image editing, we apply Qwen-Image to novel view synthesis and find that, as a general-purpose image foundation model, it outperforms dedicated 3D models in several challenging rendering scenarios, exhibiting exceptional consistency across views. In pose editing tasks, Qwen-Image maintains remarkable coherence in both subject identity and background structure despite significant motion changes—an essential requirement for video generation. Moreover, unlike most image generation approaches that rely on image VAEs, we adopt a video VAE for visual representation. While this introduces greater modeling complexity, it aligns with our core objective: to build a foundation model that generalizes across diverse visual modalities, not just static images.
+
+Qwen-Image as a "visual generation" model, in the context of integrated understanding and generation, advances the vision of seamless integration between perception and creation. We argue that achieving true understanding-generation unity rests on three foundational pillars: (1) mastering understanding, (2) mastering generation, and (3) mastering their synergistic integration. As the first work in the Qwen series dedicated to visual generation, Qwen-Image fills a critical gap in the second pillar—generation capability—complementing Qwen2.5-VL, which excels in visual understanding (the first pillar). Together, they form a balanced foundation for the next generation of multimodal AI, paving the way toward Visual-Language Omni systems that are not only capable of perceiving and reasoning but also of generating text-rich, visually coherent imagery—where language and vision are seamlessly fused into illustrative, readable, and semantically faithful visual outputs.
+
+In summary, Qwen-Image is more than a state-of-the-art image generation model—it represents a paradigm shift in how we conceptualize and build multimodal foundation models. Its contributions extend beyond technical benchmarks, challenging the community to rethink the roles of generative models in perception, interface design, and cognitive modeling. By emphasizing complex text rendering in image generation and addressing classical understanding tasks such as depth estimation through the lens of image editing, Qwen-Image points toward a future in which: (1) generative models do not merely produce images, but genuinely understand them; and (2) understanding models go beyond passive discrimination, achieving comprehension through intrinsic generative processes. As we continue to scale and refine such systems, the boundary between visual understanding and generation will blur further, paving the way for truly interactive, intuitive, and intelligent multimodal agents.
+
+# 7 Authors
+
+Core Contributors<sup>4</sup>: Chenfei Wu, Jiahao Li, Jingren Zhou, Junyang Lin, Kaiyuan Gao, Kun Yan, Shengming Yin, Shuai Bai, Xiao Xu, Yilei Chen, Yuxiang Chen, Zecheng Tang, Zekai Zhang, Zhengyi Wang
+
+Contributors<sup>5</sup>: An Yang, Bowen Yu, Chen Cheng, Dayiheng Liu, Deqing Li, Hang Zhang, Hao Meng, Hu Wei, Jingyuan Ni, Kai Chen, Kuan Cao, Liang Peng, Lin Qu, Minggang Wu, Peng Wang, Shuting Yu, Tingkun Wen, Wensen Feng, Xiaoxiao Xu, Yi Wang, Yichang Zhang, Yongqiang Zhu, Yujia Wu, Yuxuan Cai, Zenan Liu
+
+# References
+
+Niket Agarwal, Arslan Ali, Maciej Bala, Yogesh Balaji, Erik Barker, Tiffany Cai, Prithvijit Chattopadhyay, Yongxin Chen, Yin Cui, Yifan Ding, et al. Cosmos world foundation model platform for physical ai. arXiv preprint arXiv:2501.03575, 2025.  
+Shuai Bai, Keqin Chen, Xuejing Liu, Jialin Wang, Wenbin Ge, Sibo Song, Kai Dang, Peng Wang, Shijie Wang, Jun Tang, Humen Zhong, Yuanzhi Zhu, Mingkun Yang, Zhaohai Li, Jianqiang Wan, Pengfei Wang, Wei Ding, Zheren Fu, Yiheng Xu, Jiabo Ye, Xi Zhang, Tianbao Xie, Zesen Cheng, Hang Zhang, Zhibo Yang, Haiyang Xu, and Junyang Lin. Qwen2.5-vl technical report. arXiv preprint arXiv:2502.13923, 2025.  
+BlackForest. Flux. https://github.com/black-forest-labs/flux, 2024.  
+Aleksei Bochkovskii, Amaël Delaunoy, Hugo Germain, Marcel Santos, Yichao Zhou, Stephan R Richter, and Vladlen Koltun. Depth pro: Sharp monocular metric depth in less than a second. arXiv preprint arXiv:2410.02073, 2024.  
+Tim Brooks, Aleksander Holynski, and Alexei A Efros. Instructpix2pix: Learning to follow image editing instructions. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pp. 18392-18402, 2023.  
+Qi Cai, Jingwen Chen, Yang Chen, Yehao Li, Fuchen Long, Yingwei Pan, Zhaofan Qiu, Yiheng Zhang, Fengbin Gao, Peihan Xu, et al. Hidream-i1: A high-efficient image generative foundation model with sparse diffusion transformer. arXiv preprint arXiv:2505.22705, 2025.  
+Jingjing Chang, Yixiao Fang, Peng Xing, Shuhan Wu, Wei Cheng, Rui Wang, Xianfang Zeng, Gang Yu, and Hai-Bao Chen. Oneig-bench: Omni-dimensional nuanced evaluation for image generation. arXiv preprint arXiv:2506.07977, 2025.  
+Jingye Chen, Yupan Huang, Tengchao Lv, Lei Cui, Qifeng Chen, and Furu Wei. Textdiffuser-2: Unleashing the power of language models for text rendering. In European Conference on Computer Vision, pp. 386-402. Springer, 2024a.  
+Jiuhai Chen, Zhiyang Xu, Xichen Pan, Yushi Hu, Can Qin, Tom Goldstein, Lifu Huang, Tianyi Zhou, Saining Xie, Silvio Savarese, et al. Blip3-o: A family of fully open unified multimodal models-architecture, training and dataset. arXiv preprint arXiv:2505.09568, 2025a.  
+Junsong Chen, Chongjian Ge, Enze Xie, Yue Wu, Lewei Yao, Xiaozhe Ren, Zhongdao Wang, Ping Luo, Huchuan Lu, and Zhenguo Li. Pixart-  $\sigma$ : Weak-to-strong training of diffusion transformer for 4k text-to-image generation. In European Conference on Computer Vision, pp. 74-91. Springer, 2024b.  
+Junsong Chen, Jincheng Yu, Chongjian Ge, Lewei Yao, Enze Xie, Zhongdao Wang, James T Kwok, Ping Luo, Huchuan Lu, and Zhenguo Li. Pixart-α: Fast training of diffusion transformer for photorealistic text-to-image synthesis. In ICLR, 2024c.  
+Xiaokang Chen, Zhiyu Wu, Xingchao Liu, Zizheng Pan, Wen Liu, Zhenda Xie, Xingkai Yu, and Chong Ruan. Janus-pro: Unified multimodal understanding and generation with data and model scaling. arXiv preprint arXiv:2501.17811, 2025b.  
+Zhennan Chen, Yajie Li, Haofan Wang, Zhibo Chen, Zhengkai Jiang, Jun Li, Qian Wang, Jian Yang, and Ying Tai. Region-aware text-to-image generation via hard binding and soft refinement. arXiv preprint arXiv:2411.06558, 2024d.  
+Angela Dai, Angel X Chang, Manolis Savva, Maciej Halber, Thomas Funkhouser, and Matthias Nießner. Scannet: Richly-annotated 3d reconstructions of indoor scenes. In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 5828-5839, 2017.  
+Google DeepMind. Gemini 2.0. https://gemini.google.com/, 2025.  
+Chaorui Deng, Deyao Zhu, Kunchang Li, Chenhui Gou, Feng Li, Zeyu Wang, Shu Zhong, Weihao Yu, Xiaonan Nie, Ziang Song, et al. Emerging properties in unified multimodal pretraining. arXiv preprint arXiv:2505.14683, 2025.  
+Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li, and Li Fei-Fei. Imagenet: A large-scale hierarchical image database. In CVPR, 2009.
+
+Laura Downs, Anthony Francis, Nate Koenig, Brandon Kinman, Ryan Hickman, Krista Reymann, Thomas B. McHugh, and Vincent Vanhoucke. Google scanned objects: A high-quality dataset of 3d scanned household items, 2022. URL https://arxiv.org/abs/2204.11918.  
+Nikai Du, Zhennan Chen, Zhizhou Chen, Shan Gao, Xi Chen, Zhengkai Jiang, Jian Yang, and Ying Tai. Textcrafter: Accurately rendering multiple texts in complex visual scenes. arXiv preprint arXiv:2503.23461, 2025.  
+Arpad E. Elo and Sam Sloan. The Rating of Chess Players, Past and Present. Ishi Press, 2008.  
+Patrick Esser, Sumith Kulal, Andreas Blattmann, Rahim Entezari, Jonas Müller, Harry Saini, Yam Levi, Dominik Lorenz, Axel Sauer, Frederic Boesel, et al. Scaling rectified flow transformers for high-resolution image synthesis. In ICML, 2024.  
+Xiao Fu, Wei Yin, Mu Hu, Kaixuan Wang, Yuexin Ma, Ping Tan, Shaojie Shen, Dahua Lin, and Xiaoxiao Long. Geowizard: Unleashing the diffusion priors for 3d geometry estimation from a single image. In European Conference on Computer Vision, pp. 241-258. Springer, 2024.  
+Yu Gao, Lixue Gong, Qiushan Guo, Xiaoxia Hou, Zhichao Lai, Fanshi Li, Liang Li, Xiaochen Lian, Chao Liao, Liyang Liu, et al. Seedream 3.0 technical report. arXiv preprint arXiv:2504.11346, 2025.  
+Andreas Geiger, Philip Lenz, Christoph Stiller, and Raquel Urtasun. Vision meets robotics: The kitti dataset. The International Journal of Robotics Research, 32(11):1231-1237, 2013.  
+Zigang Geng, Yibing Wang, Yeyao Ma, Chen Li, Yongming Rao, Shuyang Gu, Zhao Zhong, Qinglin Lu, Han Hu, Xiaosong Zhang, Linus, Di Wang, and Jie Jiang. X-omni: Reinforcement learning makes discrete autoregressive image generative models great again. CoRR, abs/2507.22058, 2025.  
+Dhruba Ghosh, Hannaneh Hajishirzi, and Ludwig Schmidt. Geneval: An object-focused framework for evaluating text-to-image alignment. Advances in Neural Information Processing Systems, 36:52132-52152, 2023.  
+Lixue Gong, Xiaoxia Hou, Fanshi Li, Liang Li, Xiaochen Lian, Fei Liu, Liyang Liu, Wei Liu, Wei Lu, Yichun Shi, et al. Seedream 2.0: A native chinese-english bilingual image generation foundation model. arXiv preprint arXiv:2503.07703, 2025.  
+Google. Imagen, 2025. URL https://deepmind.google/models/imagen/.  
+Imagen Team Google. Imagen 3, 2024.  
+Ming Gui, Johannes Schusterbauer, Ulrich Prestel, Pingchuan Ma, Dmytro Kotovenko, Olga Grebenkova, Stefan Andreas Baumann, Vincent Tao Hu, and Björn Ommer. Depthfm: Fast monocular depth estimation with flow matching. arXiv preprint arXiv:2403.13788, 2024.  
+Jian Han, Jinlai Liu, Yi Jiang, Bin Yan, Yuqi Zhang, Zehuan Yuan, Bingyue Peng, and Xiaobing Liu. Infinity: Scaling bitwise autoregressive modeling for high-resolution image synthesis. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp. 15733-15744, 2025.  
+Byeongho Heo, Song Park, Dongyoon Han, and Sangdoo Yun. Rotary position embedding for vision transformer. In European Conference on Computer Vision, pp. 289-305. Springer, 2024.  
+Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffusion probabilistic models. Advances in neural information processing systems, 33:6840-6851, 2020.  
+Mu Hu, Wei Yin, Chi Zhang, Zhipeng Cai, Xiaoxiao Long, Hao Chen, Kaixuan Wang, Gang Yu, Chunhua Shen, and Shaojie Shen. Metric3d v2: A versatile monocular geometric foundation model for zero-shot metric depth and surface normal estimation. arXiv preprint arXiv:2404.15506, 2024a.  
+Xiwei Hu, Rui Wang, Yixiao Fang, Bin Fu, Pei Cheng, and Gang Yu. Ella: Equip diffusion models with llm for enhanced semantic alignment. arXiv preprint arXiv:2403.05135, 2024b.  
+Ideogram. Ideogram 3.0, 2025. URL https://about.ideogram.ai/3.0.  
+Leslie Pack Kaelbling, Michael L Littman, and Andrew W Moore. Reinforcement learning: A survey. Journal of artificial intelligence research, 4:237-285, 1996.  
+Bingxin Ke, Anton Obukhov, Shengyu Huang, Nando Metzger, Rodrigo Caye Daudt, and Konrad Schindler. Repurposing diffusion-based image generators for monocular depth estimation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 9492-9502, 2024.
+
+Weijie Kong, Qi Tian, Zijian Zhang, Rox Min, Zuozhuo Dai, Jin Zhou, Jiangfeng Xiong, Xin Li, Bo Wu, Jianwei Zhang, et al. Hunyuanvideo: A systematic framework for large video generative models. arXiv preprint arXiv:2412.03603, 2024.  
+Vijay Anand Korthikanti, Jared Casper, Sangkug Lym, Lawrence McAfee, Michael Andersch, Mohammad Shoeybi, and Bryan Catanzaro. Reducing activation recomputation in large transformer models. Proceedings of Machine Learning and Systems, 5:341-353, 2023.  
+Black Forest Labs, Stephen Batifol, Andreas Blattmann, Frederic Boesel, Saksham Consul, Cyril Diagne, Tim Dockhorn, Jack English, Zion English, Patrick Esser, et al. Flux. 1 kcontext: Flow matching for in-context image generation and editing in latent space. arXiv preprint arXiv:2506.15742, 2025.  
+Hsin-Ying Lee, Hung-Yu Tseng, and Ming-Hsuan Yang. Exploiting diffusion prior for generalizable dense prediction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 7861-7871, 2024.  
+Daiqing Li, Aleks Kamko, Ehsan Akhgari, Ali Sabet, Linmiao Xu, and Suhail Doshi. Playground v2. 5: Three insights towards enhancing aesthetic quality in text-to-image generation. arXiv preprint arXiv:2402.17245, 2024a.  
+Zhimin Li, Jianwei Zhang, Qin Lin, Jiangfeng Xiong, Yanxin Long, Xinchi Deng, Yingfang Zhang, Xingchao Liu, Minbin Huang, Zedong Xiao, Dayou Chen, Jiajun He, Jiahao Li, Wenyue Li, Chen Zhang, Rongwei Quan, Jianxiang Lu, Jiabin Huang, Xiaoyan Yuan, Xiaoxiao Zheng, Yixuan Li, Jihong Zhang, Chao Zhang, Meng Chen, Jie Liu, Zheng Fang, Weiyan Wang, Jinbao Xue, Yangyu Tao, Jianchen Zhu, Kai Liu, Sihuan Lin, Yifu Sun, Yun Li, Dongdong Wang, Mingtao Chen, Zhichao Hu, Xiao Xiao, Yan Chen, Yuhong Liu, Wei Liu, Di Wang, Yong Yang, Jie Jiang, and Qinglin Lu. Hunyuan-dit: A powerful multi-resolution diffusion transformer with fine-grained chinese understanding, 2024b.  
+Jian Liang, Chenfei Wu, Xiaowei Hu, Zhe Gan, Jianfeng Wang, Lijuan Wang, Zicheng Liu, Yuejian Fang, and Nan Duan. Nuwa-infinity: Autoregressive over autoregressive generation for infinite visual synthesis. Advances in Neural Information Processing Systems, 35:15420-15432, 2022.  
+Bin Lin, Zongjian Li, Xinhua Cheng, Yuwei Niu, Yang Ye, Xianyi He, Shenghai Yuan, Wangbo Yu, Shaodong Wang, Yunyang Ge, et al. Uniworld-v1: High-resolution semantic encoders for unified visual understanding and generation. arXiv preprint arXiv:2506.03147, 2025.  
+Jie Liu, Gongye Liu, Jiajun Liang, Yangguang Li, Jiaheng Liu, Xintao Wang, Pengfei Wan, Di Zhang, and Wanli Ouyang. Flow-grpo: Training flow matching models via online rl. arXiv preprint arXiv:2505.05470, 2025a.  
+Ruoshi Liu, Rundi Wu, Basile Van Hoorick, Pavel Tokmakov, Sergey Zakharov, and Carl Vondrick. Zero-1-to-3: Zero-shot one image to 3d object. In Proceedings of the IEEE/CVF international conference on computer vision, pp. 9298-9309, 2023.  
+Shiyu Liu, Yucheng Han, Peng Xing, Fukun Yin, Rui Wang, Wei Cheng, Jiaqi Liao, Yingming Wang, Honghao Fu, Chunrui Han, et al. Step1x-edit: A practical framework for general image editing. arXiv preprint arXiv:2504.17761, 2025b.  
+Xingchao Liu, Chengyue Gong, and Qiang Liu. Flow straight and fast: Learning to generate and transfer data with rectified flow. arXiv preprint arXiv:2209.03003, 2022.  
+Yiyang Ma, Xingchao Liu, Xiaokang Chen, Wen Liu, Chengyue Wu, Zhiyu Wu, Zizheng Pan, Zhenda Xie, Haowei Zhang, Xingkai Yu, et al. Janusflow: Harmonizing autoregression and rectified flow for unified multimodal understanding and generation. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp. 7739-7751, 2025.  
+Midjourney. midjourney v7, 2025. URL https://github.com/midjourney.  
+George A. Miller. Wordnet: a lexical database for english. Commun. ACM, 38(11):39-41, November 1995.  
+ISSN 0001-0782. doi: 10.1145/219717.219748. URL https://doi.org/10.1145/219717.219748.  
+Philipp Moritz, Robert Nishihara, Stephanie Wang, Alexey Tumanov, Richard Liaw, Eric Liang, Melih Elibol, Zongheng Yang, William Paul, Michael I Jordan, et al. Ray: A distributed framework for emerging {AI} applications. In 13th USENIX symposium on operating systems design and implementation (OSDI 18), pp. 561-577, 2018.  
+Pushmeet Kohli Nathan Silberman, Derek Hoiem and Rob Fergus. Indoor segmentation and support inference from rgb images. In ECCV, 2012.
+
+OpenAI. DALL-E 3. https://openai.com/research/dall-e-3, September 2023.  
+OpenAI. Gpt-image-1, 2025. URL https://openai.com/index/introducing-4o-image-generation/.  
+Dustin Podell, Zion English, Kyle Lacey, Andreas Blattmann, Tim Dockhorn, Jonas Muller, Joe Penna, and Robin Rombach. Sdxl: Improving latent diffusion models for high-resolution image synthesis. arXiv preprint arXiv:2307.01952, 2023.  
+Qi Qin, Le Zhuo, Yi Xin, Ruoyi Du, Zhen Li, Bin Fu, Yiting Lu, Jiakang Yuan, Xinyue Li, Dongyang Liu, et al. Lumina-image 2.0: A unified and efficient image generative framework. arXiv preprint arXiv:2503.21758, 2025.  
+Qwen. Qwen3-coder is the code version of qwen3, the large language model series developed by qwen team, alibaba cloud., 2025. URL https://github.com/QwenLM/Qwen3-Coder.  
+Rafael Rafailov, Archit Sharma, Eric Mitchell, Christopher D Manning, Stefano Ermon, and Chelsea Finn. Direct preference optimization: Your language model is secretly a reward model. Advances in neural information processing systems, 36:53728-53741, 2023.  
+René Ranftl, Katrin Lasinger, David Hafner, Konrad Schindler, and Vladlen Koltun. Towards robust monocular depth estimation: Mixing datasets for zero-shot cross-dataset transfer. IEEE transactions on pattern analysis and machine intelligence, 44(3):1623-1637, 2020.  
+René Ranftl, Alexey Bochkovskiy, and Vladlen Koltun. Vision transformers for dense prediction. In Proceedings of the IEEE/CVF international conference on computer vision, pp. 12179-12188, 2021.  
+Recraft. Recraft v3. https://www.recraft.ai/, 2024.  
+Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Björn Ommer. High-resolution image synthesis with latent diffusion models, 2021.  
+Thomas Schops, Johannes L Schonberger, Silvano Galliani, Torsten Sattler, Konrad Schindler, Marc Pollefeys, and Andreas Geiger. A multi-view stereo benchmark with high-resolution images and multi-camera videos. In Proceedings of the IEEE conference on computer vision and pattern recognition, pp. 3260-3269, 2017.  
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan Zhang, YK Li, Yang Wu, et al. Deepseekmath: Pushing the limits of mathematical reasoning in open language models. arXiv preprint arXiv:2402.03300, 2024.  
+Mohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper, and Bryan Catanzaro. Megatron-lm: Training multi-billion parameter language models using model parallelism. arXiv preprint arXiv:1909.08053, 2019.  
+Kuaishou Kolors team. Kolors2.0. https://app.klingai.com/cn/, 2025.  
+Michael Tschannen, Alexey Gritsenko, Xiao Wang, Muhammad Ferjad Naeem, Ibrahim Alabdulmohsin, Nikhil Parthasarathy, Talfan Evans, Lucas Beyer, Ye Xia, Basil Mustafa, et al. Siglip 2: Multilingual vision-language encoders with improved semantic understanding, localization, and dense features. arXiv preprint arXiv:2502.14786, 2025.  
+Yuxiang Tuo, Wangmeng Xiang, Jun-Yan He, Yifeng Geng, and Xuansong Xie. Anytext: Multilingual visual text generation and editing. In The Twelfth International Conference on Learning Representations, 2024.  
+Igor Vasiljevic, Nick Kolkin, Shanyi Zhang, Ruotian Luo, Haochen Wang, Falcon Z Dai, Andrea F Daniele, Mohammadreza Mostajabi, Steven Basart, Matthew R Walter, et al. Diode: A dense indoor and outdoor depth dataset. arXiv preprint arXiv:1908.00463, 2019.  
+Bram Wallace, Meihua Dang, Rafael Rafailov, Linqi Zhou, Aaron Lou, Senthil Purushwalkam, Stefano Ermon, Caiming Xiong, Shafiq Joty, and Nikhil Naik. Diffusion model alignment using direct preference optimization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 8228-8238, 2024.  
+Team Wan, Ang Wang, Baole Ai, Bin Wen, Chaojie Mao, Chen-Wei Xie, Di Chen, Feiwu Yu, Haiming Zhao, Jianxiao Yang, et al. Wan: Open and advanced large-scale video generative models. arXiv preprint arXiv:2503.20314, 2025.  
+Peng Wang and Yichun Shi. Imagedream: Image-prompt multi-view diffusion for 3d generation. arXiv preprint arXiv:2312.02201, 2023.
+
+Peng Wang, Yichun Shi, Xiaochen Lian, Zhonghua Zhai, Xin Xia, Xuefeng Xiao, Weilin Huang, and Jian- chao Yang. Seededit 3.0: Fast and high-quality generative image editing. arXiv preprint arXiv:2506.05083, 2025.  
+Xinlong Wang, Xiaosong Zhang, Zhengxiong Luo, Quan Sun, Yufeng Cui, Jinsheng Wang, Fan Zhang, Yueze Wang, Zhen Li, Qiying Yu, et al. Emu3: Next-token prediction is all you need. arXiv preprint arXiv:2409.18869, 2024a.  
+Zhengyi Wang, Yikai Wang, Yifei Chen, Chengdong Xiang, Shuo Chen, Dajiang Yu, Chongxuan Li, Hang Su, and Jun Zhu. Crm: Single image to 3d textured mesh with convolutional reconstruction model. In European conference on computer vision, pp. 57-74. Springer, 2024b.  
+Xinyu Wei, Jinrui Zhang, Zeqing Wang, Hongyang Wei, Zhen Guo, and Lei Zhang. Tiif-bench: How does your t2i model follow your instructions? arXiv preprint arXiv:2506.02161, 2025.  
+Chenfei Wu, Jian Liang, Lei Ji, Fan Yang, Yuejian Fang, Daxin Jiang, and Nan Duan. Nüwa: Visual synthesis pre-training for neural visual world creation. In European conference on computer vision, pp. 720-736. Springer, 2022.  
+Chengyue Wu, Xiaokang Chen, Zhiyu Wu, Yiyang Ma, Xingchao Liu, Zizheng Pan, Wen Liu, Zhenda Xie, Xingkai Yu, Chong Ruan, et al. Janus: Decoupling visual encoding for unified multimodal understanding and generation. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp. 12966-12977, 2025a.  
+Chenyuan Wu, Pengfei Zheng, Ruiran Yan, Shitao Xiao, Xin Luo, Yueze Wang, Wanli Li, Xiyan Jiang, Yexin Liu, Junjie Zhou, et al. Omnigen2: Exploration to advanced multimodal generation. arXiv preprint arXiv:2506.18871, 2025b.  
+Xianfeng Wu, Yajing Bai, Haoze Zheng, Harold Haodong Chen, Yexin Liu, Zihao Wang, Xuran Ma, Wen-Jie Shu, Xianzu Wu, Harry Yang, et al. Lightgen: Efficient image generation through knowledge distillation and direct preference optimization. arXiv preprint arXiv:2503.08619, 2025c.  
+Shitao Xiao, Yueze Wang, Junjie Zhou, Huaying Yuan, Xingrun Xing, Ruiran Yan, Chaofan Li, Shuting Wang, Tiejun Huang, and Zheng Liu. Omnigen: Unified image generation. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp. 13294-13304, 2025.  
+Enze Xie, Junsong Chen, Yuyang Zhao, Jincheng Yu, Ligeng Zhu, Chengyue Wu, Yujun Lin, Zhekai Zhang, Muyang Li, Junyu Chen, et al. Sana 1.5: Efficient scaling of training-time and inference-time compute in linear diffusion transformer. arXiv preprint arXiv:2501.18427, 2025a.  
+Jinheng Xie, Weijia Mao, Zechen Bai, David Junhao Zhang, Weihao Wang, Kevin Qinghong Lin, Yuchao Gu, Zhijie Chen, Zhenheng Yang, and Mike Zheng Shou. Show-o: One single transformer to unify multimodal understanding and generation. arXiv preprint arXiv:2408.12528, 2024.  
+Jinheng Xie, Zhenheng Yang, and Mike Zheng Shou. Show-o2: Improved native unified multimodal models. arXiv preprint arXiv:2506.15564, 2025b.  
+An Yang, Junshu Pan, Junyang Lin, Rui Men, Yichang Zhang, Jingren Zhou, and Chang Zhou. Chinese clip: Contrastive vision-language pretraining in chinese. arXiv:2211.01335, 2022.  
+An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng, Bowen Yu, Chang Gao, Chengen Huang, Chenxu Lv, et al. Qwen3 technical report. arXiv preprint arXiv:2505.09388, 2025.  
+Lihe Yang, Bingyi Kang, Zilong Huang, Xiaogang Xu, Jiashi Feng, and Hengshuang Zhao. Depth anything: Unleashing the power of large-scale unlabeled data. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 10371-10381, 2024a.  
+Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiaogang Xu, Jiashi Feng, and Hengshuang Zhao. Depth anything v2. arXiv preprint arXiv:2406.09414, 2024b.  
+Yang Ye, Xianyi He, Zongjian Li, Bin Lin, Shenghai Yuan, Zhiyuan Yan, Bohan Hou, and Li Yuan. Imgedit: A unified image editing dataset and benchmark. arXiv preprint arXiv:2505.20275, 2025.  
+Qifan Yu, Wei Chow, Zhongqi Yue, Kaihang Pan, Yang Wu, Xiaoyang Wan, Juncheng Li, Siliang Tang, Hanwang Zhang, and Yueting Zhuang. Anyedit: Mastering unified high-quality image editing for any idea. In Proceedings of the Computer Vision and Pattern Recognition Conference, pp. 26125-26135, 2025.  
+THUKEG Z.ai. Cogview4, 2025. URL https://github.com/THUDM/CogView4.
+
+Biao Zhang and Rico Sennrich. Root mean square layer normalization. Advances in neural information processing systems, 32, 2019.  
+Kai Zhang, Lingbo Mo, Wenhu Chen, Huan Sun, and Yu Su. Magicbrush: A manually annotated dataset for instruction-guided image editing. Advances in Neural Information Processing Systems, 36:31428-31449, 2023.  
+Zechuan Zhang, Ji Xie, Yu Lu, Zongxin Yang, and Yi Yang. In-context edit: Enabling instructional image editing with in-context generation in large scale diffusion transformer. arXiv preprint arXiv:2504.20690, 2025.  
+Canyu Zhao, Mingyu Liu, Huanyi Zheng, Muzhi Zhu, Zhiyue Zhao, Hao Chen, Tong He, and Chunhua Shen. Dtection: A generalist diffusion model for visual perceptual tasks. arXiv preprint arXiv:2502.17157, 2025.  
+Haozhe Zhao, Xiaojian Shawn Ma, Liang Chen, Shuzheng Si, Rujie Wu, Kaikai An, Peiyu Yu, Minjia Zhang, Qing Li, and Baobao Chang. Ultraedit: Instruction-based fine-grained image editing at scale. Advances in Neural Information Processing Systems, 37:3058-3093, 2024.  
+Yanli Zhao, Andrew Gu, Rohan Varma, Liang Luo, Chien-Chin Huang, Min Xu, Less Wright, Hamid Shojanazeri, Myle Ott, Sam Shleifer, et al. Pytorch fsdp: experiences on scaling fully sharded data parallel. arXiv preprint arXiv:2304.11277, 2023.  
+Dewei Zhou, Ji Xie, Zongxin Yang, and Yi Yang. 3dis: Depth-driven decoupled instance synthesis for text-to-image generation. arXiv preprint arXiv:2410.12669, 2024.  
+Le Zhuo, Ruoyi Du, Han Xiao, Yangguang Li, Dongyang Liu, Rongjie Huang, Wenze Liu, Xiangyang Zhu, Fu-Yun Wang, Zhanyu Ma, et al. Lumina-last: Making lumina-t2x stronger and faster with next-dit. Advances in Neural Information Processing Systems, 37:131278-131315, 2024.

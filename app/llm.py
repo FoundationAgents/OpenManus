@@ -406,7 +406,7 @@ class LLM:
 
             # Streaming request, For streaming, update estimated token count before making the request
             self.update_token_count(input_tokens)
-            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
+            logger.info(f"LLM request latest message: \n{'\n'.join([messages[i].get('content', '') for i in range(-3, 0, 1)])}")
             response = await self.client.chat.completions.create(**params, stream=True)
 
             collected_messages = []
@@ -558,7 +558,7 @@ class LLM:
 
             # Handle streaming request
             self.update_token_count(input_tokens)
-            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
+            logger.info(f"LLM request latest message: \n{'\n'.join([messages[i].get('content', '') for i in range(-3, 0, 1)])}")
             response = await self.client.chat.completions.create(**params)
 
             collected_messages = []
@@ -687,7 +687,7 @@ class LLM:
                 params["temperature"] = temperature if temperature is not None else self.temperature
 
             params["stream"] = False  # Always use non-streaming for tool requests
-            logger.info(f"LLM request latest message: \n{messages[-1].get('content', '')}")
+            logger.info(f"LLM request latest message: \n{'\n'.join([messages[i].get('content', '') for i in range(-3, 0, 1)])}")
             response: ChatCompletion = await self.client.chat.completions.create(**params)
 
             # Check if response is valid
