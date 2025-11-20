@@ -140,7 +140,7 @@ class MCPClients(ToolCollection):
 
         # Truncate to 64 characters if needed
         if len(sanitized) > 64:
-            sanitized = sanitized[:64]
+            sanitized = 'mcp_' + sanitized[-60:]
 
         return sanitized
 
