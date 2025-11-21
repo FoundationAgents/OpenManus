@@ -260,10 +260,11 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                     # if search response does not have any results, return an error
                     if not search_response.results:
-                        error_message = search_response.error or "No search results found for the query"
-                        return ToolResult(
-                            error=error_message
+                        error_message = (
+                            search_response.error
+                            or "No search results found for the query"
                         )
+                        return ToolResult(error=error_message)
 
                     # Navigate to the first search result
                     first_search_result = search_response.results[0]
