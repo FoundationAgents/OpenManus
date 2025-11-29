@@ -1,6 +1,6 @@
 import time
 
-from daytona import (
+from daytona_sdk import (
     CreateSandboxFromImageParams,
     Daytona,
     DaytonaConfig,
@@ -38,12 +38,20 @@ if daytona_config.target:
 else:
     logger.warning("No Daytona target found in environment variables")
 
-daytona = Daytona(daytona_config)
-logger.info("Daytona client initialized")
+# Only initialize Daytona if API key is provided
+if daytona_config.api_key:
+    daytona = Daytona(daytona_config)
+    logger.info("Daytona client initialized")
+else:
+    daytona = None
+    logger.info("Daytona client not initialized (no API key provided)")
 
 
 async def get_or_start_sandbox(sandbox_id: str):
     """Retrieve a sandbox by ID, check its state, and start it if needed."""
+    
+    if daytona is None:
+        raise RuntimeError("Daytona client is not initialized. Please provide a Daytona API key.")
 
     logger.info(f"Getting or starting sandbox with ID: {sandbox_id}")
 
@@ -101,6 +109,9 @@ def start_supervisord_session(sandbox: Sandbox):
 
 def create_sandbox(password: str, project_id: str = None):
     """Create a new sandbox with all required services configured and running."""
+    
+    if daytona is None:
+        raise RuntimeError("Daytona client is not initialized. Please provide a Daytona API key.")
 
     logger.info("Creating new Daytona sandbox environment")
     logger.info("Configuring sandbox with browser-use image and environment variables")
@@ -149,6 +160,10 @@ def create_sandbox(password: str, project_id: str = None):
 
 async def delete_sandbox(sandbox_id: str):
     """Delete a sandbox by its ID."""
+    
+    if daytona is None:
+        raise RuntimeError("Daytona client is not initialized. Please provide a Daytona API key.")
+    
     logger.info(f"Deleting sandbox with ID: {sandbox_id}")
 
     try:

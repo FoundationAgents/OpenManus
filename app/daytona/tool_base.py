@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar, Dict, Optional
 
-from daytona import Daytona, DaytonaConfig, Sandbox, SandboxState
+from daytona_sdk import Daytona, DaytonaConfig, Sandbox, SandboxState
 from pydantic import Field
 
 from app.config import config
@@ -19,7 +19,11 @@ daytona_config = DaytonaConfig(
     server_url=daytona_settings.daytona_server_url,
     target=daytona_settings.daytona_target,
 )
-daytona = Daytona(daytona_config)
+# Only initialize Daytona if API key is provided
+if daytona_config.api_key:
+    daytona = Daytona(daytona_config)
+else:
+    daytona = None
 
 
 @dataclass
