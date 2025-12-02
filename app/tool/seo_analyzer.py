@@ -1,7 +1,6 @@
 """SEO Analysis Tool for analyzing website SEO metrics and recommendations."""
-import asyncio
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -162,7 +161,9 @@ class SEOAnalyzer(BaseTool):
         if viewport_tag:
             meta_data["viewport"] = viewport_tag.get("content", "")
         else:
-            meta_data["issues"].append("Missing viewport meta tag (mobile responsiveness)")
+            meta_data["issues"].append(
+                "Missing viewport meta tag (mobile responsiveness)"
+            )
 
         # Open Graph tags
         og_tags = soup.find_all("meta", attrs={"property": re.compile(r"^og:")})
