@@ -3,6 +3,13 @@
       "server1": {
         "type": "sse",
         "url": "http://localhost:8000/sse"
+      },
+      "server2": {
+        "type": "streamableHttp",
+        "url": "https://your_streamable_http_mcp_server/mcp",
+        "headers": {
+          "header": "content-type: application/json"
+        }
       }
     }
 }

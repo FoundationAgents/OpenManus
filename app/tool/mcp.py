@@ -9,7 +9,7 @@ from mcp.types import ListToolsResult, TextContent
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.tool_collection import ToolCollection
-
+from mcp.client.streamable_http import streamablehttp_client
 
 class MCPClientTool(BaseTool):
     """Represents a tool proxy that can be called on the MCP server from the client side."""
@@ -93,6 +93,55 @@ class MCPClients(ToolCollection):
         self.sessions[server_id] = session
 
         await self._initialize_and_list_tools(server_id)
+
+    async def connect_streamable_http(
+        self,
+        server_url: str,
+        server_id: str = "",
+        headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Connect to a streamableHttp type MCP server (based on HTTP streaming)"""
+        if not server_url:
+            raise ValueError("Server URL is required for streamableHttp connection")
+
+        server_id = server_id or server_url  # Use URL as default server_id
+
+        # Disconnect existing connection to avoid conflicts
+        if server_id in self.sessions:
+            await self.disconnect(server_id)
+
+        exit_stack = AsyncExitStack()
+        self.exit_stacks[server_id] = exit_stack
+
+        try:
+            # Initialize HTTP streaming connection (with custom headers and timeout)
+            streams_context = streamablehttp_client(
+                url=server_url,
+                headers=headers or {}
+            )
+            # Enter context manager to establish streaming connection
+            streams = await exit_stack.enter_async_context(streams_context)
+            read_stream, write_stream, get_session_id = streams
+            if read_stream is None or write_stream is None:
+                raise ValueError("Invalid streams returned from streamablehttp_client")
+
+            session = await exit_stack.enter_async_context(
+                ClientSession(
+                    read_stream,
+                    write_stream,
+                )
+            )
+            self.sessions[server_id] = session
+
+            # Reuse existing logic to initialize tool list
+            await self._initialize_and_list_tools(server_id)
+            logger.info(f"Connected to streamableHttp server {server_id}")
+
+        except Exception as e:
+            # Clean up resources if connection fails
+            await exit_stack.aclose()
+            self.exit_stacks.pop(server_id, None)
+            raise RuntimeError(f"Failed to connect to streamableHttp server: {str(e)}")
 
     async def _initialize_and_list_tools(self, server_id: str) -> None:
         """Initialize session and populate tool map."""
