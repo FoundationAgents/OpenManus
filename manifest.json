@@ -1,11 +1,11 @@
 {
-  "name": "My Progressive Web App",
-  "short_name": "MyPWA",
-  "description": "A fully-featured progressive web application",
+  "name": "TaskFlow - Smart Task Management",
+  "short_name": "TaskFlow",
+  "description": "A beautiful and powerful task management app that works offline",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "theme_color": "#0ea5e9",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [
