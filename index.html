@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A fully-featured progressive web application">
+
+  <!-- Primary Meta Tags -->
+  <title>My Progressive Web App</title>
+  <meta name="title" content="My Progressive Web App">
+  <meta name="description" content="A fully-featured progressive web application">
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#2563eb">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e40af">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
+
+  <!-- Apple Web App Configuration -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MyPWA">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-72x72.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png">
+
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#2563eb">
+  <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+  <meta name="msapplication-config" content="/browserconfig.xml">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #2563eb;
+      margin-bottom: 20px;
+      font-size: 2.5rem;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 30px;
+      font-size: 1.1rem;
+    }
+
+    .status {
+      background: #f3f4f6;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-label {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .status-value {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-value.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-value.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-value.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin: 8px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .notification {
+      background: #2563eb;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 10px;
+      margin-top: 20px;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .notification.show {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .container {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📱</div>
+    <h1>PWA Ready</h1>
+    <p>Your Progressive Web App is configured and ready to install. Check the status below and install the app for the best experience.</p>
+
+    <div class="status">
+      <div class="status-item">
+        <span class="status-label">Service Worker</span>
+        <span class="status-value pending" id="sw-status">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Manifest</span>
+        <span class="status-value pending" id="manifest-status">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Installable</span>
+        <span class="status-value pending" id="install-status">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Offline Ready</span>
+        <span class="status-value pending" id="offline-status">Checking...</span>
+      </div>
+    </div>
+
+    <button id="installBtn" style="display: none;">Install App</button>
+    <button id="reloadBtn">Reload Page</button>
+
+    <div class="notification" id="notification"></div>
+  </div>
+
+  <script>
+    let deferredPrompt;
+
+    // Check for manifest
+    fetch('/manifest.json')
+      .then(response => {
+        const manifestStatus = document.getElementById('manifest-status');
+        if (response.ok) {
+          manifestStatus.textContent = 'Loaded';
+          manifestStatus.className = 'status-value success';
+        } else {
+          manifestStatus.textContent = 'Missing';
+          manifestStatus.className = 'status-value error';
+        }
+      })
+      .catch(() => {
+        const manifestStatus = document.getElementById('manifest-status');
+        manifestStatus.textContent = 'Error';
+        manifestStatus.className = 'status-value error';
+      });
+
+    // Check for service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration()
+        .then(registration => {
+          const swStatus = document.getElementById('sw-status');
+          if (registration) {
+            swStatus.textContent = 'Active';
+            swStatus.className = 'status-value success';
+
+            const offlineStatus = document.getElementById('offline-status');
+            offlineStatus.textContent = 'Yes';
+            offlineStatus.className = 'status-value success';
+          } else {
+            swStatus.textContent = 'Not registered';
+            swStatus.className = 'status-value error';
+
+            const offlineStatus = document.getElementById('offline-status');
+            offlineStatus.textContent = 'No';
+            offlineStatus.className = 'status-value error';
+          }
+        });
+    } else {
+      const swStatus = document.getElementById('sw-status');
+      swStatus.textContent = 'Not supported';
+      swStatus.className = 'status-value error';
+    }
+
+    // Listen for beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      const installBtn = document.getElementById('installBtn');
+      installBtn.style.display = 'inline-block';
+
+      const installStatus = document.getElementById('install-status');
+      installStatus.textContent = 'Ready';
+      installStatus.className = 'status-value success';
+    });
+
+    // Handle install button click
+    document.getElementById('installBtn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+
+      const notification = document.getElementById('notification');
+      if (outcome === 'accepted') {
+        notification.textContent = 'App installed successfully!';
+        notification.className = 'notification show';
+        document.getElementById('installBtn').style.display = 'none';
+      } else {
+        notification.textContent = 'Installation cancelled';
+        notification.className = 'notification show';
+      }
+
+      setTimeout(() => {
+        notification.className = 'notification';
+      }, 3000);
+
+      deferredPrompt = null;
+    });
+
+    // Handle reload button
+    document.getElementById('reloadBtn').addEventListener('click', () => {
+      location.reload();
+    });
+
+    // Update install status if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      const installStatus = document.getElementById('install-status');
+      installStatus.textContent = 'Installed';
+      installStatus.className = 'status-value success';
+    } else {
+      setTimeout(() => {
+        const installStatus = document.getElementById('install-status');
+        if (installStatus.textContent === 'Checking...') {
+          installStatus.textContent = 'Not installed';
+          installStatus.className = 'status-value error';
+        }
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
