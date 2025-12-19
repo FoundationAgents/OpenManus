@@ -1,0 +1,20 @@
+{
+  "name": "pwa-app",
+  "version": "1.0.0",
+  "description": "Progressive Web App",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve -s . -p 3000",
+    "build": "echo 'Static PWA - no build needed'",
+    "start": "npx serve -s . -p 3000"
+  },
+  "keywords": [
+    "pwa",
+    "progressive-web-app"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+}
