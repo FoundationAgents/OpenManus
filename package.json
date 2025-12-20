@@ -14,7 +14,7 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
+  "devDependencies": {
     "serve": "^14.2.1"
   }
 }
