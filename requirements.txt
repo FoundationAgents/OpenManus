@@ -3,6 +3,8 @@ openai~=1.66.3
 tenacity~=9.0.0
 pyyaml~=6.0.2
 loguru~=0.7.3
+structlog~=25.5.0
+daytona~=0.128.1
 numpy
 datasets~=3.4.1
 fastapi~=0.115.11

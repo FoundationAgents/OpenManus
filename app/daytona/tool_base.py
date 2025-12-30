@@ -19,7 +19,9 @@ daytona_config = DaytonaConfig(
     server_url=daytona_settings.daytona_server_url,
     target=daytona_settings.daytona_target,
 )
-daytona = Daytona(daytona_config)
+daytona: Optional[Daytona] = None
+if daytona_config.api_key:
+    daytona = Daytona(daytona_config)
 
 
 @dataclass

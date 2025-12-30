@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 from daytona import (
     CreateSandboxFromImageParams,
@@ -38,8 +39,12 @@ if daytona_config.target:
 else:
     logger.warning("No Daytona target found in environment variables")
 
-daytona = Daytona(daytona_config)
-logger.info("Daytona client initialized")
+daytona: Optional[Daytona] = None
+if daytona_config.api_key:
+    daytona = Daytona(daytona_config)
+    logger.info("Daytona client initialized")
+else:
+    logger.warning("Daytona client not initialized: No API key provided")
 
 
 async def get_or_start_sandbox(sandbox_id: str):
