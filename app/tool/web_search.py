@@ -290,6 +290,46 @@ class WebSearch(BaseTool):
     async def _try_all_engines(
         self, query: str, num_results: int, search_params: Dict[str, Any]
     ) -> List[SearchResult]:
+        """Try all search engines in the configured order with deduplication."""
+        engine_order = self._get_engine_order()
+        all_results = []
+        seen_urls = set()
+
+        for engine_name in engine_order:
+            engine = self._search_engine[engine_name]
+            logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
+            try:
+                # Some engines might be synchronous, run in executor if needed
+                if asyncio.iscoroutinefunction(engine.perform_search):
+                    engine_results = await engine.perform_search(query, num_results, **search_params)
+                else:
+                    engine_results = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: engine.perform_search(query, num_results, **search_params)
+                    )
+                
+                if engine_results:
+                    for item in engine_results:
+                        if item.url not in seen_urls:
+                            all_results.append(SearchResult(
+                                position=len(all_results) + 1,
+                                url=item.url,
+                                title=item.title,
+                                description=item.description or "",
+                                source=engine_name
+                            ))
+                            seen_urls.add(item.url)
+                
+                if len(all_results) >= num_results:
+                    break
+            except Exception as e:
+                logger.warning(f"Search engine {engine_name} failed: {e}")
+                continue
+
+        return all_results[:num_results]
+
+    async def _old_try_all_engines(
+        self, query: str, num_results: int, search_params: Dict[str, Any]
+    ) -> List[SearchResult]:
         """Try all search engines in the configured order."""
         engine_order = self._get_engine_order()
         failed_engines = []
