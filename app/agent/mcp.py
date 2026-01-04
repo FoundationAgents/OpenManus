@@ -164,10 +164,26 @@ class MCPAgent(ToolCallAgent):
                 )
             )
 
+    def _is_special_tool(self, name: str) -> bool:
+        """Check if tool name is in special tools list, including MCP prefixed tools"""
+        name_lower = name.lower()
+        # Check exact match first
+        if name_lower in [n.lower() for n in self.special_tool_names]:
+            return True
+        # Check if it's an MCP tool ending with a special tool name
+        # MCP tools have format: mcp_{server_id}_{original_name}
+        for special_name in self.special_tool_names:
+            if name_lower.endswith(f"_{special_name.lower()}") or name_lower.endswith(
+                special_name.lower()
+            ):
+                return True
+        return False
+
     def _should_finish_execution(self, name: str, **kwargs) -> bool:
         """Determine if tool execution should finish the agent"""
-        # Terminate if the tool name is 'terminate'
-        return name.lower() == "terminate"
+        # Terminate if the tool name is 'terminate' or ends with '_terminate' (for MCP tools)
+        name_lower = name.lower()
+        return name_lower == "terminate" or name_lower.endswith("_terminate")
 
     async def cleanup(self) -> None:
         """Clean up MCP connection when done."""
