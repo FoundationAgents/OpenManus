@@ -91,9 +91,56 @@ class BrowserSettings(BaseModel):
     )
 
 
-class SandboxSettings(BaseModel):
-    """Configuration for the execution sandbox"""
+class AgentBaySessionDefaults(BaseModel):
+    """Default parameters when creating AgentBay sessions."""
 
+    image_id: Optional[str] = Field(
+        None, description="Default image ID to use when creating sessions"
+    )
+    is_vpc: bool = Field(
+        False, description="Whether to create AgentBay sessions with VPC resources"
+    )
+
+
+class AgentBaySettings(BaseModel):
+    """Configuration for AgentBay based sandbox provider."""
+
+    api_key: Optional[str] = Field(
+        None, description="AgentBay API key (falls back to environment if missing)"
+    )
+    endpoint: str = Field(
+        "wuyingai.cn-shanghai.aliyuncs.com", description="AgentBay API endpoint"
+    )
+    timeout_ms: int = Field(
+        60000, description="AgentBay API timeout in milliseconds (connect/read)"
+    )
+    env_file: Optional[str] = Field(
+        None, description="Path to .env file for AgentBay credentials"
+    )
+    desktop_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for desktop-capable sessions (e.g., linux_latest)",
+    )
+    browser_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for browser-focused sessions (e.g., browser_latest)",
+    )
+    mobile_image_id: Optional[str] = Field(
+        None,
+        description="Override image ID for mobile automation sessions (e.g., android_latest)",
+    )
+    session_defaults: AgentBaySessionDefaults = Field(
+        default_factory=AgentBaySessionDefaults,
+        description="Default session creation parameters",
+    )
+
+
+class SandboxSettings(BaseModel):
+    """Configuration for the execution sandbox and provider selection"""
+
+    provider: str = Field(
+        "daytona", description="Sandbox provider to use (e.g., daytona, agentbay)"
+    )
     use_sandbox: bool = Field(False, description="Whether to use the sandbox")
     image: str = Field("python:3.12-slim", description="Base image")
     work_dir: str = Field("/workspace", description="Container working directory")
@@ -102,6 +149,9 @@ class SandboxSettings(BaseModel):
     timeout: int = Field(300, description="Default command timeout (seconds)")
     network_enabled: bool = Field(
         False, description="Whether network access is allowed"
+    )
+    agentbay: Optional[AgentBaySettings] = Field(
+        default=None, description="AgentBay specific sandbox settings"
     )
 
 
@@ -188,6 +238,9 @@ class AppConfig(BaseModel):
     )
     daytona_config: Optional[DaytonaSettings] = Field(
         None, description="Daytona configuration"
+    )
+    agentbay_config: Optional[AgentBaySettings] = Field(
+        None, description="AgentBay configuration"
     )
 
     class Config:
@@ -287,7 +340,13 @@ class Config:
             search_settings = SearchSettings(**search_config)
         sandbox_config = raw_config.get("sandbox", {})
         if sandbox_config:
-            sandbox_settings = SandboxSettings(**sandbox_config)
+            sandbox_agentbay = sandbox_config.get("agentbay") or {}
+            sandbox_settings = SandboxSettings(
+                **{k: v for k, v in sandbox_config.items() if k != "agentbay"},
+                agentbay=AgentBaySettings(**sandbox_agentbay)
+                if sandbox_agentbay
+                else None,
+            )
         else:
             sandbox_settings = SandboxSettings()
         daytona_config = raw_config.get("daytona", {})
@@ -310,6 +369,17 @@ class Config:
             run_flow_settings = RunflowSettings(**run_flow_config)
         else:
             run_flow_settings = RunflowSettings()
+        agentbay_config = raw_config.get("agentbay", {})
+        if agentbay_config:
+            agentbay_settings = AgentBaySettings(**agentbay_config)
+        else:
+            # fall back to sandbox nested config if present
+            agentbay_settings = (
+                sandbox_settings.agentbay
+                if sandbox_settings and sandbox_settings.agentbay
+                else AgentBaySettings()
+            )
+
         config_dict = {
             "llm": {
                 "default": default_settings,
@@ -324,6 +394,7 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
+            "agentbay_config": agentbay_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -339,6 +410,10 @@ class Config:
     @property
     def daytona(self) -> DaytonaSettings:
         return self._config.daytona_config
+
+    @property
+    def agentbay(self) -> AgentBaySettings:
+        return self._config.agentbay_config
 
     @property
     def browser_config(self) -> Optional[BrowserSettings]:

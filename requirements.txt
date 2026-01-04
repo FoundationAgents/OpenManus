@@ -1,4 +1,5 @@
 pydantic~=2.10.6
+wuying-agentbay-sdk~=0.9.3
 openai~=1.66.3
 tenacity~=9.0.0
 pyyaml~=6.0.2
@@ -10,7 +11,7 @@ tiktoken~=0.9.0
 
 html2text~=2024.2.26
 gymnasium~=1.1.1
-pillow~=11.1.0
+pillow~=10.4.0
 browsergym~=0.13.3
 uvicorn~=0.34.0
 unidiff~=0.7.5

@@ -13,7 +13,6 @@ from app.tool.web_search import WebSearch
 __all__ = [
     "BaseTool",
     "Bash",
-    "BrowserUseTool",
     "Terminate",
     "StrReplaceEditor",
     "WebSearch",
@@ -22,3 +21,6 @@ __all__ = [
     "PlanningTool",
     "Crawl4aiTool",
 ]
+
+if BrowserUseTool is not None:
+    __all__.append("BrowserUseTool")
