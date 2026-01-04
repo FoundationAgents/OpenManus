@@ -257,6 +257,15 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     search_response = await self.web_search_tool.execute(
                         query=query, fetch_content=True, num_results=1
                     )
+
+                    # if search response does not have any results, return an error
+                    if not search_response.results:
+                        error_message = (
+                            search_response.error
+                            or "No search results found for the query"
+                        )
+                        return ToolResult(error=error_message)
+
                     # Navigate to the first search result
                     first_search_result = search_response.results[0]
                     url_to_navigate = first_search_result.url
