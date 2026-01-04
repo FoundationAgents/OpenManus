@@ -4,7 +4,11 @@ SYSTEM_PROMPT = (
 )
 
 NEXT_STEP_PROMPT = """
-Based on user needs, proactively select the most appropriate tool or combination of tools. For complex tasks, you can break down the problem and use different tools step by step to solve it. After using each tool, clearly explain the execution results and suggest the next steps.
+Based on user needs, proactively select the most appropriate tool or combination of tools. For complex tasks, you can break down the problem and use different tools step by step to solve it. 
+
+**Optimization Tip**: You can now call multiple tools in a single step if they are independent. For example, you can perform multiple searches or read multiple files simultaneously to improve efficiency.
+
+After using the tools, clearly explain the execution results and suggest the next steps.
 
 If you want to stop the interaction at any point, use the `terminate` tool/function call.
 """

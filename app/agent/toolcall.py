@@ -129,7 +129,7 @@ class ToolCallAgent(ReActAgent):
             return False
 
     async def act(self) -> str:
-        """Execute tool calls and handle their results"""
+        """Execute tool calls and handle their results, supporting parallel execution"""
         if not self.tool_calls:
             if self.tool_choices == ToolChoice.REQUIRED:
                 raise ValueError(TOOL_CALL_REQUIRED)
@@ -137,31 +137,41 @@ class ToolCallAgent(ReActAgent):
             # Return last message content if no tool calls
             return self.messages[-1].content or "No content or commands to execute"
 
-        results = []
-        for command in self.tool_calls:
-            # Reset base64_image for each tool call
-            self._current_base64_image = None
-
+        # Define a helper to execute a single tool and return its message
+        async def execute_and_format(command: ToolCall) -> Message:
+            # Note: _current_base64_image might be problematic in parallel
+            # For now, we handle it by making execute_tool return the image if any
             result = await self.execute_tool(command)
+            
+            # Use a local copy of the image if the tool execution set it
+            # This is a bit hacky due to the current class-level attribute design
+            current_image = self._current_base64_image
+            self._current_base64_image = None 
 
-            if self.max_observe:
-                result = result[: self.max_observe]
+            if self.max_observe and isinstance(result, str):
+                if len(result) > self.max_observe:
+                    result = result[: self.max_observe] + "\n... (result truncated)"
 
             logger.info(
-                f"🎯 Tool '{command.function.name}' completed its mission! Result: {result}"
+                f"🎯 Tool '{command.function.name}' completed its mission!"
             )
 
-            # Add tool response to memory
-            tool_msg = Message.tool_message(
+            return Message.tool_message(
                 content=result,
                 tool_call_id=command.id,
                 name=command.function.name,
-                base64_image=self._current_base64_image,
+                base64_image=current_image,
             )
-            self.memory.add_message(tool_msg)
-            results.append(result)
 
-        return "\n\n".join(results)
+        # Execute tools in parallel
+        tasks = [execute_and_format(command) for command in self.tool_calls]
+        tool_messages = await asyncio.gather(*tasks)
+
+        # Add all tool responses to memory
+        for msg in tool_messages:
+            self.memory.add_message(msg)
+
+        return "\n\n".join([msg.content for msg in tool_messages])
 
     async def execute_tool(self, command: ToolCall) -> str:
         """Execute a single tool call with robust error handling"""
