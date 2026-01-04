@@ -97,6 +97,7 @@ temperature = 0.0                          # Controls randomness for vision mode
 
 # Daytona configuration
 [daytona]
+use_daytona = true
 daytona_api_key = ""
 #daytona_server_url = "https://app.daytona.io/api"
 #daytona_target = "us"                                   #Daytona is currently available in the following regions:United States (us)、Europe (eu)

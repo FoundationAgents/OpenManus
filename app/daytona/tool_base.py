@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar, Dict, Optional
 
-from daytona import Daytona, DaytonaConfig, Sandbox, SandboxState
+from daytona import Sandbox, SandboxState
 from pydantic import Field
 
 from app.config import config
-from app.daytona.sandbox import create_sandbox, start_supervisord_session
+from app.daytona.sandbox import create_sandbox, daytona, start_supervisord_session
 from app.tool.base import BaseTool
 from app.utils.files_utils import clean_path
 from app.utils.logger import logger
@@ -14,12 +14,6 @@ from app.utils.logger import logger
 
 # load_dotenv()
 daytona_settings = config.daytona
-daytona_config = DaytonaConfig(
-    api_key=daytona_settings.daytona_api_key,
-    server_url=daytona_settings.daytona_server_url,
-    target=daytona_settings.daytona_target,
-)
-daytona = Daytona(daytona_config)
 
 
 @dataclass
@@ -70,6 +64,9 @@ class SandboxToolsBase(BaseTool):
 
     async def _ensure_sandbox(self) -> Sandbox:
         """Ensure we have a valid sandbox instance, retrieving it from the project if needed."""
+        if not daytona:
+            raise RuntimeError("Daytona is not enabled. Sandbox tools are unavailable.")
+
         if self._sandbox is None:
             # Get or start the sandbox
             try:
@@ -135,4 +132,5 @@ class SandboxToolsBase(BaseTool):
         """Clean and normalize a path to be relative to /workspace."""
         cleaned_path = clean_path(path, self.workspace_path)
         logger.debug(f"Cleaned path: {path} -> {cleaned_path}")
+        return cleaned_path
         return cleaned_path
