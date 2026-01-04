@@ -17,14 +17,28 @@ from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
 from app.tool.browser_use_tool import BrowserUseTool
+from app.tool.crm_integration import CRMTool
+from app.tool.knowledge_base import KnowledgeBaseTool
+from app.tool.notion_integration import NotionTool
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
+from app.tool.youtube_transcript import YouTubeTranscriptTool
 
 
 class MCPServer:
-    """MCP Server implementation with tool registration and management."""
+    """
+    FreEco.ai MCP Server - Model Context Protocol implementation.
 
-    def __init__(self, name: str = "openmanus"):
+    Exposes FreEco.ai's advanced AI tools to MCP-compatible clients:
+    - Multi-model LLM orchestration
+    - Advanced planning and reasoning
+    - Multimodal tools (YouTube, Knowledge Base, Notion, CRM)
+    - Standard tools (Bash, Browser, Editor)
+
+    Part of the FreEco.ai Platform - AI Vegan Wellness Coach & Shopping Assistant.
+    """
+
+    def __init__(self, name: str = "freeco-ai"):
         self.server = FastMCP(name)
         self.tools: Dict[str, BaseTool] = {}
 
@@ -33,6 +47,12 @@ class MCPServer:
         self.tools["browser"] = BrowserUseTool()
         self.tools["editor"] = StrReplaceEditor()
         self.tools["terminate"] = Terminate()
+
+        # Initialize Enhancement #4 tools (FreEco.ai multimodal capabilities)
+        self.tools["youtube"] = YouTubeTranscriptTool()
+        self.tools["knowledge_base"] = KnowledgeBaseTool()
+        self.tools["notion"] = NotionTool()
+        self.tools["crm"] = CRMTool()
 
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
         """Register a tool with parameter validation and documentation."""

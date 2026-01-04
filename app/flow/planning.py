@@ -7,8 +7,9 @@ from pydantic import Field
 
 from app.agent.base import BaseAgent
 from app.flow.base import BaseFlow
-from app.llm import LLM
+from app.llm_router import llm_router
 from app.logger import logger
+from app.reasoning import ReflectionEngine, TreeOfThoughts
 from app.schema import AgentState, Message, ToolChoice
 from app.tool import PlanningTool
 
@@ -43,13 +44,24 @@ class PlanStepStatus(str, Enum):
 
 
 class PlanningFlow(BaseFlow):
-    """A flow that manages planning and execution of tasks using agents."""
+    """A flow that manages planning and execution of tasks using agents with advanced reasoning."""
 
-    llm: LLM = Field(default_factory=lambda: LLM())
+    # llm: LLM = Field(default_factory=lambda: LLM()) # Removed in favor of llm_router
     planning_tool: PlanningTool = Field(default_factory=PlanningTool)
     executor_keys: List[str] = Field(default_factory=list)
     active_plan_id: str = Field(default_factory=lambda: f"plan_{int(time.time())}")
     current_step_index: Optional[int] = None
+
+    # Advanced reasoning components
+    tree_of_thoughts: Optional[TreeOfThoughts] = Field(
+        default=None, description="Tree-of-Thoughts reasoner"
+    )
+    reflection_engine: ReflectionEngine = Field(
+        default_factory=ReflectionEngine, description="Self-reflection engine"
+    )
+    use_advanced_planning: bool = Field(
+        default=True, description="Enable advanced planning features"
+    )
 
     def __init__(
         self, agents: Union[BaseAgent, List[BaseAgent], Dict[str, BaseAgent]], **data
@@ -168,7 +180,8 @@ class PlanningFlow(BaseFlow):
         )
 
         # Call LLM with PlanningTool
-        response = await self.llm.ask_tool(
+        planning_llm = llm_router.select_model("planning")
+        response = await planning_llm.ask_tool(
             messages=[user_message],
             system_msgs=[system_message],
             tools=[self.planning_tool.to_param()],

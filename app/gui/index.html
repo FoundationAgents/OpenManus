@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreEco.AI - Ecological AI Platform</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🌱</span>
+                    <span class="logo-text">FreEco.AI</span>
+                </div>
+                <nav class="nav">
+                    <button class="nav-btn active" data-tab="chat">Chat</button>
+                    <button class="nav-btn" data-tab="tasks">Tasks</button>
+                    <button class="nav-btn" data-tab="knowledge">Knowledge</button>
+                    <button class="nav-btn" data-tab="settings">Settings</button>
+                </nav>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- CHAT TAB -->
+            <div id="chat" class="tab-content active">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message system">
+                            <p>Welcome to FreEco.AI! I'm your ecological AI assistant powered by Minimax M2.</p>
+                        </div>
+                        <div class="message system">
+                            <p>I can help you with tasks, knowledge management, and more. What would you like to do?</p>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <div class="input-wrapper">
+                            <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything...">
+                            <button class="send-btn" id="sendBtn">Send</button>
+                        </div>
+                        <div class="chat-status" id="chatStatus"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TASKS TAB -->
+            <div id="tasks" class="tab-content">
+                <div class="section-header">
+                    <h2>Tasks</h2>
+                    <button class="btn btn-primary" id="newTaskBtn">+ New Task</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTasks">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="pendingTasks">0</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="inProgressTasks">0</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="completedTasks">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+
+                <div class="task-list" id="taskList">
+                    <div class="empty-state">No tasks yet. Create one to get started!</div>
+                </div>
+            </div>
+
+            <!-- KNOWLEDGE BASE TAB -->
+            <div id="knowledge" class="tab-content">
+                <div class="section-header">
+                    <h2>Knowledge Base</h2>
+                    <button class="btn btn-primary" id="addDocBtn">+ Add Document</button>
+                </div>
+
+                <div class="search-box">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search documents...">
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalDocs">0</div>
+                        <div class="stat-label">Documents</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalSize">0 MB</div>
+                        <div class="stat-label">Total Size</div>
+                    </div>
+                </div>
+
+                <div class="document-list" id="documentList">
+                    <div class="empty-state">No documents yet. Add one to get started!</div>
+                </div>
+            </div>
+
+            <!-- SETTINGS TAB -->
+            <div id="settings" class="tab-content">
+                <div class="section-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h3>Minimax M2 Pro Configuration</h3>
+                        <div class="form">
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <input type="password" id="apiKey" placeholder="Enter your Minimax API key">
+                            </div>
+                            <div class="form-group">
+                                <label>Model</label>
+                                <select id="model">
+                                    <option value="minimax-01">minimax-01</option>
+                                    <option value="minimax-01-vision">minimax-01-vision</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Temperature: <span id="tempValue">0.7</span></label>
+                                <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                            </div>
+                            <div class="form-group">
+                                <label>Max Tokens</label>
+                                <input type="number" id="maxTokens" value="4096" min="1" max="200000">
+                            </div>
+                            <div class="form-actions">
+                                <button class="btn btn-secondary" id="resetSettingsBtn">Reset</button>
+                                <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>API Connection Status</h3>
+                        <div class="status-box">
+                            <div class="status-indicator" id="statusIndicator"></div>
+                            <div>
+                                <div id="statusText">Checking connection...</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);" id="statusDetails"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- TASK MODAL -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Task</h3>
+                <button class="close-btn" data-modal="taskModal">&times;</button>
+            </div>
+            <div class="modal-form">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="taskTitle" placeholder="Task title">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="taskDesc" placeholder="Task description" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="taskPriority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" data-modal="taskModal">Cancel</button>
+                    <button class="btn btn-primary" id="createTaskBtn">Create Task</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENT MODAL -->
+    <div id="docModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Document</h3>
+                <button class="close-btn" data-modal="docModal">&times;</button>
+            </div>
+            <div class="modal-form">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="docTitle" placeholder="Document title">
+                </div>
+                <div class="form-group">
+                    <label>Content</label>
+                    <textarea id="docContent" placeholder="Document content" rows="6"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="docCategory">
+                        <option value="general">General</option>
+                        <option value="research">Research</option>
+                        <option value="notes">Notes</option>
+                        <option value="guides">Guides</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelDocBtn">Cancel</button>
+                    <button class="btn btn-primary" id="createDocBtn">Add Document</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

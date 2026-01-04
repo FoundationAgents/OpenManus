@@ -1,0 +1,46 @@
+{
+  "doc1": {
+    "id": "doc1",
+    "title": "Test Doc",
+    "content": "This is a test document",
+    "category": "general",
+    "doc_type": "markdown",
+    "created_at": "2025-11-07T10:38:52.566943",
+    "updated_at": "2025-11-07T10:38:52.566945",
+    "tags": [],
+    "size": 23
+  },
+  "doc2": {
+    "id": "doc2",
+    "title": "API Notes",
+    "content": "REST API design patterns",
+    "category": "notes",
+    "doc_type": "markdown",
+    "created_at": "2025-11-07T10:12:52.808506",
+    "updated_at": "2025-11-07T10:12:52.808507",
+    "tags": [],
+    "size": 24
+  },
+  "f8af9c32": {
+    "id": "f8af9c32",
+    "title": "Python Tips",
+    "content": "Python is awesome",
+    "category": "guides",
+    "doc_type": "markdown",
+    "created_at": "2025-11-07T10:39:04.246273",
+    "updated_at": "2025-11-07T10:39:04.246276",
+    "tags": [],
+    "size": 17
+  },
+  "3b3aa7de": {
+    "id": "3b3aa7de",
+    "title": "FreEco.AI Implementation Guide",
+    "content": "Complete guide for implementing FreEco.AI with Minimax M2 Pro integration, including setup, configuration, and deployment steps.",
+    "category": "guides",
+    "doc_type": "markdown",
+    "created_at": "2025-11-07T11:24:36.824934",
+    "updated_at": "2025-11-07T11:24:36.824939",
+    "tags": [],
+    "size": 128
+  }
+}

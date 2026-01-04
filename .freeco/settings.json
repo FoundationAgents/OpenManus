@@ -1,0 +1,17 @@
+{
+  "minimax": {
+    "api_key": "test_key_12345",
+    "model": "minimax-01",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "base_url": "https://api.minimax.io/v1"
+  },
+  "theme": {
+    "mode": "dark",
+    "primary_color": "#000000",
+    "secondary_color": "#FFFFFF",
+    "accent_color": "#10B981"
+  },
+  "auto_save": true,
+  "debug_mode": false
+}

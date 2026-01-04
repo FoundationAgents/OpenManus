@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "freeco-ai": {
+      "command": "python",
+      "args": ["/absolute/path/to/FreEco-Platform/run_mcp_server.py"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-openai-api-key-here",
+        "CRM_TYPE": "keycrm",
+        "KEYCRM_API_KEY": "your-keycrm-api-key-here",
+        "NOTION_API_KEY": "secret_your-notion-api-key-here",
+        "TWENTY_API_KEY": "your-twenty-api-key-here",
+        "TWENTY_API_URL": "http://localhost:3000/graphql",
+        "HUBSPOT_API_KEY": "your-hubspot-api-key-here",
+        "SALESFORCE_ACCESS_TOKEN": "your-salesforce-token-here",
+        "SALESFORCE_INSTANCE_URL": "https://your-instance.salesforce.com",
+        "PIPEDRIVE_API_TOKEN": "your-pipedrive-token-here"
+      }
+    }
+  }
+}

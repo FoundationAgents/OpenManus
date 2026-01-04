@@ -1,0 +1,46 @@
+{
+  "task1": {
+    "id": "task1",
+    "title": "Test Task 1",
+    "description": "Description 1",
+    "status": "in_progress",
+    "priority": "high",
+    "created_at": "2025-11-07T10:38:52.566158",
+    "updated_at": "2025-11-07T10:38:52.566413",
+    "due_date": null,
+    "tags": []
+  },
+  "task2": {
+    "id": "task2",
+    "title": "Build API",
+    "description": "Create REST API with FastAPI",
+    "status": "pending",
+    "priority": "medium",
+    "created_at": "2025-11-07T10:12:52.807867",
+    "updated_at": "2025-11-07T10:12:52.807868",
+    "due_date": null,
+    "tags": []
+  },
+  "17a42034": {
+    "id": "17a42034",
+    "title": "Buy groceries",
+    "description": "Organic vegetables",
+    "status": "pending",
+    "priority": "high",
+    "created_at": "2025-11-07T10:39:04.149017",
+    "updated_at": "2025-11-07T10:39:04.149021",
+    "due_date": null,
+    "tags": []
+  },
+  "6b4f3ea6": {
+    "id": "6b4f3ea6",
+    "title": "Review FreEco.AI Documentation",
+    "description": "Read through all documentation and make notes",
+    "status": "pending",
+    "priority": "high",
+    "created_at": "2025-11-07T11:16:22.156445",
+    "updated_at": "2025-11-07T11:16:22.156450",
+    "due_date": null,
+    "tags": []
+  }
+}

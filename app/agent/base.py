@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.llm import LLM
+from app.llm_router import llm_router
 from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
@@ -50,7 +51,9 @@ class BaseAgent(BaseModel, ABC):
     def initialize_agent(self) -> "BaseAgent":
         """Initialize agent with default settings if not provided."""
         if self.llm is None or not isinstance(self.llm, LLM):
-            self.llm = LLM(config_name=self.name.lower())
+            # Use the router to select the model instance based on the agent's name
+            # The router will return the pre-initialized LLM instance
+            self.llm = llm_router.select_model(self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
         return self
