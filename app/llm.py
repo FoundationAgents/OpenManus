@@ -22,6 +22,9 @@ from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
+from app.schema import Message
+import httpx
+=======
 from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
@@ -170,7 +173,6 @@ class TokenCounter:
 
         return total_tokens
 
-
 class LLM:
     _instances: Dict[str, "LLM"] = {}
 
@@ -196,6 +198,10 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            self.proxy = config.proxy
+            http_client = None
+            if config.proxy:
+                http_client = httpx.AsyncClient(proxy=self.proxy["proxy_url"])
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -218,11 +224,16 @@ class LLM:
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
+                    http_client=http_client
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
             else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key, 
+                    base_url=self.base_url,
+                    http_client=http_client
+                )
 
             self.token_counter = TokenCounter(self.tokenizer)
 
