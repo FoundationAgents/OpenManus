@@ -38,7 +38,7 @@ from app.utils.logger import logger
 class ToolResult(BaseModel):
     """Represents the result of a tool execution."""
 
-    output: Any = Field(default=None)
+    output: Any = Field(default=None)  # 这里使用的是default方法，因此可以跨实例共享参数，实现工具使用结果的累积
     error: Optional[str] = Field(default=None)
     base64_image: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)

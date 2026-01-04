@@ -172,21 +172,21 @@ class TokenCounter:
 
 
 class LLM:
-    _instances: Dict[str, "LLM"] = {}
+    _instances: Dict[str, "LLM"] = {}  # 一个类级别的缓存字典，键是config_name，值是对应的LLM实例，以实现“每个配置只创建一次LLM实例”
 
-    def __new__(
+    def __new__(  # 在__init__之前调用
         cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
     ):
-        if config_name not in cls._instances:
-            instance = super().__new__(cls)
-            instance.__init__(config_name, llm_config)
-            cls._instances[config_name] = instance
-        return cls._instances[config_name]
+        if config_name not in cls._instances:  # 如果这个配置名没有被创建过，那么
+            instance = super().__new__(cls)  # 创建一个新实例
+            instance.__init__(config_name, llm_config)  # 由于__new__会绕过自动调用__init__，因此必须显示调用它，否则对象不会被初始化
+            cls._instances[config_name] = instance  # 缓存起来
+        return cls._instances[config_name]  # 返回缓存对象
 
     def __init__(
         self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
     ):
-        if not hasattr(self, "client"):  # Only initialize if not already initialized
+        if not hasattr(self, "client"):  # Only initialize if not already initialized（因为__new__可能会多次返回同一个实例）
             llm_config = llm_config or config.llm
             llm_config = llm_config.get(config_name, llm_config["default"])
             self.model = llm_config.model
@@ -635,9 +635,10 @@ class LLM:
             raise
 
     @retry(
-        wait=wait_random_exponential(min=1, max=60),
+        wait=wait_random_exponential(min=1, max=60),  # 指数退避+随即抖动: 每次等待时间呈指数级增长，但限制在[1s,60s]间，
+        # 并增加随机抖动以避免客户端同时失败后在同一时间点同时重试，即等待时间不是严格的指数数值
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
+        retry=retry_if_exception_type(  # 只在发生以下error时重试
             (OpenAIError, Exception, ValueError)
         ),  # Don't retry TokenLimitExceeded
     )

@@ -4,7 +4,7 @@ from typing import Any, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 
-class Role(str, Enum):
+class Role(str, Enum):  # 表示定义一个枚举类，该类的每个成员都是str型
     """Message role options"""
 
     SYSTEM = "system"
@@ -96,12 +96,12 @@ class Message(BaseModel):
             message["base64_image"] = self.base64_image
         return message
 
-    @classmethod
+    @classmethod  # 一种工厂方法，第一个参数必须是cls表示当前类。该方法可以通过类名或实例调用，但它不会访问实例的属性，智能访问类级别的东西
     def user_message(
         cls, content: str, base64_image: Optional[str] = None
     ) -> "Message":
         """Create a user message"""
-        return cls(role=Role.USER, content=content, base64_image=base64_image)
+        return cls(role=Role.USER, content=content, base64_image=base64_image)  # cls(...)表示用当前类构造一个实例
 
     @classmethod
     def system_message(cls, content: str) -> "Message":

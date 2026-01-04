@@ -3,6 +3,16 @@
       "server1": {
         "type": "sse",
         "url": "http://localhost:8000/sse"
+      },
+
+      "filesystem": {
+        "type": "stdio",
+        "command": "YOUR PATH TO npx.cmd",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "YOUR PATH TO THE workspace FOLDER"
+        ]
       }
     }
 }

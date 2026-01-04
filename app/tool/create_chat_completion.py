@@ -6,7 +6,7 @@ from app.tool import BaseTool
 
 
 class CreateChatCompletion(BaseTool):
-    name: str = "create_chat_completion"
+    name: str = "create_chat_completion"  # 标识工具名称与用途，供智能体注册和调用
     description: str = (
         "Creates a structured completion with specified output formatting."
     )
@@ -21,7 +21,10 @@ class CreateChatCompletion(BaseTool):
         list: "array",
     }
     response_type: Optional[Type] = None
-    required: List[str] = Field(default_factory=lambda: ["response"])
+    required: List[str] = Field(default_factory=lambda: ["response"])  # default_factory接受一个可调用对象，
+    # 因此需要借用lambda初始化，而不能直接赋值为["response"]，如果要直接赋值，应该使用default，但是我们在agent/base.py提到，default方式会使得
+    # 跨实例共享参数，因此这里采用default_factory + lambda结合的方式
+    # 这里required是指需要模型输出的东西
 
     def __init__(self, response_type: Optional[Type] = str):
         """Initialize with a specific response type."""
@@ -43,9 +46,9 @@ class CreateChatCompletion(BaseTool):
                 "required": self.required,
             }
 
-        if isinstance(self.response_type, type) and issubclass(
+        if isinstance(self.response_type, type) and issubclass(  # （所有类对象都是type的实例）
             self.response_type, BaseModel
-        ):
+        ):  # 如果self.response_type是一个Pydantic模型类，就用它的json schema来构建参数定义
             schema = self.response_type.model_json_schema()
             return {
                 "type": "object",
@@ -57,7 +60,7 @@ class CreateChatCompletion(BaseTool):
 
     def _create_type_schema(self, type_hint: Type) -> dict:
         """Create a JSON schema for the given type."""
-        origin = get_origin(type_hint)
+        origin = get_origin(type_hint)  # python泛型，用于获取容器的外层和内部参数类型
         args = get_args(type_hint)
 
         # Handle primitive types
@@ -105,7 +108,14 @@ class CreateChatCompletion(BaseTool):
         if origin is Union:
             return self._create_union_schema(args)
 
-        return self._build_parameters()
+        # return self._build_parameters()  # 如果self.response_type不是str、None、list、dict、Union，将发生死循环
+        return {
+            "type": "object",
+            "properties": {
+                "response": {"type": "string", "description": "Fallback schema"}
+            },
+            "required": self.required,
+        }
 
     def _get_type_info(self, type_hint: Type) -> dict:
         """Get type information for a single type."""
