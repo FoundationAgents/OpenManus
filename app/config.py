@@ -133,6 +133,7 @@ class MCPServerConfig(BaseModel):
     args: List[str] = Field(
         default_factory=list, description="Arguments for stdio command"
     )
+    headers: Dict[str, str] = Field(default_factory=dict, description="HTTP headers")
 
 
 class MCPSettings(BaseModel):
@@ -164,6 +165,7 @@ class MCPSettings(BaseModel):
                         type=server_config["type"],
                         url=server_config.get("url"),
                         command=server_config.get("command"),
+                        headers=server_config.get("headers", {}),
                         args=server_config.get("args", []),
                     )
                 return servers

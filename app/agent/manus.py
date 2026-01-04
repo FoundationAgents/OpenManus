@@ -85,6 +85,15 @@ class Manus(ToolCallAgent):
                         logger.info(
                             f"Connected to MCP server {server_id} using command {server_config.command}"
                         )
+                elif server_config.type == "streamableHttp":
+                    if server_config.url:
+                        await self.connect_mcp_server(
+                            server_config.url,
+                            server_id,
+                            use_http_stream=True,
+                            headers=server_config.headers
+                        )
+                        logger.info(f"Connected to streamableHttp server {server_id} at {server_config.url}")
             except Exception as e:
                 logger.error(f"Failed to connect to MCP server {server_id}: {e}")
 
@@ -93,12 +102,19 @@ class Manus(ToolCallAgent):
         server_url: str,
         server_id: str = "",
         use_stdio: bool = False,
+        use_http_stream: bool = False,
         stdio_args: List[str] = None,
+        headers: dict = None,
     ) -> None:
         """Connect to an MCP server and add its tools."""
         if use_stdio:
             await self.mcp_clients.connect_stdio(
                 server_url, stdio_args or [], server_id
+            )
+            self.connected_servers[server_id or server_url] = server_url
+        elif use_http_stream:  # streamable http
+            await self.mcp_clients.connect_streamable_http(
+                server_url=server_url, server_id=server_id, headers=headers
             )
             self.connected_servers[server_id or server_url] = server_url
         else:
