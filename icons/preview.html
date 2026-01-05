@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWA Icon Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      text-align: center;
+      color: #2563eb;
+      margin-bottom: 10px;
+      font-size: 2.5rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 40px;
+      font-size: 1.1rem;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .icon-item {
+      text-align: center;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 12px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .icon-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .icon-wrapper {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      display: inline-block;
+    }
+
+    .icon-item img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .icon-label {
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    .icon-size {
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      color: #1f2937;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .special-icons {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .special-icon {
+      flex: 0 1 300px;
+      text-align: center;
+      padding: 30px;
+      background: #f9fafb;
+      border-radius: 12px;
+    }
+
+    .maskable-demo {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .safe-zone {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      height: 80%;
+      border: 2px dashed #ef4444;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .safe-zone-label {
+      position: absolute;
+      bottom: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ef4444;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .icon-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PWA Icon Preview</h1>
+    <p class="subtitle">All icons generated and ready for your Progressive Web App</p>
+
+    <div class="section">
+      <h2 class="section-title">Standard Icons</h2>
+      <div class="icon-grid">
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-72x72.png" alt="72x72 icon">
+          </div>
+          <div class="icon-label">icon-72x72.png</div>
+          <div class="icon-size">72 × 72 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-96x96.png" alt="96x96 icon">
+          </div>
+          <div class="icon-label">icon-96x96.png</div>
+          <div class="icon-size">96 × 96 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-128x128.png" alt="128x128 icon">
+          </div>
+          <div class="icon-label">icon-128x128.png</div>
+          <div class="icon-size">128 × 128 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-144x144.png" alt="144x144 icon">
+          </div>
+          <div class="icon-label">icon-144x144.png</div>
+          <div class="icon-size">144 × 144 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-152x152.png" alt="152x152 icon">
+          </div>
+          <div class="icon-label">icon-152x152.png</div>
+          <div class="icon-size">152 × 152 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-192x192.png" alt="192x192 icon">
+          </div>
+          <div class="icon-label">icon-192x192.png</div>
+          <div class="icon-size">192 × 192 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-384x384.png" alt="384x384 icon">
+          </div>
+          <div class="icon-label">icon-384x384.png</div>
+          <div class="icon-size">384 × 384 pixels</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-wrapper">
+            <img src="icon-512x512.png" alt="512x512 icon">
+          </div>
+          <div class="icon-label">icon-512x512.png</div>
+          <div class="icon-size">512 × 512 pixels</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">Special Purpose Icons</h2>
+      <div class="special-icons">
+        <div class="special-icon">
+          <div class="maskable-demo">
+            <img src="maskable-icon-512x512.png" alt="Maskable icon" style="max-width: 200px;">
+            <div class="safe-zone">
+              <div class="safe-zone-label">80% Safe Zone</div>
+            </div>
+          </div>
+          <div class="icon-label">maskable-icon-512x512.png</div>
+          <div class="icon-size">512 × 512 pixels (Maskable)</div>
+        </div>
+
+        <div class="special-icon">
+          <div class="icon-wrapper">
+            <img src="home-96x96.png" alt="Home shortcut icon">
+          </div>
+          <div class="icon-label">home-96x96.png</div>
+          <div class="icon-size">96 × 96 pixels (Shortcut)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="background: #f0fdf4; padding: 20px; border-radius: 12px; border-left: 4px solid #10b981;">
+      <h3 style="color: #065f46; margin-bottom: 10px;">All Icons Generated Successfully!</h3>
+      <p style="color: #047857; margin-bottom: 10px;">
+        All 10 icon files have been created and are ready to use in your PWA.
+      </p>
+      <ul style="color: #065f46; margin-left: 20px; line-height: 1.8;">
+        <li>8 standard icons (72px to 512px)</li>
+        <li>1 maskable icon for adaptive display</li>
+        <li>1 shortcut icon for quick actions</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
