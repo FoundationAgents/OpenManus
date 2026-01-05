@@ -173,9 +173,9 @@ class ChatCompletions:
                         "role": bedrock_response.get("output", {})
                         .get("message", {})
                         .get("role", "assistant"),
-                        "tool_calls": openai_tool_calls
-                        if openai_tool_calls != []
-                        else None,
+                        "tool_calls": (
+                            openai_tool_calls if openai_tool_calls != [] else None
+                        ),
                         "function_call": None,
                     },
                 }
