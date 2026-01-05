@@ -30,12 +30,12 @@ jobs:
           echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
           echo "Retrieved PR head SHA from API: $SHA, target branch: $TARGET_BRANCH"
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.get-pr-sha.outputs.pr_sha }}
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Install dependencies
