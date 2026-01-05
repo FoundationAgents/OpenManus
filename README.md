@@ -10,6 +10,7 @@ English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](READM
 [![Discord Follow](https://dcbadge.vercel.app/api/server/DYn29wFk9z?style=flat)](https://discord.gg/DYn29wFk9z)
 [![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/lyh-917/OpenManusDemo)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15186407.svg)](https://doi.org/10.5281/zenodo.15186407)
+[![FoundationAgents/OpenManus context](https://badge.forgithub.com/FoundationAgents/OpenManus?accept=text%2Fhtml&maxTokens=10000000)](https://uithub.com/FoundationAgents/OpenManus?accept=text%2Fhtml&maxTokens=10000000)
 
 # 👋 OpenManus
 
