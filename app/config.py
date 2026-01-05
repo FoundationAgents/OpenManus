@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import tomllib
 from pathlib import Path
@@ -10,6 +11,29 @@ from pydantic import BaseModel, Field
 def get_project_root() -> Path:
     """Get the project root directory"""
     return Path(__file__).resolve().parent.parent
+
+
+def get_env_or_config(env_key: str, config_value: any, default: any = None) -> any:
+    """Get value from environment variable or fall back to config value."""
+    env_value = os.getenv(env_key)
+    if env_value is not None:
+        # Handle boolean values
+        if isinstance(default, bool):
+            return env_value.lower() in ("true", "1", "yes", "on")
+        # Handle integer values
+        elif isinstance(default, int):
+            try:
+                return int(env_value)
+            except (ValueError, TypeError):
+                return config_value if config_value is not None else default
+        # Handle float values
+        elif isinstance(default, float):
+            try:
+                return float(env_value)
+            except (ValueError, TypeError):
+                return config_value if config_value is not None else default
+        return env_value
+    return config_value if config_value is not None else default
 
 
 PROJECT_ROOT = get_project_root()
@@ -95,6 +119,7 @@ class SandboxSettings(BaseModel):
     """Configuration for the execution sandbox"""
 
     use_sandbox: bool = Field(False, description="Whether to use the sandbox")
+    backend: str = Field("docker", description="Sandbox backend (docker, gitpod, e2b)")
     image: str = Field("python:3.12-slim", description="Base image")
     work_dir: str = Field("/workspace", description="Container working directory")
     memory_limit: str = Field("512m", description="Memory limit")
@@ -104,9 +129,22 @@ class SandboxSettings(BaseModel):
         False, description="Whether network access is allowed"
     )
 
+    # GitPod specific settings
+    gitpod_url: Optional[str] = Field(None, description="GitPod server URL")
+    gitpod_token: Optional[str] = Field(None, description="GitPod API token")
+
+    # E2B specific settings
+    e2b_api_key: Optional[str] = Field(None, description="E2B API key")
+    e2b_template: str = Field("base", description="E2B template name")
+
+    # Auto management settings
+    auto_cleanup: bool = Field(True, description="Automatically cleanup sandboxes")
+    max_sandboxes: int = Field(10, description="Maximum concurrent sandboxes")
+    idle_timeout: int = Field(3600, description="Idle timeout in seconds")
+
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = Field(None, description="Daytona API key")
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -237,15 +275,30 @@ class Config:
             k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
         }
 
+        # Support environment variables for LLM configuration
         default_settings = {
-            "model": base_llm.get("model"),
-            "base_url": base_llm.get("base_url"),
-            "api_key": base_llm.get("api_key"),
-            "max_tokens": base_llm.get("max_tokens", 4096),
+            "model": get_env_or_config("LLM_MODEL", base_llm.get("model")),
+            "base_url": get_env_or_config("LLM_BASE_URL", base_llm.get("base_url")),
+            "api_key": get_env_or_config(
+                "ANTHROPIC_API_KEY",
+                get_env_or_config(
+                    "OPENAI_API_KEY",
+                    get_env_or_config("AZURE_OPENAI_API_KEY", base_llm.get("api_key")),
+                ),
+            ),
+            "max_tokens": get_env_or_config(
+                "LLM_MAX_TOKENS", base_llm.get("max_tokens", 4096), 4096
+            ),
             "max_input_tokens": base_llm.get("max_input_tokens"),
-            "temperature": base_llm.get("temperature", 1.0),
-            "api_type": base_llm.get("api_type", ""),
-            "api_version": base_llm.get("api_version", ""),
+            "temperature": get_env_or_config(
+                "LLM_TEMPERATURE", base_llm.get("temperature", 1.0), 1.0
+            ),
+            "api_type": get_env_or_config(
+                "LLM_API_TYPE", base_llm.get("api_type", ""), ""
+            ),
+            "api_version": get_env_or_config(
+                "LLM_API_VERSION", base_llm.get("api_version", ""), ""
+            ),
         }
 
         # handle browser config.
@@ -285,14 +338,66 @@ class Config:
         search_settings = None
         if search_config:
             search_settings = SearchSettings(**search_config)
+
+        # Sandbox configuration with environment variable support
         sandbox_config = raw_config.get("sandbox", {})
-        if sandbox_config:
-            sandbox_settings = SandboxSettings(**sandbox_config)
+        if sandbox_config or os.getenv("USE_SANDBOX"):
+            sandbox_dict = {
+                "use_sandbox": get_env_or_config(
+                    "USE_SANDBOX", sandbox_config.get("use_sandbox", False), False
+                ),
+                "backend": get_env_or_config(
+                    "SANDBOX_BACKEND", sandbox_config.get("backend", "docker"), "docker"
+                ),
+                "image": get_env_or_config(
+                    "SANDBOX_IMAGE",
+                    sandbox_config.get("image", "python:3.12-slim"),
+                    "python:3.12-slim",
+                ),
+                "work_dir": sandbox_config.get("work_dir", "/workspace"),
+                "memory_limit": get_env_or_config(
+                    "SANDBOX_MEMORY_LIMIT",
+                    sandbox_config.get("memory_limit", "512m"),
+                    "512m",
+                ),
+                "cpu_limit": get_env_or_config(
+                    "SANDBOX_CPU_LIMIT", sandbox_config.get("cpu_limit", 1.0), 1.0
+                ),
+                "timeout": get_env_or_config(
+                    "SANDBOX_TIMEOUT", sandbox_config.get("timeout", 300), 300
+                ),
+                "network_enabled": sandbox_config.get("network_enabled", False),
+            }
+            sandbox_settings = SandboxSettings(**sandbox_dict)
         else:
             sandbox_settings = SandboxSettings()
+
+        # Daytona configuration with environment variable support
         daytona_config = raw_config.get("daytona", {})
-        if daytona_config:
-            daytona_settings = DaytonaSettings(**daytona_config)
+        if daytona_config or os.getenv("DAYTONA_API_KEY"):
+            daytona_dict = {
+                "daytona_api_key": get_env_or_config(
+                    "DAYTONA_API_KEY", daytona_config.get("daytona_api_key", "")
+                ),
+                "daytona_server_url": get_env_or_config(
+                    "DAYTONA_SERVER_URL",
+                    daytona_config.get(
+                        "daytona_server_url", "https://app.daytona.io/api"
+                    ),
+                ),
+                "daytona_target": get_env_or_config(
+                    "DAYTONA_TARGET", daytona_config.get("daytona_target", "us")
+                ),
+                "sandbox_image_name": daytona_config.get(
+                    "sandbox_image_name", "whitezxj/sandbox:0.1.0"
+                ),
+                "sandbox_entrypoint": daytona_config.get(
+                    "sandbox_entrypoint",
+                    "/usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf",
+                ),
+                "VNC_password": daytona_config.get("VNC_password", "123456"),
+            }
+            daytona_settings = DaytonaSettings(**daytona_dict)
         else:
             daytona_settings = DaytonaSettings()
 
