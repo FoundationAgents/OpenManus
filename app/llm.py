@@ -30,12 +30,13 @@ from app.schema import (
     ToolChoice,
 )
 
-
-REASONING_MODELS = ["o1", "o3-mini"]
+REASONING_MODELS = ["o1", "o3-mini", "gpt-5", "gpt-5-mini"]
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
     "gpt-4o",
     "gpt-4o-mini",
+    "gpt-5",
+    "gpt-5-mini",
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
