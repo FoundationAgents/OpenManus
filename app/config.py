@@ -36,6 +36,18 @@ class ProxySettings(BaseModel):
     password: Optional[str] = Field(None, description="Proxy password")
 
 
+class GoogleSearchSettings(BaseModel):
+    """Specific settings for Google Search API"""
+
+    use_api: bool = Field(
+        False, description="Set true to use official API instead of scraping"
+    )
+    googlesearch_api_key: Optional[str] = Field(
+        None, description="Google Custom Search JSON API Key"
+    )
+    cx: Optional[str] = Field(None, description="Google Programmable Search Engine ID")
+
+
 class SearchSettings(BaseModel):
     engine: str = Field(default="Google", description="Search engine the llm to use")
     fallback_engines: List[str] = Field(
@@ -57,6 +69,9 @@ class SearchSettings(BaseModel):
     country: str = Field(
         default="us",
         description="Country code for search results (e.g., us, cn, uk)",
+    )
+    google: Optional[GoogleSearchSettings] = Field(
+        None, description="Google specific search settings"
     )
 
 
@@ -281,10 +296,22 @@ class Config:
             if valid_browser_params:
                 browser_settings = BrowserSettings(**valid_browser_params)
 
-        search_config = raw_config.get("search", {})
+        # handle search config
+        search_config_raw = raw_config.get("search", {})
         search_settings = None
-        if search_config:
-            search_settings = SearchSettings(**search_config)
+        if search_config_raw:
+            # Extract google specific settings first
+            google_config_raw = search_config_raw.pop("google", None)
+            google_settings = None
+            if google_config_raw:
+                # Create GoogleSearchSettings if google section exists
+                google_settings = GoogleSearchSettings(**google_config_raw)
+
+            # Instantiate SearchSettings with remaining general settings
+            search_settings = SearchSettings(**search_config_raw)
+            # Assign the parsed google settings
+            search_settings.google = google_settings
+
         sandbox_config = raw_config.get("sandbox", {})
         if sandbox_config:
             sandbox_settings = SandboxSettings(**sandbox_config)
