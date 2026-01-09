@@ -135,6 +135,14 @@ For unstable multi-agent version, you also can run:
 
 ```bash
 python run_flow.py
+
+## Experiments
+
+```
+GAIA benchmark, you can run:
+
+```bash
+python run_gaia.py
 ```
 
 ### Custom Adding Multiple Agents
