@@ -106,7 +106,9 @@ class SandboxSettings(BaseModel):
 
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = Field(
+        None, description="API key for Daytona service"
+    )
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -135,11 +137,22 @@ class MCPServerConfig(BaseModel):
     )
 
 
+class MCPServerConfig(BaseModel):
+    """Configuration for a single MCP server"""
+
+    type: str = Field(..., description="Server connection type (sse or stdio)")
+    url: Optional[str] = Field(None, description="Server URL for SSE connections")
+    command: Optional[str] = Field(None, description="Command for stdio connections")
+    args: List[str] = Field(
+        default_factory=list, description="Arguments for stdio command"
+    )
+
+
 class MCPSettings(BaseModel):
     """Configuration for MCP (Model Context Protocol)"""
 
     server_reference: str = Field(
-        "app.mcp.server", description="Module reference for the MCP server"
+        "app.mcp.server", description="Module reference for MCP server"
     )
     servers: Dict[str, MCPServerConfig] = Field(
         default_factory=dict, description="MCP server configurations"
@@ -171,6 +184,25 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP server config: {e}")
 
 
+class SkillsSettings(BaseModel):
+    """Configuration for Agent Skills"""
+
+    enabled: bool = Field(True, description="Enable skills system")
+    paths: List[str] = Field(
+        default_factory=lambda: [
+            str(PROJECT_ROOT / ".claude" / "skills"),
+            str(PROJECT_ROOT / "config" / "skills"),
+        ],
+        description="Paths to search for skills",
+    )
+    auto_activate: bool = Field(
+        True, description="Automatically activate relevant skills"
+    )
+    threshold: float = Field(
+        0.3, description="Minimum relevance threshold for auto-activation"
+    )
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -188,6 +220,9 @@ class AppConfig(BaseModel):
     )
     daytona_config: Optional[DaytonaSettings] = Field(
         None, description="Daytona configuration"
+    )
+    skills_config: Optional[SkillsSettings] = Field(
+        None, description="Skills configuration"
     )
 
     class Config:
@@ -305,6 +340,12 @@ class Config:
         else:
             mcp_settings = MCPSettings(servers=MCPSettings.load_server_config())
 
+        skills_config = raw_config.get("skills", {})
+        if skills_config:
+            skills_settings = SkillsSettings(**skills_config)
+        else:
+            skills_settings = SkillsSettings()
+
         run_flow_config = raw_config.get("runflow")
         if run_flow_config:
             run_flow_settings = RunflowSettings(**run_flow_config)
@@ -324,6 +365,7 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
+            "skills_config": skills_settings,
         }
 
         self._config = AppConfig(**config_dict)
@@ -355,8 +397,13 @@ class Config:
 
     @property
     def run_flow_config(self) -> RunflowSettings:
-        """Get the Run Flow configuration"""
+        """Get Run Flow configuration"""
         return self._config.run_flow_config
+
+    @property
+    def skills_config(self) -> SkillsSettings:
+        """Get Skills configuration"""
+        return self._config.skills_config
 
     @property
     def workspace_root(self) -> Path:

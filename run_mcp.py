@@ -29,6 +29,7 @@ class MCPRunner:
                 connection_type="stdio",
                 command=sys.executable,
                 args=["-m", self.server_reference],
+                server_id="openmanus",  # Provide clean server_id
             )
         else:  # sse
             await self.agent.initialize(connection_type="sse", server_url=server_url)

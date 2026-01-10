@@ -7,6 +7,8 @@ from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.schema import Message
+from app.skill_manager import skill_manager
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
@@ -49,6 +51,9 @@ class Manus(ToolCallAgent):
         default_factory=dict
     )  # server_id -> url/command
     _initialized: bool = False
+
+    # Active skills for this agent
+    active_skills: Dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def initialize_helper(self) -> "Manus":
@@ -136,12 +141,88 @@ class Manus(ToolCallAgent):
         if self._initialized:
             await self.disconnect_mcp_server()
             self._initialized = False
+        # Clear active skills
+        self.active_skills.clear()
+
+    async def activate_skills(self, user_request: str) -> None:
+        """Automatically activate relevant skills based on user request."""
+        if not config.skills_config.enabled or not config.skills_config.auto_activate:
+            return
+
+        relevant_skills = skill_manager.get_relevant_skills(
+            user_request,
+            threshold=config.skills_config.threshold,
+        )
+
+        for skill in relevant_skills:
+            if skill.name not in self.active_skills:
+                self.active_skills[skill.name] = skill.get_full_prompt()
+                logger.info(f"🎯 Activated skill: {skill.name}")
+
+    def get_skill_system_prompt(self) -> Optional[str]:
+        """Get combined system prompt from all active skills."""
+        if not self.active_skills:
+            return None
+
+        skill_prompts = []
+        for skill_name, skill_content in self.active_skills.items():
+            skill_prompts.append(
+                f"\n=== Skill: {skill_name} ===\n{skill_content}\n=== End Skill ===\n"
+            )
+
+        combined = (
+            "\n\n"
+            + "=" * 50
+            + "\n"
+            + "Active Skills:\n"
+            + "=" * 50
+            + "\n"
+            + "\n".join(skill_prompts)
+        )
+        return combined
+
+    async def activate_skill_by_name(self, skill_name: str) -> bool:
+        """Manually activate a specific skill by name."""
+        skill = skill_manager.get_skill(skill_name)
+        if not skill:
+            logger.warning(f"Skill not found: {skill_name}")
+            return False
+
+        if skill.name in self.active_skills:
+            logger.info(f"Skill already active: {skill_name}")
+            return True
+
+        self.active_skills[skill.name] = skill.get_full_prompt()
+        logger.info(f"🎯 Manually activated skill: {skill_name}")
+        return True
+
+    def deactivate_skill(self, skill_name: str) -> bool:
+        """Deactivate a specific skill."""
+        if skill_name not in self.active_skills:
+            logger.warning(f"Skill not active: {skill_name}")
+            return False
+
+        del self.active_skills[skill_name]
+        logger.info(f"🚫 Deactivated skill: {skill_name}")
+        return True
+
+    def list_active_skills(self) -> List[str]:
+        """List all currently active skills."""
+        return list(self.active_skills.keys())
 
     async def think(self) -> bool:
         """Process current state and decide next actions with appropriate context."""
         if not self._initialized:
             await self.initialize_mcp_servers()
             self._initialized = True
+
+        # Activate relevant skills on first think
+        if not self.active_skills and self.memory.messages:
+            # Get user's first request
+            for msg in self.memory.messages[:3]:
+                if msg.role == "user" and msg.content:
+                    await self.activate_skills(msg.content)
+                    break
 
         original_prompt = self.next_step_prompt
         recent_messages = self.memory.messages[-3:] if self.memory.messages else []
@@ -157,9 +238,22 @@ class Manus(ToolCallAgent):
                 await self.browser_context_helper.format_next_step_prompt()
             )
 
+        # Add skill prompts to context
+        skill_system_prompt = self.get_skill_system_prompt()
+        if skill_system_prompt and self.system_prompt:
+            # Temporarily append skill prompts to system prompt
+            self.system_prompt = self.system_prompt + skill_system_prompt
+
         result = await super().think()
 
         # Restore original prompt
         self.next_step_prompt = original_prompt
+
+        # Remove skill prompts from system prompt to avoid accumulating
+        if skill_system_prompt:
+            # Remove skill section that was added
+            base_prompt = self.system_prompt
+            if "Active Skills:" in base_prompt:
+                base_prompt = base_prompt[: base_prompt.index("Active Skills:")]
 
         return result
