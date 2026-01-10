@@ -17,8 +17,9 @@ from app.utils.logger import logger
 # load_dotenv()
 daytona_settings = config.daytona
 logger.info("Initializing Daytona sandbox configuration")
+api_key_or_jwt = getattr(daytona_settings, "daytona_api_key", None) or getattr(daytona_settings, "daytona_jwt_token", None)
 daytona_config = DaytonaConfig(
-    api_key=daytona_settings.daytona_api_key,
+    api_key=api_key_or_jwt,
     server_url=daytona_settings.daytona_server_url,
     target=daytona_settings.daytona_target,
 )

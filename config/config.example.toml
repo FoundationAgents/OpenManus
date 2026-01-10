@@ -107,6 +107,17 @@ temperature = 0.0                          # Controls randomness for vision mode
 [mcp]
 server_reference = "app.mcp.server" # default server module reference
 
+# Optional Agent Skills configuration
+[skills]
+enabled = true                                    # Enable skills system
+# Paths to search for skills (supports project, personal, and plugin skills)
+paths = [
+    ".claude/skills",
+    "config/skills"
+]
+auto_activate = true                             # Automatically activate relevant skills based on request
+threshold = 0.3                                # Minimum relevance threshold for auto-activation (0.0-1.0)
+
 # Optional Runflow configuration
 # Your can add additional agents into run-flow workflow to solve different-type tasks.
 [runflow]
