@@ -1,51 +1,97 @@
 from __future__ import annotations
 
+import asyncio
+import os
 import threading
 import uuid
-from typing import Dict, Optional
+from typing import Optional
 
-from core.task import Task
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from core.task import Task, TaskStatus
+from server.models import Base, TaskORM
 
 
 class TaskRegistry:
-    """In-memory registry for Task objects.
+    """Database-backed registry for Task objects using SQLAlchemy."""
 
-    Designed to be framework-agnostic so it can back future HTTP or WebSocket
-    layers without introducing those dependencies here.
-    """
-
-    def __init__(self) -> None:
-        self._tasks: Dict[str, Task] = {}
+    def __init__(self, db_url: Optional[str] = None) -> None:
         self._lock = threading.RLock()
+        self.db_url = db_url or os.getenv(
+            "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/openmanus"
+        )
+        self.engine = create_engine(self.db_url)
+        Base.metadata.create_all(self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
 
-    def create_task(self, task_id: Optional[str] = None, **task_kwargs) -> Task:
-        """Create and register a new task.
+    def _to_task(self, orm: TaskORM) -> Task:
+        status = TaskStatus(orm.status) if orm.status in TaskStatus._value2member_map_ else TaskStatus.CREATED
+        # Use fresh queue per retrieval; events are in-memory only
+        return Task(
+            id=str(orm.task_id),
+            status=status,
+            event_queue=asyncio.Queue(),
+            interrupt_flag=False,
+        )
 
-        task_id: Optional explicit id; if omitted, a UUID4 string is used.
-        task_kwargs: Forwarded to Task constructor (e.g., custom event_queue).
-        """
+    def create_task(
+        self, task_id: Optional[str] = None, input: Optional[dict] = None, **task_kwargs
+    ) -> Task:
         with self._lock:
             tid = task_id or str(uuid.uuid4())
-            if tid in self._tasks:
-                raise ValueError(f"Task with id '{tid}' already exists")
-
-            task = Task(id=tid, **task_kwargs)
-            self._tasks[tid] = task
-            return task
+            session = self.SessionLocal()
+            try:
+                orm = TaskORM(task_id=tid, status=TaskStatus.CREATED.value, input=input)
+                session.add(orm)
+                session.commit()
+                task = Task(id=tid, status=TaskStatus.CREATED, **task_kwargs)
+                return task
+            finally:
+                session.close()
 
     def get_task(self, task_id: str) -> Optional[Task]:
-        """Retrieve a task by id."""
         with self._lock:
-            return self._tasks.get(task_id)
+            session = self.SessionLocal()
+            try:
+                orm = session.get(TaskORM, task_id)
+                if orm is None:
+                    return None
+                return self._to_task(orm)
+            finally:
+                session.close()
+
+    def update_task(self, task: Task, result: Optional[dict] = None) -> Task:
+        with self._lock:
+            session = self.SessionLocal()
+            try:
+                orm = session.get(TaskORM, task.id)
+                if orm is None:
+                    orm = TaskORM(task_id=task.id)
+                    session.add(orm)
+                orm.status = task.status.value if isinstance(task.status, TaskStatus) else str(task.status)
+                if hasattr(task, "input"):
+                    orm.input = getattr(task, "input")
+                orm.result = result if result is not None else orm.result
+                session.commit()
+                return task
+            finally:
+                session.close()
 
     def interrupt_task(self, task_id: str) -> Optional[Task]:
-        """Interrupt a task if it exists; returns the task or None."""
         with self._lock:
-            task = self._tasks.get(task_id)
-            if task is None:
-                return None
-            task.interrupt()
-            return task
+            session = self.SessionLocal()
+            try:
+                orm = session.get(TaskORM, task_id)
+                if orm is None:
+                    return None
+                orm.status = TaskStatus.INTERRUPTED.value
+                session.commit()
+                task = self._to_task(orm)
+                task.interrupt()
+                return task
+            finally:
+                session.close()
 
 
 __all__ = ["TaskRegistry"]
