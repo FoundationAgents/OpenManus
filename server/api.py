@@ -7,6 +7,7 @@ from app.agent.manus import Manus
 from app.agent.base import TaskInterrupted
 from core.task import TaskStatus
 from core.task_registry import TaskRegistry
+from core.task_runner import run_with_status
 
 
 app = FastAPI(title="OpenManus Task API", version="0.1.0")
@@ -18,17 +19,11 @@ async def _run_agent(task_id: str, prompt: Optional[str]) -> None:
     if not task:
         return
 
-    task.status = TaskStatus.RUNNING
-    try:
+    async def _work():
         agent = await Manus.create()
         await agent.run(task, prompt)
-        if task.status == TaskStatus.RUNNING:
-            task.status = TaskStatus.DONE
-    except TaskInterrupted:
-        task.status = TaskStatus.INTERRUPTED
-    except Exception as exc:  # pragma: no cover - background safety
-        task.status = TaskStatus.FAILED
-        task.emit("error", {"message": str(exc)})
+
+    await run_with_status(task, _work())
 
 
 @app.post("/tasks")
