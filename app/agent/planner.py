@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 from app.agent.base import BaseAgent, Task, TaskInterrupted
+from context.engine import ContextEngine
 from app.schema import Message
 from app.prompt.planning import PLANNING_SYSTEM_PROMPT
 
@@ -65,9 +66,12 @@ class PlannerAgent(BaseAgent):
             f"\n\nTask: {request}"
         )
 
+        context = ContextEngine.build(task, agent_role=self.name, step_type="plan")
+        ctx_msg = Message.system_message(json.dumps(context, ensure_ascii=False))
+
         response = await self.llm.ask(
             messages=[Message.user_message(user_prompt)],
-            system_msgs=[Message.system_message(self.system_prompt)],
+            system_msgs=[Message.system_message(self.system_prompt), ctx_msg],
         )
 
         plan = self._parse_plan(response)

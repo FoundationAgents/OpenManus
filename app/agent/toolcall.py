@@ -6,6 +6,7 @@ from pydantic import Field
 
 from app.agent.react import ReActAgent
 from app.agent.base import Task, TaskInterrupted
+from context.engine import ContextEngine
 from app.exceptions import TokenLimitExceeded
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
@@ -46,16 +47,22 @@ class ToolCallAgent(ReActAgent):
             self.messages += [user_msg]
 
         try:
+            context = ContextEngine.build(task, agent_role=self.name)
+            context_msg = Message.system_message(
+                json.dumps(context, ensure_ascii=False)
+            )
             if task.is_interrupted():
                 raise TaskInterrupted()
 
+            system_msgs = (
+                [Message.system_message(self.system_prompt), context_msg]
+                if self.system_prompt
+                else [context_msg]
+            )
+
             response = await self.llm.ask_tool(
                 messages=self.messages,
-                system_msgs=(
-                    [Message.system_message(self.system_prompt)]
-                    if self.system_prompt
-                    else None
-                ),
+                system_msgs=system_msgs,
                 tools=self.available_tools.to_params(),
                 tool_choice=self.tool_choices,
             )
