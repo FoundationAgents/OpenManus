@@ -42,3 +42,5 @@ huggingface-hub~=0.29.2
 setuptools~=75.8.0
 sqlalchemy~=2.0.36
 psycopg2-binary~=2.9.10
+celery~=5.4.0
+redis~=5.2.1

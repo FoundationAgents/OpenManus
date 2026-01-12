@@ -8,29 +8,29 @@ from app.agent.manus import Manus
 from core.task import TaskStatus
 from core.task_registry import TaskRegistry
 from core.task_runner import run_with_status
+from server.tasks import run_task
 
 app = FastAPI(title="OpenManus Task API", version="0.1.0")
 registry = TaskRegistry()
 
 
 async def _run_agent(task_id: str, prompt: Optional[str]) -> None:
+    # Legacy background runner (unused when Celery is available)
     task = registry.get_task(task_id)
     if not task:
         return
-
     async def _work():
         agent = await Manus.create()
         await agent.run(task, prompt)
-
     await run_with_status(task, _work())
 
 
 @app.post("/tasks")
-async def create_task(prompt: Optional[str] = None, background: BackgroundTasks = None):
-    task = registry.create_task()
+async def create_task(prompt: Optional[str] = None):
+    task = registry.create_task(input={"prompt": prompt} if prompt else None)
     task.status = TaskStatus.CREATED
-    if background is not None:
-        background.add_task(_run_agent, task.id, prompt)
+    # enqueue Celery task
+    run_task.delay(task.id, prompt)
     return {"id": task.id, "status": task.status}
 
 
