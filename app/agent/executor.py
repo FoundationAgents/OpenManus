@@ -1,8 +1,8 @@
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
-from app.agent.toolcall import ToolCallAgent
 from app.agent.base import Task, TaskInterrupted
+from app.agent.toolcall import ToolCallAgent
 
 
 class ExecutorAgent(ToolCallAgent):

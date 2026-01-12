@@ -1,16 +1,16 @@
 from typing import Optional
 
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 
-from app.agent.base import TaskInterrupted
 from app.agent.manus import Manus
 from core.task import TaskStatus
 from core.task_registry import TaskRegistry
 from core.task_runner import run_with_status
-from server.tasks import run_task
 from server.celery_app import celery_app
 from server.models import TaskORM
+from server.tasks import run_task
+
 
 app = FastAPI(title="OpenManus Task API", version="0.1.0")
 registry = TaskRegistry()
@@ -21,9 +21,11 @@ async def _run_agent(task_id: str, prompt: Optional[str]) -> None:
     task = registry.get_task(task_id)
     if not task:
         return
+
     async def _work():
         agent = await Manus.create()
         await agent.run(task, prompt)
+
     await run_with_status(task, _work())
 
 

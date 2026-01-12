@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import queue
-import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional, Union
@@ -60,7 +59,9 @@ class Task:
         elif isinstance(self.event_queue, queue.Queue):
             self.event_queue.put_nowait(event)
         else:
-            raise TypeError("event_queue must be an asyncio.Queue or queue.Queue instance")
+            raise TypeError(
+                "event_queue must be an asyncio.Queue or queue.Queue instance"
+            )
 
     def interrupt(self) -> None:
         """Mark task as interrupted."""

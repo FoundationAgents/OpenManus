@@ -157,7 +157,9 @@ class BaseAgent(BaseModel, ABC):
                 if self.current_step >= self.max_steps:
                     self.current_step = 0
                     self.state = AgentState.IDLE
-                    termination_msg = f"Terminated: Reached max steps ({self.max_steps})"
+                    termination_msg = (
+                        f"Terminated: Reached max steps ({self.max_steps})"
+                    )
                     results.append(termination_msg)
                     task.emit("terminated", {"reason": termination_msg})
             return "\n".join(results) if results else "No steps executed"

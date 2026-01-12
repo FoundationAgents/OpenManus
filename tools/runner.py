@@ -1,11 +1,11 @@
 import asyncio
 import io
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from typing import Any, Mapping, Optional
 
 from app.agent.base import TaskInterrupted
-from core.task import Task
 from app.tool.base import BaseTool, ToolResult
+from core.task import Task
 
 
 class ToolRunner:
@@ -48,16 +48,23 @@ class ToolRunner:
 
         while True:
             done, _ = await asyncio.wait(
-                {tool_task}, timeout=self.check_interval, return_when=asyncio.FIRST_COMPLETED
+                {tool_task},
+                timeout=self.check_interval,
+                return_when=asyncio.FIRST_COMPLETED,
             )
             if task.is_interrupted():
                 tool_task.cancel()
                 raise TaskInterrupted()
             if done:
                 break
-            if timeout is not None and (asyncio.get_event_loop().time() - start) > timeout:
+            if (
+                timeout is not None
+                and (asyncio.get_event_loop().time() - start) > timeout
+            ):
                 tool_task.cancel()
-                return ToolResult(error=f"Tool '{tool_name}' execution timed out after {timeout} seconds")
+                return ToolResult(
+                    error=f"Tool '{tool_name}' execution timed out after {timeout} seconds"
+                )
 
         try:
             result, stdout_text, stderr_text = await tool_task
@@ -75,7 +82,11 @@ class ToolRunner:
 
         if isinstance(result, ToolResult):
             if system_info:
-                return result.replace(system=system_info if not result.system else f"{result.system}\n{system_info}")
+                return result.replace(
+                    system=system_info
+                    if not result.system
+                    else f"{result.system}\n{system_info}"
+                )
             return result
 
         return ToolResult(output=result, system=system_info)

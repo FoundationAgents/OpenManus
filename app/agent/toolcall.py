@@ -4,13 +4,13 @@ from typing import Any, List, Optional, Union
 
 from pydantic import Field
 
-from app.agent.react import ReActAgent
 from app.agent.base import Task, TaskInterrupted
-from context.engine import ContextEngine
+from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from context.engine import ContextEngine
 
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
@@ -98,7 +98,9 @@ class ToolCallAgent(ReActAgent):
                 "agent": self.name,
                 "content": content,
                 "tool_count": len(tool_calls) if tool_calls else 0,
-                "tools": [call.function.name for call in tool_calls] if tool_calls else [],
+                "tools": [call.function.name for call in tool_calls]
+                if tool_calls
+                else [],
                 "arguments": tool_calls[0].function.arguments if tool_calls else None,
             },
         )
@@ -239,9 +241,7 @@ class ToolCallAgent(ReActAgent):
             )
             return f"Error: {error_msg}"
 
-    async def _handle_special_tool(
-        self, task: Task, name: str, result: Any, **kwargs
-    ):
+    async def _handle_special_tool(self, task: Task, name: str, result: Any, **kwargs):
         """Handle special tool execution and state changes."""
         if not self._is_special_tool(name):
             return

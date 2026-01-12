@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, model_validator
 
-from app.agent.toolcall import ToolCallAgent
 from app.agent.base import Task, TaskInterrupted
+from app.agent.toolcall import ToolCallAgent
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
@@ -38,7 +38,7 @@ class BrowserContextHelper:
             else:
                 self._current_base64_image = None
             return json.loads(result.output)
-        except Exception as e:
+        except Exception:
             return None
 
     async def format_next_step_prompt(self) -> str:

@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 from app.agent.base import BaseAgent, Task, TaskInterrupted
-from context.engine import ContextEngine
-from app.schema import Message
 from app.prompt.planning import PLANNING_SYSTEM_PROMPT
+from app.schema import Message
+from context.engine import ContextEngine
 
 
 class PlannerAgent(BaseAgent):
@@ -40,9 +40,7 @@ class PlannerAgent(BaseAgent):
         task.emit("plan.done", {"steps": len(plan), "plan": plan})
         return plan
 
-    async def _generate_plan(
-        self, task: Task, request: str
-    ) -> List[Dict[str, Any]]:
+    async def _generate_plan(self, task: Task, request: str) -> List[Dict[str, Any]]:
         """Use the existing LLM to create a structured plan without calling tools."""
         if task.is_interrupted():
             raise TaskInterrupted()

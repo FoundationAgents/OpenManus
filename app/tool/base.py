@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.utils.logger import logger
 

@@ -2,9 +2,9 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
-from app.agent.base import Task, TaskInterrupted
 from app.config import config
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection

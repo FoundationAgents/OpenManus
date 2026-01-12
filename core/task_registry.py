@@ -19,14 +19,19 @@ class TaskRegistry:
     def __init__(self, db_url: Optional[str] = None) -> None:
         self._lock = threading.RLock()
         self.db_url = db_url or os.getenv(
-            "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/openmanus"
+            "DATABASE_URL",
+            "postgresql+psycopg2://postgres:postgres@localhost:5432/openmanus",
         )
         self.engine = create_engine(self.db_url)
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def _to_task(self, orm: TaskORM) -> Task:
-        status = TaskStatus(orm.status) if orm.status in TaskStatus._value2member_map_ else TaskStatus.CREATED
+        status = (
+            TaskStatus(orm.status)
+            if orm.status in TaskStatus._value2member_map_
+            else TaskStatus.CREATED
+        )
         # Use fresh queue per retrieval; events are in-memory only
         return Task(
             id=str(orm.task_id),
@@ -69,7 +74,11 @@ class TaskRegistry:
                 if orm is None:
                     orm = TaskORM(task_id=task.id)
                     session.add(orm)
-                orm.status = task.status.value if isinstance(task.status, TaskStatus) else str(task.status)
+                orm.status = (
+                    task.status.value
+                    if isinstance(task.status, TaskStatus)
+                    else str(task.status)
+                )
                 if hasattr(task, "input"):
                     orm.input = getattr(task, "input")
                 orm.result = result if result is not None else orm.result

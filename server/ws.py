@@ -7,6 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from core.task_registry import TaskRegistry
 
+
 # Reuse registry from REST API if available; fallback to a local registry.
 try:  # pragma: no cover - optional import
     from server.api import registry as api_registry

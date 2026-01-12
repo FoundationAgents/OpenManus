@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional
-import queue
 import asyncio
+import json
+import queue
+from typing import Any, Dict, List, Optional
 
 from core.task import Task
 
@@ -82,7 +82,8 @@ class ContextEngine:
         tool_events = [
             ev
             for ev in events
-            if ev.get("type") in {"tool.call", "tool.result", "step_result", "execute.step.start"}
+            if ev.get("type")
+            in {"tool.call", "tool.result", "step_result", "execute.step.start"}
         ]
         return tool_events[-limit:]
 
@@ -90,7 +91,9 @@ class ContextEngine:
     def _summarize(events: List[Dict[str, Any]], hard_facts: Dict[str, Any]) -> str:
         tool_calls = sum(1 for e in events if e.get("type") == "tool.call")
         tool_results = sum(1 for e in events if e.get("type") == "tool.result")
-        steps = sum(1 for e in events if e.get("type") in {"plan.step", "execute.step.start"})
+        steps = sum(
+            1 for e in events if e.get("type") in {"plan.step", "execute.step.start"}
+        )
         plan_known = bool(hard_facts.get("plan"))
         return (
             f"Steps seen: {steps}; tool calls: {tool_calls}; tool results: {tool_results}; "

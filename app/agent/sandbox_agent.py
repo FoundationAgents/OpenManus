@@ -2,9 +2,9 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
-from app.agent.base import Task, TaskInterrupted
 from app.config import config
 from app.daytona.sandbox import create_sandbox, delete_sandbox
 from app.daytona.tool_base import SandboxToolsBase
@@ -104,7 +104,7 @@ class SandboxManus(ToolCallAgent):
             ]
             self.available_tools.add_tools(*sb_tools)
 
-        except Exception as e:
+        except Exception:
             raise
 
     async def initialize_mcp_servers(self) -> None:

@@ -2,9 +2,10 @@ import asyncio
 from typing import Optional
 
 from app.agent.manus import Manus
-from core.task import Task, TaskStatus
+from core.task import TaskStatus
 from core.task_registry import TaskRegistry
 from server.celery_app import celery_app
+
 
 registry = TaskRegistry()
 

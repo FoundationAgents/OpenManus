@@ -2,8 +2,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import Field
 
-from app.agent.toolcall import ToolCallAgent
 from app.agent.base import Task, TaskInterrupted
+from app.agent.toolcall import ToolCallAgent
 from app.prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message
 from app.tool.base import ToolResult
@@ -148,9 +148,7 @@ class MCPAgent(ToolCallAgent):
             await self._refresh_tools(task)
             # All tools removed indicates shutdown
             if not self.mcp_clients.tool_map:
-                task.emit(
-                    "info", {"message": "MCP service has shut down, ending run."}
-                )
+                task.emit("info", {"message": "MCP service has shut down, ending run."})
                 self.state = AgentState.FINISHED
                 return False
 
@@ -162,7 +160,9 @@ class MCPAgent(ToolCallAgent):
     ) -> None:
         """Handle special tool execution and state changes"""
         # First process with parent handler
-        await super()._handle_special_tool(task=task, name=name, result=result, **kwargs)
+        await super()._handle_special_tool(
+            task=task, name=name, result=result, **kwargs
+        )
 
         # Handle multimedia responses
         if isinstance(result, ToolResult) and result.base64_image:
