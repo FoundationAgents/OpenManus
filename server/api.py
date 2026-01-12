@@ -3,12 +3,11 @@ from typing import Optional
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 
-from app.agent.manus import Manus
 from app.agent.base import TaskInterrupted
+from app.agent.manus import Manus
 from core.task import TaskStatus
 from core.task_registry import TaskRegistry
 from core.task_runner import run_with_status
-
 
 app = FastAPI(title="OpenManus Task API", version="0.1.0")
 registry = TaskRegistry()
@@ -54,6 +53,11 @@ async def interrupt_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"id": task.id, "status": task.status, "interrupt_flag": task.interrupt_flag}
+
+
+@app.get("/", tags=["health"])
+async def health():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":  # pragma: no cover

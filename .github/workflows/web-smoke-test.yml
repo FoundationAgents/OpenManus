@@ -1,0 +1,51 @@
+name: Web Smoke Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start FastAPI server
+        run: |
+          uvicorn server.api:app --host 0.0.0.0 --port 8000 --workers 1 &
+          echo $! > server.pid
+          sleep 5
+
+      - name: Check /health
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://127.0.0.1:8000/health > /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health endpoint not responding"
+          exit 1
+
+      - name: Check /docs
+        run: |
+          curl -sf http://127.0.0.1:8000/docs > /tmp/docs.html
+          grep -i "swagger" /tmp/docs.html
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill $(cat server.pid) || true; fi

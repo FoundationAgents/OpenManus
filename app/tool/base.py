@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.utils.logger import logger
 
@@ -43,8 +43,7 @@ class ToolResult(BaseModel):
     base64_image: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __bool__(self):
         return any(getattr(self, field) for field in self.__fields__)
@@ -96,9 +95,7 @@ class BaseTool(ABC, BaseModel):
     parameters: Optional[dict] = None
     # _schemas: Dict[str, List[ToolSchema]] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
-        underscore_attrs_are_private = False
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     # def __init__(self, **data):
     #     """Initialize tool with model validation and schema registration."""
