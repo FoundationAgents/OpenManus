@@ -2,10 +2,10 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
-from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
@@ -71,9 +71,6 @@ class Manus(ToolCallAgent):
                 if server_config.type == "sse":
                     if server_config.url:
                         await self.connect_mcp_server(server_config.url, server_id)
-                        logger.info(
-                            f"Connected to MCP server {server_id} at {server_config.url}"
-                        )
                 elif server_config.type == "stdio":
                     if server_config.command:
                         await self.connect_mcp_server(
@@ -82,11 +79,8 @@ class Manus(ToolCallAgent):
                             use_stdio=True,
                             stdio_args=server_config.args,
                         )
-                        logger.info(
-                            f"Connected to MCP server {server_id} using command {server_config.command}"
-                        )
             except Exception as e:
-                logger.error(f"Failed to connect to MCP server {server_id}: {e}")
+                _ = e
 
     async def connect_mcp_server(
         self,
@@ -137,8 +131,10 @@ class Manus(ToolCallAgent):
             await self.disconnect_mcp_server()
             self._initialized = False
 
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next actions with appropriate context."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
         if not self._initialized:
             await self.initialize_mcp_servers()
             self._initialized = True
@@ -157,7 +153,7 @@ class Manus(ToolCallAgent):
                 await self.browser_context_helper.format_next_step_prompt()
             )
 
-        result = await super().think()
+        result = await super().think(task)
 
         # Restore original prompt
         self.next_step_prompt = original_prompt

@@ -1,0 +1,80 @@
+name: Docker Smoke Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t openmanus:latest .
+
+      - name: Run container
+        run: |
+          docker run -d -p 8000:8000 --name openmanus openmanus:latest
+          # start websocket server inside container on port 8001
+          docker exec openmanus sh -c "uvicorn server.ws:app --host 0.0.0.0 --port 8001 --workers 1 >/tmp/ws.log 2>&1 & echo \$! >/tmp/ws.pid"
+          sleep 8
+
+      - name: Check /health
+        run: curl --fail http://127.0.0.1:8000/health
+
+      - name: Check /docs
+        run: curl --fail http://127.0.0.1:8000/docs
+
+      - name: Install tooling for task test
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          python -m pip install --upgrade pip
+          pip install websockets
+
+      - name: Simulate task lifecycle with interrupt and event stream
+        run: |
+          set -e
+          TASK_JSON=$(curl -s -X POST http://127.0.0.1:8000/tasks)
+          echo "Task created: $TASK_JSON"
+          TASK_ID=$(echo "$TASK_JSON" | jq -r '.id')
+          if [ -z "$TASK_ID" ] || [ "$TASK_ID" = "null" ]; then
+            echo "Failed to parse task id"; exit 1; fi
+          export TASK_ID
+
+          python - <<'PY'
+          import asyncio, json, websockets, os, sys
+          task_id = os.environ["TASK_ID"]
+          uri = f"ws://127.0.0.1:8001/tasks/{task_id}/stream"
+          events = []
+          async def main():
+              try:
+                  async with websockets.connect(uri) as ws:
+                      # send interrupt quickly to avoid long-running agent
+                      await ws.send(json.dumps({"command": "interrupt"}))
+                      try:
+                          for _ in range(10):
+                              msg = await asyncio.wait_for(ws.recv(), timeout=10)
+                              events.append(msg)
+                              if len(events) >= 2:
+                                  break
+                      except asyncio.TimeoutError:
+                          pass
+              except Exception as e:
+                  print("WebSocket error:", e, file=sys.stderr)
+                  sys.exit(1)
+          asyncio.run(main())
+          if not events:
+              print("No events received"); sys.exit(1)
+          print("Received events:", events)
+          PY
+
+      - name: Stop container
+        if: always()
+        run: |
+          docker stop openmanus || true
+          docker rm openmanus || true

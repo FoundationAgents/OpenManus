@@ -1,0 +1,58 @@
+name: Docker Celery Smoke Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:24.0.5-dind
+        privileged: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start stack
+        run: |
+          docker compose build
+          docker compose up -d
+          sleep 10
+
+      - name: Check /health
+        run: curl --fail http://127.0.0.1:8000/health
+
+      - name: Check /docs
+        run: curl --fail http://127.0.0.1:8000/docs
+
+      - name: Task create and poll
+        run: |
+          set -e
+          TASK_JSON=$(curl -s -X POST http://127.0.0.1:8000/tasks -H "Content-Type: application/json" -d '{"prompt":"ping"}')
+          echo "Created: $TASK_JSON"
+          TASK_ID=$(echo "$TASK_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['id'])")
+          if [ -z "$TASK_ID" ]; then echo "No task id"; exit 1; fi
+          for i in {1..10}; do
+            STATUS_JSON=$(curl -s http://127.0.0.1:8000/tasks/$TASK_ID)
+            echo "Status: $STATUS_JSON"
+            STATUS=$(echo "$STATUS_JSON" | python -c "import sys, json; print(json.load(sys.stdin).get('status'))")
+            if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "INTERRUPTED" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Task did not complete in time"
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

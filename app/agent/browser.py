@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.toolcall import ToolCallAgent
-from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
@@ -28,20 +28,17 @@ class BrowserContextHelper:
                 SandboxBrowserTool().name
             )
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
-            logger.warning("BrowserUseTool not found or doesn't have get_current_state")
             return None
         try:
             result = await browser_tool.get_current_state()
             if result.error:
-                logger.debug(f"Browser state error: {result.error}")
                 return None
             if hasattr(result, "base64_image") and result.base64_image:
                 self._current_base64_image = result.base64_image
             else:
                 self._current_base64_image = None
             return json.loads(result.output)
-        except Exception as e:
-            logger.debug(f"Failed to get browser state: {str(e)}")
+        except Exception:
             return None
 
     async def format_next_step_prompt(self) -> str:
@@ -117,12 +114,14 @@ class BrowserAgent(ToolCallAgent):
         self.browser_context_helper = BrowserContextHelper(self)
         return self
 
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next actions using tools, with browser state info added"""
+        if task.is_interrupted():
+            raise TaskInterrupted()
         self.next_step_prompt = (
             await self.browser_context_helper.format_next_step_prompt()
         )
-        return await super().think()
+        return await super().think(task)
 
     async def cleanup(self):
         """Clean up browser agent resources by calling parent cleanup."""

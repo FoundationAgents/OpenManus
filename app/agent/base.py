@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
 from app.llm import LLM
-from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
+from core.task import Task
+
+
+class TaskInterrupted(Exception):
+    """Raised when a task is interrupted."""
 
 
 class BaseAgent(BaseModel, ABC):
@@ -113,59 +117,71 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
-    async def run(self, request: Optional[str] = None) -> str:
-        """Execute the agent's main loop asynchronously.
+    async def run(self, task: Task, input: Any) -> str:
+        """Execute the agent's main loop asynchronously."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
 
-        Args:
-            request: Optional initial user request to process.
-
-        Returns:
-            A string summarizing the execution results.
-
-        Raises:
-            RuntimeError: If the agent is not in IDLE state at start.
-        """
         if self.state != AgentState.IDLE:
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
-        if request:
-            self.update_memory("user", request)
+        if input is not None:
+            self.update_memory("user", str(input))
 
         results: List[str] = []
-        async with self.state_context(AgentState.RUNNING):
-            while (
-                self.current_step < self.max_steps and self.state != AgentState.FINISHED
-            ):
-                self.current_step += 1
-                logger.info(f"Executing step {self.current_step}/{self.max_steps}")
-                step_result = await self.step()
+        try:
+            async with self.state_context(AgentState.RUNNING):
+                while (
+                    self.current_step < self.max_steps
+                    and self.state != AgentState.FINISHED
+                ):
+                    if task.is_interrupted():
+                        raise TaskInterrupted()
 
-                # Check for stuck state
-                if self.is_stuck():
-                    self.handle_stuck_state()
+                    self.current_step += 1
+                    task.emit(
+                        "step_start",
+                        {"step": self.current_step, "max_steps": self.max_steps},
+                    )
+                    step_result = await self.step(task)
 
-                results.append(f"Step {self.current_step}: {step_result}")
+                    if self.is_stuck():
+                        self.handle_stuck_state(task)
 
-            if self.current_step >= self.max_steps:
-                self.current_step = 0
-                self.state = AgentState.IDLE
-                results.append(f"Terminated: Reached max steps ({self.max_steps})")
-        await SANDBOX_CLIENT.cleanup()
-        return "\n".join(results) if results else "No steps executed"
+                    results.append(f"Step {self.current_step}: {step_result}")
+                    task.emit(
+                        "step_result",
+                        {"step": self.current_step, "result": step_result},
+                    )
+
+                if self.current_step >= self.max_steps:
+                    self.current_step = 0
+                    self.state = AgentState.IDLE
+                    termination_msg = (
+                        f"Terminated: Reached max steps ({self.max_steps})"
+                    )
+                    results.append(termination_msg)
+                    task.emit("terminated", {"reason": termination_msg})
+            return "\n".join(results) if results else "No steps executed"
+        finally:
+            await SANDBOX_CLIENT.cleanup()
 
     @abstractmethod
-    async def step(self) -> str:
+    async def step(self, task: Task) -> str:
         """Execute a single step in the agent's workflow.
 
         Must be implemented by subclasses to define specific behavior.
         """
 
-    def handle_stuck_state(self):
+    def handle_stuck_state(self, task: Task):
         """Handle stuck state by adding a prompt to change strategy"""
         stuck_prompt = "\
         Observed duplicate responses. Consider new strategies and avoid repeating ineffective paths already attempted."
         self.next_step_prompt = f"{stuck_prompt}\n{self.next_step_prompt}"
-        logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
+        task.emit(
+            "stuck_detected",
+            {"message": "Agent detected stuck state. Strategy prompt injected."},
+        )
 
     def is_stuck(self) -> bool:
         """Check if the agent is stuck in a loop by detecting duplicate content"""

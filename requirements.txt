@@ -10,7 +10,7 @@ tiktoken~=0.9.0
 
 html2text~=2024.2.26
 gymnasium~=1.1.1
-pillow~=11.1.0
+pillow>=10.4,<11
 browsergym~=0.13.3
 uvicorn~=0.34.0
 unidiff~=0.7.5
@@ -40,3 +40,7 @@ crawl4ai~=0.6.3
 
 huggingface-hub~=0.29.2
 setuptools~=75.8.0
+sqlalchemy~=2.0.36
+psycopg2-binary~=2.9.10
+celery~=5.4.0
+redis~=5.2.1

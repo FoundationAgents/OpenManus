@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.agent.base import BaseAgent
+from app.agent.base import BaseAgent, Task, TaskInterrupted
 from app.llm import LLM
 from app.schema import AgentState, Memory
 
@@ -23,16 +23,22 @@ class ReActAgent(BaseAgent, ABC):
     current_step: int = 0
 
     @abstractmethod
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next action"""
 
     @abstractmethod
-    async def act(self) -> str:
+    async def act(self, task: Task) -> str:
         """Execute decided actions"""
 
-    async def step(self) -> str:
+    async def step(self, task: Task) -> str:
         """Execute a single step: think and act."""
-        should_act = await self.think()
+        if task.is_interrupted():
+            raise TaskInterrupted()
+
+        should_act = await self.think(task)
+        if task.is_interrupted():
+            raise TaskInterrupted()
+
         if not should_act:
             return "Thinking complete - no action needed"
-        return await self.act()
+        return await self.act(task)
