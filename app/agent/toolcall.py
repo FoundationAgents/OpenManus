@@ -218,9 +218,9 @@ class ToolCallAgent(ReActAgent):
             self.state = AgentState.FINISHED
 
     @staticmethod
-    def _should_finish_execution(**kwargs) -> bool:
+    def _should_finish_execution(name, result, **kwargs) -> bool:
         """Determine if tool execution should finish the agent"""
-        return True
+        return name == Terminate().name
 
     def _is_special_tool(self, name: str) -> bool:
         """Check if tool name is in special tools list"""
