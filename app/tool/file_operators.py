@@ -49,14 +49,16 @@ class LocalFileOperator(FileOperator):
         try:
             return Path(path).read_text(encoding=self.encoding)
         except Exception as e:
-            raise ToolError(f"Failed to read {path}: {str(e)}") from None
+            raise ToolError(f"Failed to read {path}: {str(e)}")
 
     async def write_file(self, path: PathLike, content: str) -> None:
         """Write content to a local file."""
         try:
-            Path(path).write_text(content, encoding=self.encoding)
+            path_obj = Path(path)
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            path_obj.write_text(content, encoding=self.encoding)
         except Exception as e:
-            raise ToolError(f"Failed to write to {path}: {str(e)}") from None
+            raise ToolError(f"Failed to write to {path}: {str(e)}")
 
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory."""
