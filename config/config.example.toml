@@ -96,12 +96,24 @@ temperature = 0.0                          # Controls randomness for vision mode
 ## Sandbox configuration
 #[sandbox]
 #use_sandbox = false
+#backend = "docker"  # Options: docker, gitpod, e2b
 #image = "python:3.12-slim"
 #work_dir = "/workspace"
 #memory_limit = "1g"  # 512m
 #cpu_limit = 2.0
 #timeout = 300
 #network_enabled = true
+#auto_cleanup = true
+#max_sandboxes = 10
+#idle_timeout = 3600
+
+# GitPod backend settings (when backend = "gitpod")
+#gitpod_url = "https://gitpod.local"
+#gitpod_token = "your_gitpod_api_token"
+
+# E2B backend settings (when backend = "e2b")
+#e2b_api_key = "your_e2b_api_key"  # Or set E2B_API_KEY env var
+#e2b_template = "base"  # E2B template to use
 
 # MCP (Model Context Protocol) configuration
 [mcp]

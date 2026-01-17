@@ -1,0 +1,1 @@
+"""Frontend integrations for OpenManus."""

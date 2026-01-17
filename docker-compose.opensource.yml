@@ -1,0 +1,126 @@
+# Docker Compose para Desenvolvimento OpenManus com Sandbox Open Source
+
+version: '3.8'
+
+services:
+  # OpenManus Main Service
+  openmanus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SANDBOX_BACKEND=docker
+      - GITPOD_URL=http://gitpod:80
+      - E2B_API_KEY=${E2B_API_KEY:-}
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Para Docker adapter
+      - openmanus-workspace:/workspace
+    depends_on:
+      - gitpod
+      - registry
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+  # GitPod Self-Hosted
+  gitpod:
+    image: gitpod/gitpod:latest
+    ports:
+      - "3000:80"
+      - "443:443"
+      - "22:22"
+    environment:
+      - GITPOD_DOMAIN=gitpod.local
+      - GITPOD_INSTALLATION_LONGNAME=OpenManus GitPod
+      - GITPOD_LICENSE_TYPE=free
+      - GITPOD_DATABASE_HOST=gitpod-db
+      - GITPOD_DATABASE_PASSWORD=gitpod123
+      - GITPOD_REGISTRY_HOST=registry:5000
+      - GITPOD_MINIO_ENDPOINT=minio:9000
+      - GITPOD_MINIO_ACCESS_KEY=gitpod
+      - GITPOD_MINIO_SECRET_KEY=gitpod123
+    volumes:
+      - gitpod-data:/var/lib/gitpod
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - gitpod-db
+      - registry
+      - minio
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+  # GitPod Database
+  gitpod-db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=gitpod
+      - MYSQL_USER=gitpod
+      - MYSQL_PASSWORD=gitpod123
+    volumes:
+      - gitpod-db-data:/var/lib/mysql
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+  # Docker Registry for custom images
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+  # MinIO for GitPod storage
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=gitpod
+      - MINIO_ROOT_PASSWORD=gitpod123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+  # Chainlit Frontend (se usando)
+  chainlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.chainlit
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENMANUS_API_URL=http://openmanus:8000
+    volumes:
+      - .:/app
+    depends_on:
+      - openmanus
+    networks:
+      - openmanus-network
+    restart: unless-stopped
+
+volumes:
+  openmanus-workspace:
+  gitpod-data:
+  gitpod-db-data:
+  registry-data:
+  minio-data:
+
+
+networks:
+  openmanus-network:
+    driver: bridge
