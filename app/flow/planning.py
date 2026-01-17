@@ -11,6 +11,7 @@ from app.llm import LLM
 from app.logger import logger
 from app.schema import AgentState, Message, ToolChoice
 from app.tool import PlanningTool
+from app.tool.early_terminate import EarlyTerminateTool
 
 
 class PlanStepStatus(str, Enum):
@@ -47,6 +48,7 @@ class PlanningFlow(BaseFlow):
 
     llm: LLM = Field(default_factory=lambda: LLM())
     planning_tool: PlanningTool = Field(default_factory=PlanningTool)
+    early_terminate_tool: EarlyTerminateTool = Field(default_factory=EarlyTerminateTool)
     executor_keys: List[str] = Field(default_factory=list)
     active_plan_id: str = Field(default_factory=lambda: f"plan_{int(time.time())}")
     current_step_index: Optional[int] = None
@@ -124,6 +126,8 @@ class PlanningFlow(BaseFlow):
                 step_result = await self._execute_step(executor, step_info)
                 result += step_result + "\n"
 
+                result = await self.terminate_plan_early(input_text, executor, result)
+
                 # Check if agent wants to terminate
                 if hasattr(executor, "state") and executor.state == AgentState.FINISHED:
                     break
@@ -132,6 +136,36 @@ class PlanningFlow(BaseFlow):
         except Exception as e:
             logger.error(f"Error in PlanningFlow: {str(e)}")
             return f"Execution failed: {str(e)}"
+
+        async def terminate_plan_early(self, input_text, executor, result):
+        """Determine if the user's problem has been solved before all steps are completed"""
+        plan_status = await self._get_plan_text()
+        history_messages = executor.messages
+        formated_history_messages = self.llm.format_messages(history_messages)
+        user_messages = [
+            {"role": "user",
+             "content": f"""
+                CURRENT PLAN STATUS:
+                {plan_status}
+
+                call the `early_terminate` tool to determine whether the problem
+                 `{input_text}` has been resolved before plan is completed."""
+             }
+        ]
+        messages = formated_history_messages + user_messages
+        response = await self.llm.ask_tool(
+            messages=messages,
+            tools=[self.early_terminate_tool.to_param()],
+            tool_choice=ToolChoice.AUTO
+        )
+
+        tool_calls = response.tool_calls
+        if tool_calls:
+            tool_calls_args = json.loads(tool_calls[0].function.arguments)
+            if tool_calls_args.get("is_end_early") == "yes":
+                executor.state = AgentState.FINISHED
+                result += await self._finalize_plan()
+        return result
 
     async def _create_initial_plan(self, request: str) -> None:
         """Create an initial plan based on the request using the flow's LLM and PlanningTool."""
