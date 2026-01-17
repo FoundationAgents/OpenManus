@@ -1,0 +1,12 @@
+{
+    "files.autoSave": "onFocusChange",
+    "editor.wordWrap": "on",
+    "files.exclude": {
+        "**/.git": false,
+        "**/.hg": false,
+        "**/.svn": false
+    },
+    "editor.accessibilitySupport": "on",
+    "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+    "editor.codeActions.triggerOnFocusChange": true
+}
