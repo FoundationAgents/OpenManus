@@ -1,0 +1,49 @@
+name: "❓️ Ask a question"
+description: Ask any questions you encounter while learning about or using OpenManus.
+labels: question
+body:
+  - type: textarea
+    id: model-description
+    attributes:
+      label: What model are you used?
+      description: |
+        Clearly describe the model you used
+      value: |
+        - Model Provider: openai? ollama?
+        - Model Name: gpt-4o? qwen2.5:7b?
+    validations:
+      required: true
+  - type: textarea
+    id: run-mode
+    attributes:
+      label: Program running mode
+      description: |
+        The way you run the program and the services it depends on.
+      value: |
+        run main.py? run_flow.py? run_mcp.py?
+    validations:
+      required: true
+  - type: textarea
+    id: prompt-information
+    attributes:
+      label: Your Prompt
+      description: |
+        The prompt you submitted to OpenManus
+    validations:
+      required: true
+  - type: textarea
+    id: result-information
+    attributes:
+      label: Execution result and your expected result
+      description: |
+        What is the result you are expecting?
+    validations:
+      required: false
+  - type: textarea
+    id: log-information
+    attributes:
+      label: Program execution log
+      description: |
+        The log of your program execution?
+    validations:
+      required: false
