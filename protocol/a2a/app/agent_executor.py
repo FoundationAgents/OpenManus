@@ -41,7 +41,7 @@ class ManusExecutor(AgentExecutor):
             result = await self.agent.invoke(query, context.context_id)
             print(f"Final Result ===> {result}")
         except Exception as e:
-            print("Error invoking agent: %s", e)
+            print(f"Error invoking agent: {e}")
             raise ServerError(error=ValueError(f"Error invoking agent: {e}")) from e
         parts = [
             Part(

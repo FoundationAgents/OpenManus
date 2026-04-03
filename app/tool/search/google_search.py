@@ -21,7 +21,7 @@ class GoogleSearchEngine(WebSearchEngine):
             if isinstance(item, str):
                 # If it's just a URL
                 results.append(
-                    {"title": f"Google Result {i+1}", "url": item, "description": ""}
+                    SearchItem(title=f"Google Result {i+1}", url=item, description="")
                 )
             else:
                 results.append(

@@ -302,6 +302,7 @@ class WebSearch(BaseTool):
             )
 
             if not search_items:
+                failed_engines.append(engine_name)
                 continue
 
             if failed_engines:
