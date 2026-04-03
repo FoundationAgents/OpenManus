@@ -226,7 +226,7 @@ class Crawl4aiTool(BaseTool):
 
                     if result.get("markdown"):
                         # Show first 300 characters of markdown content
-                        content_preview = result["markdown"]
+                        content_preview = result["markdown"][:300]
                         if len(result["markdown"]) > 300:
                             content_preview += "..."
                         output_lines.append(f"   📝 Content: {content_preview}")

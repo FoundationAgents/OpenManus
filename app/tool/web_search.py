@@ -144,7 +144,7 @@ class WebContentFetcher:
             # Get text content
             text = soup.get_text(separator="\n", strip=True)
 
-            # Clean up whitespace and limit size (100KB max)
+            # Clean up whitespace and limit size (~10K chars)
             text = " ".join(text.split())
             return text[:10000] if text else None
 
