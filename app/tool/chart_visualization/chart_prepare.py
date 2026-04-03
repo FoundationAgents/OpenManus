@@ -21,7 +21,7 @@ class VisualizationPrepare(NormalPythonExecute):
 ## Visualization Type
 1. Data loading logic
 2. Csv Data and chart description generate
-2.1 Csv data (The data you want to visulazation, cleaning / transform from origin data, saved in .csv)
+2.1 Csv data (The data you want to visualization, cleaning / transform from origin data, saved in .csv)
 2.2 Chart description of csv data (The chart title or description should be concise and clear. Examples: 'Product sales distribution', 'Monthly revenue trend'.)
 3. Save information in json file.( format: {"csvFilePath": string, "chartTitle": string}[])
 ## Insight Type
@@ -29,7 +29,7 @@ class VisualizationPrepare(NormalPythonExecute):
 2. Save information in json file.( format: {"chartPath": string, "insights_id": number[]}[])
 # Note
 1. You can generate one or multiple csv data with different visualization needs.
-2. Make each chart data esay, clean and different.
+2. Make each chart data easy, clean and different.
 3. Json file saving in utf-8 with path print: print(json_path)
 """,
             },

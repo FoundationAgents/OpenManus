@@ -46,7 +46,7 @@ Outputs:
                 "enum": ["zh", "en"],
             },
         },
-        "required": ["code"],
+        "required": ["json_path"],
     }
     llm: LLM = Field(default_factory=LLM, description="Language model instance")
 
@@ -89,7 +89,7 @@ Outputs:
                 content += "\n" + item["insight_md"]
             else:
                 content += "\n"
-        return f"Chart Generated Successful!\n{content}"
+        return f"Chart Generated Successfully!\n{content}"
 
     async def data_visualization(
         self, json_info: list[dict[str, str]], output_type: str, language: str
@@ -145,7 +145,7 @@ Outputs:
         else:
             return {"observation": f"{self.success_output_template(success_list)}"}
 
-    async def add_insighs(
+    async def add_insights(
         self, json_info: list[dict[str, str]], output_type: str
     ) -> str:
         data_list = []
@@ -207,7 +207,7 @@ Outputs:
             if tool_type == "visualization":
                 return await self.data_visualization(json_info, output_type, language)
             else:
-                return await self.add_insighs(json_info, output_type)
+                return await self.add_insights(json_info, output_type)
         except Exception as e:
             return {
                 "observation": f"Error: {e}",
