@@ -155,7 +155,7 @@ class PlanningFlow(BaseFlow):
             # Add description of agents to select
             system_message_content += (
                 f"\nNow we have {agents_description} agents. "
-                f"The infomation of them are below: {json.dumps(agents_description)}\n"
+                f"The information of them are below: {json.dumps(agents_description)}\n"
                 "When creating steps in the planning tool, please specify the agent names using the format '[agent_name]'."
             )
 
