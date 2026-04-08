@@ -355,7 +355,7 @@ class LLM:
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
         retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
+            (OpenAIError, ValueError)
         ),  # Don't retry TokenLimitExceeded
     )
     async def ask(
@@ -482,7 +482,7 @@ class LLM:
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
         retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
+            (OpenAIError, ValueError)
         ),  # Don't retry TokenLimitExceeded
     )
     async def ask_with_images(
@@ -638,7 +638,7 @@ class LLM:
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
         retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
+            (OpenAIError, ValueError)
         ),  # Don't retry TokenLimitExceeded
     )
     async def ask_tool(
