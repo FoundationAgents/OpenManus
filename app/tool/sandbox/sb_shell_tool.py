@@ -251,7 +251,7 @@ class SandboxShellTool(SandboxToolsBase):
                     await self._execute_raw_command(
                         f"tmux kill-session -t {session_name}"
                     )
-                except:
+                except Exception:
                     pass
             return self.fail_response(f"Error executing command: {str(e)}")
 
