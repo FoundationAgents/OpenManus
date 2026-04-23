@@ -86,13 +86,13 @@ class DockerSession:
                     self.socket.sendall(b"exit\n")
                     # Allow time for command execution
                     await asyncio.sleep(0.1)
-                except:
+                except Exception:
                     pass  # Ignore sending errors, continue cleanup
 
                 # Close socket connection
                 try:
                     self.socket.shutdown(socket.SHUT_RDWR)
-                except:
+                except Exception:
                     pass  # Some platforms may not support shutdown
 
                 self.socket.close()
@@ -105,7 +105,7 @@ class DockerSession:
                     if exec_inspect.get("Running", False):
                         # If still running, wait for it to complete
                         await asyncio.sleep(0.5)
-                except:
+                except Exception:
                     pass  # Ignore inspection errors, continue cleanup
 
                 self.exec_id = None

@@ -84,7 +84,7 @@ class BingSearchEngine(WebSearchEngine):
             tuple: (List of SearchItem objects, next page URL or None)
         """
         try:
-            res = self.session.get(url=url)
+            res = self.session.get(url=url, timeout=30)
             res.encoding = "utf-8"
             root = BeautifulSoup(res.text, "lxml")
 
