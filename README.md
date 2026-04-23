@@ -148,6 +148,10 @@ use_data_analysis_agent = true     # Disabled by default, change to true to acti
 ```
 In addition, you need to install the relevant dependencies to ensure the agent runs properly: [Detailed Installation Guide](app/tool/chart_visualization/README.md##Installation)
 
+### Agent Runtime Audit Prompt Pack
+
+OpenManus also includes a reusable `app.prompt.agent_audit` prompt pack for diagnosing agent-runtime failures such as wrapper regression, stale memory contamination, hidden repair layers, and tool-discipline issues. It provides structured playbooks, a rubric, a report schema, and an example report so audits produce evidence-backed findings instead of freeform prose.
+
 ## How to contribute
 
 We welcome any friendly suggestions and helpful contributions! Just create issues or submit pull requests.
