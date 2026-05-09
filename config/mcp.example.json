@@ -3,6 +3,11 @@
       "server1": {
         "type": "sse",
         "url": "http://localhost:8000/sse"
+      },
+      "bourdon": {
+        "type": "stdio",
+        "command": "python",
+        "args": ["-m", "core.l6_server"]
       }
     }
 }
