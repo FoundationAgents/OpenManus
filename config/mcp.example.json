@@ -6,8 +6,8 @@
       },
       "bourdon": {
         "type": "stdio",
-        "command": "python",
-        "args": ["-m", "core.l6_server"]
+        "command": "bourdon",
+        "args": ["serve", "--quiet"]
       }
     }
 }
