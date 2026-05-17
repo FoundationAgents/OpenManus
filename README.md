@@ -103,18 +103,22 @@ cp config/config.example.toml config/config.toml
 ```toml
 # Global LLM configuration
 [llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
-max_tokens = 4096
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
 temperature = 0.0
 
 # Optional configuration for specific LLM models
 [llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
+temperature = 0.0
 ```
+
+Provider-specific templates are also available in `config/`: `config.example-model-anthropic.toml`, `config.example-model-azure.toml`, `config.example-model-google.toml`, `config.example-model-jiekouai.toml`, `config.example-model-ollama.toml`, and `config.example-model-ppio.toml`. For Daytona sandbox settings, see `config.example-daytona.toml`.
 
 ## Quick Start
 

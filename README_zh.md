@@ -104,18 +104,22 @@ cp config/config.example.toml config/config.toml
 ```toml
 # 全局 LLM 配置
 [llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 替换为真实 API 密钥
-max_tokens = 4096
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
 temperature = 0.0
 
 # 可选特定 LLM 模型配置
 [llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 替换为真实 API 密钥
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
+temperature = 0.0
 ```
+
+`config/` 中还提供了不同服务商的配置模板：`config.example-model-anthropic.toml`、`config.example-model-azure.toml`、`config.example-model-google.toml`、`config.example-model-jiekouai.toml`、`config.example-model-ollama.toml` 和 `config.example-model-ppio.toml`。Daytona 沙箱配置请参考 `config.example-daytona.toml`。
 
 ## 快速启动
 

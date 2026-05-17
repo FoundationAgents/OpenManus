@@ -103,18 +103,22 @@ cp config/config.example.toml config/config.toml
 ```toml
 # 전역 LLM 설정
 [llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 실제 API 키로 변경하세요
-max_tokens = 4096
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
 temperature = 0.0
 
 # 특정 LLM 모델에 대한 선택적 설정
 [llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 실제 API 키로 변경하세요
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
+temperature = 0.0
 ```
+
+`config/`에는 제공자별 템플릿인 `config.example-model-anthropic.toml`, `config.example-model-azure.toml`, `config.example-model-google.toml`, `config.example-model-jiekouai.toml`, `config.example-model-ollama.toml`, `config.example-model-ppio.toml`도 있습니다. Daytona 샌드박스 설정은 `config.example-daytona.toml`을 참고하세요.
 
 ## 빠른 시작
 
