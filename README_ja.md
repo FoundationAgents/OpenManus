@@ -103,18 +103,22 @@ cp config/config.example.toml config/config.toml
 ```toml
 # グローバルLLM設定
 [llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 実際のAPIキーに置き換えてください
-max_tokens = 4096
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
 temperature = 0.0
 
 # 特定のLLMモデル用のオプション設定
 [llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # 実際のAPIキーに置き換えてください
+model = "claude-3-7-sonnet-20250219"
+base_url = "https://api.anthropic.com/v1/"
+api_key = "YOUR_API_KEY"
+max_tokens = 8192
+temperature = 0.0
 ```
+
+`config/`には、プロバイダー別テンプレートとして `config.example-model-anthropic.toml`、`config.example-model-azure.toml`、`config.example-model-google.toml`、`config.example-model-jiekouai.toml`、`config.example-model-ollama.toml`、`config.example-model-ppio.toml` もあります。Daytona サンドボックス設定は `config.example-daytona.toml` を参照してください。
 
 ## クイックスタート
 
