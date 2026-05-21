@@ -18,6 +18,9 @@ from app.tool.search import (
 )
 from app.tool.search.base import SearchItem
 
+# Maximum seconds to wait for a single engine before declaring it failed.
+_ENGINE_TIMEOUT_SECONDS = 12
+
 
 class SearchResult(BaseModel):
     """Represents a single search result returned by a search engine."""
@@ -119,7 +122,7 @@ class WebContentFetcher:
             Extracted text content or None if fetching fails
         """
         headers = {
-            "WebSearch": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
 
         try:
@@ -160,7 +163,9 @@ class WebSearch(BaseTool):
     parallel_safe: bool = True  # read-only network I/O, no shared state
     description: str = """Search the web for real-time information about any topic.
     This tool returns comprehensive search results with relevant information, URLs, titles, and descriptions.
-    If the primary search engine fails, it automatically falls back to alternative engines."""
+    It tries Google → DuckDuckGo → Bing → Baidu automatically if the primary engine fails.
+    IMPORTANT: This tool is the correct way to search the internet. Do NOT use python_execute with
+    requests/httpx to fetch search results when this tool is available."""
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -170,8 +175,8 @@ class WebSearch(BaseTool):
             },
             "num_results": {
                 "type": "integer",
-                "description": "(optional) The number of search results to return. Default is 5.",
-                "default": 5,
+                "description": "(optional) The number of search results to return. Default is 8.",
+                "default": 8,
             },
             "lang": {
                 "type": "string",
@@ -202,7 +207,7 @@ class WebSearch(BaseTool):
     async def execute(
         self,
         query: str,
-        num_results: int = 5,
+        num_results: int = 8,
         lang: Optional[str] = None,
         country: Optional[str] = None,
         fetch_content: bool = False,
@@ -281,10 +286,17 @@ class WebSearch(BaseTool):
                     f"All search engines failed after {max_retries} retries. Giving up."
                 )
 
-        # Return an error response
+        # Return an error response with explicit guidance for the LLM
         return SearchResponse(
             query=query,
-            error="All search engines failed to return results after multiple retries.",
+            error=(
+                f"All search engines (Google, DuckDuckGo, Bing, Baidu) failed to return "
+                f"results for query '{query}' after {max_retries} retries. "
+                "Try rephrasing the query, breaking it into smaller sub-queries, or use "
+                "browser_use with go_to_url to visit a specific known URL directly. "
+                "Do NOT fall back to python_execute with requests — it has the same network "
+                "restrictions and will also fail."
+            ),
             results=[],
         )
 
@@ -293,21 +305,38 @@ class WebSearch(BaseTool):
     ) -> List[SearchResult]:
         """Try all search engines in the configured order."""
         engine_order = self._get_engine_order()
-        failed_engines = []
+        failed_engines: List[str] = []
 
         for engine_name in engine_order:
             engine = self._search_engine[engine_name]
             logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
-            search_items = await self._perform_search_with_engine(
-                engine, query, num_results, search_params
-            )
+            try:
+                search_items = await asyncio.wait_for(
+                    self._perform_search_with_engine(
+                        engine, query, num_results, search_params
+                    ),
+                    timeout=_ENGINE_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"{engine_name.capitalize()} timed out after {_ENGINE_TIMEOUT_SECONDS}s — skipping."
+                )
+                failed_engines.append(f"{engine_name}(timeout)")
+                continue
+            except Exception as exc:
+                logger.warning(f"{engine_name.capitalize()} raised {exc!r} — skipping.")
+                failed_engines.append(f"{engine_name}(error)")
+                continue
 
             if not search_items:
+                logger.warning(f"{engine_name.capitalize()} returned 0 results — skipping.")
+                failed_engines.append(f"{engine_name}(empty)")
                 continue
 
             if failed_engines:
                 logger.info(
-                    f"Search successful with {engine_name.capitalize()} after trying: {', '.join(failed_engines)}"
+                    f"✅ Search successful with {engine_name.capitalize()} "
+                    f"after failing: {', '.join(failed_engines)}"
                 )
 
             # Transform search items into structured results
@@ -315,16 +344,14 @@ class WebSearch(BaseTool):
                 SearchResult(
                     position=i + 1,
                     url=item.url,
-                    title=item.title
-                    or f"Result {i+1}",  # Ensure we always have a title
+                    title=item.title or f"Result {i + 1}",
                     description=item.description or "",
                     source=engine_name,
                 )
                 for i, item in enumerate(search_items)
             ]
 
-        if failed_engines:
-            logger.error(f"All search engines failed: {', '.join(failed_engines)}")
+        logger.error(f"All search engines failed: {', '.join(failed_engines)}")
         return []
 
     async def _fetch_content_for_results(

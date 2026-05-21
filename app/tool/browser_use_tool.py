@@ -255,8 +255,14 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         )
                     # Execute the web search and return results directly without browser navigation
                     search_response = await self.web_search_tool.execute(
-                        query=query, fetch_content=True, num_results=1
+                        query=query, fetch_content=True, num_results=3
                     )
+                    # If search failed or returned no results, return the error directly
+                    if search_response.error or not search_response.results:
+                        return ToolResult(
+                            error=search_response.error
+                            or f"No search results found for query: {query}"
+                        )
                     # Navigate to the first search result
                     first_search_result = search_response.results[0]
                     url_to_navigate = first_search_result.url
@@ -266,6 +272,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     await page.wait_for_load_state()
 
                     return search_response
+
 
                 # Element interaction actions
                 elif action == "click_element":

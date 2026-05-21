@@ -4,10 +4,11 @@ import type { Message } from '@/libs/chat-messages/types';
 import { cn } from '@/libs/utils';
 import { getConversationRuntime, pauseConversationSandbox, resumeConversationSandbox, type ConversationRuntime } from '@/services/conversations';
 import type { IntegrationsHealth } from '@/services/conversations';
-import { ActivityIcon, FileClockIcon, FolderIcon, GlobeIcon, ListChecksIcon, NetworkIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
+import { ActivityIcon, BookOpenIcon, FileClockIcon, FolderIcon, GlobeIcon, ListChecksIcon, NetworkIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { PreviewDescription } from './preview-description';
 import { usePreviewData } from './store';
+
 
 interface ChatPreviewProps {
   messages: Message[];
@@ -127,9 +128,6 @@ export const ChatPreview = ({
                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData({ type: 'runtime', conversationId, tab: 'processes' })} title="Processes">
                   <ActivityIcon className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setData({ type: 'live' })} title="Live monitor">
-                  Live
-                </Button>
                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData({ type: 'live' })} title="Live activity">
                   <ListChecksIcon className="h-3.5 w-3.5" />
                 </Button>
@@ -143,11 +141,12 @@ export const ChatPreview = ({
                   <FileClockIcon className="h-3.5 w-3.5" />
                 </Button>
                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData({ type: 'skills', conversationId })} title="Skills">
-                  <ListChecksIcon className="h-3.5 w-3.5" />
+                  <BookOpenIcon className="h-3.5 w-3.5" />
                 </Button>
                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setData({ type: 'vault', conversationId })} title="Vault Sync">
                   <NetworkIcon className="h-3.5 w-3.5" />
                 </Button>
+
                 <Button
                   variant="outline"
                   size="icon"
