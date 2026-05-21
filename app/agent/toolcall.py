@@ -194,10 +194,11 @@ class ToolCallAgent(ReActAgent):
                 "agent": self.name,
                 "reasoning": content.strip() if content else "",
                 "will_act": bool(tool_calls),
-                "tools_planned": [tc.function.name for tc in tool_calls] if tool_calls else [],
+                "tools_planned": [tc.function.name for tc in tool_calls]
+                if tool_calls
+                else [],
             },
         )
-
 
         try:
             if response is None:
@@ -514,7 +515,6 @@ class ToolCallAgent(ReActAgent):
 
         return "\n\n".join(results)
 
-
     def _is_parallel_safe(self, command: ToolCall) -> bool:
         """Return True if the tool can run concurrently with others.
 
@@ -527,7 +527,14 @@ class ToolCallAgent(ReActAgent):
         if tool_instance is not None and hasattr(tool_instance, "parallel_safe"):
             return bool(tool_instance.parallel_safe)
         # Fallback: a conservative allowlist of known-safe tool names.
-        _SAFE_FALLBACK = {"skill_playbook", "codebase_overview", "glob", "grep", "read_files", "web_search"}
+        _SAFE_FALLBACK = {
+            "skill_playbook",
+            "codebase_overview",
+            "glob",
+            "grep",
+            "read_files",
+            "web_search",
+        }
         return name in _SAFE_FALLBACK
 
     async def execute_tool(self, command: ToolCall, task: Task) -> str:
@@ -568,7 +575,9 @@ class ToolCallAgent(ReActAgent):
             """Execute the tool once and return the observation string."""
             token = current_tool_call.set({"id": command.id, "name": name})
             try:
-                result = await self.available_tools.execute(name=name, tool_input=run_args)
+                result = await self.available_tools.execute(
+                    name=name, tool_input=run_args
+                )
             finally:
                 current_tool_call.reset(token)
 

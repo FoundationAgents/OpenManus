@@ -75,8 +75,13 @@ def _is_local_server(base_url: str) -> bool:
     """Return True when base_url points at a local inference server."""
     try:
         from urllib.parse import urlparse
+
         host = urlparse(base_url).hostname or ""
-        return host in _LOCAL_HOSTS or host.startswith("192.168.") or host.startswith("10.")
+        return (
+            host in _LOCAL_HOSTS
+            or host.startswith("192.168.")
+            or host.startswith("10.")
+        )
     except Exception:
         return False
 
@@ -229,7 +234,9 @@ class TokenCounter:
 _llm_registry: Dict[str, "LLM"] = {}
 
 
-def get_llm(config_name: str = "default", llm_config: Optional["LLMSettings"] = None) -> "LLM":
+def get_llm(
+    config_name: str = "default", llm_config: Optional["LLMSettings"] = None
+) -> "LLM":
     """Return a cached LLM instance for *config_name*.
 
     This is the preferred factory.  ``LLM(config_name)`` is kept for
@@ -337,7 +344,9 @@ class LLM:
             # These control thinking/vision behaviour and are used in ask_tool().
             # For cloud models they start from the static name-list defaults;
             # for local servers (LM-Studio / Ollama) we try to probe the API.
-            self._enable_thinking: Optional[bool] = getattr(llm_config, "enable_thinking", None)
+            self._enable_thinking: Optional[bool] = getattr(
+                llm_config, "enable_thinking", None
+            )
             self.caps_thinking: bool = self.model in CLAUDE_THINKING_MODELS
             self.caps_vision: bool = self.model in MULTIMODAL_MODELS
 
@@ -360,7 +369,9 @@ class LLM:
 
         The user can always override via ``enable_thinking`` in config.toml.
         """
-        import urllib.request, urllib.error, json as _json
+        import json as _json
+        import urllib.error
+        import urllib.request
         from urllib.parse import urlparse, urlunparse
 
         parsed = urlparse(self.base_url)
@@ -374,18 +385,24 @@ class LLM:
             models: list = data.get("data", [])
             # Find the entry matching the configured model id
             match = next(
-                (m for m in models if m.get("id") == self.model or self.model in str(m.get("id", ""))),
+                (
+                    m
+                    for m in models
+                    if m.get("id") == self.model or self.model in str(m.get("id", ""))
+                ),
                 None,
             )
             if match:
                 info = match.get("info", {})
                 detected_thinking = bool(info.get("reasoning", False))
-                detected_vision   = bool(info.get("vision",    False))
+                detected_vision = bool(info.get("vision", False))
                 self.caps_thinking = detected_thinking
-                self.caps_vision   = detected_vision
+                self.caps_vision = detected_vision
                 logger.info(
                     "[LM-Studio] Model '%s' caps → thinking=%s  vision=%s",
-                    self.model, self.caps_thinking, self.caps_vision,
+                    self.model,
+                    self.caps_thinking,
+                    self.caps_vision,
                 )
             else:
                 logger.debug(
@@ -394,7 +411,9 @@ class LLM:
                 )
             return  # LM-Studio responded — skip Ollama probe
         except Exception as exc:
-            logger.debug("[LM-Studio] /api/v0/models probe failed: %s — trying Ollama.", exc)
+            logger.debug(
+                "[LM-Studio] /api/v0/models probe failed: %s — trying Ollama.", exc
+            )
 
         # --- Fallback: Ollama /api/tags ---
         ollama_url = f"{origin}/api/tags"
@@ -677,11 +696,10 @@ class LLM:
                 return [
                     *messages[:index],
                     {**messages[index], "role": "user"},
-                    *messages[index + 1:],
+                    *messages[index + 1 :],
                 ]
 
         return [*messages, {"role": "user", "content": "Continue."}]
-
 
     def needs_local_template_compat(self) -> bool:
         """Return true for OpenAI-compatible local servers with brittle chat templates."""
@@ -851,7 +869,9 @@ class LLM:
                 raise ValueError("Empty response from streaming LLM")
 
             # Use real token count when available; fall back to estimation.
-            completion_tokens = real_completion_tokens or self.count_tokens(full_response)
+            completion_tokens = real_completion_tokens or self.count_tokens(
+                full_response
+            )
             logger.info(
                 f"Streaming completion tokens: {completion_tokens} "
                 f"({'real' if real_completion_tokens else 'estimated'})"
@@ -1225,7 +1245,9 @@ class LLM:
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:
-                logger.warning("LLM returned an empty or invalid response: %s", response)
+                logger.warning(
+                    "LLM returned an empty or invalid response: %s", response
+                )
                 return None
 
             # Update token counts

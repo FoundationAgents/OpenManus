@@ -1722,6 +1722,7 @@ def _get_llm_caps() -> dict:
     """Return capability info for the default LLM instance (safe — never throws)."""
     try:
         from app.llm import LLM, _is_local_server
+
         llm = LLM()
         return {
             "model": llm.model,

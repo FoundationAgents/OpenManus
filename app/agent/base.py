@@ -230,10 +230,11 @@ class BaseAgent(BaseModel, ABC):
         if len(recent_with_tools) >= self.duplicate_threshold:
             call_signatures: list[str] = []
             for msg in recent_with_tools:
-                for tc in (msg.tool_calls or []):
+                for tc in msg.tool_calls or []:
                     sig = f"{tc.function.name}:{tc.function.arguments}"
                     call_signatures.append(sig)
             from collections import Counter
+
             counts = Counter(call_signatures)
             if any(count >= self.duplicate_threshold for count in counts.values()):
                 return True
