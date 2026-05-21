@@ -301,57 +301,57 @@ class LLM:
         if hasattr(self, "client"):  # Already initialised — skip.
             return
 
-            llm_config = llm_config or config.llm
-            llm_config = llm_config.get(config_name, llm_config["default"])
-            self.model = llm_config.model
-            self.max_tokens = llm_config.max_tokens
-            self.temperature = llm_config.temperature
-            self.api_type = llm_config.api_type
-            self.api_key = llm_config.api_key
-            self.api_version = llm_config.api_version
-            self.base_url = llm_config.base_url
+        llm_config = llm_config or config.llm
+        llm_config = llm_config.get(config_name, llm_config["default"])
+        self.model = llm_config.model
+        self.max_tokens = llm_config.max_tokens
+        self.temperature = llm_config.temperature
+        self.api_type = llm_config.api_type
+        self.api_key = llm_config.api_key
+        self.api_version = llm_config.api_version
+        self.base_url = llm_config.base_url
 
-            # Add token counting related attributes
-            self.total_input_tokens = 0
-            self.total_completion_tokens = 0
-            self.max_input_tokens = (
-                llm_config.max_input_tokens
-                if hasattr(llm_config, "max_input_tokens")
-                else None
+        # Add token counting related attributes
+        self.total_input_tokens = 0
+        self.total_completion_tokens = 0
+        self.max_input_tokens = (
+            llm_config.max_input_tokens
+            if hasattr(llm_config, "max_input_tokens")
+            else None
+        )
+
+        # Initialize tokenizer
+        try:
+            self.tokenizer = tiktoken.encoding_for_model(self.model)
+        except KeyError:
+            # If the model is not in tiktoken's presets, use cl100k_base as default
+            self.tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        if self.api_type == "azure":
+            self.client = AsyncAzureOpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+                api_version=self.api_version,
             )
+        elif self.api_type == "aws":
+            self.client = BedrockClient()
+        else:
+            self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
-            # Initialize tokenizer
-            try:
-                self.tokenizer = tiktoken.encoding_for_model(self.model)
-            except KeyError:
-                # If the model is not in tiktoken's presets, use cl100k_base as default
-                self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.token_counter = TokenCounter(self.tokenizer)
 
-            if self.api_type == "azure":
-                self.client = AsyncAzureOpenAI(
-                    base_url=self.base_url,
-                    api_key=self.api_key,
-                    api_version=self.api_version,
-                )
-            elif self.api_type == "aws":
-                self.client = BedrockClient()
-            else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        # --- Capability flags ---
+        # These control thinking/vision behaviour and are used in ask_tool().
+        # For cloud models they start from the static name-list defaults;
+        # for local servers (LM-Studio / Ollama) we try to probe the API.
+        self._enable_thinking: Optional[bool] = getattr(
+            llm_config, "enable_thinking", None
+        )
+        self.caps_thinking: bool = self.model in CLAUDE_THINKING_MODELS
+        self.caps_vision: bool = self.model in MULTIMODAL_MODELS
 
-            self.token_counter = TokenCounter(self.tokenizer)
-
-            # --- Capability flags ---
-            # These control thinking/vision behaviour and are used in ask_tool().
-            # For cloud models they start from the static name-list defaults;
-            # for local servers (LM-Studio / Ollama) we try to probe the API.
-            self._enable_thinking: Optional[bool] = getattr(
-                llm_config, "enable_thinking", None
-            )
-            self.caps_thinking: bool = self.model in CLAUDE_THINKING_MODELS
-            self.caps_vision: bool = self.model in MULTIMODAL_MODELS
-
-            if _is_local_server(self.base_url):
-                self._probe_local_server_caps()
+        if _is_local_server(self.base_url):
+            self._probe_local_server_caps()
 
     # ------------------------------------------------------------------
     # Local-server capability probe
