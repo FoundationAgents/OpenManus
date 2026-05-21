@@ -159,6 +159,7 @@ class Bash(BaseTool):
 
     name: str = "bash"
     description: str = _BASH_DESCRIPTION
+    emits_progress: bool = True  # streams stdout/stderr chunks while running
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -180,12 +181,33 @@ class Bash(BaseTool):
             if not command:
                 raise ToolError("no command provided.")
             tool_call = get_current_tool_call() or {}
+            task = get_current_task()
+
+            # Emit start heartbeat
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "running",
+                    "message": f"Executing: {command[:120]}",
+                },
+            )
             code, stdout, stderr = await sandbox.run(
                 command,
                 timeout=kwargs.get("timeout") or 120,
-                task=get_current_task(),
+                task=task,
                 tool_call=tool_call,
                 tool_name=self.name,
+            )
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "done",
+                    "exit_code": code,
+                },
             )
             return CLIResult(output=stdout, error=stderr if code else None)
 

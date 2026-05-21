@@ -21,6 +21,7 @@ class PythonExecute(BaseTool):
         "Executes Python code string. Note: Only printed stdout/stderr are visible, "
         "function return values are not captured. Use print statements to see results."
     )
+    emits_progress: bool = True  # streams stdout/stderr lines while running
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -52,12 +53,30 @@ class PythonExecute(BaseTool):
         if sandbox is not None:
             script_path = "/workspace/.openmanus/python_execute.py"
             await sandbox.write_file(script_path, code)
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "running",
+                    "message": "Executing Python script in sandbox...",
+                },
+            )
             return_code, stdout, stderr = await sandbox.run(
                 f"python -u {script_path}",
                 timeout=timeout,
                 task=get_current_task(),
                 tool_call=tool_call,
                 tool_name=self.name,
+            )
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "done",
+                    "exit_code": return_code,
+                },
             )
             return {
                 "observation": stdout + stderr,

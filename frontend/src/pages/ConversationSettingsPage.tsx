@@ -37,6 +37,8 @@ export default function ConversationSettingsPage() {
   const [maxTokens, setMaxTokens] = useState<number | ''>('');
   const [thinkingBudget, setThinkingBudget] = useState<number | ''>('');
   const [maxSteps, setMaxSteps] = useState<number | ''>('');
+  const [enableThinking, setEnableThinking] = useState<'auto' | 'on' | 'off'>('auto');
+  const [performanceMode, setPerformanceMode] = useState(false);
   const [health, setHealth] = useState<IntegrationsHealth | null>(null);
   const [isHealthLoading, setIsHealthLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,6 +76,9 @@ export default function ConversationSettingsPage() {
         setMaxTokens((loadedConversation.settings as any)?.max_tokens ?? '');
         setThinkingBudget((loadedConversation.settings as any)?.thinking_budget ?? '');
         setMaxSteps((loadedConversation.settings as any)?.max_steps ?? '');
+        const et = (loadedConversation.settings as any)?.enable_thinking;
+        setEnableThinking(et === true ? 'on' : et === false ? 'off' : 'auto');
+        setPerformanceMode(Boolean((loadedConversation.settings as any)?.performance_mode));
       })
       .catch(error => toast.error(error instanceof Error ? error.message : 'Could not load settings'));
   }, [conversationId]);
@@ -129,6 +134,8 @@ export default function ConversationSettingsPage() {
         max_tokens: maxTokens !== '' ? maxTokens : undefined,
         thinking_budget: thinkingBudget !== '' ? thinkingBudget : undefined,
         max_steps: maxSteps !== '' ? maxSteps : undefined,
+        enable_thinking: enableThinking === 'auto' ? undefined : enableThinking === 'on',
+        performance_mode: performanceMode,
       } as any);
       setConversation(saved);
       toast.success('Conversation settings saved');
@@ -345,37 +352,88 @@ export default function ConversationSettingsPage() {
               Leave blank to use global defaults.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Max Output Tokens</Label>
-              <Input
-                type="number"
-                placeholder="8192 (global default)"
-                value={maxTokens}
-                onChange={e => setMaxTokens(e.target.value === '' ? '' : Number(e.target.value))}
-              />
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Max Output Tokens</Label>
+                <Input
+                  type="number"
+                  placeholder="8192 (global default)"
+                  value={maxTokens}
+                  onChange={e => setMaxTokens(e.target.value === '' ? '' : Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Thinking Budget
+                  <span className="ml-1 text-amber-500">⚡ reasoning</span>
+                </Label>
+                <Input
+                  type="number"
+                  placeholder="4096 (global default)"
+                  value={thinkingBudget}
+                  onChange={e => setThinkingBudget(e.target.value === '' ? '' : Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Max Agent Steps</Label>
+                <Input
+                  type="number"
+                  placeholder="30 (global default)"
+                  value={maxSteps}
+                  onChange={e => setMaxSteps(e.target.value === '' ? '' : Number(e.target.value))}
+                />
+              </div>
             </div>
+
+            {/* Thinking mode control */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
-                Thinking Budget
-                <span className="ml-1 text-amber-500">⚡ reasoning</span>
+                Thinking / Reasoning Mode
+                <span className="ml-1 text-muted-foreground">(auto = detected from LM-Studio or model name)</span>
               </Label>
-              <Input
-                type="number"
-                placeholder="4096 (global default)"
-                value={thinkingBudget}
-                onChange={e => setThinkingBudget(e.target.value === '' ? '' : Number(e.target.value))}
-              />
+              <div className="flex gap-2">
+                {(['auto', 'on', 'off'] as const).map(option => (
+                  <button
+                    key={option}
+                    onClick={() => setEnableThinking(option)}
+                    className={[
+                      'rounded-md border px-4 py-1.5 text-sm font-medium transition-colors',
+                      enableThinking === option
+                        ? option === 'on'
+                          ? 'border-amber-500 bg-amber-500/10 text-amber-600'
+                          : option === 'off'
+                            ? 'border-muted bg-muted text-muted-foreground'
+                            : 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-transparent text-muted-foreground hover:bg-muted/40',
+                    ].join(' ')}
+                  >
+                    {option === 'auto' ? '⚙ Auto' : option === 'on' ? '⚡ Always On' : '⊘ Disabled'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {enableThinking === 'auto'
+                  ? 'Auto: detected from LM-Studio /api/v0/models or from known model names (Claude 3.7, QwQ, DeepSeek-R1…)'
+                  : enableThinking === 'on'
+                    ? 'Always on: thinking budget injected into every request for this conversation.'
+                    : 'Disabled: thinking tokens suppressed — faster, lower-cost responses.'}
+              </p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Max Agent Steps</Label>
-              <Input
-                type="number"
-                placeholder="30 (global default)"
-                value={maxSteps}
-                onChange={e => setMaxSteps(e.target.value === '' ? '' : Number(e.target.value))}
+
+            {/* Performance mode */}
+            <label className="flex cursor-pointer items-center justify-between rounded-md border p-3 text-sm">
+              <span>
+                <span className="block font-medium">Performance Mode</span>
+                <span className="text-xs text-muted-foreground">
+                  Disables streaming previews and reduces UI refresh rate. Useful for long background tasks.
+                </span>
+              </span>
+              <Checkbox
+                checked={performanceMode}
+                onCheckedChange={v => setPerformanceMode(Boolean(v))}
               />
-            </div>
+            </label>
           </CardContent>
         </Card>
 

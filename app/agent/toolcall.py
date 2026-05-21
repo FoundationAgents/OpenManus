@@ -186,6 +186,19 @@ class ToolCallAgent(ReActAgent):
             },
         )
 
+        # Structured ReAct "Reason" trace event — consumed by the UI step timeline
+        task.emit(
+            "agent:lifecycle:step:reason",
+            {
+                "step": self.current_step,
+                "agent": self.name,
+                "reasoning": content.strip() if content else "",
+                "will_act": bool(tool_calls),
+                "tools_planned": [tc.function.name for tc in tool_calls] if tool_calls else [],
+            },
+        )
+
+
         try:
             if response is None:
                 raise RuntimeError("No response received from the LLM")
@@ -487,7 +500,20 @@ class ToolCallAgent(ReActAgent):
             results.append(result)
             index += 1
 
+        # ReAct "Observe" trace event — summarises what all tools returned
+        task.emit(
+            "agent:lifecycle:step:observe",
+            {
+                "step": self.current_step,
+                "agent": self.name,
+                "tool_count": len(self.tool_calls),
+                "tools_executed": [tc.function.name for tc in self.tool_calls],
+                "observation_preview": "\n\n".join(results)[:600] if results else "",
+            },
+        )
+
         return "\n\n".join(results)
+
 
     def _is_parallel_safe(self, command: ToolCall) -> bool:
         """Return True if the tool can run concurrently with others.

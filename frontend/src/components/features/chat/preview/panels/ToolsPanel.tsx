@@ -12,7 +12,8 @@ export const LiveActivityPanel = ({ messages }: { messages: Message[] }) => {
     .filter(
       message =>
         Boolean(message.type) &&
-        message.type !== 'agent:lifecycle:step:act:tool:terminal:output',
+        message.type !== 'agent:lifecycle:step:act:tool:terminal:output' &&
+        message.type !== 'agent:plan:updated',
     )
     .slice(-24)
     .reverse();
@@ -23,6 +24,11 @@ export const LiveActivityPanel = ({ messages }: { messages: Message[] }) => {
     .join('')
     .slice(-5000);
 
+  // Latest non-deleted plan state
+  const latestPlan = [...messages]
+    .filter(m => m.type === 'agent:plan:updated' && !m.content.deleted)
+    .at(-1)?.content ?? null;
+
   const status = recent.find(message => message.type === 'agent:lifecycle:complete')
     ? 'Completed'
     : recent.find(message => message.type === 'agent:lifecycle:terminated')
@@ -32,8 +38,11 @@ export const LiveActivityPanel = ({ messages }: { messages: Message[] }) => {
         : 'Running';
 
   return (
-    <div className="h-full min-h-0 p-4">
-      <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="h-full min-h-0 p-4 space-y-3 overflow-auto">
+      {/* Live plan card — shown when the agent is using the planning tool */}
+      {latestPlan && <PlanCard plan={latestPlan} />}
+
+      <Card className="flex min-h-0 flex-col overflow-hidden">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Live Activity</CardTitle>
@@ -84,6 +93,72 @@ export const LiveActivityPanel = ({ messages }: { messages: Message[] }) => {
     </div>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Live Plan Card — rendered inside LiveActivityPanel when planning tool is used
+// ---------------------------------------------------------------------------
+
+const STATUS_ICON: Record<string, string> = {
+  not_started: '○',
+  in_progress: '→',
+  completed: '✓',
+  blocked: '!',
+};
+const STATUS_COLOR: Record<string, string> = {
+  not_started: 'text-muted-foreground',
+  in_progress: 'text-amber-500',
+  completed: 'text-emerald-500',
+  blocked: 'text-rose-500',
+};
+
+const PlanCard = ({ plan }: { plan: Record<string, any> }) => {
+  const steps: Array<{ index: number; text: string; status: string; notes: string; active: boolean }> =
+    plan.steps ?? [];
+  const progress = plan.progress ?? { completed: 0, total: steps.length, pct: 0 };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">{String(plan.title || 'Agent Plan')}</CardTitle>
+          <Badge variant="outline" className="font-mono text-xs">
+            {progress.completed}/{progress.total} steps
+          </Badge>
+        </div>
+        {/* Progress bar */}
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${progress.pct}%` }}
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {steps.map(step => (
+          <div
+            key={step.index}
+            className={[
+              'flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs',
+              step.active ? 'border-primary/40 bg-primary/5' : 'border-transparent',
+            ].join(' ')}
+          >
+            <span className={`mt-px font-mono font-bold ${STATUS_COLOR[step.status] ?? 'text-muted-foreground'}`}>
+              {STATUS_ICON[step.status] ?? '○'}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className={step.status === 'completed' ? 'text-muted-foreground line-through' : ''}>
+                {step.text}
+              </div>
+              {step.notes && <div className="text-muted-foreground mt-0.5">{step.notes}</div>}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
+
 
 // ---------------------------------------------------------------------------
 // Terminal output — full scrollable terminal log

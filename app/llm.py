@@ -222,22 +222,78 @@ class TokenCounter:
         return total_tokens
 
 
-class LLM:
-    _instances: Dict[str, "LLM"] = {}
+# ---------------------------------------------------------------------------
+# LLM instance registry
+# ---------------------------------------------------------------------------
+# Keyed by config_name. Populated by get_llm(); LLM() also populates it.
+_llm_registry: Dict[str, "LLM"] = {}
 
-    def __new__(
-        cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
-    ):
-        if config_name not in cls._instances:
-            instance = super().__new__(cls)
-            instance.__init__(config_name, llm_config)
-            cls._instances[config_name] = instance
-        return cls._instances[config_name]
+
+def get_llm(config_name: str = "default", llm_config: Optional["LLMSettings"] = None) -> "LLM":
+    """Return a cached LLM instance for *config_name*.
+
+    This is the preferred factory.  ``LLM(config_name)`` is kept for
+    backwards-compatibility and delegates here.
+
+    Why a factory instead of __new__?
+    - ``__new__`` + ``__init__`` is fragile: Python calls ``__init__`` again
+      every time even when ``__new__`` returns an existing instance, requiring
+      the ``if not hasattr(self, 'client')`` guard.
+    - A module-level dict + factory gives the same per-config caching without
+      the hidden re-init risk, and makes the caching explicit and testable.
+    - Callers that need a fresh instance (e.g. tests) can call
+      ``get_llm.cache_clear(config_name)`` without monkey-patching ``__new__``.
+    """
+    if config_name not in _llm_registry:
+        instance = object.__new__(LLM)
+        instance._init_from_config(config_name, llm_config)
+        _llm_registry[config_name] = instance
+    return _llm_registry[config_name]
+
+
+def _evict_llm(config_name: str = "default") -> None:
+    """Remove a cached LLM instance so the next call to get_llm() re-creates it.
+
+    Useful in tests or when the config changes at runtime.
+    """
+    _llm_registry.pop(config_name, None)
+
+
+class LLM:
+    """Thin wrapper around an OpenAI-compatible async client with capability detection."""
 
     def __init__(
         self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
     ):
-        if not hasattr(self, "client"):  # Only initialize if not already initialized
+        """Backwards-compatible constructor — delegates to get_llm() cache.
+
+        Calling ``LLM(config_name)`` is equivalent to ``get_llm(config_name)``.
+        Because Python always calls ``__init__`` after ``__new__``, we guard
+        against double-initialisation with the ``_init_from_config`` split.
+        """
+        # If this instance was already initialised (retrieved from cache or
+        # created by get_llm()), do nothing.
+        if hasattr(self, "client"):
+            return
+        self._init_from_config(config_name, llm_config)
+
+    def __new__(
+        cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
+    ):
+        """Return the cached instance from the module-level registry."""
+        if config_name not in _llm_registry:
+            instance = object.__new__(cls)
+            # _init_from_config will be called by __init__ below
+            _llm_registry[config_name] = instance
+        return _llm_registry[config_name]
+
+    def _init_from_config(
+        self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
+    ) -> None:
+        """Initialise the instance from config.  Called at most once per instance."""
+        if hasattr(self, "client"):  # Already initialised — skip.
+            return
+
             llm_config = llm_config or config.llm
             llm_config = llm_config.get(config_name, llm_config["default"])
             self.model = llm_config.model
