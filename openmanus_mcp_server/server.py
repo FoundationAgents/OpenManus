@@ -1718,6 +1718,24 @@ def notify_resource_change(resource_uri: str):
 _server_start_time: float = time.time()
 
 
+def _get_llm_caps() -> dict:
+    """Return capability info for the default LLM instance (safe — never throws)."""
+    try:
+        from app.llm import LLM, _is_local_server
+        llm = LLM()
+        return {
+            "model": llm.model,
+            "base_url": llm.base_url,
+            "is_local_server": _is_local_server(llm.base_url),
+            "caps_thinking": llm.caps_thinking,
+            "caps_vision": llm.caps_vision,
+            "thinking_enabled": llm.thinking_enabled,
+            "enable_thinking_config": llm._enable_thinking,
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 def get_health_status() -> dict:
     uptime = time.time() - _server_start_time
     tasks = agent.task_manager.tasks
@@ -1759,6 +1777,7 @@ def get_health_status() -> dict:
             "page_loaded": bool(_browser_state.get("page_content")),
             "current_url": _browser_state.get("current_url", ""),
         },
+        "llm": _get_llm_caps(),
         "timestamp": datetime.datetime.now().isoformat(),
     }
 

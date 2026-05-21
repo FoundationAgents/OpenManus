@@ -28,6 +28,14 @@ class LLMSettings(BaseModel):
     temperature: float = Field(1.0, description="Sampling temperature")
     api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    enable_thinking: Optional[bool] = Field(
+        None,
+        description=(
+            "Enable/disable thinking (reasoning) mode. "
+            "None = auto-detect from LM-Studio /api/v0/models; "
+            "true = always on; false = always off."
+        ),
+    )
 
 
 class ProxySettings(BaseModel):
@@ -312,6 +320,7 @@ class Config:
             "temperature": base_llm.get("temperature", 1.0),
             "api_type": base_llm.get("api_type", ""),
             "api_version": base_llm.get("api_version", ""),
+            "enable_thinking": base_llm.get("enable_thinking"),  # None = auto-detect
         }
 
         # handle browser config.

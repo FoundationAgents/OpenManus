@@ -210,21 +210,43 @@ class BaseAgent(BaseModel, ABC):
         )
 
     def is_stuck(self) -> bool:
-        """Check if the agent is stuck in a loop by detecting duplicate content"""
-        if len(self.memory.messages) < 2:
+        """Detect stuck loops via two complementary signals.
+
+        1. Semantic tool-loop: the same tool is called with identical arguments
+           three or more times in the last 12 assistant messages — even if the
+           surrounding text is different each time.
+        2. Content-duplicate fallback: the full assistant content matches
+           exactly `duplicate_threshold` times in recent history (original
+           behaviour, kept as a safety net).
+        """
+        messages = self.memory.messages
+        if len(messages) < 2:
             return False
 
-        last_message = self.memory.messages[-1]
+        # --- Signal 1: repeated tool-call signatures ---
+        recent_with_tools = [
+            m for m in messages[-12:] if getattr(m, "tool_calls", None)
+        ]
+        if len(recent_with_tools) >= self.duplicate_threshold:
+            call_signatures: list[str] = []
+            for msg in recent_with_tools:
+                for tc in (msg.tool_calls or []):
+                    sig = f"{tc.function.name}:{tc.function.arguments}"
+                    call_signatures.append(sig)
+            from collections import Counter
+            counts = Counter(call_signatures)
+            if any(count >= self.duplicate_threshold for count in counts.values()):
+                return True
+
+        # --- Signal 2: exact content duplicate (original fallback) ---
+        last_message = messages[-1]
         if not last_message.content:
             return False
-
-        # Count identical content occurrences
         duplicate_count = sum(
             1
-            for msg in reversed(self.memory.messages[:-1])
+            for msg in reversed(messages[:-1])
             if msg.role == "assistant" and msg.content == last_message.content
         )
-
         return duplicate_count >= self.duplicate_threshold
 
     @property

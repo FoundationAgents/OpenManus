@@ -6,6 +6,24 @@ api_key = "YOUR_API_KEY"                   # Your API key
 max_tokens = 8192                          # Maximum number of tokens in the response
 temperature = 0.0                          # Controls randomness
 
+# enable_thinking controls reasoning/thinking mode:
+#   (not set) = auto-detect via LM-Studio /api/v0/models  (recommended for local models)
+#   true       = always enable thinking (useful if auto-detect misses the model)
+#   false      = always disable thinking (useful to save tokens on fast tasks)
+# enable_thinking = true
+
+# [llm] # LM-Studio (local)
+# api_type = "openai"
+# model = "qwen/qwq-32b"                  # Exact model id shown in LM-Studio
+# base_url = "http://localhost:1234/v1"   # LM-Studio default port
+# api_key = "lm-studio"                  # Any non-empty string works
+# max_tokens = 8192
+# temperature = 0.6
+# enable_thinking is auto-detected: LM-Studio's /api/v0/models reports
+# "reasoning: true" for QwQ, DeepSeek-R1, Phi-4 Reasoning, Gemma 3 Thinking, etc.
+# Uncomment below to override:
+# enable_thinking = true
+
 # [llm] # Amazon Bedrock
 # api_type = "aws"                                       # Required
 # model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Bedrock supported modelID
@@ -22,22 +40,6 @@ temperature = 0.0                          # Controls randomness
 # max_tokens = 8096
 # temperature = 0.0
 # api_version="AZURE API VERSION" #"2024-08-01-preview"
-
-# [llm] #OLLAMA:
-# api_type = 'ollama'
-# model = "llama3.2"
-# base_url = "http://localhost:11434/v1"
-# api_key = "ollama"
-# max_tokens = 4096
-# temperature = 0.0
-
-# [llm] #Jiekou.AI:
-# api_type = 'jiekou'
-# model = "claude-sonnet-4-5-20250929"                               # The LLM model to use
-# base_url = "https://api.jiekou.ai/openai"                          # API endpoint URL
-# api_key = "your Jiekou.AI api key"                                 # Your API key
-# max_tokens = 64000                                                 # Maximum number of tokens in the response
-# temperature = 0.0                                                  # Controls randomness
 
 # Optional configuration for specific LLM models
 [llm.vision]

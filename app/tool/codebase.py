@@ -71,6 +71,7 @@ class GlobSearch(BaseTool):
     """Find files by glob pattern."""
 
     name: str = "glob"
+    parallel_safe: bool = True  # read-only, no shared state
     description: str = (
         "Fast file discovery by glob pattern. Use this before reading files when "
         "you need to locate likely implementation, config, test, or artifact files."
@@ -123,6 +124,7 @@ class GrepSearch(BaseTool):
     """Search file contents with ripgrep when available."""
 
     name: str = "grep"
+    parallel_safe: bool = True  # read-only, no shared state
     description: str = (
         "Fast text search with line numbers. Use this to locate symbols, errors, TODOs, "
         "or relevant code before opening files."
@@ -221,6 +223,7 @@ class ReadFiles(BaseTool):
     """Read one or more files with line numbers."""
 
     name: str = "read_files"
+    parallel_safe: bool = True  # read-only, no shared state
     description: str = (
         "Read one or more files with line numbers. Prefer this for small batches of "
         "related files after glob/grep has found them."
@@ -308,6 +311,7 @@ class CodebaseOverview(BaseTool):
     """Summarize workspace structure and likely verification commands."""
 
     name: str = "codebase_overview"
+    parallel_safe: bool = True  # read-only, no shared state
     description: str = (
         "Inspect the current workspace quickly: important files, detected languages, "
         "package managers, and likely build/test commands."

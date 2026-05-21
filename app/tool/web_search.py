@@ -57,7 +57,7 @@ class SearchResponse(ToolResult):
     results: List[SearchResult] = Field(
         default_factory=list, description="List of search results"
     )
-    metadata: Optional[SearchMetadata] = Field(
+    search_metadata: Optional[SearchMetadata] = Field(
         default=None, description="Metadata about the search"
     )
 
@@ -89,13 +89,13 @@ class SearchResponse(ToolResult):
                 result_text.append(f"   Content: {content_preview}")
 
         # Add metadata at the bottom if available
-        if self.metadata:
+        if self.search_metadata:
             result_text.extend(
                 [
                     f"\nMetadata:",
-                    f"- Total results: {self.metadata.total_results}",
-                    f"- Language: {self.metadata.language}",
-                    f"- Country: {self.metadata.country}",
+                    f"- Total results: {self.search_metadata.total_results}",
+                    f"- Language: {self.search_metadata.language}",
+                    f"- Country: {self.search_metadata.country}",
                 ]
             )
 
@@ -157,6 +157,7 @@ class WebSearch(BaseTool):
     """Search the web for information using various search engines."""
 
     name: str = "web_search"
+    parallel_safe: bool = True  # read-only network I/O, no shared state
     description: str = """Search the web for real-time information about any topic.
     This tool returns comprehensive search results with relevant information, URLs, titles, and descriptions.
     If the primary search engine fails, it automatically falls back to alternative engines."""
@@ -262,7 +263,7 @@ class WebSearch(BaseTool):
                     status="success",
                     query=query,
                     results=results,
-                    metadata=SearchMetadata(
+                    search_metadata=SearchMetadata(
                         total_results=len(results),
                         language=lang,
                         country=country,

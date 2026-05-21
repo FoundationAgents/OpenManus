@@ -24,14 +24,27 @@ from context.engine import ContextEngine
 
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
-INCOMPLETE_RESPONSE_RE = re.compile(
+# Patterns that suggest the model is in the middle of executing a plan (not finished).
+_INCOMPLETE_RE = re.compile(
     r"\b(let me|i(?:'| a)m going to|next i(?:'| a)ll|i(?:'| a)ll now|continuing|to debug|to inspect|to verify)\b",
     re.IGNORECASE,
 )
-FINAL_RESPONSE_RE = re.compile(
-    r"\b(done|completed|finished|implemented|created|verified|here(?:'| i)s what|summary|remaining limitations|blocked)\b",
+
+# Strong explicit finish markers — a single match is enough to consider the turn final.
+_STRONG_FINAL_RE = re.compile(
+    r"\b(task (?:is )?(?:complete|done|finished)|all (?:steps|requirements) (?:are )?(?:done|complete|met)|here(?:'s| is) (?:the )?(?:final|complete|full)|remaining limitations|implementation (?:is )?(?:complete|done))\b",
     re.IGNORECASE,
 )
+
+# Weak finish words — need 2+ of these (or 1 + no tool intent) to avoid false positives.
+_WEAK_FINAL_RE = re.compile(
+    r"\b(done|completed|finished|implemented|created|verified|summary|blocked|successfully)\b",
+    re.IGNORECASE,
+)
+
+# Kept for external import compatibility.
+FINAL_RESPONSE_RE = _STRONG_FINAL_RE
+
 OBSERVE_ONLY_TOOLS = {"codebase_overview", "glob", "grep", "read_files"}
 
 
@@ -59,16 +72,6 @@ class ToolCallAgent(ReActAgent):
     max_steps: int = config.agent.max_steps
     max_tools_per_step: int = config.agent.max_tools_per_step
     max_observe: Optional[Union[int, bool]] = None
-    parallel_safe_tools: set[str] = Field(
-        default_factory=lambda: {
-            "skill_playbook",
-            "codebase_overview",
-            "glob",
-            "grep",
-            "read_files",
-            "web_search",
-        }
-    )
 
     async def think(self, task: Task) -> bool:
         """Process current state and decide next actions using tools."""
@@ -285,21 +288,36 @@ class ToolCallAgent(ReActAgent):
             return False
         if "?" in text:
             return True
-        return bool(INCOMPLETE_RESPONSE_RE.search(text))
+        return bool(_INCOMPLETE_RE.search(text))
 
     @staticmethod
     def _looks_final_response(content: str) -> bool:
+        """Heuristic: is this turn a genuine task completion or mid-task commentary?
+
+        Rules (applied in order):
+        1. Empty / whitespace → never final.
+        2. Looks incomplete (has in-progress signal words) → not final.
+        3. Strong explicit finish marker (e.g. 'task is complete') → final.
+        4. Two or more weak finish words present → final.
+        5. One weak finish word AND the message ends without a colon (not leading into next step) → final.
+        6. Otherwise → not final.
+        """
         text = (content or "").strip()
         if not text:
             return False
         if ToolCallAgent._looks_incomplete_response(text):
             return False
-        if not FINAL_RESPONSE_RE.search(text):
-            return False
-        # Final responses should not end with an obvious "next action" cliffhanger.
-        if text.endswith(":"):
-            return False
-        return True
+        # Rule 3: strong explicit signal is sufficient on its own
+        if _STRONG_FINAL_RE.search(text):
+            return True
+        weak_matches = _WEAK_FINAL_RE.findall(text)
+        # Rule 4: two or more weak signals
+        if len(weak_matches) >= 2:
+            return not text.endswith(":")
+        # Rule 5: one weak signal + not trailing into a next-step list
+        if len(weak_matches) == 1:
+            return not text.endswith(":")
+        return False
 
     @staticmethod
     def _is_observe_only_batch(tool_calls: List[ToolCall]) -> bool:
@@ -379,9 +397,35 @@ class ToolCallAgent(ReActAgent):
 
         results = []
         index = 0
+        # Dedup set: skip tool calls with an identical name+args signature seen in this step.
+        seen_sigs: set[str] = set()
         while index < len(self.tool_calls):
             if task.is_interrupted():
                 raise TaskInterrupted()
+
+            command = self.tool_calls[index]
+            # --- Intra-step deduplication ---
+            sig = f"{command.function.name}:{command.function.arguments}"
+            if sig in seen_sigs:
+                index += 1
+                task.emit(
+                    "warning",
+                    {
+                        "message": f"Duplicate tool call skipped: '{command.function.name}' with identical args.",
+                        "tool": command.function.name,
+                    },
+                )
+                # Still need a tool message to keep the message chain intact
+                self.memory.add_message(
+                    Message.tool_message(
+                        content="[skipped: identical call already executed in this step]",
+                        tool_call_id=command.id,
+                        name=command.function.name,
+                    )
+                )
+                results.append("[skipped: duplicate]")
+                continue
+            seen_sigs.add(sig)
 
             command = self.tool_calls[index]
             if self._is_parallel_safe(command):
@@ -446,11 +490,27 @@ class ToolCallAgent(ReActAgent):
         return "\n\n".join(results)
 
     def _is_parallel_safe(self, command: ToolCall) -> bool:
+        """Return True if the tool can run concurrently with others.
+
+        Prefers the tool instance's ``parallel_safe`` capability flag when
+        available; falls back to checking a hard-coded allowlist so that older
+        tools without the flag still batch correctly.
+        """
         name = (command.function.name or "").lower()
-        return name in self.parallel_safe_tools
+        tool_instance = self.available_tools.tool_map.get(name)
+        if tool_instance is not None and hasattr(tool_instance, "parallel_safe"):
+            return bool(tool_instance.parallel_safe)
+        # Fallback: a conservative allowlist of known-safe tool names.
+        _SAFE_FALLBACK = {"skill_playbook", "codebase_overview", "glob", "grep", "read_files", "web_search"}
+        return name in _SAFE_FALLBACK
 
     async def execute_tool(self, command: ToolCall, task: Task) -> str:
-        """Execute a single tool call with robust error handling."""
+        """Execute a single tool call with robust error handling.
+
+        For tools that declare ``can_retry=True`` (the default), a failed first
+        attempt is retried once with the error injected into the arguments so
+        the model's implementation gets a second chance with corrective context.
+        """
         if task.is_interrupted():
             raise TaskInterrupted()
 
@@ -461,48 +521,11 @@ class ToolCallAgent(ReActAgent):
         if name not in self.available_tools.tool_map:
             return f"Error: Unknown tool '{name}'"
 
+        tool_instance = self.available_tools.tool_map.get(name)
+        tool_can_retry = getattr(tool_instance, "can_retry", True)
+
         try:
             args = json.loads(command.function.arguments or "{}")
-
-            token = current_tool_call.set({"id": command.id, "name": name})
-            try:
-                result = await self.available_tools.execute(name=name, tool_input=args)
-            finally:
-                current_tool_call.reset(token)
-
-            if name == BrowserUseTool().name:
-                browser_screenshot = await self._emit_browser_screenshot(task)
-                if browser_screenshot:
-                    self._current_base64_image = browser_screenshot
-
-            if name == "str_replace_editor" and isinstance(args, dict):
-                path = args.get("path")
-                if path:
-                    diff_preview = self._build_str_replace_diff_preview(args)
-                    task.emit(
-                        "workspace_file_updated",
-                        {
-                            "tool_call_id": command.id,
-                            "tool": name,
-                            "path": str(path),
-                            "added_lines": int(diff_preview.get("added_lines", 0)),
-                            "deleted_lines": int(diff_preview.get("deleted_lines", 0)),
-                            "diff_preview": diff_preview,
-                        },
-                    )
-
-            await self._handle_special_tool(task=task, name=name, result=result)
-
-            if hasattr(result, "base64_image") and result.base64_image:
-                self._current_base64_image = result.base64_image
-
-            observation = (
-                f"Observed output of cmd `{name}` executed:\n{str(result)}"
-                if result
-                else f"Cmd `{name}` completed with no output"
-            )
-
-            return observation
         except json.JSONDecodeError:
             error_msg = f"Error parsing arguments for {name}: Invalid JSON format"
             task.emit(
@@ -514,6 +537,57 @@ class ToolCallAgent(ReActAgent):
                 },
             )
             return f"Error: {error_msg}"
+
+        async def _run_once(run_args: dict) -> str:
+            """Execute the tool once and return the observation string."""
+            token = current_tool_call.set({"id": command.id, "name": name})
+            try:
+                result = await self.available_tools.execute(name=name, tool_input=run_args)
+            finally:
+                current_tool_call.reset(token)
+
+            if name == BrowserUseTool().name:
+                browser_screenshot = await self._emit_browser_screenshot(task)
+                if browser_screenshot:
+                    self._current_base64_image = browser_screenshot
+
+            await self._handle_special_tool(task=task, name=name, result=result)
+
+            if hasattr(result, "base64_image") and result.base64_image:
+                self._current_base64_image = result.base64_image
+
+            observation = (
+                f"Observed output of cmd `{name}` executed:\n{str(result)}"
+                if result
+                else f"Cmd `{name}` completed with no output"
+            )
+            return observation, result
+
+        try:
+            observation, result = await _run_once(args)
+
+            # --- Retry with error feedback (one attempt only) ---
+            result_is_error = (
+                isinstance(result, str) and result.lower().startswith("error")
+            ) or (hasattr(result, "is_error") and result.is_error)
+
+            if result_is_error and tool_can_retry:
+                error_hint = str(result)
+                task.emit(
+                    "warning",
+                    {
+                        "message": f"Tool '{name}' failed on first attempt; retrying with error context.",
+                        "detail": error_hint,
+                    },
+                )
+                retry_args = {**args, "_error_context": error_hint}
+                try:
+                    observation, result = await _run_once(retry_args)
+                except Exception:
+                    pass  # Keep the first error observation on retry failure
+
+            return observation
+
         except Exception as e:
             error_msg = f"Tool '{name}' encountered a problem: {str(e)}"
             task.emit(

@@ -40,6 +40,9 @@ export default function TaskDetailPage({ selectedModel }: { selectedModel?: stri
   const [performanceMode, setPerformanceMode] = useState(
     () => localStorage.getItem('openmanus.performanceMode') === '1',
   );
+  // Step progress and token tracking (driven by agent events)
+  const [stepProgress, setStepProgress] = useState<{ current: number; max: number } | null>(null);
+  const [totalTokens, setTotalTokens] = useState(0);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -134,6 +137,21 @@ export default function TaskDetailPage({ selectedModel }: { selectedModel?: stri
           if (seenEventKeysRef.current.has(key)) return;
           seenEventKeysRef.current.add(key);
           const newMessage = toMessage({ ...data, id: key, task_id: taskId });
+
+          // --- Step progress ---
+          if (data.name === 'agent:lifecycle:step:start') {
+            const step = Number(data.content?.step ?? 0);
+            const max = Number(data.content?.max_steps ?? 0);
+            if (step > 0) setStepProgress({ current: step, max });
+          } else if (data.name === 'agent:lifecycle:complete' || data.name === 'agent:lifecycle:terminated') {
+            setStepProgress(null);
+          }
+
+          // --- Token counter ---
+          if (data.name === 'agent:lifecycle:token_count') {
+            const total = Number((data.content?.total_input ?? 0)) + Number((data.content?.total_completion ?? 0));
+            if (total > 0) setTotalTokens(total);
+          }
 
           setMessages(prevMessages => {
             const request = String(newMessage.content?.request || '').trim();
@@ -479,7 +497,7 @@ export default function TaskDetailPage({ selectedModel }: { selectedModel?: stri
     <div className="flex h-full w-full flex-row justify-between">
       <div className="flex min-w-0 flex-1 flex-col border-r bg-background">
         <div className="flex h-12 items-center gap-2 border-b px-5">
-          <div className="font-semibold">OpenManus v2.0</div>
+          <div className="font-semibold">OpenManus</div>
           {isThinking ? (
             <div className="text-xs text-muted-foreground">Working</div>
           ) : lastFinishedAt ? (
@@ -488,6 +506,22 @@ export default function TaskDetailPage({ selectedModel }: { selectedModel?: stri
             </div>
           ) : (
             <div className="text-xs text-muted-foreground">Idle</div>
+          )}
+          {/* Step progress pill */}
+          {stepProgress && stepProgress.current > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+              <div
+                className="h-1.5 rounded-full bg-primary transition-all"
+                style={{ width: `${Math.min(100, (stepProgress.current / Math.max(stepProgress.max, 1)) * 100)}%`, minWidth: '6px', maxWidth: '60px' }}
+              />
+              <span>Step {stepProgress.current}{stepProgress.max > 0 ? ` / ${stepProgress.max}` : ''}</span>
+            </div>
+          )}
+          {/* Token counter */}
+          {totalTokens > 0 && (
+            <div className="text-[11px] text-muted-foreground tabular-nums" title="Total tokens used in this session">
+              ⚡ {totalTokens.toLocaleString()} tok
+            </div>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button

@@ -36,7 +36,21 @@ from app.task_context import (
 )
 
 
-REASONING_MODELS = ["o1", "o3-mini"]
+# Models that use max_completion_tokens instead of max_tokens (cloud providers).
+# For local models (LM-Studio / Ollama) these are detected dynamically.
+REASONING_MODELS = ["o1", "o1-mini", "o3", "o3-mini", "o4-mini"]
+
+# Models that require reasoning_effort instead of temperature (OpenAI cloud only)
+REASONING_EFFORT_MODELS = {"o3", "o3-mini", "o4-mini"}
+
+# Claude models with extended thinking support (cloud only — local models use auto-detect)
+CLAUDE_THINKING_MODELS = {
+    "claude-3-7-sonnet-20250219",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-opus-20240229",
+}
+
+# Cloud multimodal models (local models report vision capability via /api/v0/models)
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
     "gpt-4o",
@@ -44,7 +58,27 @@ MULTIMODAL_MODELS = [
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-7-sonnet-20250219",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
 ]
+
+# --- Local-server detection helpers ---
+
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+def _is_local_server(base_url: str) -> bool:
+    """Return True when base_url points at a local inference server."""
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(base_url).hostname or ""
+        return host in _LOCAL_HOSTS or host.startswith("192.168.") or host.startswith("10.")
+    except Exception:
+        return False
 
 
 def _should_retry_llm_exception(exc: Exception) -> bool:
@@ -242,6 +276,104 @@ class LLM:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
             self.token_counter = TokenCounter(self.tokenizer)
+
+            # --- Capability flags ---
+            # These control thinking/vision behaviour and are used in ask_tool().
+            # For cloud models they start from the static name-list defaults;
+            # for local servers (LM-Studio / Ollama) we try to probe the API.
+            self._enable_thinking: Optional[bool] = getattr(llm_config, "enable_thinking", None)
+            self.caps_thinking: bool = self.model in CLAUDE_THINKING_MODELS
+            self.caps_vision: bool = self.model in MULTIMODAL_MODELS
+
+            if _is_local_server(self.base_url):
+                self._probe_local_server_caps()
+
+    # ------------------------------------------------------------------
+    # Local-server capability probe
+    # ------------------------------------------------------------------
+
+    def _probe_local_server_caps(self) -> None:
+        """Synchronously probe LM-Studio (or Ollama) for the active model's
+        capability flags (thinking / vision).
+
+        LM-Studio exposes /api/v0/models with per-model ``info`` objects:
+          { "id": "...", "info": { "vision": bool, "reasoning": bool } }
+
+        The ``reasoning`` flag is True for models with built-in chain-of-thought
+        (QwQ, DeepSeek-R1, Phi-4 reasoning, Gemma 3 thinking variants, etc.).
+
+        The user can always override via ``enable_thinking`` in config.toml.
+        """
+        import urllib.request, urllib.error, json as _json
+        from urllib.parse import urlparse, urlunparse
+
+        parsed = urlparse(self.base_url)
+        origin = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+
+        # --- Try LM-Studio first ---
+        lms_url = f"{origin}/api/v0/models"
+        try:
+            with urllib.request.urlopen(lms_url, timeout=3) as resp:
+                data = _json.loads(resp.read())
+            models: list = data.get("data", [])
+            # Find the entry matching the configured model id
+            match = next(
+                (m for m in models if m.get("id") == self.model or self.model in str(m.get("id", ""))),
+                None,
+            )
+            if match:
+                info = match.get("info", {})
+                detected_thinking = bool(info.get("reasoning", False))
+                detected_vision   = bool(info.get("vision",    False))
+                self.caps_thinking = detected_thinking
+                self.caps_vision   = detected_vision
+                logger.info(
+                    "[LM-Studio] Model '%s' caps → thinking=%s  vision=%s",
+                    self.model, self.caps_thinking, self.caps_vision,
+                )
+            else:
+                logger.debug(
+                    "[LM-Studio] Could not find model '%s' in /api/v0/models list; keeping defaults.",
+                    self.model,
+                )
+            return  # LM-Studio responded — skip Ollama probe
+        except Exception as exc:
+            logger.debug("[LM-Studio] /api/v0/models probe failed: %s — trying Ollama.", exc)
+
+        # --- Fallback: Ollama /api/tags ---
+        ollama_url = f"{origin}/api/tags"
+        try:
+            with urllib.request.urlopen(ollama_url, timeout=3) as resp:
+                data = _json.loads(resp.read())
+            model_names = [m.get("name", "") for m in data.get("models", [])]
+            if any(self.model in name for name in model_names):
+                logger.debug(
+                    "[Ollama] Model '%s' found; capability auto-detect not available "
+                    "— use enable_thinking in config.toml to override.",
+                    self.model,
+                )
+        except Exception as exc:
+            logger.debug("[Ollama] /api/tags probe failed: %s", exc)
+
+    @property
+    def thinking_enabled(self) -> bool:
+        """True when thinking/reasoning mode should be activated for this model.
+
+        Resolution order (highest priority first):
+        1. ``enable_thinking`` in config.toml   (explicit user override)
+        2. Capability flag from local-server probe  (LM-Studio ``reasoning`` flag)
+        3. Cloud model name in ``CLAUDE_THINKING_MODELS``
+        """
+        if self._enable_thinking is not None:
+            return bool(self._enable_thinking)
+        return self.caps_thinking
+
+    @property
+    def vision_enabled(self) -> bool:
+        """True when the active model supports image inputs."""
+        return self.caps_vision
+
+    # ------------------------------------------------------------------
 
     @property
     def active_model(self) -> str:
@@ -465,27 +597,35 @@ class LLM:
         context or end with a tool observation. Keep the transcript intact, but
         add a small user continuation when needed so those templates have a
         concrete query to render.
+
+        Note: this method NEVER mutates the input list; it always returns a new list.
         """
         if any(message.get("role") == "user" for message in messages):
             if messages and messages[-1].get("role") in {"tool", "assistant", "system"}:
-                messages.append(
+                # Non-mutating: return a new list
+                return [
+                    *messages,
                     {
                         "role": "user",
                         "content": (
                             "Continue from the latest observation. If the task is complete, "
                             "provide the final answer or call the finish tool with a summary."
                         ),
-                    }
-                )
+                    },
+                ]
             return messages
 
         for index in range(len(messages) - 1, -1, -1):
             if messages[index].get("role") == "system":
-                messages[index] = {**messages[index], "role": "user"}
-                return messages
+                # Return a new list with the system message role swapped to user
+                return [
+                    *messages[:index],
+                    {**messages[index], "role": "user"},
+                    *messages[index + 1:],
+                ]
 
-        messages.append({"role": "user", "content": "Continue."})
-        return messages
+        return [*messages, {"role": "user", "content": "Continue."}]
+
 
     def needs_local_template_compat(self) -> bool:
         """Return true for OpenAI-compatible local servers with brittle chat templates."""
@@ -633,30 +773,32 @@ class LLM:
 
                 return response.choices[0].message.content
 
-            # Streaming request, For streaming, update estimated token count before making the request
+            # Streaming: estimate input tokens upfront; real usage arrives in the final chunk
             self.update_token_count(input_tokens)
 
             response = await self.active_client().chat.completions.create(
-                **params, stream=True
+                **params, stream=True, stream_options={"include_usage": True}
             )
 
             collected_messages = []
-            completion_text = ""
+            real_completion_tokens: int = 0
             async for chunk in response:
-                chunk_message = chunk.choices[0].delta.content or ""
-                collected_messages.append(chunk_message)
-                completion_text += chunk_message
-                print(chunk_message, end="", flush=True)
+                # The final chunk carries usage data (via stream_options); others carry content.
+                if chunk.usage:
+                    real_completion_tokens = chunk.usage.completion_tokens or 0
+                if chunk.choices:
+                    chunk_message = chunk.choices[0].delta.content or ""
+                    collected_messages.append(chunk_message)
 
-            print()  # Newline after streaming
             full_response = "".join(collected_messages).strip()
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
 
-            # estimate completion tokens for streaming response
-            completion_tokens = self.count_tokens(completion_text)
+            # Use real token count when available; fall back to estimation.
+            completion_tokens = real_completion_tokens or self.count_tokens(full_response)
             logger.info(
-                f"Estimated completion tokens for streaming response: {completion_tokens}"
+                f"Streaming completion tokens: {completion_tokens} "
+                f"({'real' if real_completion_tokens else 'estimated'})"
             )
             self.update_token_count(0, completion_tokens)
 
@@ -952,6 +1094,10 @@ class LLM:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
 
+            # Pop thinking_budget from kwargs before building params (Claude extended thinking)
+            thinking_budget: Optional[int] = kwargs.pop("thinking_budget", None)
+            reasoning_effort: Optional[str] = kwargs.pop("reasoning_effort", None)
+
             # Set up the completion request
             params = {
                 "model": model,
@@ -964,6 +1110,12 @@ class LLM:
 
             if model in REASONING_MODELS:
                 params["max_completion_tokens"] = self.active_max_tokens()
+                # o3 / o4-mini accept reasoning_effort instead of temperature
+                if model in REASONING_EFFORT_MODELS:
+                    effort = reasoning_effort or "medium"
+                    params["reasoning_effort"] = effort
+                    # temperature is not valid for these models
+                    params.pop("temperature", None)
             else:
                 params["max_tokens"] = self.active_max_tokens()
                 params["temperature"] = (
@@ -972,6 +1124,44 @@ class LLM:
                     else self.active_temperature()
                 )
 
+            # Claude extended thinking / LM-Studio reasoning mode:
+            # Prefer the instance-level thinking_enabled property which respects
+            # the user's enable_thinking config and LM-Studio auto-detection.
+            effective_thinking = self.thinking_enabled
+            if thinking_budget and not effective_thinking:
+                # Caller explicitly passed a budget — treat as opt-in override
+                effective_thinking = True
+
+            if effective_thinking:
+                # Cloud Claude: structured "thinking" block
+                if model in CLAUDE_THINKING_MODELS and thinking_budget:
+                    params["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": int(thinking_budget),
+                    }
+                    logger.debug(
+                        "Claude extended thinking enabled: budget=%d tokens, model=%s",
+                        thinking_budget,
+                        model,
+                    )
+                # LM-Studio / local reasoning models: pass thinking_budget as
+                # extra_body so the server can honour it if supported.
+                elif _is_local_server(self.base_url) and thinking_budget:
+                    params.setdefault("extra_body", {})["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": int(thinking_budget),
+                    }
+                    logger.debug(
+                        "Local-model thinking enabled: budget=%d tokens, model=%s",
+                        thinking_budget,
+                        model,
+                    )
+                elif effective_thinking:
+                    logger.debug(
+                        "Thinking mode active for model '%s' but no budget provided — skipping block.",
+                        model,
+                    )
+
             params["stream"] = False  # Always use non-streaming for tool requests
             response: ChatCompletion = (
                 await self.active_client().chat.completions.create(**params)
@@ -979,8 +1169,7 @@ class LLM:
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:
-                print(response)
-                # raise ValueError("Invalid or empty response from LLM")
+                logger.warning("LLM returned an empty or invalid response: %s", response)
                 return None
 
             # Update token counts
