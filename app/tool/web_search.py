@@ -18,6 +18,7 @@ from app.tool.search import (
 )
 from app.tool.search.base import SearchItem
 
+
 # Maximum seconds to wait for a single engine before declaring it failed.
 _ENGINE_TIMEOUT_SECONDS = 12
 
@@ -329,7 +330,9 @@ class WebSearch(BaseTool):
                 continue
 
             if not search_items:
-                logger.warning(f"{engine_name.capitalize()} returned 0 results — skipping.")
+                logger.warning(
+                    f"{engine_name.capitalize()} returned 0 results — skipping."
+                )
                 failed_engines.append(f"{engine_name}(empty)")
                 continue
 

@@ -273,7 +273,6 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                     return search_response
 
-
                 # Element interaction actions
                 elif action == "click_element":
                     if index is None:
