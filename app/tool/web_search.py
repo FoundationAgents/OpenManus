@@ -422,7 +422,7 @@ class WebSearch(BaseTool):
         return engine_order
 
     @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10)
+        stop=stop_after_attempt(1), wait=wait_exponential(multiplier=1, min=1, max=10)
     )
     async def _perform_search_with_engine(
         self,
