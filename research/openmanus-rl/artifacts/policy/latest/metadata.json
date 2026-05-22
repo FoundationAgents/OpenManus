@@ -1,6 +1,6 @@
 {
-  "run_id": "bootstrap",
-  "model": "base",
-  "benchmark": "none",
-  "notes": "placeholder metadata for RL policy integration"
+  "run_id": "v1-grounded-heuristic",
+  "model": "all",
+  "benchmark": "SWE-Bench + WebArena + observed-failures",
+  "notes": "Hand-distilled policy from SWE-Bench agent failure analysis, WebArena browser agent traces, and observed failure patterns in this OpenManus deployment. Covers search fallback, file editing safety, bash discipline, planning, self-correction, memory, and termination."
 }
