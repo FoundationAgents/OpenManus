@@ -427,9 +427,29 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         )
 
                     page = await context.get_current_page()
-                    import markdownify
 
-                    content = markdownify.markdownify(await page.content())
+                    # Prefer innerText — works on SPAs and JS-rendered pages.
+                    # Falls back to markdownify on the raw HTML for static pages.
+                    try:
+                        content = await page.inner_text("body")
+                        content = content.strip()
+                    except Exception:
+                        content = ""
+
+                    if not content:
+                        import markdownify
+                        content = markdownify.markdownify(await page.content()).strip()
+
+                    if not content:
+                        current_url = page.url
+                        return ToolResult(
+                            error=(
+                                f"Page at {current_url} returned no readable content. "
+                                "The page may require authentication, be rate-limiting the browser, "
+                                "or be a JavaScript SPA that has not yet rendered. "
+                                "Try: scroll down first, wait a few seconds, or navigate to a different URL."
+                            )
+                        )
 
                     prompt = f"""\
 Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.

@@ -28,9 +28,10 @@ class BingSearchEngine(WebSearchEngine):
             browser = cloak_launch(humanize=True)
             page = browser.new_page()
             encoded_query = urllib.parse.quote(query)
-            page.goto(f"https://www.bing.com/search?q={encoded_query}")
+            # Force English results regardless of container IP geolocation
+            page.goto(f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US")
             try:
-                page.wait_for_selector("li.b_algo", timeout=5000)
+                page.wait_for_selector("li.b_algo", timeout=8000)
             except Exception:
                 pass
             results = page.query_selector_all("li.b_algo")
@@ -92,13 +93,13 @@ class BingSearchEngine(WebSearchEngine):
                 )
                 page = context.new_page()
 
-                # Load search page
+                # Load search page — force English results regardless of container IP
                 encoded_query = urllib.parse.quote(query)
-                page.goto(f"https://www.bing.com/search?q={encoded_query}")
+                page.goto(f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US")
 
                 # Wait for results or timeout
                 try:
-                    page.wait_for_selector("li.b_algo", timeout=5000)
+                    page.wait_for_selector("li.b_algo", timeout=8000)
                 except Exception:
                     pass  # Continue even if no selector, maybe there are no results
 
