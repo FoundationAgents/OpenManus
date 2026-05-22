@@ -27,7 +27,7 @@ click==8.4.0
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
-cloakbrowser==0.3.24
+cloakbrowser==0.3.30
 colorama==0.4.6
 Crawl4AI==0.6.3
 cryptography==48.0.0

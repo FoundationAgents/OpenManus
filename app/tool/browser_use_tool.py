@@ -12,8 +12,31 @@ from pydantic_core.core_schema import ValidationInfo
 
 from app.config import config
 from app.llm import LLM
+from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
+
+
+def _get_cloak_binary_path() -> Optional[str]:
+    """Return the CloakBrowser stealth Chromium binary path if available.
+
+    Downloads the binary on first call (no-op if already cached).
+    Returns None on any error so the caller falls back to stock Playwright.
+    """
+    try:
+        import cloakbrowser
+
+        info = cloakbrowser.binary_info()
+        if info.get("installed"):
+            return info["binary_path"]
+        # Binary not yet cached — download it (happens once, stored in ~/.cloakbrowser/)
+        logger.info("CloakBrowser: binary not cached, downloading now…")
+        path = cloakbrowser.ensure_binary()
+        logger.info(f"CloakBrowser: stealth binary ready at {path}")
+        return path
+    except Exception as exc:
+        logger.warning(f"CloakBrowser unavailable, falling back to stock Playwright: {exc}")
+        return None
 
 
 _BROWSER_DESCRIPTION = """\
@@ -139,9 +162,14 @@ class BrowserUseTool(BaseTool, Generic[Context]):
         return v
 
     async def _ensure_browser_initialized(self) -> BrowserContext:
-        """Ensure browser and context are initialized."""
+        """Ensure browser and context are initialized.
+
+        Prefers CloakBrowser's stealth Chromium binary (source-level fingerprint
+        patches, passes 30/30 bot detection tests) over stock Playwright Chromium.
+        Falls back to stock Playwright if CloakBrowser is unavailable.
+        """
         if self.browser is None:
-            browser_config_kwargs = {"headless": True, "disable_security": True}
+            browser_config_kwargs: dict = {"headless": True, "disable_security": True}
 
             if config.browser_config:
                 from browser_use.browser.browser import ProxySettings
@@ -168,6 +196,20 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     if value is not None:
                         if not isinstance(value, list) or value:
                             browser_config_kwargs[attr] = value
+
+            # Inject CloakBrowser stealth binary unless the caller already
+            # specified a custom chrome_instance_path / wss_url / cdp_url.
+            if not any(k in browser_config_kwargs for k in ("chrome_instance_path", "wss_url", "cdp_url")):
+                cloak_path = _get_cloak_binary_path()
+                if cloak_path:
+                    browser_config_kwargs["chrome_instance_path"] = cloak_path
+                    logger.info(
+                        f"BrowserUseTool: using CloakBrowser stealth binary → {cloak_path}"
+                    )
+                else:
+                    logger.info(
+                        "BrowserUseTool: CloakBrowser not available, using stock Playwright Chromium"
+                    )
 
             self.browser = BrowserUseBrowser(BrowserConfig(**browser_config_kwargs))
 
