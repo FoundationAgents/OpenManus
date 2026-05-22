@@ -302,6 +302,91 @@ def sanitize_git_args(args: str) -> List[str]:
 
 
 # ============================================================================
+# LM-Studio Context Window Sync
+# ============================================================================
+
+
+def _lmstudio_native_base(base_url: str) -> Optional[str]:
+    """Convert an OpenAI-compatible base_url into the LM Studio native /api/v1 root."""
+    try:
+        parsed = urllib.parse.urlparse((base_url or "").strip())
+    except Exception:
+        return None
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    root = f"{parsed.scheme}://{parsed.netloc}"
+    return f"{root}/api/v1"
+
+
+def _sync_lmstudio_context_window(
+    base_url: str,
+    api_key: str,
+    model: str,
+    context_window: int,
+) -> Optional[int]:
+    """Ask LM Studio to reload the model slot at *context_window* tokens.
+
+    This mirrors server/tasks.py::sync_lmstudio_context_window() so that tasks
+    submitted via MCP get the same 128 k context slot that the web UI requests.
+
+    Returns the context length that LM Studio actually applied, or None on failure.
+    """
+    native_base = _lmstudio_native_base(base_url)
+    if not native_base:
+        return None
+
+    # Only trigger for local/LM-Studio servers
+    is_local = (
+        ":1234" in base_url
+        or "lmstudio" in base_url.lower()
+        or "localhost" in base_url
+        or "127.0.0.1" in base_url
+        or base_url.startswith("http://10.")
+        or base_url.startswith("http://192.168.")
+    )
+    if not is_local:
+        return None
+
+    import json as _json
+
+    payload = _json.dumps(
+        {
+            "model": model,
+            "context_length": int(context_window),
+            "echo_load_config": True,
+        }
+    ).encode("utf-8")
+
+    try:
+        import urllib.request as _ureq
+
+        headers = {"Content-Type": "application/json"}
+        if api_key and api_key not in ("lm-studio", "ollama", ""):
+            headers["Authorization"] = f"Bearer {api_key}"
+        req = _ureq.Request(
+            f"{native_base}/models/load",
+            method="POST",
+            headers=headers,
+            data=payload,
+        )
+        with _ureq.urlopen(req, timeout=25) as resp:
+            data = resp.read()
+        response = _json.loads(data.decode("utf-8")) if data else {}
+        load_config = response.get("load_config") if isinstance(response, dict) else {}
+        received = (
+            load_config.get("context_length") if load_config else None
+        ) or response.get("context_length")
+        applied = int(received) if received not in (None, "") else None
+        logger.info(
+            f"LM Studio context window: requested={context_window}, applied={applied}"
+        )
+        return applied
+    except Exception as exc:
+        logger.warning(f"LM Studio context window sync failed: {exc}")
+        return None
+
+
+# ============================================================================
 # OpenManus Agent Integration
 # ============================================================================
 
@@ -329,6 +414,7 @@ class OpenManusAgent:
         max_steps: int = 30,
         model: str = "gpt-4o",
         output_dir: Optional[str] = None,
+        context_window: int = 128000,
     ) -> str:
         """Execute an autonomous task and return the result."""
         task = self.task_manager.create_task(
@@ -343,10 +429,29 @@ class OpenManusAgent:
 
         if HAS_OPENMANUS:
             try:
-                # Resolve custom model if passed
-                if model and hasattr(openmanus_config, "llm"):
-                    # We can set model config override if needed
-                    pass
+                # Sync LM-Studio model slot context window before running the agent.
+                # The web-UI path sends requested_context_window=128000; MCP must do
+                # the same so llama.cpp doesn't default to 16 k and thrash the KV cache.
+                try:
+                    default_llm = (
+                        openmanus_config.llm.get("default")
+                        if isinstance(openmanus_config.llm, dict)
+                        else openmanus_config.llm
+                    )
+                    _sync_base_url = str(
+                        getattr(default_llm, "base_url", "") or ""
+                    )
+                    _sync_api_key = str(
+                        getattr(default_llm, "api_key", "") or ""
+                    )
+                    _sync_model = str(
+                        getattr(default_llm, "model", "") or model or ""
+                    )
+                    _sync_lmstudio_context_window(
+                        _sync_base_url, _sync_api_key, _sync_model, context_window
+                    )
+                except Exception as _cw_exc:
+                    logger.warning(f"Context window pre-sync skipped: {_cw_exc}")
 
                 # Instantiating the real Manus agent
                 agent = await Manus.create(
@@ -642,6 +747,11 @@ TOOLS = [
                 "output_dir": {
                     "type": "string",
                     "description": "Custom output directory for task results",
+                },
+                "context_window": {
+                    "type": "integer",
+                    "description": "Context window size to request from LM Studio before running (default: 128000, matches the web UI default)",
+                    "default": 128000,
                 },
             },
             "required": ["task"],
@@ -1063,7 +1173,10 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         max_steps = arguments.get("max_steps", 30)
         model = arguments.get("model", "gpt-4o")
         output_dir = arguments.get("output_dir")
-        result = await agent.execute_task(task_desc, max_steps, model, output_dir)
+        context_window = int(arguments.get("context_window", 128000))
+        result = await agent.execute_task(
+            task_desc, max_steps, model, output_dir, context_window
+        )
         return [types.TextContent(type="text", text=result)]
 
     elif name == "openmanus_get_status":
