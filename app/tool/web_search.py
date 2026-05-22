@@ -228,14 +228,14 @@ class WebSearch(BaseTool):
         """
         # Get settings from config
         retry_delay = (
-            getattr(config.search_config, "retry_delay", 60)
+            getattr(config.search_config, "retry_delay", 5)  # 5s between engine retries
             if config.search_config
-            else 60
+            else 5
         )
         max_retries = (
-            getattr(config.search_config, "max_retries", 3)
+            getattr(config.search_config, "max_retries", 1)  # 1 retry pass max
             if config.search_config
-            else 3
+            else 1
         )
 
         # Use config values for lang and country if not specified
