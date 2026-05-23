@@ -29,7 +29,9 @@ class BingSearchEngine(WebSearchEngine):
             page = browser.new_page()
             encoded_query = urllib.parse.quote(query)
             # Force English results regardless of container IP geolocation
-            page.goto(f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US")
+            page.goto(
+                f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US"
+            )
             try:
                 page.wait_for_selector("li.b_algo", timeout=8000)
             except Exception:
@@ -95,7 +97,9 @@ class BingSearchEngine(WebSearchEngine):
 
                 # Load search page — force English results regardless of container IP
                 encoded_query = urllib.parse.quote(query)
-                page.goto(f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US")
+                page.goto(
+                    f"https://www.bing.com/search?q={encoded_query}&setlang=en&cc=US&mkt=en-US"
+                )
 
                 # Wait for results or timeout
                 try:

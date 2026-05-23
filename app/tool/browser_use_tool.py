@@ -35,7 +35,9 @@ def _get_cloak_binary_path() -> Optional[str]:
         logger.info(f"CloakBrowser: stealth binary ready at {path}")
         return path
     except Exception as exc:
-        logger.warning(f"CloakBrowser unavailable, falling back to stock Playwright: {exc}")
+        logger.warning(
+            f"CloakBrowser unavailable, falling back to stock Playwright: {exc}"
+        )
         return None
 
 
@@ -199,7 +201,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
             # Inject CloakBrowser stealth binary unless the caller already
             # specified a custom chrome_instance_path / wss_url / cdp_url.
-            if not any(k in browser_config_kwargs for k in ("chrome_instance_path", "wss_url", "cdp_url")):
+            if not any(
+                k in browser_config_kwargs
+                for k in ("chrome_instance_path", "wss_url", "cdp_url")
+            ):
                 cloak_path = _get_cloak_binary_path()
                 if cloak_path:
                     browser_config_kwargs["chrome_instance_path"] = cloak_path
@@ -438,6 +443,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                     if not content:
                         import markdownify
+
                         content = markdownify.markdownify(await page.content()).strip()
 
                     if not content:

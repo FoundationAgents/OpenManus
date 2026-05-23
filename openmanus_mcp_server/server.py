@@ -438,15 +438,9 @@ class OpenManusAgent:
                         if isinstance(openmanus_config.llm, dict)
                         else openmanus_config.llm
                     )
-                    _sync_base_url = str(
-                        getattr(default_llm, "base_url", "") or ""
-                    )
-                    _sync_api_key = str(
-                        getattr(default_llm, "api_key", "") or ""
-                    )
-                    _sync_model = str(
-                        getattr(default_llm, "model", "") or model or ""
-                    )
+                    _sync_base_url = str(getattr(default_llm, "base_url", "") or "")
+                    _sync_api_key = str(getattr(default_llm, "api_key", "") or "")
+                    _sync_model = str(getattr(default_llm, "model", "") or model or "")
                     _sync_lmstudio_context_window(
                         _sync_base_url, _sync_api_key, _sync_model, context_window
                     )
