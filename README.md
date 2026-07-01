@@ -130,6 +130,32 @@ python scripts/export_policy.py \
   --run-id exp-2026-05-14
 ```
 
+## Semantic Memory with FAISS
+
+OpenManus features local, zero-dependency SQLite-based memory persistence (`AgentMemory`). You can optionally enable local FAISS vector semantic search to enhance memory recall when query wording differs from saved memories:
+
+```toml
+[agentmemory]
+enabled = true
+vector_backend = "faiss" # "none" or "faiss"
+embedding_provider = "openai_compatible"
+embedding_model = "text-embedding-nomic-embed-text-v1.5"
+hybrid_search = true
+vector_weight = 0.65
+keyword_weight = 0.35
+```
+
+When enabled, memories are indexed locally in FAISS alongside SQLite FTS5/BM25 keyword indices, returning weighted hybrid search results. If embedding generation or FAISS lookup fails, recall gracefully falls back to SQLite keyword search.
+
+## DeepSpec Research Path
+
+OpenManus includes an opt-in research integration scaffold for speculative decoding experiments using DeepSeek's DeepSpec framework:
+
+- See `research/deepspec/README.md` for workflow and evaluation instructions.
+- Run `scripts/prepare_deepspec_research.sh` to clone or update the upstream repository.
+
+**Note**: DeepSpec is strictly experimental and separate from standard runtime execution or default `make build` container generation. Target cache preparation requires high-capacity storage (e.g. ~38 TB for Qwen3-4B).
+
 ## Contributing
 
 Contributions are very welcome.

@@ -130,6 +130,16 @@ project = "openmanus"
 top_k = 5
 timeout_seconds = 8
 auto_remember_completion = true
+vector_backend = "faiss" # "none", "faiss"
+embedding_provider = "openai_compatible"
+embedding_model = "text-embedding-nomic-embed-text-v1.5"
+embedding_base_url = ""
+embedding_api_key = ""
+vector_index_path = "/app/workspace/agentmemory.faiss"
+vector_meta_path = "/app/workspace/agentmemory_vectors.json"
+hybrid_search = true
+vector_weight = 0.65
+keyword_weight = 0.35
 
 # Optional RL policy integration
 [rl]
@@ -137,3 +147,11 @@ enabled = false
 policy_mode = "base" # "base" or "rl"
 policy_path = "research/openmanus-rl/artifacts/policy/latest/policy.md"
 metadata_path = "research/openmanus-rl/artifacts/policy/latest/metadata.json"
+
+# Optional DeepSpec research integration
+[deepspec]
+enabled = false
+repo_url = "https://github.com/deepseek-ai/DeepSpec"
+checkout_dir = "research/deepspec"
+mode = "research"
+target_model = "Qwen/Qwen3-4B"

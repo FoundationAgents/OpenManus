@@ -412,6 +412,7 @@ def _obsidian_health(session, conversation_id: Optional[str] = None) -> dict:
 
 
 def _agentmemory_health(conversation_id: Optional[str] = None) -> dict:
+    vec_health = agentmemory.get_vector_health()
     payload = {
         "enabled": bool(config.agentmemory.enabled),
         "available": False,
@@ -419,6 +420,7 @@ def _agentmemory_health(conversation_id: Optional[str] = None) -> dict:
         "reason": "Disabled",
         "base_url": "local_sqlite",
         "project": config.agentmemory.project,
+        **vec_health,
     }
     if not config.agentmemory.enabled:
         return payload
@@ -444,6 +446,8 @@ def _agentmemory_health(conversation_id: Optional[str] = None) -> dict:
             payload["conversation_hits"] = len(hits)
         except Exception:
             payload["conversation_hits"] = 0
+
+    payload.update(agentmemory.get_vector_health())
     return payload
 
 
@@ -2120,6 +2124,7 @@ async def get_conversation_runtime(request: Request, conversation_id: str):
         "urls": urls,
         "hidden_system_containers": len(containers) - len(visible_containers),
         "running_count": len(killable_processes) + len(killable_containers),
+        "agentmemory": _agentmemory_health(conversation_id),
     }
 
 

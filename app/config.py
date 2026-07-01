@@ -125,6 +125,46 @@ class AgentMemorySettings(BaseModel):
         default=True,
         description="Save final task outcomes to AgentMemory.",
     )
+    vector_backend: str = Field(
+        default="none",
+        description='Vector backend to use: "none" or "faiss".',
+    )
+    embedding_provider: str = Field(
+        default="openai_compatible",
+        description="Embedding provider.",
+    )
+    embedding_model: str = Field(
+        default="text-embedding-nomic-embed-text-v1.5",
+        description="Embedding model name.",
+    )
+    embedding_base_url: str = Field(
+        default="",
+        description="Embedding endpoint base URL (empty derives from configured LLM).",
+    )
+    embedding_api_key: str = Field(
+        default="",
+        description="Embedding API key (empty derives from configured LLM).",
+    )
+    vector_index_path: str = Field(
+        default="/app/workspace/agentmemory.faiss",
+        description="Path to local FAISS index file.",
+    )
+    vector_meta_path: str = Field(
+        default="/app/workspace/agentmemory_vectors.json",
+        description="Path to vector metadata JSON file.",
+    )
+    hybrid_search: bool = Field(
+        default=True,
+        description="Whether to combine keyword search and vector similarity search.",
+    )
+    vector_weight: float = Field(
+        default=0.65,
+        description="Weight for vector search scores in hybrid search.",
+    )
+    keyword_weight: float = Field(
+        default=0.35,
+        description="Weight for keyword (FTS5/BM25) search scores in hybrid search.",
+    )
 
 
 class BrowserSettings(BaseModel):
@@ -235,6 +275,23 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP server config: {e}")
 
 
+class DeepSpecSettings(BaseModel):
+    enabled: bool = Field(
+        default=False, description="Enable DeepSpec research integration"
+    )
+    repo_url: str = Field(
+        default="https://github.com/deepseek-ai/DeepSpec",
+        description="DeepSpec repository URL",
+    )
+    checkout_dir: str = Field(
+        default="research/deepspec", description="Checkout directory for DeepSpec"
+    )
+    mode: str = Field(default="research", description="Mode of operation")
+    target_model: str = Field(
+        default="Qwen/Qwen3-4B", description="Target model for DeepSpec"
+    )
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -262,6 +319,10 @@ class AppConfig(BaseModel):
     agentmemory: Optional[AgentMemorySettings] = Field(
         default_factory=AgentMemorySettings,
         description="AgentMemory integration settings",
+    )
+    deepspec: Optional[DeepSpecSettings] = Field(
+        default_factory=DeepSpecSettings,
+        description="DeepSpec research integration settings",
     )
 
     class Config:
@@ -402,6 +463,7 @@ class Config:
             "agent": AgentSettings(**raw_config.get("agent", {})),
             "rl": RLSettings(**raw_config.get("rl", {})),
             "agentmemory": AgentMemorySettings(**raw_config.get("agentmemory", {})),
+            "deepspec": DeepSpecSettings(**raw_config.get("deepspec", {})),
         }
 
         self._config = AppConfig(**config_dict)
@@ -455,6 +517,11 @@ class Config:
     def agentmemory(self) -> AgentMemorySettings:
         """Get the AgentMemory integration configuration."""
         return self._config.agentmemory
+
+    @property
+    def deepspec(self) -> DeepSpecSettings:
+        """Get the DeepSpec research integration configuration."""
+        return self._config.deepspec
 
     @property
     def root_path(self) -> Path:

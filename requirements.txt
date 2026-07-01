@@ -45,6 +45,7 @@ docstring_parser==0.18.0
 duckduckgo_search==7.5.5
 fake-http-header==0.3.5
 fake-useragent==2.2.0
+faiss-cpu==1.14.3
 fastapi==0.115.14
 filelock==3.29.0
 frozenlist==1.8.0

@@ -68,6 +68,7 @@ export interface ConversationRuntime {
   status: 'running' | 'idle';
   running_count: number;
   hidden_system_containers?: number;
+  agentmemory?: IntegrationsHealth['agentmemory'];
   sandbox?: {
     exists: boolean;
     status: string;
@@ -144,6 +145,11 @@ export interface IntegrationsHealth {
     base_url?: string;
     project?: string;
     conversation_hits?: number;
+    vector_backend?: string;
+    vector_live?: boolean;
+    vector_count?: number;
+    embedding_provider?: string;
+    last_vector_error?: string | null;
   };
   obsidian: {
     enabled: boolean;
