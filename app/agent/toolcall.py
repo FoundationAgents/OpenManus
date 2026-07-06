@@ -75,7 +75,7 @@ class ToolCallAgent(ReActAgent):
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
         )
-        content = response.content if response and response.content else ""
+        content = self._response_content(response)
 
         # Log response info
         logger.info(f"✨ {self.name}'s thoughts: {content}")
@@ -127,6 +127,25 @@ class ToolCallAgent(ReActAgent):
                 )
             )
             return False
+
+    @staticmethod
+    def _response_content(response: Any) -> Any:
+        """Extract displayable assistant content from an LLM tool response."""
+        if response is None:
+            return ""
+
+        content = getattr(response, "content", None)
+        if isinstance(content, str):
+            if content.strip():
+                return content
+        elif content:
+            return content
+
+        reasoning_content = getattr(response, "reasoning_content", None)
+        if isinstance(reasoning_content, str) and reasoning_content.strip():
+            return reasoning_content
+
+        return content or ""
 
     async def act(self) -> str:
         """Execute tool calls and handle their results"""
