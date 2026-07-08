@@ -3,15 +3,15 @@
 No LLM mocking required — these test structural control flow decisions,
 stuck detection, phase transitions, and the terminate tool path.
 """
-import hashlib
 import pytest
 
-from app.schema import AgentPhase, AgentState, Message, ToolCall, Function, Memory
+from app.schema import AgentPhase, Function, Memory, Message, ToolCall
 
 
 # ---------------------------------------------------------------------------
 # Stuck detection tests
 # ---------------------------------------------------------------------------
+
 
 class TestIsStuck:
     """Test BaseAgent.is_stuck() — the two-signal stuck detection."""
@@ -102,31 +102,37 @@ class TestIsStuck:
 # ToolResult tests
 # ---------------------------------------------------------------------------
 
+
 class TestToolResult:
     """Test ToolResult.is_error, __add__, success_response, fail_response."""
 
     def test_success_result_not_error(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(output="success")
         assert r.is_error is False
 
     def test_error_result_is_error(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(error="something broke")
         assert r.is_error is True
 
     def test_nonzero_exit_code_is_error(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(output="partial output", exit_code=1)
         assert r.is_error is True
 
     def test_zero_exit_code_no_error(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(output="ok", exit_code=0)
         assert r.is_error is False
 
     def test_add_combines_output(self):
         from app.tool.base import ToolResult
+
         r1 = ToolResult(output="hello ")
         r2 = ToolResult(output="world")
         combined = r1 + r2
@@ -134,6 +140,7 @@ class TestToolResult:
 
     def test_add_combines_errors(self):
         from app.tool.base import ToolResult
+
         r1 = ToolResult(error="err1")
         r2 = ToolResult(error="err2")
         combined = r1 + r2
@@ -141,6 +148,7 @@ class TestToolResult:
 
     def test_add_preserves_nonzero_exit_code(self):
         from app.tool.base import ToolResult
+
         r1 = ToolResult(output="ok", exit_code=0)
         r2 = ToolResult(output="fail", exit_code=127)
         combined = r1 + r2
@@ -148,6 +156,7 @@ class TestToolResult:
 
     def test_add_merges_metadata(self):
         from app.tool.base import ToolResult
+
         r1 = ToolResult(output="a", metadata={"path": "/tmp/a"})
         r2 = ToolResult(output="b", metadata={"url": "http://example.com"})
         combined = r1 + r2
@@ -156,11 +165,13 @@ class TestToolResult:
 
     def test_str_representation_error(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(error="broken pipe")
         assert str(r) == "Error: broken pipe"
 
     def test_str_representation_success(self):
         from app.tool.base import ToolResult
+
         r = ToolResult(output="file created")
         assert str(r) == "file created"
 
@@ -169,12 +180,14 @@ class TestToolResult:
 # Terminate tool tests
 # ---------------------------------------------------------------------------
 
+
 class TestTerminateTool:
     """Test Terminate.execute() with various status/summary combinations."""
 
     @pytest.mark.asyncio
     async def test_terminate_success(self):
         from app.tool.terminate import Terminate
+
         t = Terminate()
         result = await t.execute(status="success", summary="Task done")
         assert "success" in result
@@ -183,6 +196,7 @@ class TestTerminateTool:
     @pytest.mark.asyncio
     async def test_terminate_failure(self):
         from app.tool.terminate import Terminate
+
         t = Terminate()
         result = await t.execute(
             status="failure",
@@ -195,6 +209,7 @@ class TestTerminateTool:
     @pytest.mark.asyncio
     async def test_terminate_minimal(self):
         from app.tool.terminate import Terminate
+
         t = Terminate()
         result = await t.execute(status="success")
         assert "success" in result
@@ -202,6 +217,7 @@ class TestTerminateTool:
     @pytest.mark.asyncio
     async def test_terminate_with_reason(self):
         from app.tool.terminate import Terminate
+
         t = Terminate()
         result = await t.execute(
             status="failure",
@@ -215,12 +231,14 @@ class TestTerminateTool:
 # PlanningTool lifecycle tests
 # ---------------------------------------------------------------------------
 
+
 class TestPlanningTool:
     """Test PlanningTool create/update/mark_step/get/delete lifecycle."""
 
     @pytest.mark.asyncio
     async def test_create_plan(self):
         from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         result = await pt.execute(
             command="create",
@@ -235,6 +253,7 @@ class TestPlanningTool:
     @pytest.mark.asyncio
     async def test_get_plan(self):
         from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -248,6 +267,7 @@ class TestPlanningTool:
     @pytest.mark.asyncio
     async def test_mark_step_completed(self):
         from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -266,6 +286,7 @@ class TestPlanningTool:
     @pytest.mark.asyncio
     async def test_update_plan_preserves_status(self):
         from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -292,6 +313,7 @@ class TestPlanningTool:
     @pytest.mark.asyncio
     async def test_delete_plan(self):
         from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -305,8 +327,9 @@ class TestPlanningTool:
 
     @pytest.mark.asyncio
     async def test_create_duplicate_raises(self):
-        from app.tool.planning import PlanningTool
         from app.exceptions import ToolError
+        from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -324,8 +347,9 @@ class TestPlanningTool:
 
     @pytest.mark.asyncio
     async def test_mark_step_invalid_index_raises(self):
-        from app.tool.planning import PlanningTool
         from app.exceptions import ToolError
+        from app.tool.planning import PlanningTool
+
         pt = PlanningTool()
         await pt.execute(
             command="create",
@@ -346,6 +370,7 @@ class TestPlanningTool:
 # AgentPhase enum tests
 # ---------------------------------------------------------------------------
 
+
 class TestAgentPhase:
     """Test AgentPhase enum values and transitions."""
 
@@ -365,22 +390,26 @@ class TestAgentPhase:
 # Exception hierarchy tests
 # ---------------------------------------------------------------------------
 
+
 class TestExceptions:
     """Test the typed exception classes."""
 
     def test_agent_loop_error_is_openmanus_error(self):
         from app.exceptions import AgentLoopError, OpenManusError
+
         e = AgentLoopError("loop broken")
         assert isinstance(e, OpenManusError)
 
     def test_verification_failed_carries_reason(self):
         from app.exceptions import VerificationFailed
+
         e = VerificationFailed("tests did not pass")
         assert e.reason == "tests did not pass"
         assert str(e) == "tests did not pass"
 
     def test_token_limit_exceeded_is_openmanus_error(self):
-        from app.exceptions import TokenLimitExceeded, OpenManusError
+        from app.exceptions import OpenManusError, TokenLimitExceeded
+
         e = TokenLimitExceeded("too many tokens")
         assert isinstance(e, OpenManusError)
 
@@ -389,20 +418,26 @@ class TestExceptions:
 # _should_finish_execution tests
 # ---------------------------------------------------------------------------
 
+
 class TestShouldFinishExecution:
     """Test ToolCallAgent._should_finish_execution — the terminate gate."""
 
     def test_always_returns_true(self):
         """The terminate tool is the structural path — always honored."""
         from app.agent.toolcall import ToolCallAgent
+
         assert ToolCallAgent._should_finish_execution(name="terminate") is True
-        assert ToolCallAgent._should_finish_execution(name="terminate", result="done") is True
+        assert (
+            ToolCallAgent._should_finish_execution(name="terminate", result="done")
+            is True
+        )
         assert ToolCallAgent._should_finish_execution() is True
 
 
 # ---------------------------------------------------------------------------
 # Memory tests
 # ---------------------------------------------------------------------------
+
 
 class TestMemory:
     """Test Memory add/clear/get_recent."""

@@ -3,8 +3,9 @@
 Tests the full ReAct step() cycle, phase transitions, nudge mechanisms,
 auto-termination after repeated no-tool turns, and tool retries.
 """
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.agent.base import Task
 from app.agent.toolcall import ToolCallAgent
@@ -50,17 +51,16 @@ class TestAgentLoopIntegration:
             ]
         )
 
-        with patch.object(agent.llm, "ask_tool", mock_ask), \
-             patch.object(agent.llm, "format_messages", return_value=[]), \
-             patch.object(agent.llm, "count_message_tokens", return_value=100):
-
+        with patch.object(agent.llm, "ask_tool", mock_ask), patch.object(
+            agent.llm, "format_messages", return_value=[]
+        ), patch.object(agent.llm, "count_message_tokens", return_value=100):
             # Step 1: PLAN -> ACT -> OBSERVE
-            obs1 = await agent.step(task)
+            await agent.step(task)
             assert agent.phase == AgentPhase.OBSERVE
             assert agent.state == AgentState.IDLE
 
             # Step 2: PLAN -> ACT -> OBSERVE -> DONE (due to terminate tool)
-            obs2 = await agent.step(task)
+            await agent.step(task)
             assert agent.state == AgentState.FINISHED
 
     @pytest.mark.asyncio
@@ -81,12 +81,11 @@ class TestAgentLoopIntegration:
             ]
         )
 
-        with patch.object(agent.llm, "ask_tool", mock_ask), \
-             patch.object(agent.llm, "format_messages", return_value=[]), \
-             patch.object(agent.llm, "count_message_tokens", return_value=100):
-
+        with patch.object(agent.llm, "ask_tool", mock_ask), patch.object(
+            agent.llm, "format_messages", return_value=[]
+        ), patch.object(agent.llm, "count_message_tokens", return_value=100):
             # Step 1: Model returns text only. Agent should nudge and NOT finish.
-            obs1 = await agent.step(task)
+            await agent.step(task)
             assert agent.state != AgentState.FINISHED
             assert agent._consecutive_no_tool_responses == 1
             # Check that the nudge message was added to memory
@@ -95,7 +94,7 @@ class TestAgentLoopIntegration:
             assert "You MUST either call a tool" in last_msg.content
 
             # Step 2: Model calls terminate after receiving the nudge.
-            obs2 = await agent.step(task)
+            await agent.step(task)
             assert agent.state == AgentState.FINISHED
 
     @pytest.mark.asyncio
@@ -109,10 +108,9 @@ class TestAgentLoopIntegration:
             ]
         )
 
-        with patch.object(agent.llm, "ask_tool", mock_ask), \
-             patch.object(agent.llm, "format_messages", return_value=[]), \
-             patch.object(agent.llm, "count_message_tokens", return_value=100):
-
+        with patch.object(agent.llm, "ask_tool", mock_ask), patch.object(
+            agent.llm, "format_messages", return_value=[]
+        ), patch.object(agent.llm, "count_message_tokens", return_value=100):
             # Turn 1
             await agent.step(task)
             assert agent._consecutive_no_tool_responses == 1
@@ -145,7 +143,9 @@ class TestAgentLoopIntegration:
         agent.available_tools.tool_map["mock_tool"] = mock_tool_instance
 
         mock_ask = AsyncMock(
-            return_value=MockLLMResponse(content="Running failing tool", tool_calls=[tc])
+            return_value=MockLLMResponse(
+                content="Running failing tool", tool_calls=[tc]
+            )
         )
 
         # Mock available_tools.execute to fail on attempt 1, succeed on attempt 2
@@ -156,16 +156,20 @@ class TestAgentLoopIntegration:
             ]
         )
 
-        with patch.object(agent.llm, "ask_tool", mock_ask), \
-             patch.object(agent.llm, "format_messages", return_value=[]), \
-             patch.object(agent.llm, "count_message_tokens", return_value=100), \
-             patch.object(agent.available_tools, "execute", mock_exec):
-
+        with patch.object(agent.llm, "ask_tool", mock_ask), patch.object(
+            agent.llm, "format_messages", return_value=[]
+        ), patch.object(
+            agent.llm, "count_message_tokens", return_value=100
+        ), patch.object(
+            agent.available_tools, "execute", mock_exec
+        ):
             obs = await agent.step(task)
             # execute should have been called twice (1 initial + 1 retry)
             assert mock_exec.call_count == 2
             # The second call should include _error_context in tool_input
             second_call_args = mock_exec.call_args_list[1].kwargs.get("tool_input", {})
             assert "_error_context" in second_call_args
-            assert "Command failed with exit code 1" in second_call_args["_error_context"]
+            assert (
+                "Command failed with exit code 1" in second_call_args["_error_context"]
+            )
             assert "Success on retry!" in obs
