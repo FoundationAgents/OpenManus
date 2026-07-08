@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.config import config
 from app.llm import LLM
@@ -49,9 +49,7 @@ class BaseAgent(BaseModel, ABC):
 
     duplicate_threshold: int = 2
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"  # Allow extra fields for flexibility in subclasses
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
@@ -215,10 +213,12 @@ class BaseAgent(BaseModel, ABC):
         1. Semantic tool-loop: the same tool is called with identical arguments
            three or more times in the last 12 assistant messages — even if the
            surrounding text is different each time.
-        2. Content-duplicate fallback: the full assistant content matches
-           exactly `duplicate_threshold` times in recent history (original
-           behaviour, kept as a safety net).
+        2. Content-hash fallback: assistant content that hashes identically
+           (after whitespace normalization) appears `duplicate_threshold` times.
+           This catches trivial wording variation that exact string match misses.
         """
+        import hashlib
+
         messages = self.memory.messages
         if len(messages) < 2:
             return False
@@ -239,14 +239,23 @@ class BaseAgent(BaseModel, ABC):
             if any(count >= self.duplicate_threshold for count in counts.values()):
                 return True
 
-        # --- Signal 2: exact content duplicate (original fallback) ---
+        # --- Signal 2: content-hash duplicate (improved from exact match) ---
         last_message = messages[-1]
         if not last_message.content:
             return False
+
+        def _content_hash(text: str) -> str:
+            """Normalize whitespace and hash for near-duplicate detection."""
+            normalized = " ".join(text.split()).lower().strip()
+            return hashlib.md5(normalized.encode()).hexdigest()
+
+        last_hash = _content_hash(last_message.content)
         duplicate_count = sum(
             1
             for msg in reversed(messages[:-1])
-            if msg.role == "assistant" and msg.content == last_message.content
+            if msg.role == "assistant"
+            and msg.content
+            and _content_hash(msg.content) == last_hash
         )
         return duplicate_count >= self.duplicate_threshold
 

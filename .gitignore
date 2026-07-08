@@ -8,6 +8,10 @@ data/
 # Workspace
 workspace/
 
+# Experimental research (opt-in, not production)
+research/deepspec/
+research/openmanus-rl/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

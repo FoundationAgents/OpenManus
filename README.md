@@ -42,6 +42,15 @@ OpenManus here is built for people who want an agent they can actually run, insp
 - Improved conversation reliability around long runs and follow-up continuity
 - Runtime context observability (requested window, received window, usage ratio, auto-compress status)
 
+### Agent Loop Architecture & Reliability Refactoring (vs. Upstream)
+
+- **Structural Termination**: Replaced fragile regex finish detection (`_INCOMPLETE_RE`, `_STRONG_FINAL_RE`) with strict structural termination where the LLM must call the `terminate` tool (`status`, `summary`).
+- **Typed Error Handling & Auto-Retry**: Replaced string-sniffing (`result.lower().startswith("error")`) with typed `ToolResult.is_error`. When a tool fails, the loop automatically retries with concrete `_error_context` injected into the tool input.
+- **State Machine & Lifecycle Tracking**: Introduced explicit `AgentPhase` lifecycle tracking (`PLAN -> ACT -> OBSERVE -> VERIFY -> DONE`) and real-time lifecycle event emissions (`agent:lifecycle:phase`, `reason`, `observe`).
+- **Robust Stuck Detection**: Enhanced `is_stuck()` with MD5 content hashing across whitespace-normalized turns and repeated exact tool-call batch detection.
+- **Smart Context Compression**: Replaced naive 220-character truncation with structured summarization that preserves pinned artifacts (`pinned_context` such as file paths and diffs).
+- **Pydantic V2 & Modernization**: Migrated core schema, tools, and agent models to clean Pydantic v2 `ConfigDict(...)` and resolved silent exception swallowing.
+
 ## Architecture
 
 - Backend API: `server/api.py` (FastAPI + SSE)

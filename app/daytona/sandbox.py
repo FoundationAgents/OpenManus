@@ -19,7 +19,7 @@ daytona_settings = config.daytona
 logger.info("Initializing Daytona sandbox configuration")
 daytona_config = DaytonaConfig(
     api_key=daytona_settings.daytona_api_key,
-    server_url=daytona_settings.daytona_server_url,
+    api_url=daytona_settings.daytona_server_url,
     target=daytona_settings.daytona_target,
 )
 
@@ -28,8 +28,8 @@ if daytona_config.api_key:
 else:
     logger.warning("No Daytona API key found in environment variables")
 
-if daytona_config.server_url:
-    logger.info(f"Daytona server URL set to: {daytona_config.server_url}")
+if daytona_config.api_url:
+    logger.info(f"Daytona server URL set to: {daytona_config.api_url}")
 else:
     logger.warning("No Daytona server URL found in environment variables")
 

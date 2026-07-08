@@ -66,7 +66,11 @@ class ToolResult(BaseModel):
         return bool(self.error) or self.exit_code != 0
 
     def __bool__(self):
-        return any(getattr(self, field) for field in self.__fields__)
+        if hasattr(self, "model_fields") and self.model_fields:
+            fields = self.model_fields
+        else:
+            fields = getattr(self, "__fields__", {})
+        return any(getattr(self, field) for field in fields)
 
     def __add__(self, other: "ToolResult"):
         def combine_fields(

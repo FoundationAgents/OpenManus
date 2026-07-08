@@ -38,6 +38,20 @@ class AgentState(str, Enum):
     ERROR = "ERROR"
 
 
+class AgentPhase(str, Enum):
+    """Explicit loop phases for the ReAct state machine.
+
+    The agent progresses: PLAN → ACT → OBSERVE → VERIFY → (loop | DONE).
+    Transitions are structural (tool calls / typed results), never prose heuristics.
+    """
+
+    PLAN = "PLAN"
+    ACT = "ACT"
+    OBSERVE = "OBSERVE"
+    VERIFY = "VERIFY"
+    DONE = "DONE"
+
+
 class Function(BaseModel):
     name: str
     arguments: str

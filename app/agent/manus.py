@@ -7,6 +7,7 @@ from app.agent.browser import BrowserContextHelper
 from app.agent.policy_loader import load_rl_policy_context
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
+from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import (
     ApplyPatchEditor,
@@ -116,7 +117,7 @@ class Manus(ToolCallAgent):
                             stdio_args=server_config.args,
                         )
             except Exception as e:
-                _ = e
+                logger.error(f"Failed to connect to MCP server '{server_id}': {e}")
 
     async def connect_mcp_server(
         self,

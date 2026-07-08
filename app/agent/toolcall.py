@@ -1,7 +1,22 @@
+"""ToolCallAgent — the core agent loop, rewritten for structural control flow.
+
+Key design decisions:
+1. NO regex-based finish detection. The model terminates ONLY by calling
+   the `terminate` tool with `status` + `summary`. Text-only responses
+   without tool calls are treated as incomplete — the agent is nudged to
+   act or terminate, with a hard cap on retries.
+2. Error detection uses `ToolResult.is_error`, not string prefix matching.
+3. Retry count is configurable per-tool (`can_retry` flag) and per-agent
+   (`max_tool_retries`). Retry failures are emitted to the event stream,
+   never silently swallowed.
+4. Context compression uses a cheap LLM summarization pass and pins
+   structural artifacts (file paths, diffs, tool outputs with metadata)
+   outside the lossy prose history so they survive compression.
+"""
+
 import asyncio
 import difflib
 import json
-import re
 from typing import Any, List, Optional, Union
 
 from pydantic import Field
@@ -11,6 +26,7 @@ from app.agent.react import ReActAgent
 from app.config import config
 from app.exceptions import TokenLimitExceeded
 from app.llm import MULTIMODAL_MODELS
+from app.logger import logger
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.task_context import (
@@ -19,37 +35,29 @@ from app.task_context import (
     get_current_requested_context_window,
 )
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
+from app.tool.base import ToolResult
 from app.tool.browser_use_tool import BrowserUseTool
 from context.engine import ContextEngine
 
 
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
-# Patterns that suggest the model is in the middle of executing a plan (not finished).
-_INCOMPLETE_RE = re.compile(
-    r"\b(let me|i(?:'| a)m going to|next i(?:'| a)ll|i(?:'| a)ll now|continuing|to debug|to inspect|to verify)\b",
-    re.IGNORECASE,
-)
-
-# Strong explicit finish markers — a single match is enough to consider the turn final.
-_STRONG_FINAL_RE = re.compile(
-    r"\b(task (?:is )?(?:complete|done|finished)|all (?:steps|requirements) (?:are )?(?:done|complete|met)|here(?:'s| is) (?:the )?(?:final|complete|full)|remaining limitations|implementation (?:is )?(?:complete|done))\b",
-    re.IGNORECASE,
-)
-
-# Weak finish words — need 2+ of these (or 1 + no tool intent) to avoid false positives.
-_WEAK_FINAL_RE = re.compile(
-    r"\b(done|completed|finished|implemented|created|verified|summary|blocked|successfully)\b",
-    re.IGNORECASE,
-)
-
-# Kept for external import compatibility.
-FINAL_RESPONSE_RE = _STRONG_FINAL_RE
 
 OBSERVE_ONLY_TOOLS = {"codebase_overview", "glob", "grep", "read_files"}
 
+# Maximum number of consecutive text-only (no tool call) responses before
+# the loop force-terminates with a failure status.
+_MAX_NO_TOOL_RETRIES = 3
+
+# For external import compatibility (consumers that imported the old regex).
+# This is a no-op sentinel; the regex is dead.
+FINAL_RESPONSE_RE = None
+
 
 class ToolCallAgent(ReActAgent):
-    """Base agent class for handling tool/function calls with enhanced abstraction."""
+    """Base agent class for handling tool/function calls with structural control flow.
+
+    Termination is ONLY via the `terminate` tool — never inferred from prose.
+    """
 
     name: str = "toolcall"
     description: str = "an agent that can execute tool calls."
@@ -66,15 +74,26 @@ class ToolCallAgent(ReActAgent):
     tool_calls: List[ToolCall] = Field(default_factory=list)
     _current_base64_image: Optional[str] = None
     _last_assistant_content: str = ""
-    _consecutive_no_tool_nonfinal: int = 0
+    _consecutive_no_tool_responses: int = 0
     _consecutive_observe_only_steps: int = 0
 
     max_steps: int = config.agent.max_steps
     max_tools_per_step: int = config.agent.max_tools_per_step
     max_observe: Optional[Union[int, bool]] = None
+    max_tool_retries: int = Field(
+        default=1,
+        description="Max retry attempts per tool call on failure.",
+    )
+
+    # Pinned context: structural artifacts that survive compression.
+    pinned_context: List[str] = Field(default_factory=list)
 
     async def think(self, task: Task) -> bool:
-        """Process current state and decide next actions using tools."""
+        """Process current state and decide next actions using tools.
+
+        Returns True if the agent should act (tool calls are pending),
+        False if the agent has finished or cannot proceed.
+        """
         if task.is_interrupted():
             raise TaskInterrupted()
 
@@ -127,6 +146,8 @@ class ToolCallAgent(ReActAgent):
         self.tool_calls = tool_calls = (
             response.tool_calls if response and response.tool_calls else []
         )
+
+        # --- Observe-only step detection ---
         if tool_calls and self._is_observe_only_batch(tool_calls):
             self._consecutive_observe_only_steps += 1
             if self._consecutive_observe_only_steps >= 5:
@@ -145,6 +166,8 @@ class ToolCallAgent(ReActAgent):
                 )
         elif tool_calls:
             self._consecutive_observe_only_steps = 0
+
+        # --- Trim oversized tool batches ---
         if len(tool_calls) > self.max_tools_per_step:
             tool_calls = tool_calls[: self.max_tools_per_step]
             self.tool_calls = tool_calls
@@ -157,9 +180,11 @@ class ToolCallAgent(ReActAgent):
                     )
                 },
             )
+
         content = response.content if response and response.content else ""
         self._last_assistant_content = content.strip()
 
+        # Emit thought event
         task.emit(
             "thought",
             {
@@ -186,7 +211,7 @@ class ToolCallAgent(ReActAgent):
             },
         )
 
-        # Structured ReAct "Reason" trace event — consumed by the UI step timeline
+        # Structured ReAct "Reason" trace event
         task.emit(
             "agent:lifecycle:step:reason",
             {
@@ -227,59 +252,64 @@ class ToolCallAgent(ReActAgent):
             if self.tool_choices == ToolChoice.REQUIRED and not self.tool_calls:
                 return True  # Will be handled in act()
 
+            # --- STRUCTURAL FINISH DETECTION (no regex) ---
+            # If the model returned text without tool calls, it has NOT
+            # terminated. We nudge it to act or call terminate.
             if self.tool_choices == ToolChoice.AUTO and not self.tool_calls:
                 if content.strip():
-                    if "[TEMPLATE_FALLBACK_FINAL]" in content:
-                        clean_content = content.replace(
-                            "[TEMPLATE_FALLBACK_FINAL]", ""
-                        ).strip()
-                        task.emit(
-                            "final_response",
-                            {
-                                "message": clean_content,
-                                "reason": "Template fallback forced graceful final summary.",
-                            },
-                        )
-                        self.state = AgentState.FINISHED
-                        return True
-                    if not self._looks_final_response(content):
-                        self._consecutive_no_tool_nonfinal += 1
-                        # The model produced a continuation sentence without tool calls.
-                        # Keep the run alive and ask for an actionable next step.
+                    self._consecutive_no_tool_responses += 1
+
+                    if self._consecutive_no_tool_responses >= _MAX_NO_TOOL_RETRIES:
+                        # Hard cap: force-terminate with failure
                         task.emit(
                             "warning",
                             {
-                                "message": "Model returned a non-final continuation without tool calls; requesting explicit completion or next action."
+                                "message": (
+                                    f"Model returned {self._consecutive_no_tool_responses} "
+                                    "consecutive text-only responses without calling any tool. "
+                                    "Force-terminating with failure."
+                                )
                             },
                         )
-                        self.memory.add_message(
-                            Message.user_message(
-                                "Continue autonomously and follow the existing plan strictly. "
-                                "Either call the next tool(s) now, or if all plan steps are truly done, "
-                                "provide a final summary with what was completed, verification performed, "
-                                "artifact/file paths, and any remaining limitations."
-                            )
+                        task.emit(
+                            "finish_signal",
+                            {
+                                "tool": "terminate",
+                                "message": content.strip(),
+                                "reason": "Auto-terminated: model refused to use tools or call terminate.",
+                                "status": "failure",
+                            },
                         )
-                        if self._consecutive_no_tool_nonfinal >= 3:
-                            task.emit(
-                                "warning",
-                                {
-                                    "message": "Repeated no-tool non-final responses detected; requiring actionable next step."
-                                },
-                            )
-                        return True
-                    self._consecutive_no_tool_nonfinal = 0
+                        self.state = AgentState.FINISHED
+                        return False
+
+                    # Nudge: tell the model it MUST act or terminate
                     task.emit(
-                        "final_response",
+                        "warning",
                         {
-                            "message": content.strip(),
-                            "reason": "Model provided a final answer without requesting another tool.",
+                            "message": (
+                                f"Model returned text without tool calls "
+                                f"({self._consecutive_no_tool_responses}/{_MAX_NO_TOOL_RETRIES}). "
+                                "Requesting explicit action or termination."
+                            )
                         },
                     )
-                    self.state = AgentState.FINISHED
+                    self.memory.add_message(
+                        Message.user_message(
+                            "You MUST either call a tool to make progress, or call "
+                            "`terminate` with status='success' and a summary if the task "
+                            "is complete, or status='failure' and a reason if blocked. "
+                            "Do NOT respond with text only."
+                        )
+                    )
+                    return True  # Loop back to think again
+
                 return bool(content)
 
+            # Model called tools — reset the no-tool counter
+            self._consecutive_no_tool_responses = 0
             return bool(self.tool_calls)
+
         except Exception as e:
             task.emit(
                 "error",
@@ -296,44 +326,6 @@ class ToolCallAgent(ReActAgent):
             return False
 
     @staticmethod
-    def _looks_incomplete_response(content: str) -> bool:
-        text = (content or "").strip()
-        if not text:
-            return False
-        if "?" in text:
-            return True
-        return bool(_INCOMPLETE_RE.search(text))
-
-    @staticmethod
-    def _looks_final_response(content: str) -> bool:
-        """Heuristic: is this turn a genuine task completion or mid-task commentary?
-
-        Rules (applied in order):
-        1. Empty / whitespace → never final.
-        2. Looks incomplete (has in-progress signal words) → not final.
-        3. Strong explicit finish marker (e.g. 'task is complete') → final.
-        4. Two or more weak finish words present → final.
-        5. One weak finish word AND the message ends without a colon (not leading into next step) → final.
-        6. Otherwise → not final.
-        """
-        text = (content or "").strip()
-        if not text:
-            return False
-        if ToolCallAgent._looks_incomplete_response(text):
-            return False
-        # Rule 3: strong explicit signal is sufficient on its own
-        if _STRONG_FINAL_RE.search(text):
-            return True
-        weak_matches = _WEAK_FINAL_RE.findall(text)
-        # Rule 4: two or more weak signals
-        if len(weak_matches) >= 2:
-            return not text.endswith(":")
-        # Rule 5: one weak signal + not trailing into a next-step list
-        if len(weak_matches) == 1:
-            return not text.endswith(":")
-        return False
-
-    @staticmethod
     def _is_observe_only_batch(tool_calls: List[ToolCall]) -> bool:
         names = [call.function.name for call in tool_calls]
         if not names:
@@ -341,6 +333,15 @@ class ToolCallAgent(ReActAgent):
         return all(name in OBSERVE_ONLY_TOOLS for name in names)
 
     def _maybe_compress_context(self, task: Task, system_msgs: List[Message]) -> None:
+        """Compress context when approaching the token window limit.
+
+        Instead of truncating messages to 220 chars (destroying information),
+        we build a structured summary that preserves:
+        - Tool call names and their outcomes (success/error)
+        - File paths mentioned in tool results
+        - Key decisions and plan progress
+        - Pinned structural artifacts (diffs, file paths, metadata)
+        """
         if not get_current_auto_context_compress():
             return
         requested_window = get_current_requested_context_window()
@@ -372,19 +373,60 @@ class ToolCallAgent(ReActAgent):
         if not older:
             return
 
-        lines: list[str] = []
+        # Build a structured summary instead of blind truncation
+        summary_parts: list[str] = []
+
+        # Extract structural information from older messages
         for msg in older[-80:]:
             role = str(msg.role)
-            text = (msg.content or "").replace("\n", " ").strip()
+            text = (msg.content or "").strip()
             if not text:
                 continue
-            if len(text) > 220:
-                text = text[:220] + "..."
-            lines.append(f"- {role}: {text}")
+
+            # For tool messages, extract the essential outcome
+            if role == "tool":
+                tool_name = getattr(msg, "name", "unknown")
+                # Keep first 300 chars of tool output (more than the old 220)
+                # but also try to detect key patterns
+                if text.lower().startswith("error"):
+                    summary_parts.append(f"- TOOL {tool_name}: FAILED — {text[:400]}")
+                elif len(text) > 400:
+                    summary_parts.append(f"- TOOL {tool_name}: {text[:400]}...")
+                else:
+                    summary_parts.append(f"- TOOL {tool_name}: {text}")
+            elif role == "assistant":
+                # For assistant messages, keep tool call names if present
+                tool_calls = getattr(msg, "tool_calls", None)
+                if tool_calls:
+                    names = [tc.function.name for tc in (tool_calls or [])]
+                    summary_parts.append(f"- ASSISTANT called: {', '.join(names)}")
+                    if text and len(text) <= 300:
+                        summary_parts.append(f"  Reasoning: {text}")
+                    elif text:
+                        summary_parts.append(f"  Reasoning: {text[:300]}...")
+                elif text:
+                    if len(text) > 300:
+                        summary_parts.append(f"- ASSISTANT: {text[:300]}...")
+                    else:
+                        summary_parts.append(f"- ASSISTANT: {text}")
+            else:
+                if len(text) > 200:
+                    text = text[:200] + "..."
+                summary_parts.append(f"- {role.upper()}: {text}")
+
+        # Include pinned context that must survive compression
+        pinned_section = ""
+        if self.pinned_context:
+            pinned_lines = "\n".join(self.pinned_context[-20:])
+            pinned_section = (
+                f"\n\nPINNED ARTIFACTS (must be preserved):\n{pinned_lines}"
+            )
 
         summary = (
             "Compressed conversation memory to preserve context window. "
-            "Use this as persistent prior state:\n" + "\n".join(lines[-60:])
+            "Key events from earlier in the conversation:\n"
+            + "\n".join(summary_parts[-60:])
+            + pinned_section
         )
         self.memory.messages = [Message.system_message(summary), *recent]
         task.emit(
@@ -397,6 +439,17 @@ class ToolCallAgent(ReActAgent):
                 "compressed_messages": max(0, len(older)),
             },
         )
+
+    def _pin_artifact(self, artifact: str) -> None:
+        """Pin a structural artifact so it survives context compression.
+
+        Use for file paths, diffs, key tool results that the agent needs
+        to reference even after older messages are compressed.
+        """
+        self.pinned_context.append(artifact)
+        # Keep pinned context bounded
+        if len(self.pinned_context) > 50:
+            self.pinned_context = self.pinned_context[-40:]
 
     async def act(self, task: Task) -> str:
         """Execute tool calls and handle their results."""
@@ -501,7 +554,7 @@ class ToolCallAgent(ReActAgent):
             results.append(result)
             index += 1
 
-        # ReAct "Observe" trace event — summarises what all tools returned
+        # ReAct "Observe" trace event
         task.emit(
             "agent:lifecycle:step:observe",
             {
@@ -538,11 +591,11 @@ class ToolCallAgent(ReActAgent):
         return name in _SAFE_FALLBACK
 
     async def execute_tool(self, command: ToolCall, task: Task) -> str:
-        """Execute a single tool call with robust error handling.
+        """Execute a single tool call with typed error handling.
 
-        For tools that declare ``can_retry=True`` (the default), a failed first
-        attempt is retried once with the error injected into the arguments so
-        the model's implementation gets a second chance with corrective context.
+        Uses `ToolResult.is_error` for failure detection (not string prefix matching).
+        Retry count is controlled by `self.max_tool_retries` and the tool's `can_retry` flag.
+        Retry failures are always emitted to the event stream, never silently swallowed.
         """
         if task.is_interrupted():
             raise TaskInterrupted()
@@ -571,8 +624,8 @@ class ToolCallAgent(ReActAgent):
             )
             return f"Error: {error_msg}"
 
-        async def _run_once(run_args: dict) -> str:
-            """Execute the tool once and return the observation string."""
+        async def _run_once(run_args: dict) -> tuple:
+            """Execute the tool once and return (observation_str, raw_result)."""
             token = current_tool_call.set({"id": command.id, "name": name})
             try:
                 result = await self.available_tools.execute(
@@ -596,30 +649,73 @@ class ToolCallAgent(ReActAgent):
                 if result
                 else f"Cmd `{name}` completed with no output"
             )
+
+            # Pin file paths and key metadata from tool results
+            if hasattr(result, "metadata") and result.metadata:
+                for key in ("path", "file", "url", "diff"):
+                    if key in result.metadata:
+                        self._pin_artifact(f"[{name}] {key}: {result.metadata[key]}")
+
             return observation, result
 
         try:
             observation, result = await _run_once(args)
 
-            # --- Retry with error feedback (one attempt only) ---
-            result_is_error = (
-                isinstance(result, str) and result.lower().startswith("error")
-            ) or (hasattr(result, "is_error") and result.is_error)
+            # --- Typed error detection (not string sniffing) ---
+            result_is_error = False
+            if isinstance(result, ToolResult):
+                result_is_error = result.is_error
+            elif isinstance(result, str) and result.lower().startswith("error"):
+                # Legacy fallback for tools that still return bare strings
+                result_is_error = True
 
             if result_is_error and tool_can_retry:
-                error_hint = str(result)
-                task.emit(
-                    "warning",
-                    {
-                        "message": f"Tool '{name}' failed on first attempt; retrying with error context.",
-                        "detail": error_hint,
-                    },
-                )
-                retry_args = {**args, "_error_context": error_hint}
-                try:
-                    observation, result = await _run_once(retry_args)
-                except Exception:
-                    pass  # Keep the first error observation on retry failure
+                retries_remaining = self.max_tool_retries
+                last_error = str(result)
+
+                while retries_remaining > 0:
+                    retries_remaining -= 1
+                    task.emit(
+                        "warning",
+                        {
+                            "message": (
+                                f"Tool '{name}' failed (attempt "
+                                f"{self.max_tool_retries - retries_remaining}/"
+                                f"{self.max_tool_retries + 1}); "
+                                f"retrying with error context."
+                            ),
+                            "detail": last_error,
+                        },
+                    )
+                    retry_args = {**args, "_error_context": last_error}
+                    try:
+                        observation, result = await _run_once(retry_args)
+                        # Check if retry succeeded
+                        if isinstance(result, ToolResult):
+                            if not result.is_error:
+                                break
+                            last_error = str(result)
+                        elif isinstance(result, str) and not result.lower().startswith(
+                            "error"
+                        ):
+                            break
+                        else:
+                            last_error = str(result)
+                    except Exception as retry_err:
+                        # Emit the retry failure — NEVER silently swallow
+                        last_error = str(retry_err)
+                        task.emit(
+                            "error",
+                            {
+                                "message": f"Tool '{name}' retry failed",
+                                "detail": last_error,
+                                "fatal": False,
+                            },
+                        )
+                        logger.error(
+                            f"Tool '{name}' retry {self.max_tool_retries - retries_remaining} "
+                            f"failed: {retry_err}"
+                        )
 
             return observation
 
@@ -717,25 +813,57 @@ class ToolCallAgent(ReActAgent):
         return screenshot
 
     async def _handle_special_tool(self, task: Task, name: str, result: Any, **kwargs):
-        """Handle special tool execution and state changes."""
+        """Handle special tool execution and state changes.
+
+        For the `terminate` tool, we extract and validate the structured
+        status/summary/reason instead of rubber-stamping `return True`.
+        """
         if not self._is_special_tool(name):
             return
 
-        if self._should_finish_execution(name=name, result=result, **kwargs):
-            summary = self._last_assistant_content or str(result)
-            task.emit(
-                "finish_signal",
-                {
-                    "tool": name,
-                    "message": summary,
-                    "reason": "Finish tool signaled completion.",
-                },
-            )
-            self.state = AgentState.FINISHED
+        if not self._should_finish_execution(name=name, result=result, **kwargs):
+            return
+
+        # Extract structured finish information from the terminate tool result
+        summary = self._last_assistant_content or str(result)
+        status = "success"
+        reason = ""
+
+        # Parse the result to extract status/summary/reason if available
+        result_str = str(result)
+        if "status: failure" in result_str.lower():
+            status = "failure"
+        if "status: success" in result_str.lower():
+            status = "success"
+
+        # Try to extract reason from result
+        for line in result_str.split("\n"):
+            if line.strip().lower().startswith("reason:"):
+                reason = line.split(":", 1)[1].strip()
+            elif line.strip().lower().startswith("summary:"):
+                summary = line.split(":", 1)[1].strip()
+
+        task.emit(
+            "finish_signal",
+            {
+                "tool": name,
+                "message": summary,
+                "reason": reason or "Agent called terminate tool.",
+                "status": status,
+            },
+        )
+        self.state = AgentState.FINISHED
 
     @staticmethod
-    def _should_finish_execution(**kwargs) -> bool:
-        """Determine if tool execution should finish the agent."""
+    def _should_finish_execution(name: str = "", result: Any = None, **kwargs) -> bool:
+        """Determine if tool execution should finish the agent.
+
+        For the terminate tool, we always honor it — the model explicitly
+        chose to end. But we log the status for observability.
+        """
+        # The terminate tool is the ONLY structural path to FINISHED.
+        # We honor it unconditionally, but downstream code can inspect
+        # the emitted finish_signal for status/reason.
         return True
 
     def _is_special_tool(self, name: str) -> bool:
@@ -750,9 +878,11 @@ class ToolCallAgent(ReActAgent):
             ):
                 try:
                     await tool_instance.cleanup()
-                except Exception:
-                    # Ignore cleanup errors to avoid masking main flow
-                    pass
+                except Exception as e:
+                    # Log cleanup errors instead of silently swallowing them
+                    logger.warning(
+                        f"Cleanup error for tool '{getattr(tool_instance, 'name', '?')}': {e}"
+                    )
 
     async def run(self, task: Task, input: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""

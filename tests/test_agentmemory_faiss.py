@@ -1,7 +1,8 @@
 import os
-import json
 import tempfile
+
 import pytest
+
 from app.memory.agentmemory import AgentMemoryClient
 
 
@@ -29,7 +30,11 @@ def temp_memory_client(monkeypatch):
                 return [1.0, 0.0, 0.0, 0.0]
             elif "banana" in text.lower():
                 return [0.0, 1.0, 0.0, 0.0]
-            elif "region" in text.lower() or "frankfurt" in text.lower() or "eu" in text.lower():
+            elif (
+                "region" in text.lower()
+                or "frankfurt" in text.lower()
+                or "eu" in text.lower()
+            ):
                 return [0.0, 0.0, 1.0, 0.0]
             return [val, val, val, val]
 
@@ -73,6 +78,7 @@ def test_faiss_fallback_on_error(temp_memory_client, monkeypatch):
         raise RuntimeError("Mock FAISS error")
 
     import faiss
+
     monkeypatch.setattr(faiss, "read_index", failing_read)
 
     hits = client.search(conversation_id=cid, query="UniqueWordXYZZY")
