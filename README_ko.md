@@ -85,7 +85,7 @@ uv pip install -r requirements.txt
 
 ### 브라우저 자동화 도구 (선택사항)
 ```bash
-playwright install
+playwright install --with-deps
 ```
 
 ## 설정 방법

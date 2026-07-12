@@ -86,7 +86,7 @@ uv pip install -r requirements.txt
 
 ### 浏览器自动化工具（可选）
 ```bash
-playwright install
+playwright install --with-deps
 ```
 
 ## 配置说明

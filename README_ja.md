@@ -85,7 +85,7 @@ uv pip install -r requirements.txt
 
 ### ブラウザ自動化ツール（オプション）
 ```bash
-playwright install
+playwright install --with-deps
 ```
 
 ## 設定
