@@ -294,6 +294,20 @@ export async function getObsidianGraph(conversationId: string): Promise<Obsidian
   return response.json();
 }
 
+export async function importObsidianNotes(
+  conversationId: string,
+  notes: Array<{ path: string; title: string; content: string; tags?: string[]; meta?: Record<string, unknown> }>,
+): Promise<{ conversation_id: string; imported_notes: number; edges_created: number; graph: ObsidianGraph }> {
+  const response = await fetch(`/api/conversations/${conversationId}/obsidian/import`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+  if (!response.ok) throw new Error('Could not import vault notes');
+  return response.json();
+}
+
 export async function getIntegrationsHealth(conversationId: string): Promise<IntegrationsHealth> {
   const response = await fetch(`/api/conversations/${conversationId}/integrations/health`, {
     credentials: 'same-origin',

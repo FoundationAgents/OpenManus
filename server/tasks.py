@@ -629,7 +629,16 @@ def update_skill_suggestions(conversation_id: str, task_id: str, prompt: str) ->
 
 
 def auto_sync_obsidian_notes(conversation_id: str, workspace_root: Path) -> None:
-    """Automatically sync markdown notes from workspace into obsidian_notes + graph edges."""
+    """Automatically sync markdown notes from workspace into obsidian_notes + graph edges.
+
+    Resolution fixes vs. upstream:
+    - Path-qualified wikilinks (e.g. [[projects/Overview]]) now resolve correctly
+      by stripping the .md extension from stored paths before lookup.
+    - Duplicate titles are detected: if two notes share a title, title-only links
+      are ambiguous and skipped rather than silently picking the wrong one.
+    - Edge updates are diff-based: only edges sourced from workspace-synced notes
+      are touched. Imported vault edges survive untouched.
+    """
     if not workspace_root.exists():
         return
     markdown_files = [
@@ -651,7 +660,6 @@ def auto_sync_obsidian_notes(conversation_id: str, workspace_root: Path) -> None
             .all()
         )
         by_path = {note.path: note for note in existing_notes}
-        by_title = {note.title: note for note in existing_notes}
         touched_paths: set[str] = set()
         touched_notes: list[ObsidianNoteORM] = []
 
@@ -690,7 +698,6 @@ def auto_sync_obsidian_notes(conversation_id: str, workspace_root: Path) -> None
                 note.tags = tags
                 note.meta = {"source": "workspace-auto-sync"}
             by_path[rel] = note
-            by_title[title] = note
             touched_notes.append(note)
 
         session.flush()
@@ -701,24 +708,84 @@ def auto_sync_obsidian_notes(conversation_id: str, workspace_root: Path) -> None
             if source == "workspace-auto-sync" and old.path not in touched_paths:
                 session.delete(old)
 
-        session.query(ObsidianEdgeORM).filter(
-            ObsidianEdgeORM.conversation_id == cid
-        ).delete()
+        # --- Diff-based edge update (only for edges sourced from touched notes) ---
+        # Rebuild the full note index for resolution after flush
+        all_notes = (
+            session.query(ObsidianNoteORM)
+            .filter(ObsidianNoteORM.conversation_id == cid)
+            .all()
+        )
+        all_by_path = {note.path: note for note in all_notes}
+        # Path-stem lookup: strip .md so [[projects/Overview]] matches "projects/Overview.md"
+        all_by_path_stem = {}
+        for note in all_notes:
+            stem = note.path
+            if stem.endswith(".md"):
+                stem = stem[:-3]
+            all_by_path_stem.setdefault(stem, []).append(note)
+        # Title lookup: track duplicates
+        all_by_title: dict[str, list[ObsidianNoteORM]] = {}
+        for note in all_notes:
+            all_by_title.setdefault(note.title, []).append(note)
+
+        touched_note_ids = {note.note_id for note in touched_notes}
+
+        # Compute desired edges from touched notes
+        desired_edges: set[tuple] = set()
         for note in touched_notes:
             content = note.content or ""
             for link in WIKILINK_RE.findall(content):
                 target_name = str(link).strip()
-                target = by_title.get(target_name) or by_path.get(target_name)
-                if target is None:
+                if not target_name:
                     continue
+                # Resolution order: path-stem > exact path > unambiguous title
+                target = None
+                stem_matches = all_by_path_stem.get(target_name, [])
+                if len(stem_matches) == 1:
+                    target = stem_matches[0]
+                elif target_name in all_by_path:
+                    target = all_by_path[target_name]
+                else:
+                    title_matches = all_by_title.get(target_name, [])
+                    if len(title_matches) == 1:
+                        target = title_matches[0]
+                    # else: ambiguous or not found — skip
+                if target is not None and target.note_id != note.note_id:
+                    desired_edges.add(
+                        (note.note_id, target.note_id, "wikilink")
+                    )
+
+        # Query existing edges sourced from touched notes only
+        existing_edge_rows = (
+            session.query(ObsidianEdgeORM)
+            .filter(
+                ObsidianEdgeORM.conversation_id == cid,
+                ObsidianEdgeORM.source_note_id.in_(touched_note_ids),
+            )
+            .all()
+        )
+        existing_edges = {
+            (e.source_note_id, e.target_note_id, e.relation): e
+            for e in existing_edge_rows
+        }
+
+        # Delete edges that no longer exist
+        for key, edge in existing_edges.items():
+            if key not in desired_edges:
+                session.delete(edge)
+
+        # Insert new edges
+        for src_id, tgt_id, relation in desired_edges:
+            if (src_id, tgt_id, relation) not in existing_edges:
                 session.add(
                     ObsidianEdgeORM(
                         conversation_id=cid,
-                        source_note_id=note.note_id,
-                        target_note_id=target.note_id,
-                        relation="wikilink",
+                        source_note_id=src_id,
+                        target_note_id=tgt_id,
+                        relation=relation,
                     )
                 )
+
         session.commit()
 
 

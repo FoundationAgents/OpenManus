@@ -10,3 +10,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// webkitdirectory is a non-standard attribute supported by all major browsers
+// for folder selection in file inputs.
+interface HTMLInputElement {
+  webkitdirectory: boolean;
+}

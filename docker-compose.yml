@@ -21,7 +21,7 @@ services:
       - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/openmanus
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENMANUS_HOST_WORKSPACE_ROOT=/home/mohamed/OpenManus/workspace
+      - OPENMANUS_HOST_WORKSPACE_ROOT=${PWD}/workspace
       - OPENMANUS_SINGLE_CONVERSATION=false
       - OPENMANUS_DEFAULT_CONVERSATION_ID=main
     depends_on:
@@ -44,7 +44,7 @@ services:
       - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/openmanus
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENMANUS_HOST_WORKSPACE_ROOT=/home/mohamed/OpenManus/workspace
+      - OPENMANUS_HOST_WORKSPACE_ROOT=${PWD}/workspace
       - OPENMANUS_SINGLE_CONVERSATION=false
       - OPENMANUS_DEFAULT_CONVERSATION_ID=main
     depends_on:

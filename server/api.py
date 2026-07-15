@@ -82,6 +82,42 @@ def _ensure_schema_updates() -> None:
                 "ON conversation_events (conversation_id, created_at, event_id)"
             )
         )
+        
+        # Ensure Obsidian unique constraints exist
+        note_constraint = connection.execute(
+            text("SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='uq_obsidian_note_conv_path'")
+        ).fetchone()
+        if not note_constraint:
+            # Clean up duplicate notes keeping the latest one
+            connection.execute(
+                text(
+                    "DELETE FROM obsidian_notes a USING obsidian_notes b "
+                    "WHERE a.note_id < b.note_id AND a.conversation_id = b.conversation_id AND a.path = b.path"
+                )
+            )
+            connection.execute(
+                text("ALTER TABLE obsidian_notes ADD CONSTRAINT uq_obsidian_note_conv_path UNIQUE (conversation_id, path)")
+            )
+
+        edge_constraint = connection.execute(
+            text("SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='uq_obsidian_edge_conv_src_tgt_rel'")
+        ).fetchone()
+        if not edge_constraint:
+            # Clean up duplicate edges keeping the latest one
+            connection.execute(
+                text(
+                    "DELETE FROM obsidian_edges a USING obsidian_edges b "
+                    "WHERE a.edge_id < b.edge_id AND a.conversation_id = b.conversation_id "
+                    "AND a.source_note_id = b.source_note_id AND a.target_note_id = b.target_note_id "
+                    "AND a.relation = b.relation"
+                )
+            )
+            connection.execute(
+                text(
+                    "ALTER TABLE obsidian_edges ADD CONSTRAINT uq_obsidian_edge_conv_src_tgt_rel "
+                    "UNIQUE (conversation_id, source_note_id, target_note_id, relation)"
+                )
+            )
 
 
 AVAILABLE_TOOLS = [
@@ -1925,7 +1961,13 @@ async def get_conversation_event_history(
 
 @app.post("/api/conversations/{conversation_id}/obsidian/import")
 async def import_obsidian_context(request: Request, conversation_id: str):
-    """Import Obsidian notes and build a wikilink graph for this conversation."""
+    """Import Obsidian notes and build a wikilink graph for this conversation.
+
+    Resolution fixes:
+    - Path-qualified wikilinks resolve via .md-stripped path lookup.
+    - Duplicate titles detected and skipped instead of silent last-wins.
+    - Diff-based edge update: existing edges from notes NOT in this batch are preserved.
+    """
     user = _require_user(request)
     body = await request.json()
     notes = body.get("notes") or []
@@ -1941,7 +1983,6 @@ async def import_obsidian_context(request: Request, conversation_id: str):
             .all()
         )
         by_path = {note.path: note for note in existing}
-        by_title = {note.title: note for note in existing}
 
         upserted: list[ObsidianNoteORM] = []
         for raw in notes:
@@ -1972,26 +2013,83 @@ async def import_obsidian_context(request: Request, conversation_id: str):
                 note.meta = meta
             upserted.append(note)
             by_path[path] = note
-            by_title[title] = note
 
         session.flush()
 
-        session.query(ObsidianEdgeORM).filter(
-            ObsidianEdgeORM.conversation_id == cid
-        ).delete()
+        # --- Diff-based edge update ---
+        # Rebuild the full note index after flush (includes both imported and existing)
+        all_notes = (
+            session.query(ObsidianNoteORM)
+            .filter(ObsidianNoteORM.conversation_id == cid)
+            .all()
+        )
+        all_by_path = {note.path: note for note in all_notes}
+        # Path-stem lookup: strip .md so [[projects/Overview]] matches "projects/Overview.md"
+        all_by_path_stem: dict[str, list[ObsidianNoteORM]] = {}
+        for note in all_notes:
+            stem = note.path
+            if stem.endswith(".md"):
+                stem = stem[:-3]
+            all_by_path_stem.setdefault(stem, []).append(note)
+        # Title lookup: track duplicates for disambiguation
+        all_by_title: dict[str, list[ObsidianNoteORM]] = {}
+        for note in all_notes:
+            all_by_title.setdefault(note.title, []).append(note)
 
-        edges_created = 0
+        upserted_ids = {note.note_id for note in upserted}
+
+        # Compute desired edges from upserted notes
+        desired_edges: set[tuple] = set()
         for note in upserted:
             for target_name in _extract_wikilinks(note.content):
-                target = by_title.get(target_name) or by_path.get(target_name)
-                if target is None:
+                if not target_name:
                     continue
+                # Resolution order: path-stem > exact path > unambiguous title
+                target = None
+                stem_matches = all_by_path_stem.get(target_name, [])
+                if len(stem_matches) == 1:
+                    target = stem_matches[0]
+                elif target_name in all_by_path:
+                    target = all_by_path[target_name]
+                else:
+                    title_matches = all_by_title.get(target_name, [])
+                    if len(title_matches) == 1:
+                        target = title_matches[0]
+                    # else: ambiguous or not found — skip
+                if target is not None and target.note_id != note.note_id:
+                    desired_edges.add(
+                        (note.note_id, target.note_id, "wikilink")
+                    )
+
+        # Query existing edges sourced from upserted notes only
+        existing_edge_rows = (
+            session.query(ObsidianEdgeORM)
+            .filter(
+                ObsidianEdgeORM.conversation_id == cid,
+                ObsidianEdgeORM.source_note_id.in_(upserted_ids),
+            )
+            .all()
+        )
+        existing_edges = {
+            (e.source_note_id, e.target_note_id, e.relation): e
+            for e in existing_edge_rows
+        }
+
+        # Delete edges that no longer exist
+        for key, edge in existing_edges.items():
+            if key not in desired_edges:
+                session.delete(edge)
+
+        # Insert new edges
+        edges_created = 0
+        for src_id, tgt_id, relation in desired_edges:
+            if (src_id, tgt_id, relation) not in existing_edges:
                 session.add(
                     ObsidianEdgeORM(
                         conversation_id=cid,
-                        source_note_id=note.note_id,
-                        target_note_id=target.note_id,
-                        relation="wikilink",
+                        source_note_id=src_id,
+                        target_note_id=tgt_id,
+                        relation=relation,
                     )
                 )
                 edges_created += 1

@@ -7,7 +7,7 @@
  */
 import type { Message } from '@/libs/chat-messages/types';
 import { useAsync } from '@/hooks/use-async';
-import { getObsidianGraph, listSkills } from '@/services/conversations';
+import { listSkills } from '@/services/conversations';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePreviewData } from './store';
@@ -15,6 +15,7 @@ import { BrowserPanel } from './panels/BrowserPanel';
 import { RuntimePanel } from './panels/RuntimePanel';
 import { LiveActivityPanel, TerminalOutputPanel, ToolPanel } from './panels/ToolsPanel';
 import { WorkspacePanel, ChangesPanel } from './panels/WorkspacePanel';
+import { VaultPanel } from './panels/VaultPanel';
 
 // ---------------------------------------------------------------------------
 // Router
@@ -135,78 +136,6 @@ const SkillsPanel = ({ conversationId }: { conversationId?: string }) => {
             </div>
           ) : (
             <div className="text-muted-foreground text-sm">No skills found.</div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Vault sync status panel (small enough to keep here inline)
-// ---------------------------------------------------------------------------
-
-const VaultPanel = ({ conversationId }: { conversationId: string }) => {
-  const { data: graph, isLoading } = useAsync(
-    async () => getObsidianGraph(conversationId),
-    [],
-    { deps: [conversationId] },
-  );
-  const lastSync =
-    graph?.nodes
-      ?.map(node => node.updated_at)
-      .filter(Boolean)
-      .sort()
-      .at(-1) ?? null;
-
-  return (
-    <div className="h-full min-h-0 p-4">
-      <Card className="flex h-full min-h-0 flex-col overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Vault Sync Status</CardTitle>
-          <CardDescription>Automated Obsidian markdown sync + graph memory.</CardDescription>
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-auto">
-          {isLoading ? (
-            <div className="text-muted-foreground text-sm">Loading vault status…</div>
-          ) : graph ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-md border p-2">
-                  <div className="text-muted-foreground text-xs">Notes</div>
-                  <div className="text-lg font-semibold">{graph.node_count}</div>
-                </div>
-                <div className="rounded-md border p-2">
-                  <div className="text-muted-foreground text-xs">Graph Links</div>
-                  <div className="text-lg font-semibold">{graph.edge_count}</div>
-                </div>
-              </div>
-              <div className="rounded-md border p-2">
-                <div className="text-muted-foreground text-xs">Last Sync</div>
-                <div className="text-sm font-medium">
-                  {lastSync ? new Date(lastSync).toLocaleString() : 'No synced notes yet'}
-                </div>
-              </div>
-              <div className="rounded-md border p-2">
-                <div className="text-muted-foreground mb-1 text-xs">Recent Notes</div>
-                {graph.nodes.length ? (
-                  <div className="space-y-1">
-                    {graph.nodes.slice(0, 8).map(node => (
-                      <div key={node.id} className="flex items-center justify-between gap-2">
-                        <div className="truncate text-sm">{node.title}</div>
-                        <div className="text-muted-foreground truncate text-xs">{node.path}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-sm">
-                    No notes found in this conversation workspace.
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground text-sm">Could not load vault status.</div>
           )}
         </CardContent>
       </Card>
