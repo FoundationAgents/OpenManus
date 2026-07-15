@@ -1,0 +1,17 @@
+# Global LLM configuration
+[llm] #OrcaRouter:
+api_type = 'orcarouter'
+model = "anthropic/claude-opus-4.8"                                # The LLM model to use (any OrcaRouter model id; "orcarouter/auto" adaptively routes)
+base_url = "https://api.orcarouter.ai/v1"                          # OpenAI-compatible API endpoint
+api_key = "your OrcaRouter api key"                                # Your API key from https://www.orcarouter.ai
+max_tokens = 8192                                                  # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+[llm.vision] #OrcaRouter VISION:
+api_type = 'orcarouter'
+model = "anthropic/claude-opus-4.8"                                # The vision model to use
+base_url = "https://api.orcarouter.ai/v1"                          # API endpoint URL for vision model
+api_key = "your OrcaRouter api key"                                # Your API key for vision model
+max_tokens = 8192                                                  # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness for vision model
