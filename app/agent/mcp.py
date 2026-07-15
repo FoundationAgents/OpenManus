@@ -2,8 +2,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import Field
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.toolcall import ToolCallAgent
-from app.logger import logger
 from app.prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message
 from app.tool.base import ToolResult
@@ -84,7 +84,7 @@ class MCPAgent(ToolCallAgent):
             )
         )
 
-    async def _refresh_tools(self) -> Tuple[List[str], List[str]]:
+    async def _refresh_tools(self, task: Task) -> Tuple[List[str], List[str]]:
         """Refresh the list of available tools from the MCP server.
 
         Returns:
@@ -113,48 +113,56 @@ class MCPAgent(ToolCallAgent):
         # Update stored schemas
         self.tool_schemas = current_tools
 
-        # Log and notify about changes
         if added_tools:
-            logger.info(f"Added MCP tools: {added_tools}")
+            task.emit("tools_added", {"tools": added_tools})
             self.memory.add_message(
                 Message.system_message(f"New tools available: {', '.join(added_tools)}")
             )
         if removed_tools:
-            logger.info(f"Removed MCP tools: {removed_tools}")
+            task.emit("tools_removed", {"tools": removed_tools})
             self.memory.add_message(
                 Message.system_message(
                     f"Tools no longer available: {', '.join(removed_tools)}"
                 )
             )
         if changed_tools:
-            logger.info(f"Changed MCP tools: {changed_tools}")
+            task.emit("tools_changed", {"tools": changed_tools})
 
         return added_tools, removed_tools
 
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next action."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
+
         # Check MCP session and tools availability
         if not self.mcp_clients.sessions or not self.mcp_clients.tool_map:
-            logger.info("MCP service is no longer available, ending interaction")
+            task.emit(
+                "info", {"message": "MCP service is no longer available, ending run."}
+            )
             self.state = AgentState.FINISHED
             return False
 
         # Refresh tools periodically
         if self.current_step % self._refresh_tools_interval == 0:
-            await self._refresh_tools()
+            await self._refresh_tools(task)
             # All tools removed indicates shutdown
             if not self.mcp_clients.tool_map:
-                logger.info("MCP service has shut down, ending interaction")
+                task.emit("info", {"message": "MCP service has shut down, ending run."})
                 self.state = AgentState.FINISHED
                 return False
 
         # Use the parent class's think method
-        return await super().think()
+        return await super().think(task)
 
-    async def _handle_special_tool(self, name: str, result: Any, **kwargs) -> None:
+    async def _handle_special_tool(
+        self, task: Task, name: str, result: Any, **kwargs
+    ) -> None:
         """Handle special tool execution and state changes"""
         # First process with parent handler
-        await super()._handle_special_tool(name, result, **kwargs)
+        await super()._handle_special_tool(
+            task=task, name=name, result=result, **kwargs
+        )
 
         # Handle multimedia responses
         if isinstance(result, ToolResult) and result.base64_image:
@@ -173,13 +181,12 @@ class MCPAgent(ToolCallAgent):
         """Clean up MCP connection when done."""
         if self.mcp_clients.sessions:
             await self.mcp_clients.disconnect()
-            logger.info("MCP connection closed")
+            # No external logging; silent cleanup
 
-    async def run(self, request: Optional[str] = None) -> str:
+    async def run(self, task: Task, input: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""
         try:
-            result = await super().run(request)
+            result = await super().run(task, input)
             return result
         finally:
-            # Ensure cleanup happens even if there's an error
             await self.cleanup()

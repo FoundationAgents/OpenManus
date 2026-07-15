@@ -2,6 +2,7 @@
 from typing import Dict, List, Literal, Optional
 
 from app.exceptions import ToolError
+from app.task_context import emit_current_task
 from app.tool.base import BaseTool, ToolResult
 
 
@@ -153,9 +154,11 @@ class PlanningTool(BaseTool):
         self.plans[plan_id] = plan
         self._current_plan_id = plan_id  # Set as active plan
 
-        return ToolResult(
+        result = ToolResult(
             output=f"Plan created successfully with ID: {plan_id}\n\n{self._format_plan(plan)}"
         )
+        self._emit_plan_event(plan, command="create")
+        return result
 
     def _update_plan(
         self, plan_id: Optional[str], title: Optional[str], steps: Optional[List[str]]
@@ -202,9 +205,11 @@ class PlanningTool(BaseTool):
             plan["step_statuses"] = new_statuses
             plan["step_notes"] = new_notes
 
-        return ToolResult(
+        result = ToolResult(
             output=f"Plan updated successfully: {plan_id}\n\n{self._format_plan(plan)}"
         )
+        self._emit_plan_event(plan, command="update")
+        return result
 
     def _list_plans(self) -> ToolResult:
         """List all available plans."""
@@ -299,9 +304,11 @@ class PlanningTool(BaseTool):
         if step_notes:
             plan["step_notes"][step_index] = step_notes
 
-        return ToolResult(
+        result = ToolResult(
             output=f"Step {step_index} updated in plan '{plan_id}'.\n\n{self._format_plan(plan)}"
         )
+        self._emit_plan_event(plan, command="mark_step", step_index=step_index)
+        return result
 
     def _delete_plan(self, plan_id: Optional[str]) -> ToolResult:
         """Delete a plan."""
@@ -317,7 +324,12 @@ class PlanningTool(BaseTool):
         if self._current_plan_id == plan_id:
             self._current_plan_id = None
 
-        return ToolResult(output=f"Plan '{plan_id}' has been deleted.")
+        result = ToolResult(output=f"Plan '{plan_id}' has been deleted.")
+        emit_current_task(
+            "agent:plan:updated",
+            {"command": "delete", "plan_id": plan_id, "deleted": True},
+        )
+        return result
 
     def _format_plan(self, plan: Dict) -> str:
         """Format a plan for display."""
@@ -361,3 +373,33 @@ class PlanningTool(BaseTool):
                 output += f"   Notes: {notes}\n"
 
         return output
+
+    def _emit_plan_event(
+        self, plan: Dict, command: str, step_index: Optional[int] = None
+    ) -> None:
+        """Emit a structured plan state event for the UI to render."""
+        total = len(plan["steps"])
+        completed = sum(1 for s in plan["step_statuses"] if s == "completed")
+        emit_current_task(
+            "agent:plan:updated",
+            {
+                "command": command,
+                "plan_id": plan["plan_id"],
+                "title": plan["title"],
+                "steps": [
+                    {
+                        "index": i,
+                        "text": step,
+                        "status": plan["step_statuses"][i],
+                        "notes": plan["step_notes"][i],
+                        "active": step_index == i,
+                    }
+                    for i, step in enumerate(plan["steps"])
+                ],
+                "progress": {
+                    "completed": completed,
+                    "total": total,
+                    "pct": round(completed / total * 100, 1) if total else 0,
+                },
+            },
+        )

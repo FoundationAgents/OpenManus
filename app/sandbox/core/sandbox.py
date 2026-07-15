@@ -118,6 +118,12 @@ class DockerSandbox:
         for host_path, container_path in self.volume_bindings.items():
             bindings[host_path] = {"bind": container_path, "mode": "rw"}
 
+        # Add docker socket if enabled
+        if getattr(self.config, "docker_socket_enabled", False):
+            docker_socket = "/var/run/docker.sock"
+            if os.path.exists(docker_socket):
+                bindings[docker_socket] = {"bind": docker_socket, "mode": "rw"}
+
         return bindings
 
     @staticmethod

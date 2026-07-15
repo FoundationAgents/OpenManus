@@ -136,6 +136,15 @@ class StrReplaceEditor(BaseTool):
         elif command == "create":
             if file_text is None:
                 raise ToolError("Parameter `file_text` is required for command: create")
+            if await operator.exists(path):
+                return str(
+                    ToolResult(
+                        output=(
+                            f"File already exists at: {path}. Skipped `create` (no changes). "
+                            "Use `str_replace` or `insert` to edit existing files."
+                        )
+                    )
+                )
             await operator.write_file(path, file_text)
             self._file_history[path].append(file_text)
             result = ToolResult(output=f"File created successfully at: {path}")
@@ -185,13 +194,10 @@ class StrReplaceEditor(BaseTool):
                     f"The path {path} is a directory and only the `view` command can be used on directories"
                 )
 
-        # Check if file exists for create command
+        # For create, existence is handled in execute() as a non-fatal no-op so
+        # long-running plans can continue idempotently.
         elif command == "create":
-            exists = await operator.exists(path)
-            if exists:
-                raise ToolError(
-                    f"File already exists at: {path}. Cannot overwrite files using command `create`."
-                )
+            return
 
     async def view(
         self,

@@ -2,17 +2,34 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.browser import BrowserContextHelper
+from app.agent.policy_loader import load_rl_policy_context
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.tool import Terminate, ToolCollection
+from app.tool import (
+    ApplyPatchEditor,
+    Bash,
+    CodebaseOverview,
+    GlobSearch,
+    GrepSearch,
+    LineEdit,
+    MemoryRecall,
+    MemorySave,
+    PlanningTool,
+    ReadFiles,
+    SkillPlaybook,
+    Terminate,
+    ToolCollection,
+    WaitForUserInput,
+    WebSearch,
+)
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
-from app.tool.str_replace_editor import StrReplaceEditor
 
 
 class Manus(ToolCallAgent):
@@ -23,9 +40,11 @@ class Manus(ToolCallAgent):
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
     next_step_prompt: str = NEXT_STEP_PROMPT
+    workspace_root: str = str(config.workspace_root)
+    disabled_tools: set[str] = Field(default_factory=set)
 
     max_observe: int = 10000
-    max_steps: int = 20
+    max_steps: int = config.agent.max_steps
 
     # MCP clients for remote tool access
     mcp_clients: MCPClients = Field(default_factory=MCPClients)
@@ -33,10 +52,22 @@ class Manus(ToolCallAgent):
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
+            SkillPlaybook(),
+            PlanningTool(),
+            CodebaseOverview(),
+            GlobSearch(),
+            GrepSearch(),
+            ReadFiles(),
             PythonExecute(),
+            Bash(),
             BrowserUseTool(),
-            StrReplaceEditor(),
+            WebSearch(),
+            LineEdit(),  # primary code editor — line-number based, no string matching
+            ApplyPatchEditor(),  # multi-file atomic patches
+            MemorySave(),
+            MemoryRecall(),
             AskHuman(),
+            WaitForUserInput(),
             Terminate(),
         )
     )
@@ -53,6 +84,12 @@ class Manus(ToolCallAgent):
     @model_validator(mode="after")
     def initialize_helper(self) -> "Manus":
         """Initialize basic components synchronously."""
+        self.system_prompt = SYSTEM_PROMPT.format(directory=self.workspace_root)
+        rl_context = load_rl_policy_context()
+        if rl_context:
+            self.system_prompt = f"{self.system_prompt}\n\n{rl_context}"
+        if self.disabled_tools:
+            self.available_tools = self.available_tools.without(self.disabled_tools)
         self.browser_context_helper = BrowserContextHelper(self)
         return self
 
@@ -71,9 +108,6 @@ class Manus(ToolCallAgent):
                 if server_config.type == "sse":
                     if server_config.url:
                         await self.connect_mcp_server(server_config.url, server_id)
-                        logger.info(
-                            f"Connected to MCP server {server_id} at {server_config.url}"
-                        )
                 elif server_config.type == "stdio":
                     if server_config.command:
                         await self.connect_mcp_server(
@@ -82,11 +116,8 @@ class Manus(ToolCallAgent):
                             use_stdio=True,
                             stdio_args=server_config.args,
                         )
-                        logger.info(
-                            f"Connected to MCP server {server_id} using command {server_config.command}"
-                        )
             except Exception as e:
-                logger.error(f"Failed to connect to MCP server {server_id}: {e}")
+                logger.error(f"Failed to connect to MCP server '{server_id}': {e}")
 
     async def connect_mcp_server(
         self,
@@ -137,8 +168,10 @@ class Manus(ToolCallAgent):
             await self.disconnect_mcp_server()
             self._initialized = False
 
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next actions with appropriate context."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
         if not self._initialized:
             await self.initialize_mcp_servers()
             self._initialized = True
@@ -157,7 +190,7 @@ class Manus(ToolCallAgent):
                 await self.browser_context_helper.format_next_step_prompt()
             )
 
-        result = await super().think()
+        result = await super().think(task)
 
         # Restore original prompt
         self.next_step_prompt = original_prompt

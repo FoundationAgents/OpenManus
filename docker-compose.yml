@@ -1,0 +1,89 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    image: openmanus-frontend:latest
+    ports:
+      - "3000:5173"
+    depends_on:
+      - web
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  web:
+    build: .
+    image: openmanus-web:latest
+    command: uvicorn server.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/openmanus
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENMANUS_HOST_WORKSPACE_ROOT=${PWD}/workspace
+      - OPENMANUS_SINGLE_CONVERSATION=false
+      - OPENMANUS_DEFAULT_CONVERSATION_ID=main
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config
+      - ./app:/app/app
+      - ./server:/app/server
+      - ./workspace:/app/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  worker:
+    build: .
+    image: openmanus-worker:latest
+    command: celery -A server.celery_app.celery_app worker -l info
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/openmanus
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENMANUS_HOST_WORKSPACE_ROOT=${PWD}/workspace
+      - OPENMANUS_SINGLE_CONVERSATION=false
+      - OPENMANUS_DEFAULT_CONVERSATION_ID=main
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config
+      - ./app:/app/app
+      - ./server:/app/server
+      - ./workspace:/app/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=openmanus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

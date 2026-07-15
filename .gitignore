@@ -8,6 +8,10 @@ data/
 # Workspace
 workspace/
 
+# Experimental research (opt-in, not production)
+research/deepspec/
+research/openmanus-rl/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -134,7 +138,7 @@ __pypackages__/
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
-
+OpenManus.code-workspace
 # SageMath parsed files
 *.sage.py
 
@@ -177,6 +181,11 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
+
+### Obsidian ###
+.obsidian/
+**/.obsidian/
+
 
 # PyPI configuration file
 .pypirc

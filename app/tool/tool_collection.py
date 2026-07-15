@@ -9,9 +9,6 @@ from app.tool.base import BaseTool, ToolFailure, ToolResult
 class ToolCollection:
     """A collection of defined tools."""
 
-    class Config:
-        arbitrary_types_allowed = True
-
     def __init__(self, *tools: BaseTool):
         self.tools = tools
         self.tool_map = {tool.name: tool for tool in tools}
@@ -69,3 +66,9 @@ class ToolCollection:
         for tool in tools:
             self.add_tool(tool)
         return self
+
+    def without(self, disabled_tool_names: set[str]):
+        """Return a new collection without disabled tool names."""
+        return ToolCollection(
+            *(tool for tool in self.tools if tool.name not in disabled_tool_names)
+        )

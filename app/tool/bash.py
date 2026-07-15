@@ -3,6 +3,12 @@ import os
 from typing import Optional
 
 from app.exceptions import ToolError
+from app.task_context import (
+    emit_current_task,
+    get_current_sandbox,
+    get_current_task,
+    get_current_tool_call,
+)
 from app.tool.base import BaseTool, CLIResult
 
 
@@ -79,6 +85,9 @@ class _BashSession:
 
         # read output from the process, until the sentinel is found
         try:
+            last_output_len = 0
+            last_error_len = 0
+            tool_call = get_current_tool_call() or {}
             async with asyncio.timeout(self._timeout):
                 while True:
                     await asyncio.sleep(self._output_delay)
@@ -87,6 +96,38 @@ class _BashSession:
                     output = (
                         self._process.stdout._buffer.decode()
                     )  # pyright: ignore[reportAttributeAccessIssue]
+                    visible_output = (
+                        output[: output.index(self._sentinel)]
+                        if self._sentinel in output
+                        else output
+                    )
+                    if len(visible_output) > last_output_len:
+                        emit_current_task(
+                            "terminal_output",
+                            {
+                                "id": tool_call.get("id"),
+                                "name": tool_call.get("name", "bash"),
+                                "stream": "stdout",
+                                "chunk": visible_output[last_output_len:],
+                            },
+                        )
+                        last_output_len = len(visible_output)
+
+                    error = (
+                        self._process.stderr._buffer.decode()
+                    )  # pyright: ignore[reportAttributeAccessIssue]
+                    if len(error) > last_error_len:
+                        emit_current_task(
+                            "terminal_output",
+                            {
+                                "id": tool_call.get("id"),
+                                "name": tool_call.get("name", "bash"),
+                                "stream": "stderr",
+                                "chunk": error[last_error_len:],
+                            },
+                        )
+                        last_error_len = len(error)
+
                     if self._sentinel in output:
                         # strip the sentinel and break
                         output = output[: output.index(self._sentinel)]
@@ -118,6 +159,7 @@ class Bash(BaseTool):
 
     name: str = "bash"
     description: str = _BASH_DESCRIPTION
+    emits_progress: bool = True  # streams stdout/stderr chunks while running
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -134,6 +176,41 @@ class Bash(BaseTool):
     async def execute(
         self, command: str | None = None, restart: bool = False, **kwargs
     ) -> CLIResult:
+        sandbox = get_current_sandbox()
+        if sandbox is not None:
+            if not command:
+                raise ToolError("no command provided.")
+            tool_call = get_current_tool_call() or {}
+            task = get_current_task()
+
+            # Emit start heartbeat
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "running",
+                    "message": f"Executing: {command[:120]}",
+                },
+            )
+            code, stdout, stderr = await sandbox.run(
+                command,
+                timeout=kwargs.get("timeout") or 120,
+                task=task,
+                tool_call=tool_call,
+                tool_name=self.name,
+            )
+            emit_current_task(
+                "tool:progress",
+                {
+                    "id": tool_call.get("id"),
+                    "name": self.name,
+                    "status": "done",
+                    "exit_code": code,
+                },
+            )
+            return CLIResult(output=stdout, error=stderr if code else None)
+
         if restart:
             if self._session:
                 self._session.stop()

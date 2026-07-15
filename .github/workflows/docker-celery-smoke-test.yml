@@ -1,0 +1,90 @@
+name: Docker Celery Smoke Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start stack
+        run: |
+          docker compose build
+          docker compose up -d
+
+          # Wait for server to be ready with retries
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            echo "Waiting for server... attempt $i/30"
+            sleep 1
+          done
+          if ! curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+            echo "Server did not become ready in time"
+            docker compose logs web worker postgres redis || true
+            exit 1
+          fi
+
+      - name: Verify service health
+        run: |
+          docker compose ps
+          # Ensure key services are up before API checks
+          docker compose ps postgres | grep -E "Up|running"
+          docker compose ps redis | grep -E "Up|running"
+          docker compose ps web | grep -E "Up|running"
+          docker compose ps worker | grep -E "Up|running"
+
+      - name: Check /api/health
+        run: curl --fail http://127.0.0.1:8000/api/health
+
+      - name: Check /docs
+        run: curl --fail http://127.0.0.1:8000/docs
+
+      - name: Task create, interrupt, and poll terminal state
+        run: |
+          set -e
+          curl -s -o /dev/null -c cookies.txt -X POST http://127.0.0.1:8000/api/auth/signup -H "Content-Type: application/json" -d "{\"email\":\"user$RANDOM@test.com\", \"password\":\"password\", \"name\":\"test\"}"
+          TASK_JSON=$(curl -b cookies.txt -s -X POST http://127.0.0.1:8000/api/tasks -H "Content-Type: application/json" -d '{"prompt":"ping"}')
+          echo "Created: $TASK_JSON"
+          TASK_ID=$(echo "$TASK_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['task_id'])")
+          if [ -z "$TASK_ID" ]; then echo "No task id"; exit 1; fi
+
+          # Interrupt quickly so this smoke test does not depend on LLM latency.
+          curl -b cookies.txt -s -X POST "http://127.0.0.1:8000/api/tasks/$TASK_ID/interrupt" || true
+
+          for i in {1..60}; do
+            STATUS_JSON=$(curl -b cookies.txt -s http://127.0.0.1:8000/api/tasks/$TASK_ID)
+            echo "Status: $STATUS_JSON"
+            STATUS=$(echo "$STATUS_JSON" | python -c "import sys, json; print(json.load(sys.stdin).get('status'))")
+            if [ "$STATUS" = "COMPLETED" ] || [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "INTERRUPTED" ]; then
+              if [ "$STATUS" = "INTERRUPTED" ]; then
+                echo "Task interrupted as expected"
+              fi
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Task did not complete in time"
+          exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs web worker postgres redis
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

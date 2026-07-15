@@ -91,7 +91,7 @@ async def test_sandbox_python_environment(sandbox):
     """Tests Python environment configuration."""
     # Test Python version
     result = await sandbox.terminal.run_command("python3 --version")
-    assert "Python 3.10" in result
+    assert "Python 3.12" in result
 
     # Test basic module imports
     python_code = """

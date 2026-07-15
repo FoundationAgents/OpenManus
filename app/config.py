@@ -4,7 +4,7 @@ import tomllib
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def get_project_root() -> Path:
@@ -28,6 +28,14 @@ class LLMSettings(BaseModel):
     temperature: float = Field(1.0, description="Sampling temperature")
     api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    enable_thinking: Optional[bool] = Field(
+        None,
+        description=(
+            "Enable/disable thinking (reasoning) mode. "
+            "None = auto-detect from LM-Studio /api/v0/models; "
+            "true = always on; false = always off."
+        ),
+    )
 
 
 class ProxySettings(BaseModel):
@@ -63,6 +71,99 @@ class SearchSettings(BaseModel):
 class RunflowSettings(BaseModel):
     use_data_analysis_agent: bool = Field(
         default=False, description="Enable data analysis agent in run flow"
+    )
+
+
+class AgentSettings(BaseModel):
+    max_steps: int = Field(default=120, description="Maximum steps for agent execution")
+    max_tools_per_step: int = Field(
+        default=6, description="Maximum number of tool calls executed in one step"
+    )
+
+
+class RLSettings(BaseModel):
+    enabled: bool = Field(
+        default=False,
+        description="Enable RL policy hints for agent execution",
+    )
+    policy_mode: str = Field(
+        default="base",
+        description="Policy mode selector: base or rl",
+    )
+    policy_path: str = Field(
+        default="research/openmanus-rl/artifacts/policy/latest/policy.md",
+        description="Path to policy markdown relative to repository root",
+    )
+    metadata_path: str = Field(
+        default="research/openmanus-rl/artifacts/policy/latest/metadata.json",
+        description="Path to policy metadata JSON relative to repository root",
+    )
+
+
+class AgentMemorySettings(BaseModel):
+    enabled: bool = Field(
+        default=False,
+        description="Enable AgentMemory integration for long-term recall.",
+    )
+    base_url: str = Field(
+        default="http://localhost:3111",
+        description="AgentMemory REST base URL.",
+    )
+    project: str = Field(
+        default="openmanus",
+        description="AgentMemory project namespace.",
+    )
+    top_k: int = Field(
+        default=5,
+        description="How many memories to retrieve for contextual recall.",
+    )
+    timeout_seconds: int = Field(
+        default=8,
+        description="HTTP timeout for AgentMemory requests.",
+    )
+    auto_remember_completion: bool = Field(
+        default=True,
+        description="Save final task outcomes to AgentMemory.",
+    )
+    vector_backend: str = Field(
+        default="none",
+        description='Vector backend to use: "none" or "faiss".',
+    )
+    embedding_provider: str = Field(
+        default="openai_compatible",
+        description="Embedding provider.",
+    )
+    embedding_model: str = Field(
+        default="text-embedding-nomic-embed-text-v1.5",
+        description="Embedding model name.",
+    )
+    embedding_base_url: str = Field(
+        default="",
+        description="Embedding endpoint base URL (empty derives from configured LLM).",
+    )
+    embedding_api_key: str = Field(
+        default="",
+        description="Embedding API key (empty derives from configured LLM).",
+    )
+    vector_index_path: str = Field(
+        default="/app/workspace/agentmemory.faiss",
+        description="Path to local FAISS index file.",
+    )
+    vector_meta_path: str = Field(
+        default="/app/workspace/agentmemory_vectors.json",
+        description="Path to vector metadata JSON file.",
+    )
+    hybrid_search: bool = Field(
+        default=True,
+        description="Whether to combine keyword search and vector similarity search.",
+    )
+    vector_weight: float = Field(
+        default=0.65,
+        description="Weight for vector search scores in hybrid search.",
+    )
+    keyword_weight: float = Field(
+        default=0.35,
+        description="Weight for keyword (FTS5/BM25) search scores in hybrid search.",
     )
 
 
@@ -103,10 +204,13 @@ class SandboxSettings(BaseModel):
     network_enabled: bool = Field(
         False, description="Whether network access is allowed"
     )
+    docker_socket_enabled: bool = Field(
+        True, description="Mount host Docker socket into the sandbox"
+    )
 
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = None
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -171,6 +275,23 @@ class MCPSettings(BaseModel):
             raise ValueError(f"Failed to load MCP server config: {e}")
 
 
+class DeepSpecSettings(BaseModel):
+    enabled: bool = Field(
+        default=False, description="Enable DeepSpec research integration"
+    )
+    repo_url: str = Field(
+        default="https://github.com/deepseek-ai/DeepSpec",
+        description="DeepSpec repository URL",
+    )
+    checkout_dir: str = Field(
+        default="research/deepspec", description="Checkout directory for DeepSpec"
+    )
+    mode: str = Field(default="research", description="Mode of operation")
+    target_model: str = Field(
+        default="Qwen/Qwen3-4B", description="Target model for DeepSpec"
+    )
+
+
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
     sandbox: Optional[SandboxSettings] = Field(
@@ -189,9 +310,22 @@ class AppConfig(BaseModel):
     daytona_config: Optional[DaytonaSettings] = Field(
         None, description="Daytona configuration"
     )
+    agent: Optional[AgentSettings] = Field(
+        default_factory=AgentSettings, description="Agent execution settings"
+    )
+    rl: Optional[RLSettings] = Field(
+        default_factory=RLSettings, description="RL integration settings"
+    )
+    agentmemory: Optional[AgentMemorySettings] = Field(
+        default_factory=AgentMemorySettings,
+        description="AgentMemory integration settings",
+    )
+    deepspec: Optional[DeepSpecSettings] = Field(
+        default_factory=DeepSpecSettings,
+        description="DeepSpec research integration settings",
+    )
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class Config:
@@ -246,6 +380,7 @@ class Config:
             "temperature": base_llm.get("temperature", 1.0),
             "api_type": base_llm.get("api_type", ""),
             "api_version": base_llm.get("api_version", ""),
+            "enable_thinking": base_llm.get("enable_thinking"),  # None = auto-detect
         }
 
         # handle browser config.
@@ -324,6 +459,10 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
+            "agent": AgentSettings(**raw_config.get("agent", {})),
+            "rl": RLSettings(**raw_config.get("rl", {})),
+            "agentmemory": AgentMemorySettings(**raw_config.get("agentmemory", {})),
+            "deepspec": DeepSpecSettings(**raw_config.get("deepspec", {})),
         }
 
         self._config = AppConfig(**config_dict)
@@ -359,9 +498,29 @@ class Config:
         return self._config.run_flow_config
 
     @property
+    def agent(self) -> AgentSettings:
+        """Get the Agent configuration"""
+        return self._config.agent
+
+    @property
+    def rl(self) -> RLSettings:
+        """Get the RL integration configuration"""
+        return self._config.rl
+
+    @property
     def workspace_root(self) -> Path:
         """Get the workspace root directory"""
         return WORKSPACE_ROOT
+
+    @property
+    def agentmemory(self) -> AgentMemorySettings:
+        """Get the AgentMemory integration configuration."""
+        return self._config.agentmemory
+
+    @property
+    def deepspec(self) -> DeepSpecSettings:
+        """Get the DeepSpec research integration configuration."""
+        return self._config.deepspec
 
     @property
     def root_path(self) -> Path:

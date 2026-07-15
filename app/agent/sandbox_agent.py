@@ -2,12 +2,12 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from app.agent.base import Task, TaskInterrupted
 from app.agent.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.daytona.sandbox import create_sandbox, delete_sandbox
 from app.daytona.tool_base import SandboxToolsBase
-from app.logger import logger
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
@@ -95,8 +95,6 @@ class SandboxManus(ToolCallAgent):
                 "vnc": vnc_url,
                 "website": website_url,
             }
-            logger.info(f"VNC URL: {vnc_url}")
-            logger.info(f"Website URL: {website_url}")
             SandboxToolsBase._urls_printed = True
             sb_tools = [
                 SandboxBrowserTool(sandbox),
@@ -106,8 +104,7 @@ class SandboxManus(ToolCallAgent):
             ]
             self.available_tools.add_tools(*sb_tools)
 
-        except Exception as e:
-            logger.error(f"Error initializing sandbox tools: {e}")
+        except Exception:
             raise
 
     async def initialize_mcp_servers(self) -> None:
@@ -117,9 +114,6 @@ class SandboxManus(ToolCallAgent):
                 if server_config.type == "sse":
                     if server_config.url:
                         await self.connect_mcp_server(server_config.url, server_id)
-                        logger.info(
-                            f"Connected to MCP server {server_id} at {server_config.url}"
-                        )
                 elif server_config.type == "stdio":
                     if server_config.command:
                         await self.connect_mcp_server(
@@ -128,11 +122,8 @@ class SandboxManus(ToolCallAgent):
                             use_stdio=True,
                             stdio_args=server_config.args,
                         )
-                        logger.info(
-                            f"Connected to MCP server {server_id} using command {server_config.command}"
-                        )
             except Exception as e:
-                logger.error(f"Failed to connect to MCP server {server_id}: {e}")
+                _ = e
 
     async def connect_mcp_server(
         self,
@@ -178,11 +169,9 @@ class SandboxManus(ToolCallAgent):
         """Delete a sandbox by ID."""
         try:
             await delete_sandbox(sandbox_id)
-            logger.info(f"Sandbox {sandbox_id} deleted successfully")
             if sandbox_id in self.sandbox_link:
                 del self.sandbox_link[sandbox_id]
         except Exception as e:
-            logger.error(f"Error deleting sandbox {sandbox_id}: {e}")
             raise e
 
     async def cleanup(self):
@@ -195,8 +184,10 @@ class SandboxManus(ToolCallAgent):
             await self.delete_sandbox(self.sandbox.id if self.sandbox else "unknown")
             self._initialized = False
 
-    async def think(self) -> bool:
+    async def think(self, task: Task) -> bool:
         """Process current state and decide next actions with appropriate context."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
         if not self._initialized:
             await self.initialize_mcp_servers()
             self._initialized = True
@@ -215,7 +206,7 @@ class SandboxManus(ToolCallAgent):
                 await self.browser_context_helper.format_next_step_prompt()
             )
 
-        result = await super().think()
+        result = await super().think(task)
 
         # Restore original prompt
         self.next_step_prompt = original_prompt

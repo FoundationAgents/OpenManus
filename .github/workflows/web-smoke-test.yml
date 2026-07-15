@@ -1,0 +1,107 @@
+name: Web Smoke Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: openmanus
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          python - <<'PY'
+          import time
+          import psycopg2
+
+          for i in range(30):
+              try:
+                  conn = psycopg2.connect(
+                      host="localhost",
+                      port=5432,
+                      user="postgres",
+                      password="postgres",
+                      dbname="openmanus",
+                  )
+                  conn.close()
+                  print("PostgreSQL is ready")
+                  raise SystemExit(0)
+              except Exception as exc:
+                  print(f"Waiting for PostgreSQL... {i+1}/30 ({exc})")
+                  time.sleep(1)
+          print("PostgreSQL not ready in time")
+          raise SystemExit(1)
+          PY
+
+      - name: Start FastAPI server
+        env:
+          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/openmanus
+        run: |
+          uvicorn server.api:app --host 0.0.0.0 --port 8000 --workers 1 > /tmp/server.log 2>&1 &
+          echo $! > server.pid
+
+          # Wait for server to be ready with retries
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            echo "Waiting for server... attempt $i/30"
+            sleep 1
+          done
+
+      - name: Check /api/health
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://127.0.0.1:8000/api/health > /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health endpoint not responding"
+          cat /tmp/server.log || true
+          exit 1
+
+      - name: Check /docs
+        run: |
+          curl -sf http://127.0.0.1:8000/docs > /tmp/docs.html
+          grep -i "swagger" /tmp/docs.html
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill $(cat server.pid) || true; fi
+
+      - name: Dump server logs on failure
+        if: failure()
+        run: |
+          cat /tmp/server.log || true

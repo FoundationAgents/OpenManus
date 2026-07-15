@@ -4,7 +4,7 @@ from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.prompt.swe import SYSTEM_PROMPT
-from app.tool import Bash, StrReplaceEditor, Terminate, ToolCollection
+from app.tool import ApplyPatchEditor, Bash, LineEdit, Terminate, ToolCollection
 
 
 class SWEAgent(ToolCallAgent):
@@ -17,7 +17,7 @@ class SWEAgent(ToolCallAgent):
     next_step_prompt: str = ""
 
     available_tools: ToolCollection = ToolCollection(
-        Bash(), StrReplaceEditor(), Terminate()
+        Bash(), LineEdit(), ApplyPatchEditor(), Terminate()
     )
     special_tool_names: List[str] = Field(default_factory=lambda: [Terminate().name])
 

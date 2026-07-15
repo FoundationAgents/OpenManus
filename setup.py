@@ -21,6 +21,7 @@ setup(
         "pyyaml~=6.0.2",
         "loguru~=0.7.3",
         "numpy",
+        "faiss-cpu",
         "datasets>=3.2,<3.5",
         "html2text~=2024.2.26",
         "gymnasium>=1.0,<1.2",

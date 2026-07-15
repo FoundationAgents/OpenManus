@@ -7,6 +7,7 @@ from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 from app.config import SandboxSettings
 from app.exceptions import ToolError
 from app.sandbox.client import SANDBOX_CLIENT
+from app.task_context import get_current_sandbox
 
 
 PathLike = Union[str, Path]
@@ -101,6 +102,8 @@ class SandboxFileOperator(FileOperator):
 
     async def _ensure_sandbox_initialized(self):
         """Ensure sandbox is initialized."""
+        if get_current_sandbox() is not None:
+            return
         if not self.sandbox_client.sandbox:
             await self.sandbox_client.create(config=SandboxSettings())
 
@@ -108,6 +111,9 @@ class SandboxFileOperator(FileOperator):
         """Read content from a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
+            current_sandbox = get_current_sandbox()
+            if current_sandbox is not None:
+                return await current_sandbox.read_file(str(path))
             return await self.sandbox_client.read_file(str(path))
         except Exception as e:
             raise ToolError(f"Failed to read {path} in sandbox: {str(e)}") from None
@@ -116,6 +122,10 @@ class SandboxFileOperator(FileOperator):
         """Write content to a file in sandbox."""
         await self._ensure_sandbox_initialized()
         try:
+            current_sandbox = get_current_sandbox()
+            if current_sandbox is not None:
+                await current_sandbox.write_file(str(path), content)
+                return
             await self.sandbox_client.write_file(str(path), content)
         except Exception as e:
             raise ToolError(f"Failed to write to {path} in sandbox: {str(e)}") from None
@@ -123,6 +133,9 @@ class SandboxFileOperator(FileOperator):
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory in sandbox."""
         await self._ensure_sandbox_initialized()
+        current_sandbox = get_current_sandbox()
+        if current_sandbox is not None:
+            return await current_sandbox.is_directory(str(path))
         result = await self.sandbox_client.run_command(
             f"test -d {path} && echo 'true' || echo 'false'"
         )
@@ -131,6 +144,9 @@ class SandboxFileOperator(FileOperator):
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists in sandbox."""
         await self._ensure_sandbox_initialized()
+        current_sandbox = get_current_sandbox()
+        if current_sandbox is not None:
+            return await current_sandbox.exists(str(path))
         result = await self.sandbox_client.run_command(
             f"test -e {path} && echo 'true' || echo 'false'"
         )
@@ -142,6 +158,12 @@ class SandboxFileOperator(FileOperator):
         """Run a command in sandbox environment."""
         await self._ensure_sandbox_initialized()
         try:
+            current_sandbox = get_current_sandbox()
+            if current_sandbox is not None:
+                return_code, stdout, stderr = await current_sandbox.run(
+                    cmd, timeout=int(timeout) if timeout else None
+                )
+                return return_code, stdout, stderr
             stdout = await self.sandbox_client.run_command(
                 cmd, timeout=int(timeout) if timeout else None
             )

@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.utils.logger import logger
 
@@ -36,18 +36,41 @@ from app.utils.logger import logger
 
 
 class ToolResult(BaseModel):
-    """Represents the result of a tool execution."""
+    """Represents the result of a tool execution.
+
+    Fields
+    ------
+    output      : Primary text output from the tool.
+    error       : Error message when the tool failed, or None on success.
+    base64_image: Optional screenshot / image attached to the result.
+    system      : Optional system-level note (e.g. sandbox info).
+    exit_code   : Numeric exit status (0 = success, non-zero = failure).
+    metadata    : Arbitrary key-value context (e.g. path, lines_changed, url).
+    """
 
     output: Any = Field(default=None)
     error: Optional[str] = Field(default=None)
     base64_image: Optional[str] = Field(default=None)
     system: Optional[str] = Field(default=None)
+    exit_code: int = Field(default=0, description="Exit status; 0 = success")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Structured context attached to the result (path, diff, url, …)",
+    )
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @property
+    def is_error(self) -> bool:
+        """True when the tool reported a failure."""
+        return bool(self.error) or self.exit_code != 0
 
     def __bool__(self):
-        return any(getattr(self, field) for field in self.__fields__)
+        if hasattr(self, "model_fields") and self.model_fields:
+            fields = self.model_fields
+        else:
+            fields = getattr(self, "__fields__", {})
+        return any(getattr(self, field) for field in fields)
 
     def __add__(self, other: "ToolResult"):
         def combine_fields(
@@ -59,20 +82,22 @@ class ToolResult(BaseModel):
                 raise ValueError("Cannot combine tool results")
             return field or other_field
 
+        combined_meta = {**self.metadata, **other.metadata}
         return ToolResult(
             output=combine_fields(self.output, other.output),
             error=combine_fields(self.error, other.error),
             base64_image=combine_fields(self.base64_image, other.base64_image, False),
             system=combine_fields(self.system, other.system),
+            exit_code=other.exit_code if other.exit_code != 0 else self.exit_code,
+            metadata=combined_meta,
         )
 
     def __str__(self):
-        return f"Error: {self.error}" if self.error else self.output
+        return f"Error: {self.error}" if self.error else str(self.output or "")
 
     def replace(self, **kwargs):
         """Returns a new ToolResult with the given fields replaced."""
-        # return self.copy(update=kwargs)
-        return type(self)(**{**self.dict(), **kwargs})
+        return type(self)(**{**self.model_dump(), **kwargs})
 
 
 class BaseTool(ABC, BaseModel):
@@ -84,21 +109,34 @@ class BaseTool(ABC, BaseModel):
     - Standardized result handling
     - Abstract execution interface
 
-    Attributes:
-        name (str): Tool name
-        description (str): Tool description
-        parameters (dict): Tool parameters schema
-        _schemas (Dict[str, List[ToolSchema]]): Registered method schemas
+    Capability flags
+    ----------------
+    parallel_safe  : Tool can run concurrently with other tools in the same step
+                     (no shared mutable state, no exclusive resource locks).
+    can_retry      : A failed call may be retried once with the error injected as
+                     context. Set to False for destructive / non-idempotent tools.
+    emits_progress : Tool streams intermediate progress events during execution.
     """
 
     name: str
     description: str
     parameters: Optional[dict] = None
-    # _schemas: Dict[str, List[ToolSchema]] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
-        underscore_attrs_are_private = False
+    # --- Capability flags (read by ToolCallAgent) ---
+    parallel_safe: bool = Field(
+        default=False,
+        description="Safe to run in parallel with other tool calls in the same step.",
+    )
+    can_retry: bool = Field(
+        default=True,
+        description="Whether a single retry-with-error-feedback is allowed on failure.",
+    )
+    emits_progress: bool = Field(
+        default=False,
+        description="Tool streams intermediate progress events (e.g. long bash commands).",
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     # def __init__(self, **data):
     #     """Initialize tool with model validation and schema registration."""

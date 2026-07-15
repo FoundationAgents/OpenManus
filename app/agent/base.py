@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.config import config
 from app.llm import LLM
-from app.logger import logger
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
+from core.task import Task
+
+
+class TaskInterrupted(Exception):
+    """Raised when a task is interrupted."""
 
 
 class BaseAgent(BaseModel, ABC):
@@ -37,14 +42,14 @@ class BaseAgent(BaseModel, ABC):
     )
 
     # Execution control
-    max_steps: int = Field(default=10, description="Maximum steps before termination")
+    max_steps: int = Field(
+        default=config.agent.max_steps, description="Maximum steps before termination"
+    )
     current_step: int = Field(default=0, description="Current step in execution")
 
     duplicate_threshold: int = 2
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"  # Allow extra fields for flexibility in subclasses
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     @model_validator(mode="after")
     def initialize_agent(self) -> "BaseAgent":
@@ -113,76 +118,145 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
-    async def run(self, request: Optional[str] = None) -> str:
-        """Execute the agent's main loop asynchronously.
+    async def run(self, task: Task, input: Any) -> str:
+        """Execute the agent's main loop asynchronously."""
+        if task.is_interrupted():
+            raise TaskInterrupted()
 
-        Args:
-            request: Optional initial user request to process.
-
-        Returns:
-            A string summarizing the execution results.
-
-        Raises:
-            RuntimeError: If the agent is not in IDLE state at start.
-        """
         if self.state != AgentState.IDLE:
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
 
-        if request:
-            self.update_memory("user", request)
+        if input is not None:
+            self.update_memory("user", str(input))
 
         results: List[str] = []
-        async with self.state_context(AgentState.RUNNING):
-            while (
-                self.current_step < self.max_steps and self.state != AgentState.FINISHED
-            ):
-                self.current_step += 1
-                logger.info(f"Executing step {self.current_step}/{self.max_steps}")
-                step_result = await self.step()
+        try:
+            async with self.state_context(AgentState.RUNNING):
+                task.emit(
+                    "agent_state",
+                    {"state": "running", "agent": self.name},
+                )
+                while (
+                    self.current_step < self.max_steps
+                    and self.state != AgentState.FINISHED
+                ):
+                    if task.is_interrupted():
+                        raise TaskInterrupted()
 
-                # Check for stuck state
-                if self.is_stuck():
-                    self.handle_stuck_state()
+                    self.current_step += 1
+                    task.emit(
+                        "step_start",
+                        {"step": self.current_step, "max_steps": self.max_steps},
+                    )
+                    step_result = await self.step(task)
 
-                results.append(f"Step {self.current_step}: {step_result}")
+                    if self.is_stuck():
+                        self.handle_stuck_state(task)
 
-            if self.current_step >= self.max_steps:
-                self.current_step = 0
-                self.state = AgentState.IDLE
-                results.append(f"Terminated: Reached max steps ({self.max_steps})")
-        await SANDBOX_CLIENT.cleanup()
-        return "\n".join(results) if results else "No steps executed"
+                    results.append(f"Step {self.current_step}: {step_result}")
+                    task.emit(
+                        "step_result",
+                        {"step": self.current_step, "result": step_result},
+                    )
+
+                if self.current_step >= self.max_steps:
+                    self.current_step = 0
+                    self.state = AgentState.IDLE
+                    termination_msg = (
+                        f"Terminated: Reached max steps ({self.max_steps})"
+                    )
+                    results.append(termination_msg)
+                    task.emit(
+                        "terminated",
+                        {
+                            "reason": termination_msg,
+                            "status": "stuck",
+                            "message": "Agent stopped because it reached the configured step limit.",
+                        },
+                    )
+            return "\n".join(results) if results else "No steps executed"
+        finally:
+            task.emit(
+                "agent_state",
+                {
+                    "state": str(
+                        self.state.value if hasattr(self.state, "value") else self.state
+                    ),
+                    "agent": self.name,
+                },
+            )
+            await SANDBOX_CLIENT.cleanup()
 
     @abstractmethod
-    async def step(self) -> str:
+    async def step(self, task: Task) -> str:
         """Execute a single step in the agent's workflow.
 
         Must be implemented by subclasses to define specific behavior.
         """
 
-    def handle_stuck_state(self):
+    def handle_stuck_state(self, task: Task):
         """Handle stuck state by adding a prompt to change strategy"""
         stuck_prompt = "\
         Observed duplicate responses. Consider new strategies and avoid repeating ineffective paths already attempted."
         self.next_step_prompt = f"{stuck_prompt}\n{self.next_step_prompt}"
-        logger.warning(f"Agent detected stuck state. Added prompt: {stuck_prompt}")
+        task.emit(
+            "stuck_detected",
+            {
+                "state": "stuck",
+                "message": "Agent detected repeated responses and injected a strategy-change prompt.",
+            },
+        )
 
     def is_stuck(self) -> bool:
-        """Check if the agent is stuck in a loop by detecting duplicate content"""
-        if len(self.memory.messages) < 2:
+        """Detect stuck loops via two complementary signals.
+
+        1. Semantic tool-loop: the same tool is called with identical arguments
+           three or more times in the last 12 assistant messages — even if the
+           surrounding text is different each time.
+        2. Content-hash fallback: assistant content that hashes identically
+           (after whitespace normalization) appears `duplicate_threshold` times.
+           This catches trivial wording variation that exact string match misses.
+        """
+        import hashlib
+
+        messages = self.memory.messages
+        if len(messages) < 2:
             return False
 
-        last_message = self.memory.messages[-1]
+        # --- Signal 1: repeated tool-call signatures ---
+        recent_with_tools = [
+            m for m in messages[-12:] if getattr(m, "tool_calls", None)
+        ]
+        if len(recent_with_tools) >= self.duplicate_threshold:
+            call_signatures: list[str] = []
+            for msg in recent_with_tools:
+                for tc in msg.tool_calls or []:
+                    sig = f"{tc.function.name}:{tc.function.arguments}"
+                    call_signatures.append(sig)
+            from collections import Counter
+
+            counts = Counter(call_signatures)
+            if any(count >= self.duplicate_threshold for count in counts.values()):
+                return True
+
+        # --- Signal 2: content-hash duplicate (improved from exact match) ---
+        last_message = messages[-1]
         if not last_message.content:
             return False
 
-        # Count identical content occurrences
+        def _content_hash(text: str) -> str:
+            """Normalize whitespace and hash for near-duplicate detection."""
+            normalized = " ".join(text.split()).lower().strip()
+            return hashlib.md5(normalized.encode()).hexdigest()
+
+        last_hash = _content_hash(last_message.content)
         duplicate_count = sum(
             1
-            for msg in reversed(self.memory.messages[:-1])
-            if msg.role == "assistant" and msg.content == last_message.content
+            for msg in reversed(messages[:-1])
+            if msg.role == "assistant"
+            and msg.content
+            and _content_hash(msg.content) == last_hash
         )
-
         return duplicate_count >= self.duplicate_threshold
 
     @property

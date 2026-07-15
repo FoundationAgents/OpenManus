@@ -13,7 +13,7 @@ from openai import (
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_random_exponential,
 )
@@ -29,9 +29,28 @@ from app.schema import (
     Message,
     ToolChoice,
 )
+from app.task_context import (
+    emit_current_task,
+    get_current_llm_connection,
+    get_current_model,
+)
 
 
-REASONING_MODELS = ["o1", "o3-mini"]
+# Models that use max_completion_tokens instead of max_tokens (cloud providers).
+# For local models (LM-Studio / Ollama) these are detected dynamically.
+REASONING_MODELS = ["o1", "o1-mini", "o3", "o3-mini", "o4-mini"]
+
+# Models that require reasoning_effort instead of temperature (OpenAI cloud only)
+REASONING_EFFORT_MODELS = {"o3", "o3-mini", "o4-mini"}
+
+# Claude models with extended thinking support (cloud only — local models use auto-detect)
+CLAUDE_THINKING_MODELS = {
+    "claude-3-7-sonnet-20250219",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-opus-20240229",
+}
+
+# Cloud multimodal models (local models report vision capability via /api/v0/models)
 MULTIMODAL_MODELS = [
     "gpt-4-vision-preview",
     "gpt-4o",
@@ -39,7 +58,44 @@ MULTIMODAL_MODELS = [
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-7-sonnet-20250219",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
 ]
+
+# --- Local-server detection helpers ---
+
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+def _is_local_server(base_url: str) -> bool:
+    """Return True when base_url points at a local inference server."""
+    try:
+        from urllib.parse import urlparse
+
+        host = urlparse(base_url).hostname or ""
+        return (
+            host in _LOCAL_HOSTS
+            or host.startswith("192.168.")
+            or host.startswith("10.")
+        )
+    except Exception:
+        return False
+
+
+def _should_retry_llm_exception(exc: Exception) -> bool:
+    """Retry transient provider failures only."""
+    if isinstance(exc, (TokenLimitExceeded, ValueError)):
+        return False
+    text = str(exc).lower()
+    if "no user query found in messages" in text:
+        return False
+    if "jinja template" in text and "prompt template" in text:
+        return False
+    return isinstance(exc, (RateLimitError, APIError, OpenAIError))
 
 
 class TokenCounter:
@@ -171,60 +227,307 @@ class TokenCounter:
         return total_tokens
 
 
-class LLM:
-    _instances: Dict[str, "LLM"] = {}
+# ---------------------------------------------------------------------------
+# LLM instance registry
+# ---------------------------------------------------------------------------
+# Keyed by config_name. Populated by get_llm(); LLM() also populates it.
+_llm_registry: Dict[str, "LLM"] = {}
 
-    def __new__(
-        cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
-    ):
-        if config_name not in cls._instances:
-            instance = super().__new__(cls)
-            instance.__init__(config_name, llm_config)
-            cls._instances[config_name] = instance
-        return cls._instances[config_name]
+
+def get_llm(
+    config_name: str = "default", llm_config: Optional["LLMSettings"] = None
+) -> "LLM":
+    """Return a cached LLM instance for *config_name*.
+
+    This is the preferred factory.  ``LLM(config_name)`` is kept for
+    backwards-compatibility and delegates here.
+
+    Why a factory instead of __new__?
+    - ``__new__`` + ``__init__`` is fragile: Python calls ``__init__`` again
+      every time even when ``__new__`` returns an existing instance, requiring
+      the ``if not hasattr(self, 'client')`` guard.
+    - A module-level dict + factory gives the same per-config caching without
+      the hidden re-init risk, and makes the caching explicit and testable.
+    - Callers that need a fresh instance (e.g. tests) can call
+      ``get_llm.cache_clear(config_name)`` without monkey-patching ``__new__``.
+    """
+    if config_name not in _llm_registry:
+        instance = object.__new__(LLM)
+        instance._init_from_config(config_name, llm_config)
+        _llm_registry[config_name] = instance
+    return _llm_registry[config_name]
+
+
+def _evict_llm(config_name: str = "default") -> None:
+    """Remove a cached LLM instance so the next call to get_llm() re-creates it.
+
+    Useful in tests or when the config changes at runtime.
+    """
+    _llm_registry.pop(config_name, None)
+
+
+class LLM:
+    """Thin wrapper around an OpenAI-compatible async client with capability detection."""
 
     def __init__(
         self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
     ):
-        if not hasattr(self, "client"):  # Only initialize if not already initialized
-            llm_config = llm_config or config.llm
-            llm_config = llm_config.get(config_name, llm_config["default"])
-            self.model = llm_config.model
-            self.max_tokens = llm_config.max_tokens
-            self.temperature = llm_config.temperature
-            self.api_type = llm_config.api_type
-            self.api_key = llm_config.api_key
-            self.api_version = llm_config.api_version
-            self.base_url = llm_config.base_url
+        """Backwards-compatible constructor — delegates to get_llm() cache.
 
-            # Add token counting related attributes
-            self.total_input_tokens = 0
-            self.total_completion_tokens = 0
-            self.max_input_tokens = (
-                llm_config.max_input_tokens
-                if hasattr(llm_config, "max_input_tokens")
-                else None
+        Calling ``LLM(config_name)`` is equivalent to ``get_llm(config_name)``.
+        Because Python always calls ``__init__`` after ``__new__``, we guard
+        against double-initialisation with the ``_init_from_config`` split.
+        """
+        # If this instance was already initialised (retrieved from cache or
+        # created by get_llm()), do nothing.
+        if hasattr(self, "client"):
+            return
+        self._init_from_config(config_name, llm_config)
+
+    def __new__(
+        cls, config_name: str = "default", llm_config: Optional[LLMSettings] = None
+    ):
+        """Return the cached instance from the module-level registry."""
+        if config_name not in _llm_registry:
+            instance = object.__new__(cls)
+            # _init_from_config will be called by __init__ below
+            _llm_registry[config_name] = instance
+        return _llm_registry[config_name]
+
+    def _init_from_config(
+        self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
+    ) -> None:
+        """Initialise the instance from config.  Called at most once per instance."""
+        if hasattr(self, "client"):  # Already initialised — skip.
+            return
+
+        llm_config = llm_config or config.llm
+        llm_config = llm_config.get(config_name, llm_config["default"])
+        self.model = llm_config.model
+        self.max_tokens = llm_config.max_tokens
+        self.temperature = llm_config.temperature
+        self.api_type = llm_config.api_type
+        self.api_key = llm_config.api_key
+        self.api_version = llm_config.api_version
+        self.base_url = llm_config.base_url
+
+        # Add token counting related attributes
+        self.total_input_tokens = 0
+        self.total_completion_tokens = 0
+        self.max_input_tokens = (
+            llm_config.max_input_tokens
+            if hasattr(llm_config, "max_input_tokens")
+            else None
+        )
+
+        # Initialize tokenizer
+        try:
+            self.tokenizer = tiktoken.encoding_for_model(self.model)
+        except KeyError:
+            # If the model is not in tiktoken's presets, use cl100k_base as default
+            self.tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        if self.api_type == "azure":
+            self.client = AsyncAzureOpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+                api_version=self.api_version,
+            )
+        elif self.api_type == "aws":
+            self.client = BedrockClient()
+        else:
+            self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+
+        self.token_counter = TokenCounter(self.tokenizer)
+
+        # --- Capability flags ---
+        # These control thinking/vision behaviour and are used in ask_tool().
+        # For cloud models they start from the static name-list defaults;
+        # for local servers (LM-Studio / Ollama) we try to probe the API.
+        self._enable_thinking: Optional[bool] = getattr(
+            llm_config, "enable_thinking", None
+        )
+        self.caps_thinking: bool = self.model in CLAUDE_THINKING_MODELS
+        self.caps_vision: bool = self.model in MULTIMODAL_MODELS
+
+        if _is_local_server(self.base_url):
+            self._probe_local_server_caps()
+
+    # ------------------------------------------------------------------
+    # Local-server capability probe
+    # ------------------------------------------------------------------
+
+    def _probe_local_server_caps(self) -> None:
+        """Synchronously probe LM-Studio (or Ollama) for the active model's
+        capability flags (thinking / vision).
+
+        LM-Studio exposes /api/v0/models with per-model ``info`` objects:
+          { "id": "...", "info": { "vision": bool, "reasoning": bool } }
+
+        The ``reasoning`` flag is True for models with built-in chain-of-thought
+        (QwQ, DeepSeek-R1, Phi-4 reasoning, Gemma 3 thinking variants, etc.).
+
+        The user can always override via ``enable_thinking`` in config.toml.
+        """
+        import json as _json
+        import urllib.error
+        import urllib.request
+        from urllib.parse import urlparse, urlunparse
+
+        parsed = urlparse(self.base_url)
+        origin = urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+
+        # --- Try LM-Studio first ---
+        lms_url = f"{origin}/api/v0/models"
+        try:
+            with urllib.request.urlopen(lms_url, timeout=3) as resp:
+                data = _json.loads(resp.read())
+            models: list = data.get("data", [])
+            # Find the entry matching the configured model id
+            match = next(
+                (
+                    m
+                    for m in models
+                    if m.get("id") == self.model or self.model in str(m.get("id", ""))
+                ),
+                None,
+            )
+            if match:
+                info = match.get("info", {})
+                detected_thinking = bool(info.get("reasoning", False))
+                detected_vision = bool(info.get("vision", False))
+                self.caps_thinking = detected_thinking
+                self.caps_vision = detected_vision
+                logger.info(
+                    "[LM-Studio] Model '%s' caps → thinking=%s  vision=%s",
+                    self.model,
+                    self.caps_thinking,
+                    self.caps_vision,
+                )
+            else:
+                logger.debug(
+                    "[LM-Studio] Could not find model '%s' in /api/v0/models list; keeping defaults.",
+                    self.model,
+                )
+            return  # LM-Studio responded — skip Ollama probe
+        except Exception as exc:
+            logger.debug(
+                "[LM-Studio] /api/v0/models probe failed: %s — trying Ollama.", exc
             )
 
-            # Initialize tokenizer
-            try:
-                self.tokenizer = tiktoken.encoding_for_model(self.model)
-            except KeyError:
-                # If the model is not in tiktoken's presets, use cl100k_base as default
-                self.tokenizer = tiktoken.get_encoding("cl100k_base")
-
-            if self.api_type == "azure":
-                self.client = AsyncAzureOpenAI(
-                    base_url=self.base_url,
-                    api_key=self.api_key,
-                    api_version=self.api_version,
+        # --- Fallback: Ollama /api/tags ---
+        ollama_url = f"{origin}/api/tags"
+        try:
+            with urllib.request.urlopen(ollama_url, timeout=3) as resp:
+                data = _json.loads(resp.read())
+            model_names = [m.get("name", "") for m in data.get("models", [])]
+            if any(self.model in name for name in model_names):
+                logger.debug(
+                    "[Ollama] Model '%s' found; capability auto-detect not available "
+                    "— use enable_thinking in config.toml to override.",
+                    self.model,
                 )
-            elif self.api_type == "aws":
-                self.client = BedrockClient()
-            else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        except Exception as exc:
+            logger.debug("[Ollama] /api/tags probe failed: %s", exc)
 
-            self.token_counter = TokenCounter(self.tokenizer)
+    @property
+    def thinking_enabled(self) -> bool:
+        """True when thinking/reasoning mode should be activated for this model.
+
+        Resolution order (highest priority first):
+        1. ``enable_thinking`` in config.toml   (explicit user override)
+        2. Capability flag from local-server probe  (LM-Studio ``reasoning`` flag)
+        3. Cloud model name in ``CLAUDE_THINKING_MODELS``
+        """
+        if self._enable_thinking is not None:
+            return bool(self._enable_thinking)
+        return self.caps_thinking
+
+    @property
+    def vision_enabled(self) -> bool:
+        """True when the active model supports image inputs."""
+        return self.caps_vision
+
+    # ------------------------------------------------------------------
+
+    @property
+    def active_model(self) -> str:
+        connection = get_current_llm_connection() or {}
+        return get_current_model() or connection.get("model") or self.model
+
+    def active_request_overrides(self) -> dict:
+        connection = get_current_llm_connection() or {}
+        return {
+            key: value
+            for key, value in {
+                "base_url": connection.get("base_url"),
+                "api_key": connection.get("api_key"),
+                "api_type": connection.get("api_type"),
+                "max_tokens": connection.get("max_tokens"),
+                "temperature": connection.get("temperature"),
+            }.items()
+            if value not in (None, "") and not self._is_masked_value(value)
+        }
+
+    @staticmethod
+    def _is_masked_value(value: object) -> bool:
+        return isinstance(value, str) and value.strip() == "********"
+
+    @staticmethod
+    def _safe_int(value: object, fallback: int) -> int:
+        if LLM._is_masked_value(value):
+            return fallback
+        try:
+            return int(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return fallback
+
+    @staticmethod
+    def _safe_float(value: object, fallback: float) -> float:
+        if LLM._is_masked_value(value):
+            return fallback
+        try:
+            return float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return fallback
+
+    def active_client(self):
+        overrides = self.active_request_overrides()
+        api_type = overrides.get("api_type", self.api_type)
+        if not overrides:
+            return self.client
+        if api_type == "aws":
+            return BedrockClient()
+        if api_type == "azure":
+            return AsyncAzureOpenAI(
+                base_url=overrides.get("base_url", self.base_url),
+                api_key=overrides.get("api_key", self.api_key),
+                api_version=self.api_version,
+            )
+        return AsyncOpenAI(
+            api_key=overrides.get("api_key", self.api_key),
+            base_url=overrides.get("base_url", self.base_url),
+        )
+
+    def active_max_tokens(self) -> int:
+        overrides = self.active_request_overrides()
+        return self._safe_int(
+            overrides.get("max_tokens", self.max_tokens), self.max_tokens
+        )
+
+    def active_temperature(self) -> float:
+        overrides = self.active_request_overrides()
+        return self._safe_float(
+            overrides.get("temperature", self.temperature), self.temperature
+        )
+
+    def active_base_url(self) -> str:
+        overrides = self.active_request_overrides()
+        return str(overrides.get("base_url", self.base_url) or "")
+
+    def active_api_type(self) -> str:
+        overrides = self.active_request_overrides()
+        return str(overrides.get("api_type", self.api_type) or "")
 
     def count_tokens(self, text: str) -> int:
         """Calculate the number of tokens in a text"""
@@ -240,6 +543,15 @@ class LLM:
         # Only track tokens if max_input_tokens is set
         self.total_input_tokens += input_tokens
         self.total_completion_tokens += completion_tokens
+        emit_current_task(
+            "token_count",
+            {
+                "input": input_tokens,
+                "completion": completion_tokens,
+                "total_input": self.total_input_tokens,
+                "total_completion": self.total_completion_tokens,
+            },
+        )
         logger.info(
             f"Token usage: Input={input_tokens}, Completion={completion_tokens}, "
             f"Cumulative Input={self.total_input_tokens}, Cumulative Completion={self.total_completion_tokens}, "
@@ -351,12 +663,112 @@ class LLM:
 
         return formatted_messages
 
+    @staticmethod
+    def ensure_user_query(messages: List[dict]) -> List[dict]:
+        """Ensure local chat templates always see a user query.
+
+        Some OpenAI-compatible local servers, notably LM Studio templates for
+        tool-capable models, reject requests that contain only system/tool
+        context or end with a tool observation. Keep the transcript intact, but
+        add a small user continuation when needed so those templates have a
+        concrete query to render.
+
+        Note: this method NEVER mutates the input list; it always returns a new list.
+        """
+        if any(message.get("role") == "user" for message in messages):
+            if messages and messages[-1].get("role") in {"tool", "assistant", "system"}:
+                # Non-mutating: return a new list
+                return [
+                    *messages,
+                    {
+                        "role": "user",
+                        "content": (
+                            "Continue from the latest observation. If the task is complete, "
+                            "provide the final answer or call the finish tool with a summary."
+                        ),
+                    },
+                ]
+            return messages
+
+        for index in range(len(messages) - 1, -1, -1):
+            if messages[index].get("role") == "system":
+                # Return a new list with the system message role swapped to user
+                return [
+                    *messages[:index],
+                    {**messages[index], "role": "user"},
+                    *messages[index + 1 :],
+                ]
+
+        return [*messages, {"role": "user", "content": "Continue."}]
+
+    def needs_local_template_compat(self) -> bool:
+        """Return true for OpenAI-compatible local servers with brittle chat templates."""
+        base_url = self.active_base_url().lower()
+        api_type = self.active_api_type().lower()
+        return (
+            api_type in {"ollama", "lmstudio", "local"}
+            or ":1234" in base_url
+            or "localhost" in base_url
+            or "127.0.0.1" in base_url
+            or "lmstudio" in base_url
+        )
+
+    @staticmethod
+    def flatten_tool_history_for_templates(messages: List[dict]) -> List[dict]:
+        """Convert OpenAI tool transcript details into plain chat messages.
+
+        Some local model templates throw "No user query found" when `tool`
+        roles or assistant `tool_calls` appear deep in the history. The model
+        still needs the observations, so keep them as compact user-visible text.
+        """
+        flattened: list[dict] = []
+        for message in messages:
+            role = message.get("role")
+            content = message.get("content") or ""
+
+            if role == "tool":
+                name = message.get("name") or message.get("tool_call_id") or "tool"
+                flattened.append(
+                    {
+                        "role": "user",
+                        "content": f"Tool observation from {name}:\n{content}",
+                    }
+                )
+                continue
+
+            if role == "assistant" and message.get("tool_calls"):
+                if content:
+                    flattened.append({"role": "assistant", "content": content})
+                calls = []
+                for call in message.get("tool_calls") or []:
+                    function = call.get("function") or {}
+                    calls.append(
+                        f"- {function.get('name', 'tool')}({function.get('arguments', '{}')})"
+                    )
+                if calls:
+                    flattened.append(
+                        {
+                            "role": "user",
+                            "content": "Assistant requested these tools:\n"
+                            + "\n".join(calls),
+                        }
+                    )
+                continue
+
+            cleaned = {
+                key: value
+                for key, value in message.items()
+                if key not in {"tool_calls", "tool_call_id", "name"}
+            }
+            if cleaned.get("content") or cleaned.get("role") == "system":
+                flattened.append(cleaned)
+
+        return flattened
+
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception(_should_retry_llm_exception),
     )
     async def ask(
         self,
@@ -385,7 +797,8 @@ class LLM:
         """
         try:
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            model = self.active_model
+            supports_images = model in MULTIMODAL_MODELS
 
             # Format system and user messages with image support check
             if system_msgs:
@@ -404,21 +817,23 @@ class LLM:
                 raise TokenLimitExceeded(error_message)
 
             params = {
-                "model": self.model,
+                "model": model,
                 "messages": messages,
             }
 
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+            if model in REASONING_MODELS:
+                params["max_completion_tokens"] = self.active_max_tokens()
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_tokens"] = self.active_max_tokens()
                 params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+                    temperature
+                    if temperature is not None
+                    else self.active_temperature()
                 )
 
             if not stream:
                 # Non-streaming request
-                response = await self.client.chat.completions.create(
+                response = await self.active_client().chat.completions.create(
                     **params, stream=False
                 )
 
@@ -432,30 +847,36 @@ class LLM:
 
                 return response.choices[0].message.content
 
-            # Streaming request, For streaming, update estimated token count before making the request
+            # Streaming: estimate input tokens upfront; real usage arrives in the final chunk
             self.update_token_count(input_tokens)
 
-            response = await self.client.chat.completions.create(**params, stream=True)
+            response = await self.active_client().chat.completions.create(
+                **params, stream=True, stream_options={"include_usage": True}
+            )
 
             collected_messages = []
-            completion_text = ""
+            real_completion_tokens: int = 0
             async for chunk in response:
-                chunk_message = chunk.choices[0].delta.content or ""
-                collected_messages.append(chunk_message)
-                completion_text += chunk_message
-                print(chunk_message, end="", flush=True)
+                # The final chunk carries usage data (via stream_options); others carry content.
+                if chunk.usage:
+                    real_completion_tokens = chunk.usage.completion_tokens or 0
+                if chunk.choices:
+                    chunk_message = chunk.choices[0].delta.content or ""
+                    collected_messages.append(chunk_message)
 
-            print()  # Newline after streaming
             full_response = "".join(collected_messages).strip()
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
 
-            # estimate completion tokens for streaming response
-            completion_tokens = self.count_tokens(completion_text)
-            logger.info(
-                f"Estimated completion tokens for streaming response: {completion_tokens}"
+            # Use real token count when available; fall back to estimation.
+            completion_tokens = real_completion_tokens or self.count_tokens(
+                full_response
             )
-            self.total_completion_tokens += completion_tokens
+            logger.info(
+                f"Streaming completion tokens: {completion_tokens} "
+                f"({'real' if real_completion_tokens else 'estimated'})"
+            )
+            self.update_token_count(0, completion_tokens)
 
             return full_response
 
@@ -481,9 +902,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception(_should_retry_llm_exception),
     )
     async def ask_with_images(
         self,
@@ -515,9 +934,10 @@ class LLM:
         try:
             # For ask_with_images, we always set supports_images to True because
             # this method should only be called with models that support images
-            if self.model not in MULTIMODAL_MODELS:
+            model = self.active_model
+            if model not in MULTIMODAL_MODELS:
                 raise ValueError(
-                    f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}"
+                    f"Model {model} does not support images. Use a model from {MULTIMODAL_MODELS}"
                 )
 
             # Format messages with image support
@@ -574,33 +994,37 @@ class LLM:
 
             # Set up API parameters
             params = {
-                "model": self.model,
+                "model": model,
                 "messages": all_messages,
                 "stream": stream,
             }
 
             # Add model-specific parameters
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+            if model in REASONING_MODELS:
+                params["max_completion_tokens"] = self.active_max_tokens()
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_tokens"] = self.active_max_tokens()
                 params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+                    temperature
+                    if temperature is not None
+                    else self.active_temperature()
                 )
 
             # Handle non-streaming request
             if not stream:
-                response = await self.client.chat.completions.create(**params)
+                response = await self.active_client().chat.completions.create(**params)
 
                 if not response.choices or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
-                self.update_token_count(response.usage.prompt_tokens)
+                self.update_token_count(
+                    response.usage.prompt_tokens, response.usage.completion_tokens
+                )
                 return response.choices[0].message.content
 
             # Handle streaming request
             self.update_token_count(input_tokens)
-            response = await self.client.chat.completions.create(**params)
+            response = await self.active_client().chat.completions.create(**params)
 
             collected_messages = []
             async for chunk in response:
@@ -637,9 +1061,7 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=retry_if_exception(_should_retry_llm_exception),
     )
     async def ask_tool(
         self,
@@ -672,13 +1094,46 @@ class LLM:
             OpenAIError: If API call fails after retries
             Exception: For unexpected errors
         """
+
+        def _template_error_text(exc: Exception) -> str:
+            return str(exc).lower()
+
+        def _is_template_user_query_error(exc: Exception) -> bool:
+            text = _template_error_text(exc)
+            return "no user query found in messages" in text or (
+                "jinja template" in text and "prompt template" in text
+            )
+
+        def _build_template_fallback_messages(
+            source_messages: List[dict],
+        ) -> List[dict]:
+            # Preserve intent while avoiding brittle tool/template transcript shapes.
+            snippets: list[str] = []
+            for msg in reversed(source_messages):
+                role = str(msg.get("role") or "")
+                content = str(msg.get("content") or "").strip()
+                if role in {"assistant", "tool", "user"} and content:
+                    snippets.append(f"{role}: {content[:500]}")
+                if len(snippets) >= 8:
+                    break
+            snippets.reverse()
+            fallback_prompt = (
+                "The local model template rejected the full tool transcript. "
+                "Continue the task from this compact context. "
+                "Return a FINAL SUMMARY now with: completed work, verification, "
+                "artifacts/paths, and remaining limitations. Do not request more tools.\n\n"
+                + ("\n".join(snippets) if snippets else "No prior context available.")
+            )
+            return [{"role": "user", "content": fallback_prompt}]
+
         try:
             # Validate tool_choice
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            model = self.active_model
+            supports_images = model in MULTIMODAL_MODELS
 
             # Format messages
             if system_msgs:
@@ -686,6 +1141,11 @@ class LLM:
                 messages = system_msgs + self.format_messages(messages, supports_images)
             else:
                 messages = self.format_messages(messages, supports_images)
+
+            messages = self.ensure_user_query(messages)
+            if self.needs_local_template_compat():
+                messages = self.flatten_tool_history_for_templates(messages)
+                messages = self.ensure_user_query(messages)
 
             # Calculate input token count
             input_tokens = self.count_message_tokens(messages)
@@ -710,9 +1170,13 @@ class LLM:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
 
+            # Pop thinking_budget from kwargs before building params (Claude extended thinking)
+            thinking_budget: Optional[int] = kwargs.pop("thinking_budget", None)
+            reasoning_effort: Optional[str] = kwargs.pop("reasoning_effort", None)
+
             # Set up the completion request
             params = {
-                "model": self.model,
+                "model": model,
                 "messages": messages,
                 "tools": tools,
                 "tool_choice": tool_choice,
@@ -720,23 +1184,70 @@ class LLM:
                 **kwargs,
             }
 
-            if self.model in REASONING_MODELS:
-                params["max_completion_tokens"] = self.max_tokens
+            if model in REASONING_MODELS:
+                params["max_completion_tokens"] = self.active_max_tokens()
+                # o3 / o4-mini accept reasoning_effort instead of temperature
+                if model in REASONING_EFFORT_MODELS:
+                    effort = reasoning_effort or "medium"
+                    params["reasoning_effort"] = effort
+                    # temperature is not valid for these models
+                    params.pop("temperature", None)
             else:
-                params["max_tokens"] = self.max_tokens
+                params["max_tokens"] = self.active_max_tokens()
                 params["temperature"] = (
-                    temperature if temperature is not None else self.temperature
+                    temperature
+                    if temperature is not None
+                    else self.active_temperature()
                 )
 
+            # Claude extended thinking / LM-Studio reasoning mode:
+            # Prefer the instance-level thinking_enabled property which respects
+            # the user's enable_thinking config and LM-Studio auto-detection.
+            effective_thinking = self.thinking_enabled
+            if thinking_budget and not effective_thinking:
+                # Caller explicitly passed a budget — treat as opt-in override
+                effective_thinking = True
+
+            if effective_thinking:
+                # Cloud Claude: structured "thinking" block
+                if model in CLAUDE_THINKING_MODELS and thinking_budget:
+                    params["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": int(thinking_budget),
+                    }
+                    logger.debug(
+                        "Claude extended thinking enabled: budget=%d tokens, model=%s",
+                        thinking_budget,
+                        model,
+                    )
+                # LM-Studio / local reasoning models: pass thinking_budget as
+                # extra_body so the server can honour it if supported.
+                elif _is_local_server(self.base_url) and thinking_budget:
+                    params.setdefault("extra_body", {})["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": int(thinking_budget),
+                    }
+                    logger.debug(
+                        "Local-model thinking enabled: budget=%d tokens, model=%s",
+                        thinking_budget,
+                        model,
+                    )
+                elif effective_thinking:
+                    logger.debug(
+                        "Thinking mode active for model '%s' but no budget provided — skipping block.",
+                        model,
+                    )
+
             params["stream"] = False  # Always use non-streaming for tool requests
-            response: ChatCompletion = await self.client.chat.completions.create(
-                **params
+            response: ChatCompletion = (
+                await self.active_client().chat.completions.create(**params)
             )
 
             # Check if response is valid
             if not response.choices or not response.choices[0].message:
-                print(response)
-                # raise ValueError("Invalid or empty response from LLM")
+                logger.warning(
+                    "LLM returned an empty or invalid response: %s", response
+                )
                 return None
 
             # Update token counts
@@ -760,6 +1271,65 @@ class LLM:
                 logger.error("Rate limit exceeded. Consider increasing retry attempts.")
             elif isinstance(oe, APIError):
                 logger.error(f"API error: {oe}")
+            if _is_template_user_query_error(oe):
+                # One-shot fallback for brittle local templates:
+                # retry with a compact plain user message and no tool schema.
+                try:
+                    emit_current_task(
+                        "warning",
+                        {
+                            "message": "Model template rejected tool transcript; using compact fallback prompt.",
+                            "detail": str(oe),
+                            "fatal": False,
+                        },
+                    )
+                    fallback_messages = _build_template_fallback_messages(messages)
+                    fallback_params = {
+                        "model": model,
+                        "messages": fallback_messages,
+                        "timeout": timeout,
+                        "stream": False,
+                    }
+                    if model in REASONING_MODELS:
+                        fallback_params[
+                            "max_completion_tokens"
+                        ] = self.active_max_tokens()
+                    else:
+                        fallback_params["max_tokens"] = self.active_max_tokens()
+                        fallback_params["temperature"] = (
+                            temperature
+                            if temperature is not None
+                            else self.active_temperature()
+                        )
+                    fallback_response: ChatCompletion = (
+                        await self.active_client().chat.completions.create(
+                            **fallback_params
+                        )
+                    )
+                    if (
+                        fallback_response.choices
+                        and fallback_response.choices[0].message is not None
+                    ):
+                        usage = fallback_response.usage
+                        if usage is not None:
+                            self.update_token_count(
+                                usage.prompt_tokens, usage.completion_tokens
+                            )
+                        # Mark fallback summaries so the agent can terminate gracefully.
+                        fb_msg = fallback_response.choices[0].message
+                        if fb_msg.content:
+                            fb_msg.content = (
+                                "[TEMPLATE_FALLBACK_FINAL]\n" + fb_msg.content
+                            )
+                        return fb_msg
+                except Exception as fallback_error:
+                    logger.error(
+                        f"Fallback after template error failed: {fallback_error}"
+                    )
+                raise ValueError(
+                    "Model prompt template rejected this tool-call transcript "
+                    "(No user query found). Use a tool-capable template/model."
+                ) from oe
             raise
         except Exception as e:
             logger.error(f"Unexpected error in ask_tool: {e}")
