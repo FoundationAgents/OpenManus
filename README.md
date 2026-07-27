@@ -88,6 +88,13 @@ uv pip install -r requirements.txt
 playwright install
 ```
 
+On Debian- or Ubuntu-based Linux servers, install Playwright's required system
+libraries as well:
+
+```bash
+sudo playwright install --with-deps
+```
+
 ## Configuration
 
 OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:
