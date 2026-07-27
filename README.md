@@ -92,7 +92,7 @@ On Debian- or Ubuntu-based Linux servers, install Playwright's required system
 libraries as well:
 
 ```bash
-sudo playwright install --with-deps
+python -m playwright install --with-deps
 ```
 
 ## Configuration
