@@ -14,6 +14,7 @@ from app.config import config
 from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
+from app.utils.browser_url import assert_browser_http_url
 
 
 _BROWSER_DESCRIPTION = """\
@@ -235,6 +236,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="URL is required for 'go_to_url' action"
                         )
+                    try:
+                        url = assert_browser_http_url(url)
+                    except ValueError as e:
+                        return ToolResult(error=str(e))
                     page = await context.get_current_page()
                     await page.goto(url)
                     await page.wait_for_load_state()
@@ -260,6 +265,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     # Navigate to the first search result
                     first_search_result = search_response.results[0]
                     url_to_navigate = first_search_result.url
+                    try:
+                        url_to_navigate = assert_browser_http_url(url_to_navigate)
+                    except ValueError as e:
+                        return ToolResult(error=str(e))
 
                     page = await context.get_current_page()
                     await page.goto(url_to_navigate)
@@ -457,6 +466,10 @@ Page content:
                 elif action == "open_tab":
                     if not url:
                         return ToolResult(error="URL is required for 'open_tab' action")
+                    try:
+                        url = assert_browser_http_url(url)
+                    except ValueError as e:
+                        return ToolResult(error=str(e))
                     await context.create_new_tab(url)
                     return ToolResult(output=f"Opened new tab with {url}")
 
