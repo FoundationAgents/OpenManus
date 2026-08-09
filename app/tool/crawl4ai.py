@@ -7,10 +7,10 @@ providing fast, precise, and AI-ready data extraction with clean Markdown genera
 
 import asyncio
 from typing import List, Union
-from urllib.parse import urlparse
 
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
+from app.utils.url_safety import fetch_url_validation_error
 
 
 class Crawl4aiTool(BaseTool):
@@ -258,12 +258,5 @@ class Crawl4aiTool(BaseTool):
             return ToolResult(error=error_msg)
 
     def _is_valid_url(self, url: str) -> bool:
-        """Validate if a URL is properly formatted."""
-        try:
-            result = urlparse(url)
-            return all([result.scheme, result.netloc]) and result.scheme in [
-                "http",
-                "https",
-            ]
-        except Exception:
-            return False
+        """Validate scheme and reject private/loopback/link-local destinations (SSRF)."""
+        return fetch_url_validation_error(url) is None
