@@ -1,7 +1,6 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -17,6 +16,7 @@ from app.tool.search import (
     WebSearchEngine,
 )
 from app.tool.search.base import SearchItem
+from app.utils.url_safety import safe_get
 
 
 class SearchResult(BaseModel):
@@ -123,9 +123,10 @@ class WebContentFetcher:
         }
 
         try:
-            # Use asyncio to run requests in a thread pool
+            # Fail closed on private/loopback/link-local destinations (and each
+            # redirect hop). Search-result URLs are untrusted.
             response = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: requests.get(url, headers=headers, timeout=timeout)
+                None, lambda: safe_get(url, headers=headers, timeout=timeout)
             )
 
             if response.status_code != 200:
