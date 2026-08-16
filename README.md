@@ -117,7 +117,7 @@ server.
 BrowserGym still requires its Playwright browser:
 
 ```bash
-playwright install
+playwright install --with-deps
 ```
 
 ## Configuration
