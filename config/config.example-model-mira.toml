@@ -1,0 +1,8 @@
+# Global LLM configuration
+[llm] #MIRA:
+api_type = 'mira'
+model = "llama-3.1-8b-instruct"                                  # The LLM model to use
+base_url = "https://api.mira.network/v1"                         # API endpoint URL
+api_key = "your-mira-api-key"                                   # Your API key
+max_tokens = 4096                                                # Maximum number of tokens in the response
+temperature = 0.0                                                # Controls randomness
