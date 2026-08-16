@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Union
 
@@ -141,6 +142,9 @@ class PlanningFlow(BaseFlow):
             "You are a planning assistant. Create a concise, actionable plan with clear steps. "
             "Focus on key milestones rather than detailed sub-steps. "
             "Optimize for clarity and efficiency."
+            "Current time: {current_time}".format(
+                current_time=datetime.now().astimezone().isoformat(timespec="seconds")
+            )
         )
         agents_description = []
         for key in self.executor_keys:

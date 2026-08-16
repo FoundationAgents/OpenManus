@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -194,3 +195,22 @@ class BaseAgent(BaseModel, ABC):
     def messages(self, value: List[Message]):
         """Set the list of messages in the agent's memory."""
         self.memory.messages = value
+
+    def update_current_time(self) -> None:
+        """Update the current time in the agent's memory."""
+        current_time_prefix = "Current time:"
+        current_time = datetime.now().astimezone().isoformat(timespec="seconds")
+        time_message = f"{current_time_prefix} {current_time}"
+
+        # Remove any existing built-in time message
+        self.memory.messages = [
+            msg
+            for msg in self.memory.messages
+            if not (
+                msg.role == "system" and msg.content.startswith(current_time_prefix)
+            )
+        ]
+
+        # Set new time message at the beginning
+        logger.debug(f"⚙️ Setting current time to: {current_time}")
+        self.memory.messages.insert(0, Message.system_message(time_message))
