@@ -18,8 +18,14 @@ async def main():
     try:
         # Use command line prompt if provided, otherwise ask for input
         prompt = args.prompt if args.prompt else input("Enter your prompt: ")
-        if not prompt.strip():
+        prompt = prompt.strip()
+        if not prompt:
             logger.warning("Empty prompt provided.")
+            return
+
+        max_prompt_length = 10000
+        if len(prompt) > max_prompt_length:
+            logger.warning(f"Prompt exceeds maximum allowed length of {max_prompt_length} characters.")
             return
 
         logger.warning("Processing your request...")
