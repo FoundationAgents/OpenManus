@@ -166,6 +166,8 @@ class Memory(BaseModel):
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages :]
+            while self.messages[0].role == "tool":
+                self.messages = self.messages[1:]
 
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
@@ -173,6 +175,8 @@ class Memory(BaseModel):
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages :]
+            while self.messages[0].role == "tool":
+                self.messages = self.messages[1:]
 
     def clear(self) -> None:
         """Clear all messages"""
