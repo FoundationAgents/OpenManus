@@ -18,5 +18,8 @@
   },
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "overrides": {
+    "basic-ftp": "5.3.1"
+  }
 }
