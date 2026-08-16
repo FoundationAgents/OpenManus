@@ -1,0 +1,17 @@
+# Global LLM configuration
+[llm] #Eden AI (EU, OpenAI-compatible gateway):
+api_type = 'edenai'
+model = "openai/gpt-4o-mini"                                       # provider/model naming; e.g. anthropic/claude-haiku-4-5
+base_url = "https://api.edenai.run/v3"                             # EU data residency: https://api.eu.edenai.run/v3
+api_key = "your Eden AI api key"                                   # Your API key
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+[llm.vision] #Eden AI VISION:
+api_type = 'edenai'
+model = "openai/gpt-4o"                                            # The vision model to use
+base_url = "https://api.edenai.run/v3"                             # API endpoint URL for vision model
+api_key = "your Eden AI api key"                                   # Your API key for vision model
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness for vision model
