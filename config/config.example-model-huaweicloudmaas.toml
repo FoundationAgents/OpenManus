@@ -1,0 +1,11 @@
+# Global LLM configuration
+# Get Huawei Cloud MaaS Api Key
+# https://console.huaweicloud.com/modelarts/?locale=zh-cn&region=cn-southwest-2#/model-studio/authmanage
+# Get Huawei Cloud Maas Model List
+# https://console.huaweicloud.com/modelarts/?locale=zh-cn&region=cn-southwest-2#/model-studio/deployment
+[llm]
+model = "DeepSeek-R1"        					# The LLM model to use
+base_url = "https://api.modelarts-maas.com/v1"  # API endpoint URL
+api_key = ""  									# Your API key
+max_tokens = 16000                           	# Maximum number of tokens in the response
+temperature = 0.7                           	# Controls randomness
