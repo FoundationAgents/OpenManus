@@ -6,6 +6,8 @@ api_key = "YOUR_API_KEY"                   # Your API key
 max_tokens = 8192                          # Maximum number of tokens in the response
 temperature = 0.0                          # Controls randomness
 
+[daytona]
+daytona_api_key = "YOUR_API_KEY"
 # [llm] # Amazon Bedrock
 # api_type = "aws"                                       # Required
 # model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Bedrock supported modelID
