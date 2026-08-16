@@ -26,7 +26,7 @@ setup(
         "html2text~=2024.2.26",
         "gymnasium>=1.0,<1.2",
         "pillow>=10.4,<11",
-        "browsergym~=0.13.3",
+        "browsergym~=0.14.3",
         "uvicorn~=0.34.0",
         "unidiff~=0.7.5",
         "uv>=0.6.0",
