@@ -1,6 +1,9 @@
+import json
 import math
 from typing import Dict, List, Optional, Union
+from urllib.parse import urlparse
 
+import httpx
 import tiktoken
 from openai import (
     APIError,
@@ -26,7 +29,9 @@ from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
     TOOL_CHOICE_VALUES,
+    Function,
     Message,
+    ToolCall,
     ToolChoice,
 )
 
@@ -40,6 +45,7 @@ MULTIMODAL_MODELS = [
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
 ]
+ANTHROPIC_API_VERSION = "2023-06-01"
 
 
 class TokenCounter:
@@ -196,6 +202,11 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            if not self.api_type and self._is_anthropic_base_url(self.base_url):
+                self.api_type = "anthropic"
+                logger.info(
+                    "Auto-detected Anthropic API from base_url; using api_type='anthropic'."
+                )
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -221,6 +232,8 @@ class LLM:
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
+            elif self.api_type == "anthropic":
+                self.client = None
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -231,6 +244,219 @@ class LLM:
         if not text:
             return 0
         return len(self.tokenizer.encode(text))
+
+    @staticmethod
+    def _is_anthropic_base_url(base_url: str) -> bool:
+        hostname = urlparse(base_url or "").hostname or ""
+        return hostname.lower() == "api.anthropic.com"
+
+    def _anthropic_headers(self) -> dict:
+        return {
+            "content-type": "application/json",
+            "x-api-key": self.api_key,
+            "anthropic-version": ANTHROPIC_API_VERSION,
+        }
+
+    @staticmethod
+    def _normalize_anthropic_base_url(base_url: str) -> str:
+        return base_url.rstrip("/")
+
+    @staticmethod
+    def _extract_anthropic_text(content: List[dict]) -> str:
+        return "".join(
+            block.get("text", "") for block in content if block.get("type") == "text"
+        ).strip()
+
+    @staticmethod
+    def _parse_data_url(url: str) -> Optional[dict]:
+        if not url.startswith("data:") or ";base64," not in url:
+            return None
+        media_type, data = url[5:].split(";base64,", 1)
+        return {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": data,
+            },
+        }
+
+    def _content_to_anthropic_blocks(
+        self, content: Optional[Union[str, List[Union[str, dict]]]]
+    ) -> List[dict]:
+        if not content:
+            return []
+        if isinstance(content, str):
+            return [{"type": "text", "text": content}]
+
+        blocks = []
+        for item in content:
+            if isinstance(item, str):
+                blocks.append({"type": "text", "text": item})
+                continue
+
+            if item.get("type") == "text":
+                blocks.append({"type": "text", "text": item.get("text", "")})
+                continue
+
+            if item.get("type") == "image_url":
+                image_url = item.get("image_url", {})
+                url = image_url.get("url") if isinstance(image_url, dict) else image_url
+                if isinstance(url, str):
+                    image_block = self._parse_data_url(url)
+                    if image_block:
+                        blocks.append(image_block)
+                        continue
+                    blocks.append({"type": "text", "text": url})
+                    continue
+
+            if "text" in item:
+                blocks.append({"type": "text", "text": item["text"]})
+
+        return blocks
+
+    def _system_to_anthropic(self, system_msgs: Optional[List[dict]]) -> Optional[str]:
+        if not system_msgs:
+            return None
+        parts = []
+        for message in system_msgs:
+            content = message.get("content")
+            if isinstance(content, str):
+                parts.append(content)
+            else:
+                parts.append(self._extract_anthropic_text(content or []))
+        system_text = "\n\n".join(part for part in parts if part)
+        return system_text or None
+
+    def _messages_to_anthropic(self, messages: List[dict]) -> List[dict]:
+        anthropic_messages = []
+        for message in messages:
+            role = message.get("role")
+            if role == "system":
+                continue
+
+            if role == "tool":
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": message.get("tool_call_id"),
+                                "content": message.get("content") or "",
+                            }
+                        ],
+                    }
+                )
+                continue
+
+            content_blocks = self._content_to_anthropic_blocks(message.get("content"))
+            if role == "assistant":
+                for tool_call in message.get("tool_calls") or []:
+                    function = tool_call.get("function", {})
+                    arguments = function.get("arguments") or "{}"
+                    if isinstance(arguments, str):
+                        arguments = json.loads(arguments)
+                    content_blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": tool_call.get("id"),
+                            "name": function.get("name"),
+                            "input": arguments,
+                        }
+                    )
+
+            anthropic_messages.append(
+                {
+                    "role": role,
+                    "content": content_blocks or [{"type": "text", "text": ""}],
+                }
+            )
+
+        return anthropic_messages
+
+    @staticmethod
+    def _tools_to_anthropic(tools: List[dict]) -> List[dict]:
+        anthropic_tools = []
+        for tool in tools:
+            function = tool.get("function", {})
+            anthropic_tools.append(
+                {
+                    "name": function.get("name"),
+                    "description": function.get("description", ""),
+                    "input_schema": function.get("parameters", {"type": "object"}),
+                }
+            )
+        return anthropic_tools
+
+    @staticmethod
+    def _anthropic_response_to_message(response: dict) -> Message:
+        content_blocks = response.get("content") or []
+        tool_calls = []
+        for block in content_blocks:
+            if block.get("type") != "tool_use":
+                continue
+            tool_calls.append(
+                ToolCall(
+                    id=block.get("id", ""),
+                    function=Function(
+                        name=block.get("name", ""),
+                        arguments=json.dumps(block.get("input", {})),
+                    ),
+                )
+            )
+
+        return Message.assistant_message(
+            content=LLM._extract_anthropic_text(content_blocks),
+        ).model_copy(update={"tool_calls": tool_calls or None})
+
+    async def _post_anthropic(self, payload: dict, timeout: int = 300) -> dict:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                f"{self._normalize_anthropic_base_url(self.base_url)}/messages",
+                headers=self._anthropic_headers(),
+                json=payload,
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def _ask_anthropic(
+        self,
+        messages: List[dict],
+        system_msgs: Optional[List[dict]] = None,
+        stream: bool = False,
+        temperature: Optional[float] = None,
+        timeout: int = 300,
+    ) -> str:
+        input_tokens = self.count_message_tokens(messages)
+        if not self.check_token_limit(input_tokens):
+            raise TokenLimitExceeded(self.get_limit_error_message(input_tokens))
+
+        payload = {
+            "model": self.model,
+            "messages": self._messages_to_anthropic(messages),
+            "max_tokens": self.max_tokens,
+            "temperature": temperature if temperature is not None else self.temperature,
+        }
+        system_text = self._system_to_anthropic(system_msgs)
+        if system_text:
+            payload["system"] = system_text
+
+        response = await self._post_anthropic(payload, timeout=timeout)
+        content = self._extract_anthropic_text(response.get("content") or [])
+        if not content:
+            raise ValueError("Empty or invalid response from LLM")
+
+        usage = response.get("usage", {})
+        self.update_token_count(
+            usage.get("input_tokens", input_tokens),
+            usage.get("output_tokens", self.count_tokens(content)),
+        )
+
+        if stream:
+            print(content)
+
+        return content
 
     def count_message_tokens(self, messages: List[dict]) -> int:
         return self.token_counter.count_message_tokens(messages)
@@ -385,7 +611,9 @@ class LLM:
         """
         try:
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            supports_images = (
+                self.api_type == "anthropic" or self.model in MULTIMODAL_MODELS
+            )
 
             # Format system and user messages with image support check
             if system_msgs:
@@ -393,6 +621,14 @@ class LLM:
                 messages = system_msgs + self.format_messages(messages, supports_images)
             else:
                 messages = self.format_messages(messages, supports_images)
+
+            if self.api_type == "anthropic":
+                return await self._ask_anthropic(
+                    messages=messages,
+                    system_msgs=system_msgs,
+                    stream=stream,
+                    temperature=temperature,
+                )
 
             # Calculate input token count
             input_tokens = self.count_message_tokens(messages)
@@ -515,7 +751,7 @@ class LLM:
         try:
             # For ask_with_images, we always set supports_images to True because
             # this method should only be called with models that support images
-            if self.model not in MULTIMODAL_MODELS:
+            if self.api_type != "anthropic" and self.model not in MULTIMODAL_MODELS:
                 raise ValueError(
                     f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}"
                 )
@@ -566,6 +802,18 @@ class LLM:
                 )
             else:
                 all_messages = formatted_messages
+
+            if self.api_type == "anthropic":
+                return await self._ask_anthropic(
+                    messages=all_messages,
+                    system_msgs=(
+                        self.format_messages(system_msgs, supports_images=True)
+                        if system_msgs
+                        else None
+                    ),
+                    stream=stream,
+                    temperature=temperature,
+                )
 
             # Calculate tokens and check limits
             input_tokens = self.count_message_tokens(all_messages)
@@ -678,7 +926,9 @@ class LLM:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            supports_images = (
+                self.api_type == "anthropic" or self.model in MULTIMODAL_MODELS
+            )
 
             # Format messages
             if system_msgs:
@@ -686,6 +936,51 @@ class LLM:
                 messages = system_msgs + self.format_messages(messages, supports_images)
             else:
                 messages = self.format_messages(messages, supports_images)
+
+            if self.api_type == "anthropic":
+                anthropic_system_msgs = system_msgs
+                if tools:
+                    for tool in tools:
+                        if not isinstance(tool, dict) or "type" not in tool:
+                            raise ValueError(
+                                "Each tool must be a dict with 'type' field"
+                            )
+
+                input_tokens = self.count_message_tokens(messages)
+                if tools:
+                    input_tokens += sum(self.count_tokens(str(tool)) for tool in tools)
+                if not self.check_token_limit(input_tokens):
+                    raise TokenLimitExceeded(self.get_limit_error_message(input_tokens))
+
+                payload = {
+                    "model": self.model,
+                    "messages": self._messages_to_anthropic(messages),
+                    "max_tokens": self.max_tokens,
+                    "temperature": (
+                        temperature if temperature is not None else self.temperature
+                    ),
+                }
+                system_text = self._system_to_anthropic(anthropic_system_msgs)
+                if system_text:
+                    payload["system"] = system_text
+                if tools and tool_choice != ToolChoice.NONE:
+                    payload["tools"] = self._tools_to_anthropic(tools)
+                    if tool_choice == ToolChoice.REQUIRED:
+                        payload["tool_choice"] = {"type": "any"}
+                    else:
+                        payload["tool_choice"] = {"type": "auto"}
+
+                response = await self._post_anthropic(payload, timeout=timeout)
+                usage = response.get("usage", {})
+                response_message = self._anthropic_response_to_message(response)
+                self.update_token_count(
+                    usage.get("input_tokens", input_tokens),
+                    usage.get(
+                        "output_tokens",
+                        self.count_tokens(response_message.content or ""),
+                    ),
+                )
+                return response_message
 
             # Calculate input token count
             input_tokens = self.count_message_tokens(messages)

@@ -1,4 +1,7 @@
 import json
+import os
+import platform
+import shutil
 import threading
 import tomllib
 from pathlib import Path
@@ -10,6 +13,47 @@ from pydantic import BaseModel, Field
 def get_project_root() -> Path:
     """Get the project root directory"""
     return Path(__file__).resolve().parent.parent
+
+
+def is_android_or_proot() -> bool:
+    """Check if the code is running on Android or within a PRoot environment."""
+    # Allow overriding/disabling the auto-detection via environment variable
+    disable_env = os.environ.get("DISABLE_ANDROID_DETECTION", "").lower()
+    if disable_env in ("1", "true", "yes"):
+        return False
+
+    # 1. Direct Termux environment variables or files
+    if os.environ.get("TERMUX_VERSION") or os.path.exists("/data/data/com.termux"):
+        return True
+
+    # 2. PRoot environments often leave specific indicators
+    if os.environ.get("PROOT_TMPDIR") or os.path.exists("/dev/proot"):
+        return True
+
+    # 3. Check /proc/version or /proc/sys/kernel/osrelease for android/termux signatures
+    try:
+        if os.path.exists("/proc/version"):
+            with open("/proc/version", "r") as f:
+                version_info = f.read().lower()
+                if "android" in version_info or "termux" in version_info:
+                    return True
+    except Exception:
+        pass
+
+    # 4. Fallback check for arm64 root with PRoot specific indicators (like no standard systemd)
+    # NOTE: While this is a highly effective heuristic for Termux PRoot environments on Android,
+    # it may have false positives on embedded ARM Linux systems or minimal arm64 container images that run
+    # as root without systemd. Users can disable this auto-detection by setting the environment
+    # variable `DISABLE_ANDROID_DETECTION=1`.
+    is_root = False
+    if hasattr(os, "getuid"):
+        is_root = (os.getuid() == 0) or (hasattr(os, "geteuid") and os.geteuid() == 0)
+
+    if platform.machine() in ("aarch64", "arm64") and is_root:
+        if not os.path.exists("/run/systemd/system"):
+            return True
+
+    return False
 
 
 PROJECT_ROOT = get_project_root()
@@ -106,7 +150,7 @@ class SandboxSettings(BaseModel):
 
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: str = ""
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -280,6 +324,41 @@ class Config:
             # only create BrowserSettings when there are valid parameters.
             if valid_browser_params:
                 browser_settings = BrowserSettings(**valid_browser_params)
+
+        if is_android_or_proot():
+            if not browser_settings:
+                browser_settings = BrowserSettings()
+            extra_args = browser_settings.extra_chromium_args or []
+            flags_added = []
+            for flag in ["--no-sandbox", "--disable-setuid-sandbox"]:
+                if flag not in extra_args:
+                    extra_args.append(flag)
+                    flags_added.append(flag)
+            browser_settings.extra_chromium_args = extra_args
+
+            if flags_added:
+                from loguru import logger
+
+                logger.warning(
+                    f"Android/PRoot environment detected. Automatically adding sandbox-disabling browser flags: {flags_added}"
+                )
+
+            if not browser_settings.chrome_instance_path:
+                possible_paths = [
+                    "/usr/bin/chromium",
+                    "/usr/bin/chromium-browser",
+                    "/usr/bin/google-chrome",
+                ]
+                for p in possible_paths:
+                    if os.path.exists(p):
+                        browser_settings.chrome_instance_path = p
+                        break
+                else:
+                    for cmd in ["chromium", "chromium-browser", "google-chrome"]:
+                        cmd_path = shutil.which(cmd)
+                        if cmd_path:
+                            browser_settings.chrome_instance_path = cmd_path
+                            break
 
         search_config = raw_config.get("search", {})
         search_settings = None

@@ -1,5 +1,6 @@
 # Global LLM configuration
 [llm]
+api_type = "anthropic"
 model = "claude-3-7-sonnet-20250219"       # The LLM model to use
 base_url = "https://api.anthropic.com/v1/" # API endpoint URL
 api_key = "YOUR_API_KEY"                   # Your API key
@@ -33,6 +34,7 @@ temperature = 0.0                          # Controls randomness
 
 # Optional configuration for specific LLM models
 [llm.vision]
+api_type = "anthropic"
 model = "claude-3-7-sonnet-20250219"       # The vision model to use
 base_url = "https://api.anthropic.com/v1/" # API endpoint URL for vision model
 api_key = "YOUR_API_KEY"                   # Your API key for vision model

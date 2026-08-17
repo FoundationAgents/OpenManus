@@ -148,6 +148,8 @@ base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # Replace with your actual API key
 ```
 
+If you use Anthropic's native API, set `api_type = "anthropic"` in the corresponding `[llm]` section or start from `/home/runner/work/OpenManus/OpenManus/config/config.example-model-anthropic.toml`.
+
 ## Quick Start
 
 One line for run OpenManus:
