@@ -604,9 +604,10 @@ class LLM:
 
             collected_messages = []
             async for chunk in response:
-                chunk_message = chunk.choices[0].delta.content or ""
-                collected_messages.append(chunk_message)
-                print(chunk_message, end="", flush=True)
+                if chunk.choices:
+                    chunk_message = chunk.choices[0].delta.content or ""
+                    collected_messages.append(chunk_message)
+                    print(chunk_message, end="", flush=True)
 
             print()  # Newline after streaming
             full_response = "".join(collected_messages).strip()
