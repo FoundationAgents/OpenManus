@@ -3,6 +3,8 @@ from app.tool.bash import Bash
 from app.tool.crawl4ai import Crawl4aiTool
 from app.tool.create_chat_completion import CreateChatCompletion
 from app.tool.planning import PlanningTool
+from app.tool.python_execute import PythonExecute
+from app.tool.seo_analyzer import SEOAnalyzer
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
 from app.tool.tool_collection import ToolCollection
@@ -19,4 +21,6 @@ __all__ = [
     "CreateChatCompletion",
     "PlanningTool",
     "Crawl4aiTool",
+    "PythonExecute",
+    "SEOAnalyzer",
 ]
