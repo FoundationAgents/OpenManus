@@ -59,6 +59,8 @@ pip install -r requirements.txt
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+# Or on Windows:
+# pip install uv
 ```
 
 2. Clone the repository:
