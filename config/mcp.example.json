@@ -3,6 +3,11 @@
       "server1": {
         "type": "sse",
         "url": "http://localhost:8000/sse"
+      },
+      "wavespeed": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@wavespeed/mcp"]
       }
     }
 }
