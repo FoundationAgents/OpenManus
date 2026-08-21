@@ -6,7 +6,7 @@ class AskHuman(BaseTool):
 
     name: str = "ask_human"
     description: str = "Use this tool to ask human for help."
-    parameters: str = {
+    parameters: dict = {
         "type": "object",
         "properties": {
             "inquire": {

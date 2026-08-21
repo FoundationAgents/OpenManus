@@ -1,5 +1,4 @@
 import sys
-from datetime import datetime
 
 from loguru import logger as _logger
 
@@ -14,15 +13,16 @@ def define_log_level(print_level="INFO", logfile_level="DEBUG", name: str = None
     global _print_level
     _print_level = print_level
 
-    current_date = datetime.now()
-    formatted_date = current_date.strftime("%Y%m%d%H%M%S")
-    log_name = (
-        f"{name}_{formatted_date}" if name else formatted_date
-    )  # name a log with prefix name
+    log_name = name or "openmanus"
 
     _logger.remove()
     _logger.add(sys.stderr, level=print_level)
-    _logger.add(PROJECT_ROOT / f"logs/{log_name}.log", level=logfile_level)
+    _logger.add(
+        PROJECT_ROOT / f"logs/{log_name}_{{time:YYYYMMDD}}.log",
+        level=logfile_level,
+        rotation="00:00",
+        retention="7 days",
+    )
     return _logger
 
 

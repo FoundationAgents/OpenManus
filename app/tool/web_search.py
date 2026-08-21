@@ -119,7 +119,7 @@ class WebContentFetcher:
             Extracted text content or None if fetching fails
         """
         headers = {
-            "WebSearch": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
         try:
@@ -144,7 +144,7 @@ class WebContentFetcher:
             # Get text content
             text = soup.get_text(separator="\n", strip=True)
 
-            # Clean up whitespace and limit size (100KB max)
+            # Clean up whitespace and limit size (~10K chars)
             text = " ".join(text.split())
             return text[:10000] if text else None
 
@@ -297,11 +297,19 @@ class WebSearch(BaseTool):
         for engine_name in engine_order:
             engine = self._search_engine[engine_name]
             logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
-            search_items = await self._perform_search_with_engine(
-                engine, query, num_results, search_params
-            )
+            try:
+                search_items = await self._perform_search_with_engine(
+                    engine, query, num_results, search_params
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Search engine {engine_name.capitalize()} raised an exception: {e}"
+                )
+                failed_engines.append(engine_name)
+                continue
 
             if not search_items:
+                failed_engines.append(engine_name)
                 continue
 
             if failed_engines:
