@@ -165,14 +165,24 @@ class Memory(BaseModel):
         self.messages.append(message)
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+            self._trim_messages()
 
     def add_messages(self, messages: List[Message]) -> None:
         """Add multiple messages to memory"""
         self.messages.extend(messages)
         # Optional: Implement message limit
         if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+            self._trim_messages()
+
+    def _trim_messages(self) -> None:
+        """Trim to the most recent max_messages, without orphaning a 'tool'
+        message from the assistant tool_calls message that preceded it (the
+        API rejects a 'tool' message with no matching preceding tool_calls).
+        """
+        trimmed = self.messages[-self.max_messages :]
+        while trimmed and trimmed[0].role == Role.TOOL:
+            trimmed = trimmed[1:]
+        self.messages = trimmed
 
     def clear(self) -> None:
         """Clear all messages"""
