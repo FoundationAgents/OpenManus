@@ -3,7 +3,7 @@ import argparse
 import asyncio
 import sys
 
-from app.agent.mcp import MCPAgent
+from app.agent.mcp_agent import MCPAgent
 from app.config import config
 from app.logger import logger
 

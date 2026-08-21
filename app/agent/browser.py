@@ -1,7 +1,7 @@
 import json
 from typing import TYPE_CHECKING, Optional
 
-from app.agent.mcp import MCPAgent
+from app.agent.mcp_agent import MCPAgent
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT
 from app.schema import Message
