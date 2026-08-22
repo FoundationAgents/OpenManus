@@ -29,8 +29,19 @@ class ToolCollection:
         if not tool:
             return ToolFailure(error=f"Tool {name} is invalid")
         try:
+            if tool_input is None:
+                tool_input = {}
             result = await tool(**tool_input)
             return result
+        except TypeError as e:
+            # Handle missing required arguments gracefully
+            error_str = str(e)
+            if "missing" in error_str and "required" in error_str:
+                return ToolFailure(
+                    error=f"Tool '{name}' was called with missing required arguments. {error_str}. "
+                    f"Please ensure all required parameters are provided when calling this tool."
+                )
+            raise
         except ToolError as e:
             return ToolFailure(error=e.message)
 
