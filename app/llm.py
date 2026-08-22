@@ -196,6 +196,9 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            self.aws_access_key_id = llm_config.aws_access_key_id
+            self.aws_secret_access_key = llm_config.aws_secret_access_key
+            self.aws_region_name = llm_config.aws_region_name
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -220,7 +223,11 @@ class LLM:
                     api_version=self.api_version,
                 )
             elif self.api_type == "aws":
-                self.client = BedrockClient()
+                self.client = BedrockClient(
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    aws_region_name=self.aws_region_name,
+                )
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
