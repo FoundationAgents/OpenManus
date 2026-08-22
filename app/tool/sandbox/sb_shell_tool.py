@@ -1,4 +1,5 @@
 import asyncio
+import shlex
 import time
 from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
@@ -157,25 +158,29 @@ class SandboxShellTool(SandboxToolsBase):
             if not session_name:
                 session_name = f"session_{str(uuid4())[:8]}"
 
+            # Quote session_name and cwd to prevent shell injection
+            quoted_session = shlex.quote(session_name)
+            quoted_cwd = shlex.quote(cwd)
+
             # Check if tmux session already exists
             check_session = await self._execute_raw_command(
-                f"tmux has-session -t {session_name} 2>/dev/null || echo 'not_exists'"
+                f"tmux has-session -t {quoted_session} 2>/dev/null || echo 'not_exists'"
             )
             session_exists = "not_exists" not in check_session.get("output", "")
 
             if not session_exists:
                 # Create a new tmux session
                 await self._execute_raw_command(
-                    f"tmux new-session -d -s {session_name}"
+                    f"tmux new-session -d -s {quoted_session}"
                 )
 
             # Ensure we're in the correct directory and send command to tmux
-            full_command = f"cd {cwd} && {command}"
+            full_command = f"cd {quoted_cwd} && {command}"
             wrapped_command = full_command.replace('"', '\\"')  # Escape double quotes
 
             # Send command to tmux session
             await self._execute_raw_command(
-                f'tmux send-keys -t {session_name} "{wrapped_command}" Enter'
+                f'tmux send-keys -t {quoted_session} "{wrapped_command}" Enter'
             )
 
             if blocking:
@@ -187,14 +192,14 @@ class SandboxShellTool(SandboxToolsBase):
 
                     # Check if session still exists (command might have exited)
                     check_result = await self._execute_raw_command(
-                        f"tmux has-session -t {session_name} 2>/dev/null || echo 'ended'"
+                        f"tmux has-session -t {quoted_session} 2>/dev/null || echo 'ended'"
                     )
                     if "ended" in check_result.get("output", ""):
                         break
 
                     # Get current output and check for common completion indicators
                     output_result = await self._execute_raw_command(
-                        f"tmux capture-pane -t {session_name} -p -S - -E -"
+                        f"tmux capture-pane -t {quoted_session} -p -S - -E -"
                     )
                     current_output = output_result.get("output", "")
 
@@ -218,12 +223,12 @@ class SandboxShellTool(SandboxToolsBase):
 
                 # Capture final output
                 output_result = await self._execute_raw_command(
-                    f"tmux capture-pane -t {session_name} -p -S - -E -"
+                    f"tmux capture-pane -t {quoted_session} -p -S - -E -"
                 )
                 final_output = output_result.get("output", "")
 
                 # Kill the session after capture
-                await self._execute_raw_command(f"tmux kill-session -t {session_name}")
+                await self._execute_raw_command(f"tmux kill-session -t {quoted_session}")
 
                 return self.success_response(
                     {
@@ -249,9 +254,9 @@ class SandboxShellTool(SandboxToolsBase):
             if session_name:
                 try:
                     await self._execute_raw_command(
-                        f"tmux kill-session -t {session_name}"
+                        f"tmux kill-session -t {shlex.quote(session_name)}"
                     )
-                except:
+                except Exception:
                     pass
             return self.fail_response(f"Error executing command: {str(e)}")
 
@@ -262,9 +267,11 @@ class SandboxShellTool(SandboxToolsBase):
             # Ensure sandbox is initialized
             await self._ensure_sandbox()
 
+            quoted_session = shlex.quote(session_name)
+
             # Check if session exists
             check_result = await self._execute_raw_command(
-                f"tmux has-session -t {session_name} 2>/dev/null || echo 'not_exists'"
+                f"tmux has-session -t {quoted_session} 2>/dev/null || echo 'not_exists'"
             )
             if "not_exists" in check_result.get("output", ""):
                 return self.fail_response(
@@ -273,13 +280,13 @@ class SandboxShellTool(SandboxToolsBase):
 
             # Get output from tmux pane
             output_result = await self._execute_raw_command(
-                f"tmux capture-pane -t {session_name} -p -S - -E -"
+                f"tmux capture-pane -t {quoted_session} -p -S - -E -"
             )
             output = output_result.get("output", "")
 
             # Kill session if requested
             if kill_session:
-                await self._execute_raw_command(f"tmux kill-session -t {session_name}")
+                await self._execute_raw_command(f"tmux kill-session -t {quoted_session}")
                 termination_status = "Session terminated."
             else:
                 termination_status = "Session still running."
@@ -300,9 +307,11 @@ class SandboxShellTool(SandboxToolsBase):
             # Ensure sandbox is initialized
             await self._ensure_sandbox()
 
+            quoted_session = shlex.quote(session_name)
+
             # Check if session exists
             check_result = await self._execute_raw_command(
-                f"tmux has-session -t {session_name} 2>/dev/null || echo 'not_exists'"
+                f"tmux has-session -t {quoted_session} 2>/dev/null || echo 'not_exists'"
             )
             if "not_exists" in check_result.get("output", ""):
                 return self.fail_response(
@@ -310,7 +319,7 @@ class SandboxShellTool(SandboxToolsBase):
                 )
 
             # Kill the session
-            await self._execute_raw_command(f"tmux kill-session -t {session_name}")
+            await self._execute_raw_command(f"tmux kill-session -t {quoted_session}")
 
             return self.success_response(
                 {"message": f"Tmux session '{session_name}' terminated successfully."}
