@@ -183,7 +183,8 @@ class ToolCallAgent(ReActAgent):
         try:
             # Parse arguments
             args = json.loads(command.function.arguments or "{}")
-
+            while isinstance(args, str):
+                args = json.loads(args)
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
             result = await self.available_tools.execute(name=name, tool_input=args)
