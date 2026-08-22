@@ -199,7 +199,11 @@ class DockerSession:
                         raise
 
                 output = b"\n".join(result_lines).decode("utf-8")
-                output = re.sub(r"\n\$ echo \$\$?.*$", "", output)
+                """
+                    Only if they are preceded by a newline (\n).
+                    So it fails when the line appears at the very beginning of the string (i.e., no \n before it).
+                """
+                output = re.sub(r"(^|\n)\$ echo \$\$?.*$", "", output)
 
                 return output
 
