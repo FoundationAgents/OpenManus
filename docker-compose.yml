@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  # =========================================================================
+  # PostgreSQL Datenbank
+  # =========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: upload_system_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-upload_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
+      POSTGRES_DB: ${DB_NAME:-upload_system}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-upload_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - upload_network
+
+  # =========================================================================
+  # Redis für Celery Tasks
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: upload_system_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - upload_network
+    volumes:
+      - redis_data:/data
+
+  # =========================================================================
+  # FastAPI Backend
+  # =========================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.upload
+    container_name: upload_system_backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-upload_user}:${DB_PASSWORD:-secure_password}@postgres:5432/${DB_NAME:-upload_system}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      STORAGE_PATH: /var/uploads
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-prod}
+      DEBUG: ${DEBUG:-False}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./config:/app/config
+      - uploads:/var/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - upload_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # =========================================================================
+  # Celery Worker für Background Tasks (E-Mails, etc.)
+  # =========================================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.upload
+    container_name: upload_system_celery
+    command: celery -A backend.celery_app worker -l info
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-upload_user}:${DB_PASSWORD:-secure_password}@postgres:5432/${DB_NAME:-upload_system}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+    volumes:
+      - ./backend:/app/backend
+      - ./config:/app/config
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    networks:
+      - upload_network
+
+  # =========================================================================
+  # Nginx Reverse Proxy
+  # =========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: upload_system_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - upload_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+
+networks:
+  upload_network:
+    driver: bridge

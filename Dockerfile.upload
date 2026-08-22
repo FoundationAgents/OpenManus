@@ -1,0 +1,61 @@
+# Multi-stage build für Upload-Management System
+
+# ============================================================================
+# STAGE 1: Backend Builder
+# ============================================================================
+FROM python:3.11-slim as backend-builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY backend/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ============================================================================
+# STAGE 2: Final image
+# ============================================================================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
+# Copy Python dependencies from builder
+COPY --from=backend-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+# Copy backend code
+COPY backend/ /app/backend/
+
+# Copy config files
+COPY config/ /app/config/
+
+# Create upload directory
+RUN mkdir -p /var/uploads && chown -R appuser:appuser /var/uploads /app
+
+# Set user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose ports
+EXPOSE 8000
+
+# Entrypoint
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

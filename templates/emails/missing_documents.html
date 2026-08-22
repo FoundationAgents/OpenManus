@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 3px solid #2196F3;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2196F3;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin: 20px 0;
+        }
+        .document-list {
+            background-color: #f9f9f9;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .document-list ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .document-list li {
+            margin: 8px 0;
+            color: #d32f2f;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #2196F3;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .cta-button:hover {
+            background-color: #1976D2;
+        }
+        .admin-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .warning {
+            color: #ff9800;
+        }
+        .error {
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Unterlagen erforderlich</h1>
+        </div>
+
+        <div class="content">
+            <p>Hallo,</p>
+
+            <p>für Ihre Finanzierungsanfrage fehlen noch folgende Dokumente:</p>
+
+            <div class="document-list">
+                <h3>{{ missing_documents|length }} fehlende Dokumente:</h3>
+                <ul>
+                    {% for doc in missing_documents %}
+                    <li><strong>{{ doc.label }}</strong> ({{ doc.category }})</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            {% if admin_message %}
+            <div class="admin-message">
+                <h3>💬 Nachricht vom Team:</h3>
+                <p>{{ admin_message }}</p>
+            </div>
+            {% endif %}
+
+            <p>Bitte laden Sie diese Dokumente so bald wie möglich hoch, um die Bearbeitung Ihrer Anfrage zu beschleunigen.</p>
+
+            <center>
+                <a href="https://yourdomain.com/upload" class="cta-button">→ Jetzt Dokumente hochladen</a>
+            </center>
+
+            <p><strong>Hinweis:</strong> Der Upload-Prozess ist einfach und dauert nur wenige Minuten. Sie können Dateien direkt hochladen oder einfach per Drag-and-Drop ablegen.</p>
+        </div>
+
+        <div class="footer">
+            <p>© {{ now().year }} {{ company_name }}</p>
+            <p>Bei Fragen wenden Sie sich bitte an <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>
+            <p><small>Diese E-Mail wurde automatisch generiert am {{ timestamp }}</small></p>
+        </div>
+    </div>
+</body>
+</html>

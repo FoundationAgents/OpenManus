@@ -1,0 +1,215 @@
+{
+  "bankProfiles": [
+    {
+      "id": "deutsche_bank",
+      "name": "Deutsche Bank",
+      "code": "db",
+      "requiredDocuments": [
+        "personalausweis_front",
+        "personalausweis_back",
+        "salary_slip_current_month",
+        "salary_slip_prev_month",
+        "salary_slip_3months_ago",
+        "salary_slip_december_prev_year",
+        "purchase_contract",
+        "grundbuchauszug",
+        "flurkarte",
+        "energy_certificate",
+        "floor_plans",
+        "living_space_calculation",
+        "photos_exterior",
+        "photos_interior",
+        "building_insurance"
+      ],
+      "conditionalDocuments": [
+        {
+          "documentId": "pension_certificate",
+          "condition": "customerStatus == 'retired' OR customerStatus == 'pensioner'"
+        },
+        {
+          "documentId": "tenant_list",
+          "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'"
+        },
+        {
+          "documentId": "tenant_contracts",
+          "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'"
+        },
+        {
+          "documentId": "operating_costs",
+          "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'"
+        }
+      ],
+      "requiredSalaryMonths": 3,
+      "minEigenkapitalPercent": 10,
+      "flexibleDocumentation": false,
+      "notes": "Standard-Anforderungen für Immobilienfinanzierung",
+      "isActive": true,
+      "contactEmail": "baufinanzierung@deutsche-bank.de"
+    },
+    {
+      "id": "commerzbank",
+      "name": "Commerzbank",
+      "code": "cb",
+      "requiredDocuments": [
+        "personalausweis_front",
+        "personalausweis_back",
+        "salary_slip_current_month",
+        "salary_slip_prev_month",
+        "salary_slip_december_prev_year",
+        "purchase_contract",
+        "grundbuchauszug",
+        "flurkarte",
+        "energy_certificate",
+        "floor_plans",
+        "photos_exterior",
+        "photos_interior",
+        "building_insurance"
+      ],
+      "conditionalDocuments": [
+        {
+          "documentId": "salary_slip_3months_ago",
+          "condition": "ltvRatio > 0.75"
+        },
+        {
+          "documentId": "pension_certificate",
+          "condition": "customerStatus == 'retired' OR customerStatus == 'pensioner'"
+        },
+        {
+          "documentId": "tenant_list",
+          "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'"
+        }
+      ],
+      "requiredSalaryMonths": 2,
+      "minEigenkapitalPercent": 10,
+      "flexibleDocumentation": true,
+      "notes": "Etwas weniger streng bei Eigenkapital > 40%",
+      "isActive": true,
+      "contactEmail": "baufi@commerzbank.de"
+    },
+    {
+      "id": "baufi24",
+      "name": "Baufi24 (Online-Kreditvermittler)",
+      "code": "baufi24",
+      "requiredDocuments": [
+        "personalausweis_front",
+        "personalausweis_back",
+        "salary_slip_current_month",
+        "salary_slip_prev_month",
+        "salary_slip_3months_ago",
+        "purchase_contract",
+        "grundbuchauszug",
+        "flurkarte",
+        "energy_certificate",
+        "floor_plans",
+        "photos_exterior"
+      ],
+      "conditionalDocuments": [
+        {
+          "documentId": "living_space_calculation",
+          "condition": "ltvRatio > 0.80"
+        },
+        {
+          "documentId": "photos_interior",
+          "condition": "propertyAge > 30"
+        }
+      ],
+      "requiredSalaryMonths": 2,
+      "minEigenkapitalPercent": 10,
+      "flexibleDocumentation": true,
+      "notes": "Flexible Online-Kreditvermittlung",
+      "isActive": true,
+      "contactEmail": "support@baufi24.de"
+    },
+    {
+      "id": "dr_klein",
+      "name": "Dr. Klein",
+      "code": "drklein",
+      "requiredDocuments": [
+        "personalausweis_front",
+        "personalausweis_back",
+        "salary_slip_current_month",
+        "salary_slip_prev_month",
+        "purchase_contract",
+        "grundbuchauszug",
+        "flurkarte",
+        "energy_certificate",
+        "floor_plans",
+        "living_space_calculation",
+        "photos_exterior",
+        "photos_interior",
+        "building_insurance"
+      ],
+      "conditionalDocuments": [
+        {
+          "documentId": "salary_slip_3months_ago",
+          "condition": "customerScore < 500"
+        },
+        {
+          "documentId": "salary_slip_december_prev_year",
+          "condition": "loanAmount > 300000"
+        }
+      ],
+      "requiredSalaryMonths": 2,
+      "minEigenkapitalPercent": 15,
+      "flexibleDocumentation": false,
+      "notes": "Makler mit hohen Standards",
+      "isActive": true,
+      "contactEmail": "partner@drklein.de"
+    },
+    {
+      "id": "custom_bank",
+      "name": "Custom Bank (Template)",
+      "code": "custom",
+      "requiredDocuments": [],
+      "conditionalDocuments": [],
+      "requiredSalaryMonths": 3,
+      "minEigenkapitalPercent": 10,
+      "flexibleDocumentation": false,
+      "notes": "Template für benutzerdefinierte Bank-Profile",
+      "isActive": false,
+      "contactEmail": "contact@custombank.de"
+    }
+  ],
+  "defaultProfile": "deutsche_bank",
+  "riskAdjustmentRules": {
+    "rules": [
+      {
+        "name": "High LTV",
+        "condition": "ltvRatio > 0.85",
+        "additionalRequirements": [
+          "schufa",
+          "salary_slip_december_prev_year"
+        ],
+        "description": "Bei hohem LTV (>85%) zusätzliche Sicherheiten erforderlich"
+      },
+      {
+        "name": "Low Credit Score",
+        "condition": "creditScore < 500",
+        "additionalRequirements": [
+          "schufa",
+          "bank_references"
+        ],
+        "description": "Bei niedriger Bonität zusätzliche Prüfungen erforderlich"
+      },
+      {
+        "name": "High Loan Amount",
+        "condition": "loanAmount > 1000000",
+        "additionalRequirements": [
+          "professional_valuation",
+          "legal_review"
+        ],
+        "description": "Bei hohen Kreditsummen zusätzliche professionelle Bewertung"
+      },
+      {
+        "name": "Commercial Property",
+        "condition": "propertyType == 'commercial'",
+        "additionalRequirements": [
+          "rental_income_statement",
+          "operating_costs",
+          "tenant_contracts"
+        ],
+        "description": "Gewerbeobjekte erfordern umfassendere Dokumentation"
+      }
+    ]
+  }
+}

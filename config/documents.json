@@ -1,0 +1,392 @@
+{
+  "documentTypes": [
+    {
+      "id": "personalausweis_front",
+      "label": "Personalausweis - Vorderseite",
+      "description": "Vorderseite des gültigen Personalausweises",
+      "category": "kundenunterlagen",
+      "subcategory": "identifizierung",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 3650,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true,
+          "notes": "KYC/AML-Anforderung"
+        },
+        {
+          "bankName": "Commerzbank",
+          "required": true,
+          "notes": "KYC/AML-Anforderung"
+        }
+      ]
+    },
+    {
+      "id": "personalausweis_back",
+      "label": "Personalausweis - Rückseite",
+      "description": "Rückseite des gültigen Personalausweises",
+      "category": "kundenunterlagen",
+      "subcategory": "identifizierung",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 3650,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        },
+        {
+          "bankName": "Commerzbank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "salary_slip_current_month",
+      "label": "Lohnabrechnung - Letzter Monat",
+      "description": "Lohnabrechnung oder Gehaltsabrechnung des letzten Monats",
+      "category": "kundenunterlagen",
+      "subcategory": "einkommensnachweise",
+      "isRequired": true,
+      "isConditional": true,
+      "condition": "customerStatus == 'employed'",
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 90,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true,
+          "notes": "Letzte 3 Monate erforderlich"
+        },
+        {
+          "bankName": "Commerzbank",
+          "required": true,
+          "notes": "Letzte 3 Monate erforderlich"
+        }
+      ]
+    },
+    {
+      "id": "salary_slip_prev_month",
+      "label": "Lohnabrechnung - Vorletzter Monat",
+      "description": "Lohnabrechnung oder Gehaltsabrechnung des vorletzten Monats",
+      "category": "kundenunterlagen",
+      "subcategory": "einkommensnachweise",
+      "isRequired": true,
+      "isConditional": true,
+      "condition": "customerStatus == 'employed'",
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 90,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "salary_slip_3months_ago",
+      "label": "Lohnabrechnung - Vor 3 Monaten",
+      "description": "Lohnabrechnung oder Gehaltsabrechnung von vor 3 Monaten",
+      "category": "kundenunterlagen",
+      "subcategory": "einkommensnachweise",
+      "isRequired": true,
+      "isConditional": true,
+      "condition": "customerStatus == 'employed'",
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 90,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "salary_slip_december_prev_year",
+      "label": "Lohnabrechnung - Dezember des Vorjahres",
+      "description": "Lohnabrechnung oder Gehaltsabrechnung vom Dezember des Vorjahres (enthält Jahressummen)",
+      "category": "kundenunterlagen",
+      "subcategory": "einkommensnachweise",
+      "isRequired": true,
+      "isConditional": true,
+      "condition": "customerStatus == 'employed'",
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        },
+        {
+          "bankName": "Commerzbank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "pension_certificate",
+      "label": "Rentenbescheid",
+      "description": "Aktueller Rentenbescheid (nicht älter als 1 Jahr)",
+      "category": "kundenunterlagen",
+      "subcategory": "einkommensnachweise",
+      "isRequired": true,
+      "isConditional": true,
+      "condition": "customerStatus == 'retired' OR customerStatus == 'pensioner'",
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 365,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "purchase_contract",
+      "label": "Kaufvertrag - Entwurf oder Unterzeichnet",
+      "description": "Kaufvertragsentwurf oder unterzeichneter Kaufvertrag",
+      "category": "objektunterlagen",
+      "subcategory": "kaufvertrag",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "docx"],
+      "maxFileSizeMB": 20,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        },
+        {
+          "bankName": "Commerzbank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "grundbuchauszug",
+      "label": "Grundbuchauszug",
+      "description": "Grundbuchauszug (Abteilungen I-III), nicht älter als 3-6 Monate",
+      "category": "objektunterlagen",
+      "subcategory": "registrierung",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 180,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "flurkarte",
+      "label": "Flurkarte / Katasterkarte",
+      "description": "Flurkarte oder Katasterkarte, nicht älter als 6 Monate",
+      "category": "objektunterlagen",
+      "subcategory": "registrierung",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 180,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "energy_certificate",
+      "label": "Energieausweis",
+      "description": "Energieausweis (Bedarfs- oder Verbrauchsausweis)",
+      "category": "objektunterlagen",
+      "subcategory": "gebaeude",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": 3650,
+      "notes": "Ab 2025 Pflichtdokument für alle Finanzierungen",
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "floor_plans",
+      "label": "Grundrisse (bemaßt)",
+      "description": "Bemaßte Grundrisse aller Ebenen",
+      "category": "objektunterlagen",
+      "subcategory": "gebaeude",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png", "dwg"],
+      "maxFileSizeMB": 20,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "living_space_calculation",
+      "label": "Wohnflächenberechnung",
+      "description": "Wohnflächenberechnung nach DIN 277 oder WoFlV",
+      "category": "objektunterlagen",
+      "subcategory": "gebaeude",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png", "docx"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "photos_exterior",
+      "label": "Fotos - Außenansichten",
+      "description": "Fotos der Außenseite des Objekts (mindestens 2 Seiten, Gesamtansicht, Eingang)",
+      "category": "objektunterlagen",
+      "subcategory": "fotos",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["jpg", "jpeg", "png"],
+      "maxFileSizeMB": 5,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "photos_interior",
+      "label": "Fotos - Innenansichten",
+      "description": "Fotos der Innenräume (Wohnzimmer, Küche, Schlafzimmer, Bad, etc.)",
+      "category": "objektunterlagen",
+      "subcategory": "fotos",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["jpg", "jpeg", "png"],
+      "maxFileSizeMB": 5,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "building_insurance",
+      "label": "Gebäudeversicherungsnachweis",
+      "description": "Nachweis der Gebäudeversicherung",
+      "category": "objektunterlagen",
+      "subcategory": "versicherung",
+      "isRequired": true,
+      "isConditional": false,
+      "acceptedFormats": ["pdf", "jpg", "jpeg", "png"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "tenant_list",
+      "label": "Mieterliste",
+      "description": "Aktuelle Mieterliste (nur bei vermieteten Objekten erforderlich)",
+      "category": "objektunterlagen",
+      "subcategory": "vermietung",
+      "isRequired": false,
+      "isConditional": true,
+      "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'",
+      "acceptedFormats": ["pdf", "xlsx", "csv"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "tenant_contracts",
+      "label": "Mietverträge",
+      "description": "Aktuelle Mietverträge (nur bei vermieteten Objekten erforderlich)",
+      "category": "objektunterlagen",
+      "subcategory": "vermietung",
+      "isRequired": false,
+      "isConditional": true,
+      "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'",
+      "acceptedFormats": ["pdf"],
+      "maxFileSizeMB": 20,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "operating_costs",
+      "label": "Betriebskostenabrechnung",
+      "description": "Betriebskostenabrechnung vom letzten Abrechnungsjahr",
+      "category": "objektunterlagen",
+      "subcategory": "vermietung",
+      "isRequired": false,
+      "isConditional": true,
+      "condition": "propertyType == 'rental' OR propertyType == 'multi_unit'",
+      "acceptedFormats": ["pdf", "xlsx"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": [
+        {
+          "bankName": "Deutsche Bank",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "schufa",
+      "label": "Schufa-Auskunft (Optional)",
+      "description": "Schufa-Auskunft für Bonitätsprüfung",
+      "category": "kundenunterlagen",
+      "subcategory": "optional",
+      "isRequired": false,
+      "isConditional": false,
+      "acceptedFormats": ["pdf"],
+      "maxFileSizeMB": 10,
+      "expiryDays": null,
+      "bankVariants": []
+    }
+  ]
+}
