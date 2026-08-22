@@ -55,6 +55,15 @@ temperature = 0.0                          # Controls randomness for vision mode
 # max_tokens = 4096
 # temperature = 0.0
 
+# [llm] #AZUREAIFOUNDRY:
+# api_type= 'azureAIFoundry'
+# model = "<model_name>"
+# base_url = "https://<yourservice>.services.ai.azure.com/models"
+# api_key = "only required when using key based auth. Otherwise just run az auth before running"
+# max_tokens = 8192
+# temperature = 0.0
+# api_version="2024-05-01-preview" #"2024-08-01-preview"
+
 # Optional configuration for specific browser configuration
 # [browser]
 # Whether to run browser in headless mode (default: false)
