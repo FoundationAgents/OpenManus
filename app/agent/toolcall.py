@@ -11,7 +11,6 @@ from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
 
-
 TOOL_CALL_REQUIRED = "Tool calls required but none provided"
 
 
@@ -23,6 +22,8 @@ class ToolCallAgent(ReActAgent):
 
     system_prompt: str = SYSTEM_PROMPT
     next_step_prompt: str = NEXT_STEP_PROMPT
+
+    strict_chat_structure: bool = Field(default=False)
 
     available_tools: ToolCollection = ToolCollection(
         CreateChatCompletion(), Terminate()
@@ -36,6 +37,16 @@ class ToolCallAgent(ReActAgent):
     max_steps: int = 30
     max_observe: Optional[Union[int, bool]] = None
 
+    def sanitize_message_history(self, messages):
+        sanitized = []
+        last_role = None
+        for msg in messages:
+            if msg.role == "user" and last_role == "tool":
+                sanitized.append(Message.assistant_message("(acknowledged)"))
+            sanitized.append(msg)
+            last_role = msg.role
+        return sanitized
+
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
         if self.next_step_prompt:
@@ -43,9 +54,15 @@ class ToolCallAgent(ReActAgent):
             self.messages += [user_msg]
 
         try:
+            # Sanitize message history if necessary
+            sanitized_messages = (
+                self.sanitize_message_history(self.messages)
+                if self.strict_chat_structure
+                else self.messages
+            )
             # Get response with tool options
             response = await self.llm.ask_tool(
-                messages=self.messages,
+                messages=sanitized_messages,
                 system_msgs=(
                     [Message.system_message(self.system_prompt)]
                     if self.system_prompt
