@@ -130,6 +130,14 @@ OpenManus requires configuration for the LLM APIs it uses. Follow these steps to
 cp config/config.example.toml config/config.toml
 ```
 
+ForAI can be used as an OpenAI-compatible gateway by copying the provided example configuration:
+
+```bash
+cp config/config.example-model-forai.toml config/config.toml
+```
+
+Then replace `YOUR_FORAI_API_KEY` with your ForAI API key. The example defaults to `gpt-5.5`; you can also switch the model to `claude-opus-4-8` if it is available in your ForAI account.
+
 2. Edit `config/config.toml` to add your API keys and customize settings:
 
 ```toml

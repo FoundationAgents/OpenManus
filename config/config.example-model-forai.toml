@@ -1,0 +1,28 @@
+# Global LLM configuration for ForAI
+# ForAI provides an OpenAI-compatible API endpoint for AI agents and developers.
+#
+# 1. Create a ForAI account: https://www.forai.ai
+# 2. Create an API key in the ForAI Console
+# 3. Replace YOUR_FORAI_API_KEY with your actual key
+# 4. Use a ForAI-supported model such as gpt-5.5 or claude-opus-4-8
+# 5. Copy this file to config/config.toml before running OpenManus
+
+[llm]
+model = "gpt-5.5"                               # The ForAI model to use
+base_url = "https://www.forai.ai/v1"            # API endpoint URL
+api_key = "YOUR_FORAI_API_KEY"                  # Your ForAI API key
+max_tokens = 4096                               # Maximum number of tokens in the response
+temperature = 0.0                               # Controls randomness
+
+# Alternative ForAI model:
+# model = "claude-opus-4-8"
+
+# Optional vision model configuration
+# Uncomment and update this section if you want to use a vision-capable model.
+#
+# [llm.vision]
+# model = "claude-opus-4-8"                      # The vision model to use
+# base_url = "https://www.forai.ai/v1"           # API endpoint URL for vision model
+# api_key = "YOUR_FORAI_API_KEY"                 # Your ForAI API key for vision model
+# max_tokens = 4096                              # Maximum number of tokens in the response
+# temperature = 0.0                              # Controls randomness for vision model
