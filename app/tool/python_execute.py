@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import sys
 from io import StringIO
@@ -36,6 +37,30 @@ class PythonExecute(BaseTool):
         finally:
             sys.stdout = original_stdout
 
+    def _run_in_process(self, code: str, timeout: int) -> Dict:
+        """Run code in a subprocess. This method is blocking and should be
+        called via run_in_executor to avoid blocking the event loop."""
+        with multiprocessing.Manager() as manager:
+            result = manager.dict({"observation": "", "success": False})
+            if isinstance(__builtins__, dict):
+                safe_globals = {"__builtins__": __builtins__}
+            else:
+                safe_globals = {"__builtins__": __builtins__.__dict__.copy()}
+            proc = multiprocessing.Process(
+                target=self._run_code, args=(code, result, safe_globals)
+            )
+            proc.start()
+            proc.join(timeout)
+
+            if proc.is_alive():
+                proc.terminate()
+                proc.join(1)
+                return {
+                    "observation": f"Execution timeout after {timeout} seconds",
+                    "success": False,
+                }
+            return dict(result)
+
     async def execute(
         self,
         code: str,
@@ -49,27 +74,7 @@ class PythonExecute(BaseTool):
             timeout (int): Execution timeout in seconds.
 
         Returns:
-            Dict: Contains 'output' with execution output or error message and 'success' status.
+            Dict: Contains 'observation' with execution output or error message and 'success' status.
         """
-
-        with multiprocessing.Manager() as manager:
-            result = manager.dict({"observation": "", "success": False})
-            if isinstance(__builtins__, dict):
-                safe_globals = {"__builtins__": __builtins__}
-            else:
-                safe_globals = {"__builtins__": __builtins__.__dict__.copy()}
-            proc = multiprocessing.Process(
-                target=self._run_code, args=(code, result, safe_globals)
-            )
-            proc.start()
-            proc.join(timeout)
-
-            # timeout process
-            if proc.is_alive():
-                proc.terminate()
-                proc.join(1)
-                return {
-                    "observation": f"Execution timeout after {timeout} seconds",
-                    "success": False,
-                }
-            return dict(result)
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._run_in_process, code, timeout)
