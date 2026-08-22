@@ -422,7 +422,7 @@ class LLM:
                     **params, stream=False
                 )
 
-                if not response.choices or not response.choices[0].message.content:
+                if not response.choices or response.choices[0].message is None or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
                 # Update token counts
@@ -592,7 +592,7 @@ class LLM:
             if not stream:
                 response = await self.client.chat.completions.create(**params)
 
-                if not response.choices or not response.choices[0].message.content:
+                if not response.choices or response.choices[0].message is None or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
                 self.update_token_count(response.usage.prompt_tokens)
