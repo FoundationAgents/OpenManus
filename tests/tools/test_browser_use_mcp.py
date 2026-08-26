@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -127,6 +128,7 @@ async def test_manus_enables_cli_mcp_by_default(monkeypatch):
     monkeypatch.setenv("BROWSER_USE_API_KEY", "bu_test")
     monkeypatch.setenv("BU_CDP_URL", "http://127.0.0.1:9237")
     monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-forwarded")
+    monkeypatch.setattr(manus_module.shutil, "which", lambda command: None)
     monkeypatch.setattr(manus_module.config.mcp_config, "servers", {})
     monkeypatch.setattr(manus_module.Manus, "connect_mcp_server", record_connection)
 
@@ -146,3 +148,93 @@ async def test_manus_enables_cli_mcp_by_default(monkeypatch):
             },
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_manus_enables_installed_cua_driver_by_default(monkeypatch):
+    calls = []
+
+    async def record_connection(self, *args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setenv("OPENMANUS_DISABLE_BROWSER_USE", "1")
+    monkeypatch.delenv("OPENMANUS_DISABLE_CUA_DRIVER", raising=False)
+    monkeypatch.setattr(
+        manus_module.shutil,
+        "which",
+        lambda command: (
+            "/usr/local/bin/cua-driver" if command == "cua-driver" else None
+        ),
+    )
+    monkeypatch.setattr(
+        manus_module.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0],
+            0,
+            stdout=(
+                '{"mcp_invocation":{"command":"/opt/cua-driver",'
+                '"args":["mcp","--socket","/tmp/cua.sock"]}}'
+            ),
+        ),
+    )
+    monkeypatch.setattr(manus_module.config.mcp_config, "servers", {})
+    monkeypatch.setattr(manus_module.Manus, "connect_mcp_server", record_connection)
+
+    await manus_module.Manus.model_construct().initialize_mcp_servers()
+
+    assert calls == [
+        (
+            ("/opt/cua-driver", "cua_driver"),
+            {
+                "use_stdio": True,
+                "stdio_args": ["mcp", "--socket", "/tmp/cua.sock"],
+                "tool_name_prefix": False,
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("servers", "disabled"),
+    [
+        ({}, "1"),
+        ({"cua_driver": object()}, "0"),
+    ],
+)
+async def test_manus_does_not_duplicate_or_force_cua_driver(
+    monkeypatch, servers, disabled
+):
+    calls = []
+
+    async def record_connection(self, *args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setenv("OPENMANUS_DISABLE_BROWSER_USE", "1")
+    monkeypatch.setenv("OPENMANUS_DISABLE_CUA_DRIVER", disabled)
+    monkeypatch.setattr(
+        manus_module.shutil, "which", lambda command: "/usr/local/bin/cua-driver"
+    )
+    monkeypatch.setattr(manus_module.config.mcp_config, "servers", servers)
+    monkeypatch.setattr(manus_module.Manus, "connect_mcp_server", record_connection)
+
+    await manus_module.Manus.model_construct().initialize_mcp_servers()
+
+    assert calls == []
+
+
+def test_cua_driver_manifest_failure_uses_compatible_mcp_command(monkeypatch):
+    monkeypatch.setattr(
+        manus_module.shutil, "which", lambda command: "/usr/local/bin/cua-driver"
+    )
+
+    def fail_manifest(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], timeout=5)
+
+    monkeypatch.setattr(manus_module.subprocess, "run", fail_manifest)
+
+    assert manus_module._cua_driver_mcp_invocation() == (
+        "/usr/local/bin/cua-driver",
+        ["mcp"],
+    )

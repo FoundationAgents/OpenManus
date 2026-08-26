@@ -120,6 +120,37 @@ BrowserGym still requires its Playwright browser:
 playwright install
 ```
 
+### Desktop automation with Cua Driver
+
+OpenManus automatically connects to [Cua Driver](https://cua.ai/docs/cua-driver)
+when the `cua-driver` executable is installed on `PATH`. Cua Driver exposes
+native desktop apps and windows as MCP tools on macOS, Windows, and Linux:
+
+```bash
+cua-driver mcp
+```
+
+Follow the [Cua Driver installation
+guide](https://cua.ai/docs/how-to-guides/driver/install), then configure the
+operating-system permissions described there. OpenManus uses Cua Driver's
+default `standard` permission mode. To customize the MCP command, add a
+`cua_driver` stdio server to `config/mcp.json`; an explicit entry takes
+precedence over automatic discovery:
+
+```json
+{
+  "mcpServers": {
+    "cua_driver": {
+      "type": "stdio",
+      "command": "cua-driver",
+      "args": ["mcp", "--grant", "existing-profile"]
+    }
+  }
+}
+```
+
+Set `OPENMANUS_DISABLE_CUA_DRIVER=1` to disable automatic Cua Driver discovery.
+
 ## Configuration
 
 OpenManus requires configuration for the LLM APIs it uses. Follow these steps to set up your configuration:

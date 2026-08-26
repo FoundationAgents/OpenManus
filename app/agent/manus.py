@@ -1,4 +1,7 @@
+import json
 import os
+import shutil
+import subprocess
 from typing import Dict, List, Optional
 
 from pydantic import Field
@@ -32,10 +35,31 @@ shows `browser-use <<'PY'`, pass the Python body to `browser_exec` instead.
 Use `browser_screenshot` when visual inspection is needed. Both tools use the
 same persistent browser-harness session as CLI 3.0.
 """
+_CUA_DRIVER_SERVER_ID = "cua_driver"
+_CUA_DRIVER_COMMAND = "cua-driver"
 
 
 def _browser_use_env() -> Dict[str, str]:
     return {name: value for name in _BROWSER_USE_ENV_VARS if (value := os.getenv(name))}
+
+
+def _cua_driver_mcp_invocation() -> Optional[tuple[str, List[str]]]:
+    command = shutil.which(_CUA_DRIVER_COMMAND)
+    if not command:
+        return None
+
+    try:
+        result = subprocess.run(
+            [command, "manifest"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=5,
+        )
+        invocation = json.loads(result.stdout)["mcp_invocation"]
+        return invocation["command"], invocation["args"]
+    except (KeyError, OSError, subprocess.SubprocessError, ValueError):
+        return command, ["mcp"]
 
 
 class Manus(ToolCallAgent):
@@ -82,6 +106,24 @@ class Manus(ToolCallAgent):
 
     async def initialize_mcp_servers(self) -> None:
         """Initialize connections to configured MCP servers."""
+        if _CUA_DRIVER_SERVER_ID not in config.mcp_config.servers and os.getenv(
+            "OPENMANUS_DISABLE_CUA_DRIVER", ""
+        ).lower() not in {"1", "true", "yes"}:
+            cua_driver_invocation = _cua_driver_mcp_invocation()
+            if cua_driver_invocation:
+                try:
+                    cua_driver_command, cua_driver_args = cua_driver_invocation
+                    await self.connect_mcp_server(
+                        cua_driver_command,
+                        _CUA_DRIVER_SERVER_ID,
+                        use_stdio=True,
+                        stdio_args=cua_driver_args,
+                        tool_name_prefix=False,
+                    )
+                    logger.info("Connected to Cua Driver through MCP")
+                except Exception as e:
+                    logger.error(f"Failed to connect to Cua Driver: {e}")
+
         if _BROWSER_USE_SERVER_ID not in config.mcp_config.servers and os.getenv(
             "OPENMANUS_DISABLE_BROWSER_USE", ""
         ).lower() not in {"1", "true", "yes"}:
