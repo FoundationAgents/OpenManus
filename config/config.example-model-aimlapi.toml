@@ -1,0 +1,19 @@
+# Global LLM configuration
+[llm] #aimlapi.com:
+api_type = 'aimlapi'
+model = "anthropic/claude-sonnet-4.6"                              # The LLM model to use
+base_url = "https://api.aimlapi.com/v1"                            # API endpoint URL
+api_key = "your aimlapi.com api key"                               # Your API key
+max_tokens = 8192                                                  # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+# The vision model must be named exactly as it appears in MULTIMODAL_MODELS
+# (app/llm.py); other ids make OpenManus drop image content silently.
+[llm.vision] #aimlapi.com VISION:
+api_type = 'aimlapi'
+model = "gpt-4o"                                                   # The vision model to use
+base_url = "https://api.aimlapi.com/v1"                            # API endpoint URL for vision model
+api_key = "your aimlapi.com api key"                               # Your API key for vision model
+max_tokens = 8192                                                  # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness for vision model
