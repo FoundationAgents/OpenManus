@@ -148,6 +148,48 @@ base_url = "https://api.openai.com/v1"
 api_key = "sk-..."  # Replace with your actual API key
 ```
 
+### Optional web search with Parallel
+
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) provides
+web search and page extraction without a Parallel account or API key. To enable
+it, install Node.js 22 or newer with `npx` available on your `PATH`, then add this
+entry to `config/mcp.json`. If the file already exists, merge the `parallel-search`
+entry into its `mcpServers` object and keep your other servers.
+
+```json
+{
+  "mcpServers": {
+    "parallel-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://search.parallel.ai/mcp",
+        "--transport",
+        "http-only"
+      ]
+    }
+  }
+}
+```
+
+OpenManus uses [`mcp-remote`](https://github.com/geelen/mcp-remote) as a local
+stdio bridge to Parallel's Streamable HTTP endpoint. The first connection may
+download the bridge through `npx`. The existing `sse` connection type uses a
+different transport and cannot connect directly to this endpoint.
+
+After completing the LLM configuration above, start `python main.py`. The agent
+will have `mcp_parallel-search_web_search` and `mcp_parallel-search_web_fetch`
+available alongside its existing tools. Once enabled, the agent may call them
+during a task, sending queries, requested URLs, and any supplied objectives or
+context to Parallel. Free access is rate limited; your LLM provider's credentials
+and charges still apply.
+
+To disable the connection, remove `parallel-search` from `config/mcp.json` and
+restart OpenManus. This optional setup does not change the default Browser Use
+connection or the search engine configuration.
+
 ## Quick Start
 
 One line for run OpenManus:
