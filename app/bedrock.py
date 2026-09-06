@@ -89,7 +89,7 @@ class ChatCompletions:
         system_prompt = []
         for message in messages:
             if message.get("role") == "system":
-                system_prompt = [{"text": message.get("content")}]
+                system_prompt.append({"text": message.get("content")})
             elif message.get("role") == "user":
                 bedrock_message = {
                     "role": message.get("role", "user"),
