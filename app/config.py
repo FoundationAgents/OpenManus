@@ -58,6 +58,10 @@ class SearchSettings(BaseModel):
         default="us",
         description="Country code for search results (e.g., us, cn, uk)",
     )
+    keenable_api_key: Optional[str] = Field(
+        default=None,
+        description="Optional API key for the Keenable engine; without it the public endpoint is used",
+    )
 
 
 class RunflowSettings(BaseModel):
