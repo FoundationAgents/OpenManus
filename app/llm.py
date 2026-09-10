@@ -349,7 +349,70 @@ class LLM:
             if msg["role"] not in ROLE_VALUES:
                 raise ValueError(f"Invalid role: {msg['role']}")
 
+        # Sanitize message chain: ensure tool messages have matching assistant tool_calls
+        formatted_messages = cls._sanitize_tool_messages(formatted_messages)
+
         return formatted_messages
+
+    @staticmethod
+    def _sanitize_tool_messages(messages: List[dict]) -> List[dict]:
+        """
+        Sanitize message history to ensure tool_call_id consistency.
+
+        Some LLM providers (e.g., Claude/Anthropic) require that every tool message
+        has a preceding assistant message with matching tool_calls. When message
+        history is truncated (e.g., by Memory max_messages), orphaned tool messages
+        can remain, causing API errors like:
+        'tool_call_id of X not found in tool_calls of previous message'
+
+        This method removes orphaned tool messages and ensures proper pairing.
+        """
+        # Collect all valid tool_call_ids from assistant messages
+        valid_tool_call_ids = set()
+        for msg in messages:
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                for tc in msg["tool_calls"]:
+                    if isinstance(tc, dict):
+                        valid_tool_call_ids.add(tc.get("id", ""))
+                    elif hasattr(tc, "id"):
+                        valid_tool_call_ids.add(tc.id)
+
+        # Filter out orphaned tool messages
+        sanitized = []
+        for msg in messages:
+            if msg.get("role") == "tool":
+                tool_call_id = msg.get("tool_call_id", "")
+                if tool_call_id not in valid_tool_call_ids:
+                    # Skip orphaned tool message
+                    continue
+            sanitized.append(msg)
+
+        # Ensure assistant messages with tool_calls are followed by their tool responses
+        # If an assistant message has tool_calls but no tool responses follow, remove tool_calls
+        result = []
+        for i, msg in enumerate(sanitized):
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                # Check if any tool messages follow this assistant message
+                has_tool_response = False
+                for j in range(i + 1, len(sanitized)):
+                    next_msg = sanitized[j]
+                    if next_msg.get("role") == "tool":
+                        has_tool_response = True
+                        break
+                    elif next_msg.get("role") in ("assistant", "user"):
+                        break
+
+                if not has_tool_response:
+                    # Remove tool_calls from this assistant message
+                    msg = {k: v for k, v in msg.items() if k != "tool_calls"}
+                    if not msg.get("content"):
+                        msg[
+                            "content"
+                        ] = "[Tool calls were removed due to missing responses]"
+
+            result.append(msg)
+
+        return result
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
