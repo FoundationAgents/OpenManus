@@ -75,6 +75,42 @@ async def test_mcp_preserves_server_instructions_and_native_tool_names():
 
 
 @pytest.mark.asyncio
+async def test_mcp_refresh_removes_tools_no_longer_advertised():
+    class MutableSession(FakeSession):
+        def __init__(self):
+            super().__init__()
+            self.tools = [
+                Tool(
+                    name="old_tool",
+                    description="Old tool",
+                    inputSchema={"type": "object"},
+                )
+            ]
+
+        async def list_tools(self):
+            return ListToolsResult(tools=self.tools)
+
+    clients = MCPClients()
+    session = MutableSession()
+    clients.sessions["server"] = session
+
+    await clients._initialize_and_list_tools("server", tool_name_prefix=False)
+    assert set(clients.tool_map) == {"old_tool"}
+
+    session.tools = [
+        Tool(
+            name="new_tool",
+            description="New tool",
+            inputSchema={"type": "object"},
+        )
+    ]
+    await clients._initialize_and_list_tools("server", tool_name_prefix=False)
+
+    assert set(clients.tool_map) == {"new_tool"}
+    assert tuple(tool.name for tool in clients.tools) == ("new_tool",)
+
+
+@pytest.mark.asyncio
 async def test_mcp_forwards_text_and_screenshot_content():
     session = FakeSession(
         content=[

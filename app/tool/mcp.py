@@ -128,6 +128,15 @@ class MCPClients(ToolCollection):
             self.server_instructions[server_id] = initialization.instructions
         response = await session.list_tools()
 
+        # A server can change its tool list between reconnects. Remove the
+        # previous snapshot before adding the current one so stale tools are
+        # not exposed after a server refresh.
+        self.tool_map = {
+            name: tool
+            for name, tool in self.tool_map.items()
+            if tool.server_id != server_id
+        }
+
         # Create proper tool objects for each server tool
         for tool in response.tools:
             original_name = tool.name
