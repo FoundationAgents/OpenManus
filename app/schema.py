@@ -174,9 +174,18 @@ class Memory(BaseModel):
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages :]
 
-    def clear(self) -> None:
-        """Clear all messages"""
-        self.messages.clear()
+    def clear(self, keep_system: bool = False) -> None:
+        """Clear messages stored in memory.
+
+        Args:
+            keep_system: Keep system-role messages. They carry setup context
+                (tool lists, MCP server instructions) that must survive the
+                start of a new user request.
+        """
+        if keep_system:
+            self.messages = [msg for msg in self.messages if msg.role == Role.SYSTEM]
+        else:
+            self.messages.clear()
 
     def get_recent_messages(self, n: int) -> List[Message]:
         """Get n most recent messages"""

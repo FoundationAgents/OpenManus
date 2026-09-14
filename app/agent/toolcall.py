@@ -250,6 +250,18 @@ class ToolCallAgent(ReActAgent):
                     )
         logger.info(f"✨ Cleanup complete for agent '{self.name}'.")
 
+    def reset(
+        self,
+        clear_memory: bool = True,
+        keep_system_messages: Optional[bool] = None,
+    ) -> None:
+        """Reset tool-call bookkeeping along with the shared agent state."""
+        super().reset(
+            clear_memory=clear_memory, keep_system_messages=keep_system_messages
+        )
+        self.tool_calls = []
+        self._current_base64_image = None
+
     async def run(self, request: Optional[str] = None) -> str:
         """Run the agent with cleanup when done."""
         try:

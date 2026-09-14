@@ -40,7 +40,22 @@ class BaseAgent(BaseModel, ABC):
     max_steps: int = Field(default=10, description="Maximum steps before termination")
     current_step: int = Field(default=0, description="Current step in execution")
 
+    # Per-request isolation
+    reset_memory_on_run: bool = Field(
+        default=True,
+        description="Clear conversation memory when a new run starts, so a new "
+        "request is not answered with the previous request's context",
+    )
+    keep_system_messages_on_reset: bool = Field(
+        default=True,
+        description="Keep system-role messages (setup and tool instructions) "
+        "when memory is cleared",
+    )
+
     duplicate_threshold: int = 2
+
+    # Pristine copy of next_step_prompt, used to undo in-run prompt mutations
+    _initial_next_step_prompt: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -53,6 +68,7 @@ class BaseAgent(BaseModel, ABC):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+        self._initial_next_step_prompt = self.next_step_prompt
         return self
 
     @asynccontextmanager
@@ -113,6 +129,31 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
+    def reset(
+        self,
+        clear_memory: bool = True,
+        keep_system_messages: Optional[bool] = None,
+    ) -> None:
+        """Reset execution state so the agent can handle a brand-new request.
+
+        Args:
+            clear_memory: Drop the conversation stored in memory. Without this,
+                a new request is answered with the previous request's messages
+                still in context.
+            keep_system_messages: Keep system-role messages while clearing.
+                Defaults to `keep_system_messages_on_reset`.
+        """
+        self.current_step = 0
+        self.state = AgentState.IDLE
+        # handle_stuck_state() mutates next_step_prompt in place; restore the
+        # pristine prompt so hints from a previous request are not inherited.
+        self.next_step_prompt = self._initial_next_step_prompt
+
+        if clear_memory:
+            if keep_system_messages is None:
+                keep_system_messages = self.keep_system_messages_on_reset
+            self.memory.clear(keep_system=keep_system_messages)
+
     async def run(self, request: Optional[str] = None) -> str:
         """Execute the agent's main loop asynchronously.
 
@@ -127,6 +168,10 @@ class BaseAgent(BaseModel, ABC):
         """
         if self.state != AgentState.IDLE:
             raise RuntimeError(f"Cannot run agent from state: {self.state}")
+
+        # Every run serves a new request: restart step numbering at 1 and drop
+        # the previous request's messages so they cannot pollute this one.
+        self.reset(clear_memory=self.reset_memory_on_run)
 
         if request:
             self.update_memory("user", request)
@@ -147,8 +192,8 @@ class BaseAgent(BaseModel, ABC):
                 results.append(f"Step {self.current_step}: {step_result}")
 
             if self.current_step >= self.max_steps:
-                self.current_step = 0
-                self.state = AgentState.IDLE
+                # The counter is not zeroed here: it reports how many steps this
+                # request used, and the next run() resets it.
                 results.append(f"Terminated: Reached max steps ({self.max_steps})")
         await SANDBOX_CLIENT.cleanup()
         return "\n".join(results) if results else "No steps executed"

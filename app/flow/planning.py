@@ -291,7 +291,11 @@ class PlanningFlow(BaseFlow):
         Please only execute this current step using the appropriate tools. When you're done, provide a summary of what you accomplished.
         """
 
-        # Use agent.run() to execute the step
+        # Use agent.run() to execute the step. Plan steps are continuations of a
+        # single user request, so the executor keeps its memory across them and
+        # later steps can build on what earlier ones did.
+        previous_reset_memory_on_run = executor.reset_memory_on_run
+        executor.reset_memory_on_run = False
         try:
             step_result = await executor.run(step_prompt)
 
@@ -302,6 +306,8 @@ class PlanningFlow(BaseFlow):
         except Exception as e:
             logger.error(f"Error executing step {self.current_step_index}: {e}")
             return f"Error executing step {self.current_step_index}: {str(e)}"
+        finally:
+            executor.reset_memory_on_run = previous_reset_memory_on_run
 
     async def _mark_step_completed(self) -> None:
         """Mark the current step as completed."""
