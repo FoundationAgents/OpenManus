@@ -137,6 +137,53 @@ python run_mcp.py
 python run_flow.py
 ```
 
+## OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai) は OpenAI 互換の AI ゲートウェイです。OpenManus は他の OpenAI 互換プロバイダーと同じ `api_type` の仕組みで接続します。認証方法ごとに 2 つの provider エントリがあり、どちらも最終的に同じ `sk-orca-...` キーで `https://api.orcarouter.ai/v1` を利用します。
+
+| `api_type` | 認証方法 |
+| --- | --- |
+| `orcarouter` | 既存の `sk-orca-...` キーを `api_key` に記入、または `ORCAROUTER_API_KEY` を設定。 |
+| `orcarouter-oauth` | `orcarouter login` を実行し、ブラウザーで承認（OAuth 2.0 + PKCE）。 |
+
+```bash
+# 方法 1 - 既存のキーを使う
+export ORCAROUTER_API_KEY=sk-orca-...
+# 方法 2 - OrcaRouter アカウントでサインイン（ブラウザーが開き、キーのコピーは不要）
+orcarouter login
+```
+
+```toml
+[llm]
+api_type = "orcarouter"          # `orcarouter login` 後は "orcarouter-oauth"
+model = "orcarouter/auto"
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"   # 空のままにすると保存済み／環境変数のキーを使用
+max_tokens = 16000
+temperature = 0.0
+
+[llm.vision]
+api_type = "orcarouter"
+model = "google/gemini-3.5-flash"     # カタログ内の画像入力対応モデル
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"
+```
+
+キーはあなたの OrcaRouter アカウントに属し、課金もあなたに帰属し、<https://www.orcarouter.ai/console/authorized-apps> からいつでも失効できます。保存先は `~/.openmanus/orcarouter.json`（パーミッション `0600`）で、本リポジトリには書き込まれません。
+
+```bash
+orcarouter login            # 認証（API キー、またはブラウザーによる PKCE）
+orcarouter login --code X   # 同意画面にコードが表示された場合の PKCE 完了
+orcarouter status           # 保存済みクレデンシャルと再認証の要否を確認
+orcarouter models           # GET /v1/models から、そのキーで利用可能なモデルを一覧
+orcarouter logout           # 保存済みクレデンシャルを削除
+```
+
+セルフホストの OrcaRouter は `ORCA_BASE_URL`（単一の共有オリジン）、または `ORCA_AUTH_BASE_URL` / `ORCA_API_BASE_URL`（認証と推論を分離）で自前のオリジンに向けられます。ループバック以外では HTTPS が必須です。
+
+モデル ID はカタログの表記そのまま、vendor 名前空間付きで扱います（`orcarouter/auto`、`google/gemini-3.5-flash`）。すべての入口が同じモデルカタログサービスを通して候補を解決するため、セレクタが提示する選択肢は常にカタログが裏付けたモデルです。chat 入口は画像・動画・rerank モデルを除外し、スクリーンショットを送る入口はカタログ記録で `image` 入力を明示しているモデルだけを提示します。テキスト専用モデルに画像を添付した場合は、画像を黙って捨てずにモデル ID と対処方法を示して拒否します。`orcarouter models` は同じ絞り込み結果を能力ごとに表示し、現在の能力では許可されなくなった保存済みモデルに印を付けます。
+
+
 ## カスタムマルチエージェントの追加
 
 現在、一般的なOpenManusエージェントに加えて、データ分析とデータ可視化タスクに適したDataAnalysisエージェントが組み込まれています。このエージェントを`config.toml`の`run_flow`に追加することができます。

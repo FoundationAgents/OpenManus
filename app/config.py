@@ -194,6 +194,49 @@ class AppConfig(BaseModel):
         arbitrary_types_allowed = True
 
 
+def _resolve_orcarouter_settings(settings: dict) -> LLMSettings:
+    """Build one LLM profile, filling in the OrcaRouter credential when needed.
+
+    An OrcaRouter profile may legitimately ship with an empty ``api_key`` and
+    no ``base_url``: the credential then comes from the shared OrcaRouter
+    credential seam (a stored login, ``ORCAROUTER_API_KEY``, or the credential
+    file), and the base URL falls back to the configured OrcaRouter origin.
+    Any other provider keeps the existing behaviour exactly.
+    """
+    from app.orcarouter.constants import looks_like_placeholder
+    from app.orcarouter.errors import OrcaError
+    from app.orcarouter.provider import client_config_for, is_orcarouter
+
+    if not is_orcarouter(settings.get("api_type")):
+        return LLMSettings(**settings)
+
+    configured_key = (settings.get("api_key") or "").strip()
+    configured_base = (settings.get("base_url") or "").strip()
+
+    if configured_key and not looks_like_placeholder(configured_key):
+        return LLMSettings(**settings)
+
+    try:
+        resolved = client_config_for(
+            settings["api_type"],
+            configured_api_key=None,
+            configured_base_url=configured_base or None,
+        )
+    except OrcaError as exc:
+        # Leave the profile without a credential rather than failing to start:
+        # the error is deferred to the first OrcaRouter request, where it can
+        # be reported with the provider's own guidance.
+        from app.logger import logger
+
+        logger.warning(f"OrcaRouter credential is not available yet: {exc}")
+        return LLMSettings(**settings)
+
+    settings = dict(settings)
+    settings["api_key"] = resolved.api_key
+    settings["base_url"] = resolved.base_url
+    return LLMSettings(**settings)
+
+
 class Config:
     _instance = None
     _lock = threading.Lock()
@@ -324,6 +367,11 @@ class Config:
             "mcp_config": mcp_settings,
             "run_flow_config": run_flow_settings,
             "daytona_config": daytona_settings,
+        }
+
+        config_dict["llm"] = {
+            name: _resolve_orcarouter_settings(settings)
+            for name, settings in config_dict["llm"].items()
         }
 
         self._config = AppConfig(**config_dict)

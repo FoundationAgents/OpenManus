@@ -137,6 +137,53 @@ python run_mcp.py
 python run_flow.py
 ```
 
+## OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai)는 OpenAI 호환 AI 게이트웨이입니다. OpenManus는 다른 OpenAI 호환 공급자와 동일한 `api_type` 방식으로 연결합니다. 인증 방법별로 두 개의 provider 항목이 있으며, 둘 다 결국 같은 `sk-orca-...` 키로 `https://api.orcarouter.ai/v1`을 사용합니다.
+
+| `api_type` | 인증 방법 |
+| --- | --- |
+| `orcarouter` | 기존 `sk-orca-...` 키를 `api_key`에 입력하거나 `ORCAROUTER_API_KEY`를 설정합니다. |
+| `orcarouter-oauth` | `orcarouter login`을 실행하고 브라우저에서 승인합니다(OAuth 2.0 + PKCE). |
+
+```bash
+# 방법 1 - 기존 키 사용
+export ORCAROUTER_API_KEY=sk-orca-...
+# 방법 2 - OrcaRouter 계정으로 로그인 (브라우저가 열리고 키를 복사할 필요가 없습니다)
+orcarouter login
+```
+
+```toml
+[llm]
+api_type = "orcarouter"          # `orcarouter login` 후에는 "orcarouter-oauth"
+model = "orcarouter/auto"
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"   # 비워 두면 저장된 키/환경 변수 키를 사용합니다
+max_tokens = 16000
+temperature = 0.0
+
+[llm.vision]
+api_type = "orcarouter"
+model = "google/gemini-3.5-flash"     # 카탈로그에서 이미지 입력을 지원하는 모델
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"
+```
+
+키는 사용자의 OrcaRouter 계정에 속하며, 요금도 사용자에게 청구되고 <https://www.orcarouter.ai/console/authorized-apps>에서 언제든지 폐기할 수 있습니다. 저장 위치는 `~/.openmanus/orcarouter.json`(권한 `0600`)이며 이 저장소에는 기록되지 않습니다.
+
+```bash
+orcarouter login            # 인증 (API 키 또는 브라우저를 통한 PKCE)
+orcarouter login --code X   # 동의 화면에 코드가 표시된 경우의 PKCE 완료
+orcarouter status           # 저장된 자격 증명과 재인증 필요 여부 확인
+orcarouter models           # GET /v1/models에서 이 키로 호출 가능한 모델 목록
+orcarouter logout           # 저장된 자격 증명 삭제
+```
+
+자체 호스팅 OrcaRouter는 `ORCA_BASE_URL`(단일 공유 오리진) 또는 `ORCA_AUTH_BASE_URL` / `ORCA_API_BASE_URL`(인증/추론 분리)로 자체 오리진을 지정할 수 있습니다. 루프백을 제외하면 HTTPS가 필수입니다.
+
+모델 ID는 카탈로그 표기 그대로 vendor 네임스페이스를 유지합니다(`orcarouter/auto`, `google/gemini-3.5-flash`). 모든 진입점이 동일한 모델 카탈로그 서비스로 후보를 해석하므로, 선택기가 제시하는 옵션은 항상 카탈로그가 보증한 모델입니다. chat 진입점은 이미지/비디오/rerank 모델을 제외하고, 스크린샷을 업로드하는 진입점은 카탈로그 레코드에 `image` 입력을 명시한 모델만 제시합니다. 텍스트 전용 모델에 이미지를 첨부하면 이미지를 조용히 버리지 않고 모델 ID와 해결 방법을 알려 거부합니다. `orcarouter models`는 동일한 필터 결과를 능력별로 출력하고, 현재 능력에서 더 이상 허용되지 않는 저장된 모델을 표시합니다.
+
+
 ### 사용자 정의 다중 에이전트 추가
 
 현재 일반 OpenManus 에이전트 외에도 데이터 분석 및 데이터 시각화 작업에 적합한 DataAnalysis 에이전트를 통합했습니다. 이 에이전트를 `config.toml`의 `run_flow`에 추가할 수 있습니다.

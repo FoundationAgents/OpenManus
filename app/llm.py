@@ -22,6 +22,11 @@ from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
+from app.orcarouter.provider import (
+    client_config_for,
+    is_orcarouter,
+    mark_terminal_reauth,
+)
 from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
@@ -221,6 +226,17 @@ class LLM:
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
+            elif is_orcarouter(self.api_type):
+                # Both OrcaRouter entries ("orcarouter" for a pasted API key and
+                # "orcarouter-oauth" for a PKCE login) resolve their credential
+                # through the shared seam and then build the same OpenAI client
+                # against the same inference origin. Nothing below this line
+                # cares which of the two produced the key.
+                orca = client_config_for(self.api_type, configured_api_key=self.api_key)
+                self.api_key = orca.api_key
+                self.base_url = orca.base_url
+                self.orca_credential = orca.credential
+                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
             else:
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -384,8 +400,10 @@ class LLM:
             Exception: For unexpected errors
         """
         try:
-            # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            # Check if the model supports images. For OrcaRouter this asks the
+            # model catalog, which is also what filters the selector options.
+            self._guard_orcarouter_image(messages)
+            supports_images = self._supports_images()
 
             # Format system and user messages with image support check
             if system_msgs:
@@ -469,6 +487,11 @@ class LLM:
             logger.exception(f"OpenAI API error")
             if isinstance(oe, AuthenticationError):
                 logger.error("Authentication failed. Check API key.")
+                # A 401 from the OrcaRouter relay means the credential was
+                # revoked. There is no refresh grant for a durable OrcaRouter
+                # key, so this is terminal: flag the exact account/generation
+                # that made the rejected request and let the user log in again.
+                self._handle_orcarouter_unauthorized(oe)
             elif isinstance(oe, RateLimitError):
                 logger.error("Rate limit exceeded. Consider increasing retry attempts.")
             elif isinstance(oe, APIError):
@@ -477,6 +500,77 @@ class LLM:
         except Exception:
             logger.exception(f"Unexpected error in ask")
             raise
+
+    def _handle_orcarouter_unauthorized(self, error: Exception) -> None:
+        """Terminal 401 handling for OrcaRouter credentials.
+
+        Only the account and credential generation that issued the rejected
+        request are marked, so a late failure cannot poison a credential that
+        was re-authorized in the meantime. The stored secret is deliberately
+        kept until a new login succeeds.
+        """
+        if not is_orcarouter(self.api_type):
+            return
+        try:
+            marked = mark_terminal_reauth(getattr(self, "orca_credential", None))
+        except Exception as exc:  # never let bookkeeping mask the 401
+            logger.debug(
+                f"Could not record OrcaRouter reauth state: {type(exc).__name__}"
+            )
+            return
+        if marked:
+            logger.error(
+                "OrcaRouter rejected the stored credential (401). Run "
+                "`orcarouter login` to authorize again; no automatic refresh "
+                "is attempted."
+            )
+
+    def _orca_image_capability(self) -> Optional[bool]:
+        """What the OrcaRouter catalog says about image input for this model.
+
+        ``None`` for every other provider, which keeps their existing behaviour
+        untouched. For OrcaRouter the answer comes from the catalog's declared
+        ``input_modalities`` - the ``MULTIMODAL_MODELS`` name list cannot speak
+        for model ids such as ``google/gemini-3.5-flash``.
+        """
+        if not is_orcarouter(self.api_type):
+            return None
+        from app.orcarouter.catalog import model_accepts
+        from app.orcarouter.constants import resolve_origins
+
+        return model_accepts(
+            self.model, "image", origins=resolve_origins(), api_key=self.api_key
+        )
+
+    def _supports_images(self) -> bool:
+        """Whether the configured model may receive an image attachment."""
+        declared = self._orca_image_capability()
+        if declared is not None:
+            return declared
+        return self.model in MULTIMODAL_MODELS
+
+    def _guard_orcarouter_image(self, messages) -> None:
+        """Fail closed when a text-only OrcaRouter model is handed an image.
+
+        ``format_messages`` drops an unclaimed ``base64_image`` to stay
+        compatible with other providers, which for OrcaRouter would silently
+        answer a screenshot with a text-only reply. The catalog already
+        excluded these models from the vision selector, so reaching here means
+        a stale configuration or a hand-set model id.
+        """
+        if self._orca_image_capability() is not False:
+            return
+        for message in messages:
+            payload = message.to_dict() if isinstance(message, Message) else message
+            if isinstance(payload, dict) and payload.get("base64_image"):
+                from app.orcarouter.errors import OrcaConfigError
+
+                raise OrcaConfigError(
+                    f"Model {self.model!r} does not declare image input in the "
+                    "OrcaRouter catalog, so the attached image would be dropped. "
+                    "Run `orcarouter models --capability chat_vision` and select "
+                    "a vision-capable model, or remove the attachment."
+                )
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -514,8 +608,17 @@ class LLM:
         """
         try:
             # For ask_with_images, we always set supports_images to True because
-            # this method should only be called with models that support images
-            if self.model not in MULTIMODAL_MODELS:
+            # this method should only be called with models that support images.
+            # OrcaRouter answers from the catalog; other providers keep the
+            # existing name list.
+            declared = self._orca_image_capability()
+            if declared is False:
+                raise ValueError(
+                    f"Model {self.model} does not declare image input in the "
+                    "OrcaRouter catalog. Select a vision-capable model from "
+                    "`orcarouter models --capability chat_vision`."
+                )
+            if declared is None and self.model not in MULTIMODAL_MODELS:
                 raise ValueError(
                     f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}"
                 )
@@ -677,8 +780,9 @@ class LLM:
             if tool_choice not in TOOL_CHOICE_VALUES:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
-            # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            # Check if the model supports images (catalog-driven for OrcaRouter)
+            self._guard_orcarouter_image(messages)
+            supports_images = self._supports_images()
 
             # Format messages
             if system_msgs:

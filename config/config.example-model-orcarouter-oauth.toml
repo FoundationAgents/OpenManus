@@ -1,0 +1,22 @@
+# Global LLM configuration
+# OrcaRouter - Auth: sign in with an OrcaRouter account instead of pasting a key.
+# `orcarouter login` runs the OAuth 2.0 + PKCE flow (loopback redirect) and
+# stores the issued sk-orca-... key in ~/.openmanus/orcarouter.json (mode 0600).
+# The key is durable and reused until you revoke it at
+# https://www.orcarouter.ai/console/authorized-apps
+[llm] #ORCAROUTER (account login):
+api_type = 'orcarouter-oauth'
+model = "orcarouter/auto"                                          # The LLM model to use
+base_url = "https://api.orcarouter.ai/v1"                          # Inference API endpoint
+api_key = ""                                                       # Filled from the PKCE login
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+[llm.vision] #ORCAROUTER VISION (account login):
+api_type = 'orcarouter-oauth'
+model = "google/gemini-3.5-flash"                                  # The vision model to use
+base_url = "https://api.orcarouter.ai/v1"                          # Inference API endpoint
+api_key = ""                                                       # Filled from the PKCE login
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness

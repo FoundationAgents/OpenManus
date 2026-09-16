@@ -169,6 +169,66 @@ For unstable multi-agent version, you also can run:
 python run_flow.py
 ```
 
+## OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai) is an OpenAI-compatible AI gateway; OpenManus talks to it
+through the same `api_type` mechanism every other OpenAI-compatible provider uses. Two provider
+entries are available, one per authentication method, and both end up using the same `sk-orca-...`
+key against `https://api.orcarouter.ai/v1`.
+
+| `api_type` | How you authenticate |
+| --- | --- |
+| `orcarouter` | Paste an existing `sk-orca-...` key into `api_key`, or export `ORCAROUTER_API_KEY`. |
+| `orcarouter-oauth` | Run `orcarouter login` and approve in the browser (OAuth 2.0 + PKCE). |
+
+```bash
+# Option 1 - an existing key
+export ORCAROUTER_API_KEY=sk-orca-...
+# Option 2 - sign in with your OrcaRouter account (opens a browser, no key to copy)
+orcarouter login
+```
+
+```toml
+[llm]
+api_type = "orcarouter"          # or "orcarouter-oauth" after `orcarouter login`
+model = "orcarouter/auto"
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"   # may be left empty to use the stored/env key
+max_tokens = 16000
+temperature = 0.0
+
+[llm.vision]
+api_type = "orcarouter"
+model = "google/gemini-3.5-flash"     # any image-input model in the catalog
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"
+```
+
+The key belongs to your OrcaRouter account: it is billed to you and can be revoked at any time from
+<https://www.orcarouter.ai/console/authorized-apps>. It is stored in
+`~/.openmanus/orcarouter.json` (mode `0600`), never in this repository.
+
+```bash
+orcarouter login            # authorize (API key, or PKCE via your browser)
+orcarouter login --code X   # PKCE when the consent screen showed you a code
+orcarouter status           # which credential is stored, and whether it needs re-authentication
+orcarouter models           # the models this key can actually call, from GET /v1/models
+orcarouter logout           # remove the stored credential
+```
+
+Self-hosted OrcaRouter deployments can point at their own origins with `ORCA_BASE_URL` (a single
+shared base), or `ORCA_AUTH_BASE_URL` / `ORCA_API_BASE_URL` for separate auth and inference origins.
+HTTPS is required except for loopback.
+
+Model ids are the catalog's own, vendor namespace included (`orcarouter/auto`, `google/gemini-3.5-flash`).
+Every entry point resolves its choices through the same catalog service, so the options a selector
+offers are always the models the catalog vouches for: chat entry points exclude image/video/rerank
+models, and an entry point that uploads a screenshot only offers models whose catalog record declares
+`image` input. Attaching an image to a text-only model is refused with the model id and the fix, rather
+than silently dropping the image. `orcarouter models` prints the same filtered lists, one per
+capability, and marks a stored model that the current capability no longer allows.
+
+
 ### Custom Adding Multiple Agents
 
 Currently, besides the general OpenManus Agent, we have also integrated the DataAnalysis Agent, which is suitable for data analysis and data visualization tasks. You can add this agent to `run_flow` in `config.toml`.

@@ -45,6 +45,7 @@ setup(
     entry_points={
         "console_scripts": [
             "openmanus=main:main",
+            "orcarouter=app.orcarouter.cli:main",
         ],
     },
 )

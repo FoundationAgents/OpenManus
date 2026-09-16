@@ -138,6 +138,53 @@ python run_mcp.py
 python run_flow.py
 ```
 
+## OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai) 是一个 OpenAI 兼容的 AI 网关，OpenManus 通过与其他 OpenAI 兼容服务商相同的 `api_type` 机制接入。提供两个 provider 入口，对应两种认证方式，最终都使用同一个 `sk-orca-...` 密钥访问 `https://api.orcarouter.ai/v1`。
+
+| `api_type` | 认证方式 |
+| --- | --- |
+| `orcarouter` | 将已有的 `sk-orca-...` 密钥填入 `api_key`，或设置 `ORCAROUTER_API_KEY`。 |
+| `orcarouter-oauth` | 运行 `orcarouter login`，在浏览器中授权（OAuth 2.0 + PKCE）。 |
+
+```bash
+# 方式一：使用已有密钥
+export ORCAROUTER_API_KEY=sk-orca-...
+# 方式二：使用 OrcaRouter 账号登录（打开浏览器，无需复制密钥）
+orcarouter login
+```
+
+```toml
+[llm]
+api_type = "orcarouter"          # 或登录后使用 "orcarouter-oauth"
+model = "orcarouter/auto"
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"   # 可留空以使用已存储或环境变量中的密钥
+max_tokens = 16000
+temperature = 0.0
+
+[llm.vision]
+api_type = "orcarouter"
+model = "google/gemini-3.5-flash"     # 目录中任意支持图片输入的模型
+base_url = "https://api.orcarouter.ai/v1"
+api_key = "your OrcaRouter api key"
+```
+
+密钥属于你的 OrcaRouter 账号：计费归属于你，并可随时在 <https://www.orcarouter.ai/console/authorized-apps> 撤销。密钥保存在 `~/.openmanus/orcarouter.json`（权限 `0600`），不会写入本仓库。
+
+```bash
+orcarouter login            # 授权（API Key 或通过浏览器进行 PKCE 登录）
+orcarouter login --code X   # 授权页显示 code 时使用 PKCE 完成登录
+orcarouter status           # 查看已存储的凭据，以及是否需要重新认证
+orcarouter models           # 通过 GET /v1/models 列出该密钥可调用的模型
+orcarouter logout           # 删除已存储的凭据
+```
+
+自建 OrcaRouter 部署可通过 `ORCA_BASE_URL`（共用同一来源）或 `ORCA_AUTH_BASE_URL` / `ORCA_API_BASE_URL`（认证与推理分离）指向自有地址。除回环地址外必须使用 HTTPS。
+
+模型 ID 完全沿用目录中的写法，保留 vendor 命名空间（`orcarouter/auto`、`google/gemini-3.5-flash`）。所有入口都通过同一个模型目录服务解析候选模型，因此选择器给出的选项始终是目录确认过的模型：chat 入口会排除图像/视频/rerank 模型，而会附带截图上传的入口只提供目录记录中显式声明 `image` 输入的模型。给纯文本模型附加图像会被拒绝，并给出模型 ID 与修复方式，而不是静默丢弃图像。`orcarouter models` 会按能力分别打印同样的过滤结果，并标记当前能力下已不再允许的已存模型。
+
+
 ## 添加自定义多智能体
 
 目前除了通用的 OpenManus Agent, 我们还内置了DataAnalysis Agent，适用于数据分析和数据可视化任务，你可以在`config.toml`中将这个智能体加入到`run_flow`中
