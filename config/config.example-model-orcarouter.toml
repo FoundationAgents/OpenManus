@@ -1,0 +1,20 @@
+# Global LLM configuration
+# OrcaRouter - API: paste an existing key from https://www.orcarouter.ai/console
+# Leave api_key empty to pick up a key stored by `orcarouter login`
+# (in ~/.openmanus/orcarouter.json) or the ORCAROUTER_API_KEY environment variable.
+[llm] #ORCAROUTER:
+api_type = 'orcarouter'
+model = "orcarouter/auto"                                          # The LLM model to use
+base_url = "https://api.orcarouter.ai/v1"                          # Inference API endpoint
+api_key = "your OrcaRouter api key"                                # An sk-orca-... key
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness
+
+
+[llm.vision] #ORCAROUTER VISION:
+api_type = 'orcarouter'
+model = "google/gemini-3.5-flash"                                  # The vision model to use
+base_url = "https://api.orcarouter.ai/v1"                          # Inference API endpoint
+api_key = "your OrcaRouter api key"                                # An sk-orca-... key
+max_tokens = 16000                                                 # Maximum number of tokens in the response
+temperature = 0.0                                                  # Controls randomness

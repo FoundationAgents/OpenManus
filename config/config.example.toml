@@ -39,6 +39,23 @@ temperature = 0.0                          # Controls randomness
 # max_tokens = 64000                                                 # Maximum number of tokens in the response
 # temperature = 0.0                                                  # Controls randomness
 
+# [llm] #ORCAROUTER - API (paste an existing key from the OrcaRouter console):
+# api_type = 'orcarouter'
+# model = "orcarouter/auto"                          # The LLM model to use
+# base_url = "https://api.orcarouter.ai/v1"          # Inference API endpoint URL
+# api_key = "your OrcaRouter api key"                # An sk-orca-... key. Leave empty to
+#                                                    # use `orcarouter login` or ORCAROUTER_API_KEY
+# max_tokens = 16000                                 # Maximum number of tokens in the response
+# temperature = 0.0                                  # Controls randomness
+
+# [llm] #ORCAROUTER - AUTH (sign in with an OrcaRouter account, no key to copy):
+# api_type = 'orcarouter-oauth'                      # Run `orcarouter login` first
+# model = "orcarouter/auto"                          # The LLM model to use
+# base_url = "https://api.orcarouter.ai/v1"          # Inference API endpoint URL
+# api_key = ""                                       # Filled from the PKCE login
+# max_tokens = 16000                                 # Maximum number of tokens in the response
+# temperature = 0.0                                  # Controls randomness
+
 # Optional configuration for specific LLM models
 [llm.vision]
 model = "claude-3-7-sonnet-20250219"       # The vision model to use
