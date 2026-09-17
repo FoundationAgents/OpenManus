@@ -329,7 +329,9 @@ class AsyncDockerizedTerminal:
         if not self.session:
             raise RuntimeError("Terminal not initialized")
 
-        return await self.session.execute(cmd, timeout=timeout or self.default_timeout)
+        return await self.session.execute(
+            cmd, timeout=self.default_timeout if timeout is None else timeout
+        )
 
     async def close(self) -> None:
         """Closes the terminal session."""
