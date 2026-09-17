@@ -70,6 +70,8 @@ temperature = 0.0                          # Controls randomness for vision mode
 #wss_url = ""
 # Connect to a browser instance via CDP
 #cdp_url = ""
+# Browser Use Cloud can also be selected with BROWSER_USE_API_KEY and
+# BU_BROWSER_ID (or BU_CDP_URL/BU_CDP_WS) environment variables.
 
 # Optional configuration, Proxy settings for the browser
 # [browser.proxy]

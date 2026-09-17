@@ -1,6 +1,14 @@
 import json
 from typing import TYPE_CHECKING, Optional
 
+from app.browser_use import (
+    BROWSER_USE_ARGS,
+    BROWSER_USE_COMMAND,
+    BROWSER_USE_SERVER_ID,
+    browser_use_disabled,
+    browser_use_env,
+)
+from app.config import config
 from app.agent.mcp import MCPAgent
 from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT
@@ -93,12 +101,17 @@ when the task is complete.
 """
 
     async def initialize(self) -> None:
+        if browser_use_disabled():
+            raise RuntimeError(
+                "Browser Use is disabled by OPENMANUS_DISABLE_BROWSER_USE"
+            )
         await super().initialize(
             connection_type="stdio",
-            command="uvx",
-            args=["browser-use", "--cli-mcp"],
-            server_id="browser_use",
+            command=BROWSER_USE_COMMAND,
+            args=BROWSER_USE_ARGS,
+            server_id=BROWSER_USE_SERVER_ID,
             tool_name_prefix=False,
+            stdio_env=browser_use_env(config.browser_config),
         )
         self.available_tools.add_tool(Terminate())
 

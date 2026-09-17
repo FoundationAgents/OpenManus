@@ -44,6 +44,7 @@ class MCPAgent(ToolCallAgent):
         args: Optional[List[str]] = None,
         server_id: str = "",
         tool_name_prefix: bool = True,
+        stdio_env: Optional[Dict[str, str]] = None,
     ) -> None:
         """Initialize the MCP connection.
 
@@ -52,6 +53,7 @@ class MCPAgent(ToolCallAgent):
             server_url: URL of the MCP server (for SSE connection)
             command: Command to run (for stdio connection)
             args: Arguments for the command (for stdio connection)
+            stdio_env: Environment variables for the stdio subprocess
         """
         if connection_type:
             self.connection_type = connection_type
@@ -71,6 +73,7 @@ class MCPAgent(ToolCallAgent):
                 args=args or [],
                 server_id=server_id,
                 tool_name_prefix=tool_name_prefix,
+                env=stdio_env,
             )
         else:
             raise ValueError(f"Unsupported connection type: {self.connection_type}")

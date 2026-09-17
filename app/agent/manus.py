@@ -1,8 +1,14 @@
-import os
 from typing import Dict, List, Optional
 
 from pydantic import Field
 
+from app.browser_use import (
+    BROWSER_USE_ARGS,
+    BROWSER_USE_COMMAND,
+    BROWSER_USE_SERVER_ID,
+    browser_use_disabled,
+    browser_use_env,
+)
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
@@ -15,29 +21,12 @@ from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 
 
-_BROWSER_USE_SERVER_ID = "browser_use"
-_BROWSER_USE_COMMAND = "uvx"
-_BROWSER_USE_ARGS = ["browser-use", "--cli-mcp"]
-_BROWSER_USE_ENV_VARS = (
-    "BROWSER_USE_API_KEY",
-    "BROWSER_USE_CLOUD_API_URL",
-    "BU_BROWSER_ID",
-    "BU_CDP_URL",
-    "BU_CDP_WS",
-    "BU_NAME",
-)
 _BROWSER_USE_TRANSPORT_INSTRUCTIONS = """\
 Browser Use CLI 3.0 is exposed here as MCP tools. When the Browser Use skill
 shows `browser-use <<'PY'`, pass the Python body to `browser_exec` instead.
 Use `browser_screenshot` when visual inspection is needed. Both tools use the
 same persistent browser-harness session as CLI 3.0.
 """
-
-
-def _browser_use_env() -> Dict[str, str]:
-    return {name: value for name in _BROWSER_USE_ENV_VARS if (value := os.getenv(name))}
-
-
 class Manus(ToolCallAgent):
     """A versatile general-purpose agent with support for both local and MCP tools."""
 
@@ -82,17 +71,18 @@ class Manus(ToolCallAgent):
 
     async def initialize_mcp_servers(self) -> None:
         """Initialize connections to configured MCP servers."""
-        if _BROWSER_USE_SERVER_ID not in config.mcp_config.servers and os.getenv(
-            "OPENMANUS_DISABLE_BROWSER_USE", ""
-        ).lower() not in {"1", "true", "yes"}:
+        if (
+            BROWSER_USE_SERVER_ID not in config.mcp_config.servers
+            and not browser_use_disabled()
+        ):
             try:
                 await self.connect_mcp_server(
-                    _BROWSER_USE_COMMAND,
-                    _BROWSER_USE_SERVER_ID,
+                    BROWSER_USE_COMMAND,
+                    BROWSER_USE_SERVER_ID,
                     use_stdio=True,
-                    stdio_args=_BROWSER_USE_ARGS,
+                    stdio_args=BROWSER_USE_ARGS,
                     tool_name_prefix=False,
-                    stdio_env=_browser_use_env(),
+                    stdio_env=browser_use_env(config.browser_config),
                 )
                 logger.info("Connected to Browser Use CLI 3.0 through MCP")
             except Exception as e:
@@ -113,10 +103,10 @@ class Manus(ToolCallAgent):
                             server_id,
                             use_stdio=True,
                             stdio_args=server_config.args,
-                            tool_name_prefix=server_id != _BROWSER_USE_SERVER_ID,
+                            tool_name_prefix=server_id != BROWSER_USE_SERVER_ID,
                             stdio_env=(
-                                _browser_use_env()
-                                if server_id == _BROWSER_USE_SERVER_ID
+                                browser_use_env(config.browser_config)
+                                if server_id == BROWSER_USE_SERVER_ID
                                 else None
                             ),
                         )
@@ -160,7 +150,7 @@ class Manus(ToolCallAgent):
         if instructions and resolved_server_id not in self.mcp_instruction_servers:
             transport_instructions = (
                 f"{_BROWSER_USE_TRANSPORT_INSTRUCTIONS}\n"
-                if resolved_server_id == _BROWSER_USE_SERVER_ID
+                if resolved_server_id == BROWSER_USE_SERVER_ID
                 else ""
             )
             self.memory.add_message(
