@@ -1,4 +1,5 @@
 name: Environment Corruption Check
+
 on:
   push:
     branches: ["main"]
@@ -8,16 +9,18 @@ on:
     branches: ["main"]
     paths:
       - requirements.txt
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   test-python-versions:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11.11", "3.12.8", "3.13.2"]
-      fail-fast: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,8 +29,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Upgrade pip
-        run: |
-          python -m pip install --upgrade pip
+        run: python -m pip install --upgrade pip
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt

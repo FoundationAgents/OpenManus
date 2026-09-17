@@ -15,7 +15,7 @@ jobs:
         with:
           days-before-issue-stale: 30
           days-before-issue-close: 14
-          stale-issue-label: "inactive"
+          stale-issue-label: inactive
           stale-issue-message: "This issue has been inactive for 30 days. Please comment if you have updates."
           close-issue-message: "This issue was closed due to 45 days of inactivity. Reopen if still relevant."
           days-before-pr-stale: -1
