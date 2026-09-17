@@ -106,7 +106,9 @@ class SandboxSettings(BaseModel):
 
 
 class DaytonaSettings(BaseModel):
-    daytona_api_key: str
+    daytona_api_key: Optional[str] = Field(
+        None, description="Daytona API key"
+    )
     daytona_server_url: Optional[str] = Field(
         "https://app.daytona.io/api", description=""
     )
@@ -291,10 +293,7 @@ class Config:
         else:
             sandbox_settings = SandboxSettings()
         daytona_config = raw_config.get("daytona", {})
-        if daytona_config:
-            daytona_settings = DaytonaSettings(**daytona_config)
-        else:
-            daytona_settings = DaytonaSettings()
+        daytona_settings = DaytonaSettings(**daytona_config)
 
         mcp_config = raw_config.get("mcp", {})
         mcp_settings = None

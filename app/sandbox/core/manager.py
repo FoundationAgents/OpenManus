@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from typing import Dict, Optional, Set
 
 import docker
-from docker.errors import APIError, ImageNotFound
+from docker.errors import ImageNotFound
 
 from app.config import SandboxSettings
 from app.logger import logger
@@ -81,7 +81,7 @@ class SandboxManager:
                     None, self._client.images.pull, image
                 )
                 return True
-            except (APIError, Exception) as e:
+            except Exception as e:
                 logger.error(f"Failed to pull image {image}: {e}")
                 return False
 
@@ -153,7 +153,10 @@ class SandboxManager:
             except Exception as e:
                 logger.error(f"Failed to create sandbox: {e}")
                 if sandbox_id in self._sandboxes:
-                    await self.delete_sandbox(sandbox_id)
+                    await self._sandboxes[sandbox_id].cleanup()
+                    self._sandboxes.pop(sandbox_id, None)
+                    self._last_used.pop(sandbox_id, None)
+                    self._locks.pop(sandbox_id, None)
                 raise RuntimeError(f"Failed to create sandbox: {e}")
 
     async def get_sandbox(self, sandbox_id: str) -> DockerSandbox:
@@ -227,11 +230,15 @@ class SandboxManager:
             cleanup_tasks.append(task)
 
         if cleanup_tasks:
-            # Wait for all cleanup tasks to complete, with timeout to avoid infinite waiting
-            try:
-                await asyncio.wait(cleanup_tasks, timeout=30.0)
-            except asyncio.TimeoutError:
-                logger.error("Sandbox cleanup timed out")
+            done, pending = await asyncio.wait(cleanup_tasks, timeout=30.0)
+            if pending:
+                logger.error(
+                    "Sandbox cleanup timed out for %d sandbox(es)", len(pending)
+                )
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+            await asyncio.gather(*done, return_exceptions=True)
 
         # Clean up remaining references
         self._sandboxes.clear()

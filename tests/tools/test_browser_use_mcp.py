@@ -146,3 +146,19 @@ async def test_manus_enables_cli_mcp_by_default(monkeypatch):
             },
         )
     ]
+
+
+def test_browser_use_env_prefers_environment_over_config(monkeypatch):
+    from app.agent.manus import browser_use_env
+    from app.config import BrowserSettings
+
+    monkeypatch.setenv("BU_CDP_URL", "http://env-browser:9222")
+    settings = BrowserSettings(
+        cdp_url="http://config-browser:9222",
+        wss_url="ws://config-browser:9222",
+    )
+
+    assert browser_use_env(settings) == {
+        "BU_CDP_URL": "http://env-browser:9222",
+        "BU_CDP_WS": "ws://config-browser:9222",
+    }

@@ -1,6 +1,7 @@
 import asyncio
 import io
 import os
+import posixpath
 import tarfile
 import tempfile
 import uuid
@@ -156,11 +157,13 @@ class DockerSandbox:
 
         try:
             return await self.terminal.run_command(
-                cmd, timeout=timeout or self.config.timeout
+                cmd,
+                timeout=self.config.timeout if timeout is None else timeout,
             )
         except TimeoutError:
             raise SandboxTimeoutError(
-                f"Command execution timed out after {timeout or self.config.timeout} seconds"
+                f"Command execution timed out after "
+                f"{self.config.timeout if timeout is None else timeout} seconds"
             )
 
     async def read_file(self, path: str) -> str:
@@ -241,16 +244,18 @@ class DockerSandbox:
         Raises:
             ValueError: If path contains potentially unsafe patterns.
         """
-        # Check for path traversal attempts
-        if ".." in path.split("/"):
-            raise ValueError("Path contains potentially unsafe patterns")
+        if not path:
+            raise ValueError("Path must not be empty")
 
-        resolved = (
-            os.path.join(self.config.work_dir, path)
-            if not os.path.isabs(path)
-            else path
+        work_dir = posixpath.normpath(self.config.work_dir)
+        candidate = posixpath.normpath(
+            path if posixpath.isabs(path) else posixpath.join(work_dir, path)
         )
-        return resolved
+        if work_dir != "/" and candidate != work_dir and not candidate.startswith(
+            f"{work_dir}/"
+        ):
+            raise ValueError("Path must remain within the sandbox work directory")
+        return candidate
 
     async def copy_from(self, src_path: str, dst_path: str) -> None:
         """Copies a file from the container.
