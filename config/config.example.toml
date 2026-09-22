@@ -39,6 +39,14 @@ temperature = 0.0                          # Controls randomness
 # max_tokens = 64000                                                 # Maximum number of tokens in the response
 # temperature = 0.0                                                  # Controls randomness
 
+# [llm] #aimlapi.com:
+# api_type = 'aimlapi'
+# model = "anthropic/claude-sonnet-4.6"                              # The LLM model to use
+# base_url = "https://api.aimlapi.com/v1"                            # API endpoint URL
+# api_key = "your aimlapi.com api key"                               # Your API key
+# max_tokens = 8192                                                  # Maximum number of tokens in the response
+# temperature = 0.0                                                  # Controls randomness
+
 # Optional configuration for specific LLM models
 [llm.vision]
 model = "claude-3-7-sonnet-20250219"       # The vision model to use
