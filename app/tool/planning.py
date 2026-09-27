@@ -169,9 +169,6 @@ class PlanningTool(BaseTool):
 
         plan = self.plans[plan_id]
 
-        if title:
-            plan["title"] = title
-
         if steps:
             if not isinstance(steps, list) or not all(
                 isinstance(step, str) for step in steps
@@ -201,6 +198,9 @@ class PlanningTool(BaseTool):
             plan["steps"] = steps
             plan["step_statuses"] = new_statuses
             plan["step_notes"] = new_notes
+
+        if title:
+            plan["title"] = title
 
         return ToolResult(
             output=f"Plan updated successfully: {plan_id}\n\n{self._format_plan(plan)}"
