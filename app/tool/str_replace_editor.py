@@ -289,10 +289,9 @@ class StrReplaceEditor(BaseTool):
         operator: FileOperator = None,
     ) -> CLIResult:
         """Replace a unique string in a file with a new string."""
-        # Read file content and expand tabs
-        file_content = (await operator.read_file(path)).expandtabs()
-        old_str = old_str.expandtabs()
-        new_str = new_str.expandtabs() if new_str is not None else ""
+        # Preserve whitespace for verbatim matching and editing.
+        file_content = await operator.read_file(path)
+        new_str = new_str if new_str is not None else ""
 
         # Check if old_str is unique in the file
         occurrences = file_content.count(old_str)
@@ -346,8 +345,7 @@ class StrReplaceEditor(BaseTool):
     ) -> CLIResult:
         """Insert text at a specific line in a file."""
         # Read and prepare content
-        file_text = (await operator.read_file(path)).expandtabs()
-        new_str = new_str.expandtabs()
+        file_text = await operator.read_file(path)
         file_text_lines = file_text.split("\n")
         n_lines_file = len(file_text_lines)
 
@@ -410,7 +408,7 @@ class StrReplaceEditor(BaseTool):
         file_content: str,
         file_descriptor: str,
         init_line: int = 1,
-        expand_tabs: bool = True,
+        expand_tabs: bool = False,
     ) -> str:
         """Format file content for display with line numbers."""
         file_content = maybe_truncate(file_content)
