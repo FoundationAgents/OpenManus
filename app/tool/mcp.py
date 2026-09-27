@@ -37,6 +37,11 @@ class MCPClientTool(BaseTool):
                 ),
                 None,
             )
+            if result.isError:
+                return ToolResult(
+                    error=content_str or "MCP tool returned an error.",
+                    base64_image=image,
+                )
             return ToolResult(
                 output=content_str
                 or ("Image returned." if image else "No output returned."),

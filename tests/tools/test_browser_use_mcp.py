@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 from mcp import ClientSession
-from mcp.types import ImageContent, ListToolsResult, TextContent, Tool
+from mcp.types import CallToolResult, ImageContent, ListToolsResult, TextContent, Tool
 
 
 _CONFIG_PATH = Path(__file__).parents[2] / "config" / "config.toml"
@@ -27,9 +27,10 @@ finally:
 
 
 class FakeSession(ClientSession):
-    def __init__(self, *, instructions="", content=None):
+    def __init__(self, *, instructions="", content=None, is_error=False):
         self.instructions = instructions
         self.content = content or []
+        self.is_error = is_error
 
     async def initialize(self):
         return SimpleNamespace(instructions=self.instructions)
@@ -51,7 +52,7 @@ class FakeSession(ClientSession):
         )
 
     async def call_tool(self, name, arguments):
-        return SimpleNamespace(content=self.content)
+        return CallToolResult(content=self.content, isError=self.is_error)
 
 
 class ImageTool(BaseTool):
@@ -95,6 +96,38 @@ async def test_mcp_forwards_text_and_screenshot_content():
 
     assert result.output == "done"
     assert result.base64_image == "cG5n"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content, expected_error",
+    [
+        ([TextContent(type="text", text="Permission denied")], "Permission denied"),
+        ([], "MCP tool returned an error."),
+        (
+            [
+                TextContent(type="text", text="Page unavailable"),
+                ImageContent(type="image", data="cG5n", mimeType="image/png"),
+            ],
+            "Page unavailable",
+        ),
+    ],
+)
+async def test_mcp_tool_errors_are_reported_as_errors(content, expected_error):
+    tool = MCPClientTool(
+        name="browser_exec",
+        description="Run browser action",
+        session=FakeSession(content=content, is_error=True),
+        original_name="browser_exec",
+    )
+
+    result = await tool.execute()
+
+    assert result.error == expected_error
+    assert result.output is None
+    assert str(result) == f"Error: {expected_error}"
+    images = [item.data for item in content if isinstance(item, ImageContent)]
+    assert result.base64_image == (images[0] if images else None)
 
 
 @pytest.mark.asyncio
