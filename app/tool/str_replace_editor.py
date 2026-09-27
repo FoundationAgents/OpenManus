@@ -398,8 +398,9 @@ class StrReplaceEditor(BaseTool):
         if not self._file_history[path]:
             raise ToolError(f"No edit history found for {path}.")
 
-        old_text = self._file_history[path].pop()
+        old_text = self._file_history[path][-1]
         await operator.write_file(path, old_text)
+        self._file_history[path].pop()
 
         return CLIResult(
             output=f"Last edit to {path} undone successfully. {self._make_output(old_text, str(path))}"
