@@ -145,7 +145,7 @@ class PlanningTool(BaseTool):
         plan = {
             "plan_id": plan_id,
             "title": title,
-            "steps": steps,
+            "steps": list(steps),
             "step_statuses": ["not_started"] * len(steps),
             "step_notes": [""] * len(steps),
         }
@@ -198,7 +198,7 @@ class PlanningTool(BaseTool):
                     new_statuses.append("not_started")
                     new_notes.append("")
 
-            plan["steps"] = steps
+            plan["steps"] = list(steps)
             plan["step_statuses"] = new_statuses
             plan["step_notes"] = new_notes
 
