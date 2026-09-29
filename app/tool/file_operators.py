@@ -54,7 +54,7 @@ class LocalFileOperator(FileOperator):
     async def write_file(self, path: PathLike, content: str) -> None:
         """Write content to a local file."""
         try:
-            Path(path).write_text(content, encoding=self.encoding)
+            Path(path).write_text(content, encoding=self.encoding, newline="")
         except Exception as e:
             raise ToolError(f"Failed to write to {path}: {str(e)}") from None
 
