@@ -63,6 +63,39 @@ class ImageTool(BaseTool):
         return ToolResult(output="image ready", base64_image="cG5n")
 
 
+@pytest.mark.parametrize(
+    "output, expected",
+    [
+        (None, ""),
+        (0, "0"),
+        (False, "False"),
+        ({"count": 2}, "{'count': 2}"),
+        (["done"], "['done']"),
+        ("plain text", "plain text"),
+    ],
+)
+def test_tool_result_string_representation(output, expected):
+    assert str(ToolResult(output=output)) == expected
+
+
+def test_tool_error_remains_authoritative():
+    assert str(ToolResult(output={"count": 2}, error="failed")) == "Error: failed"
+
+
+@pytest.mark.asyncio
+async def test_image_only_result_is_not_reported_as_a_tool_failure():
+    class ImageOnlyTool(ImageTool):
+        async def execute(self, **kwargs):
+            return ToolResult(base64_image="cG5n")
+
+    agent = ToolCallAgent(available_tools=ToolCollection(ImageOnlyTool()))
+    result = await agent.execute_tool(
+        ToolCall(id="image_only", function=Function(name="image_tool", arguments="{}"))
+    )
+    assert result.startswith("Observed output of cmd")
+    assert agent._current_base64_image == "cG5n"
+
+
 @pytest.mark.asyncio
 async def test_mcp_preserves_server_instructions_and_native_tool_names():
     clients = MCPClients()
