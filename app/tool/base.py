@@ -67,7 +67,9 @@ class ToolResult(BaseModel):
         )
 
     def __str__(self):
-        return f"Error: {self.error}" if self.error else self.output
+        if self.error:
+            return f"Error: {self.error}"
+        return "" if self.output is None else str(self.output)
 
     def replace(self, **kwargs):
         """Returns a new ToolResult with the given fields replaced."""
