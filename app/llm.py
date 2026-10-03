@@ -196,6 +196,7 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            self.default_headers = getattr(llm_config, "default_headers", None)
 
             # Add token counting related attributes
             self.total_input_tokens = 0
@@ -218,11 +219,16 @@ class LLM:
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
+                    default_headers=self.default_headers,
                 )
             elif self.api_type == "aws":
                 self.client = BedrockClient()
             else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    default_headers=self.default_headers,
+                )
 
             self.token_counter = TokenCounter(self.tokenizer)
 

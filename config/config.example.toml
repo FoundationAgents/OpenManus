@@ -5,6 +5,9 @@ base_url = "https://api.anthropic.com/v1/" # API endpoint URL
 api_key = "YOUR_API_KEY"                   # Your API key
 max_tokens = 8192                          # Maximum number of tokens in the response
 temperature = 0.0                          # Controls randomness
+# Optional extra headers sent with every request, e.g. for a proxy or gateway:
+# [llm.default_headers]
+# X-Run-Id = "task-001"
 
 # [llm] # Amazon Bedrock
 # api_type = "aws"                                       # Required

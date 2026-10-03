@@ -28,6 +28,10 @@ class LLMSettings(BaseModel):
     temperature: float = Field(1.0, description="Sampling temperature")
     api_type: str = Field(..., description="Azure, Openai, or Ollama")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    default_headers: Optional[Dict[str, str]] = Field(
+        None,
+        description="Extra HTTP headers sent with every request (e.g. for a proxy or gateway)",
+    )
 
 
 class ProxySettings(BaseModel):
@@ -233,8 +237,11 @@ class Config:
     def _load_initial_config(self):
         raw_config = self._load_config()
         base_llm = raw_config.get("llm", {})
+        # Sub-tables of [llm] are named model overrides, except default_headers.
         llm_overrides = {
-            k: v for k, v in raw_config.get("llm", {}).items() if isinstance(v, dict)
+            k: v
+            for k, v in raw_config.get("llm", {}).items()
+            if isinstance(v, dict) and k != "default_headers"
         }
 
         default_settings = {
@@ -246,6 +253,7 @@ class Config:
             "temperature": base_llm.get("temperature", 1.0),
             "api_type": base_llm.get("api_type", ""),
             "api_version": base_llm.get("api_version", ""),
+            "default_headers": base_llm.get("default_headers"),
         }
 
         # handle browser config.
