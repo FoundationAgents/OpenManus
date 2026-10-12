@@ -1,0 +1,9 @@
+# Global LLM configuration
+[llm] #DemonRoute:
+api_type = 'demonroute'
+model = "NousResearch/Hermes-3-Llama-3.1-70B"                      # The LLM model to use (any model ID from https://demonroute.com)
+base_url = "https://api.demonroute.com/v1"                         # API endpoint URL (OpenAI-compatible)
+api_key = "your DemonRoute api key"                                # Your API key
+max_tokens = 8192                                                  # Maximum number of tokens in the response
+max_input_tokens = 122880                                          # Keeps prompt + response inside this model's 131072-token context window
+temperature = 0.0                                                  # Controls randomness
