@@ -39,6 +39,14 @@ temperature = 0.0                          # Controls randomness
 # max_tokens = 64000                                                 # Maximum number of tokens in the response
 # temperature = 0.0                                                  # Controls randomness
 
+# [llm] #DemonRoute:
+# api_type = 'demonroute'
+# model = "NousResearch/Hermes-3-Llama-3.1-70B"                      # The LLM model to use (any model ID from https://demonroute.com)
+# base_url = "https://api.demonroute.com/v1"                         # API endpoint URL (OpenAI-compatible)
+# api_key = "your DemonRoute api key"                                # Your API key
+# max_tokens = 8192                                                  # Maximum number of tokens in the response
+# temperature = 0.0                                                  # Controls randomness
+
 # Optional configuration for specific LLM models
 [llm.vision]
 model = "claude-3-7-sonnet-20250219"       # The vision model to use
