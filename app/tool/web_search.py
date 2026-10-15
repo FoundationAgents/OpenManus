@@ -20,6 +20,10 @@ from app.tool.search import (
 from app.tool.search.base import SearchItem
 
 
+# Used only when named in [search] engine or fallback_engines, never added by default.
+OPT_IN_ENGINES = {"keenable"}
+
+
 class SearchResult(BaseModel):
     """Represents a single search result returned by a search engine."""
 
@@ -384,7 +388,7 @@ class WebSearch(BaseTool):
             else []
         )
 
-        # Start with preferred engine, then fallbacks, then remaining engines
+        # Start with preferred engine, then fallbacks, then remaining non-opt-in engines
         engine_order = [preferred] if preferred in self._search_engine else []
         engine_order.extend(
             [
@@ -393,7 +397,13 @@ class WebSearch(BaseTool):
                 if fb in self._search_engine and fb not in engine_order
             ]
         )
-        engine_order.extend([e for e in self._search_engine if e not in engine_order])
+        engine_order.extend(
+            [
+                e
+                for e in self._search_engine
+                if e not in engine_order and e not in OPT_IN_ENGINES
+            ]
+        )
 
         return engine_order
 

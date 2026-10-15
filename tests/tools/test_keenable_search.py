@@ -176,19 +176,24 @@ def test_server_error_raises(monkeypatch):
         engine.perform_search("q")
 
 
-def test_engine_is_registered_and_tried_last_by_default(monkeypatch):
-    monkeypatch.setattr(config._config, "search_config", None)
+def test_engine_is_opt_in(monkeypatch):
     tool = WebSearch()
-
     assert isinstance(tool._search_engine["keenable"], KeenableSearchEngine)
-    order = tool._get_engine_order()
-    assert order[0] == "google"
-    assert order[-1] == "keenable"
+
+    # Not named in engine or fallback_engines: never tried, even with a key set.
+    for search_config in (None, SearchSettings(), SearchSettings(keenable_api_key="k")):
+        monkeypatch.setattr(config._config, "search_config", search_config)
+        assert "keenable" not in tool._get_engine_order()
+
+    monkeypatch.setattr(
+        config._config, "search_config", SearchSettings(engine="Keenable")
+    )
+    assert tool._get_engine_order()[0] == "keenable"
 
     monkeypatch.setattr(
         config._config,
         "search_config",
-        SearchSettings(fallback_engines=["Keenable", "DuckDuckGo", "Baidu", "Bing"]),
+        SearchSettings(fallback_engines=["Keenable", "DuckDuckGo"]),
     )
     assert tool._get_engine_order() == [
         "google",

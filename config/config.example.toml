@@ -82,9 +82,9 @@ temperature = 0.0                          # Controls randomness for vision mode
 # Search engine for agent to use. Default is "Google", can be set to "Baidu", "DuckDuckGo", "Bing" or "Keenable".
 #engine = "Google"
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
-# Engines not listed are still tried last. "Keenable" is a search API that needs no key, so it is a good first fallback.
-#fallback_engines = ["Keenable", "DuckDuckGo", "Baidu", "Bing"]
-# Optional Keenable API key. Without it the public endpoint is used (rate limited per IP); a key only lifts those limits.
+#fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+# "Keenable" is opt-in: it is used only when set as engine or listed in fallback_engines. It works without a key;
+# keenable_api_key is optional and only lifts the per-IP rate limits of the public endpoint.
 #keenable_api_key = ""
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
 #retry_delay = 60
