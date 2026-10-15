@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from app.config import config
 from app.logger import logger
@@ -14,9 +14,14 @@ from app.tool.search import (
     BingSearchEngine,
     DuckDuckGoSearchEngine,
     GoogleSearchEngine,
+    KeenableSearchEngine,
     WebSearchEngine,
 )
 from app.tool.search.base import SearchItem
+
+
+# Used only when named in [search] engine or fallback_engines, never added by default.
+OPT_IN_ENGINES = {"keenable"}
 
 
 class SearchResult(BaseModel):
@@ -195,6 +200,7 @@ class WebSearch(BaseTool):
         "baidu": BaiduSearchEngine(),
         "duckduckgo": DuckDuckGoSearchEngine(),
         "bing": BingSearchEngine(),
+        "keenable": KeenableSearchEngine(),
     }
     content_fetcher: WebContentFetcher = WebContentFetcher()
 
@@ -297,11 +303,22 @@ class WebSearch(BaseTool):
         for engine_name in engine_order:
             engine = self._search_engine[engine_name]
             logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
-            search_items = await self._perform_search_with_engine(
-                engine, query, num_results, search_params
-            )
+            try:
+                search_items = await self._perform_search_with_engine(
+                    engine, query, num_results, search_params
+                )
+            except Exception as e:
+                # An engine that raises (rate limit, network error) should not
+                # abort the whole search; move on to the next engine.
+                cause = e.last_attempt.exception() if isinstance(e, RetryError) else e
+                logger.warning(
+                    f"Search with {engine_name.capitalize()} failed: {cause}"
+                )
+                failed_engines.append(engine_name)
+                continue
 
             if not search_items:
+                failed_engines.append(engine_name)
                 continue
 
             if failed_engines:
@@ -371,7 +388,7 @@ class WebSearch(BaseTool):
             else []
         )
 
-        # Start with preferred engine, then fallbacks, then remaining engines
+        # Start with preferred engine, then fallbacks, then remaining non-opt-in engines
         engine_order = [preferred] if preferred in self._search_engine else []
         engine_order.extend(
             [
@@ -380,7 +397,13 @@ class WebSearch(BaseTool):
                 if fb in self._search_engine and fb not in engine_order
             ]
         )
-        engine_order.extend([e for e in self._search_engine if e not in engine_order])
+        engine_order.extend(
+            [
+                e
+                for e in self._search_engine
+                if e not in engine_order and e not in OPT_IN_ENGINES
+            ]
+        )
 
         return engine_order
 
