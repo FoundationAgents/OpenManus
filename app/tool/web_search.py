@@ -219,6 +219,15 @@ class WebSearch(BaseTool):
         Returns:
             A structured response containing search results and metadata
         """
+        # Some tool-calling models encode integer arguments as JSON strings.
+        if isinstance(num_results, str):
+            try:
+                num_results = int(num_results)
+            except ValueError:
+                return SearchResponse(
+                    query=query, error="num_results must be an integer."
+                )
+
         # Get settings from config
         retry_delay = (
             getattr(config.search_config, "retry_delay", 60)
