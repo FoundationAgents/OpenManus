@@ -17,8 +17,9 @@ if _CREATED_TEST_CONFIG:
 try:
     from app.agent import manus as manus_module
     from app.agent.toolcall import ToolCallAgent
+    from app.exceptions import ToolError
     from app.schema import Function, ToolCall
-    from app.tool.base import BaseTool, ToolResult
+    from app.tool.base import BaseTool, ToolFailure, ToolResult
     from app.tool.mcp import MCPClients, MCPClientTool
     from app.tool.tool_collection import ToolCollection
 finally:
@@ -146,3 +147,81 @@ async def test_manus_enables_cli_mcp_by_default(monkeypatch):
             },
         )
     ]
+
+
+class NoArgumentsTool(BaseTool):
+    name: str = "no_arguments"
+    description: str = "Return a result without arguments."
+
+    async def execute(self) -> ToolResult:
+        return ToolResult(output="completed")
+
+
+class EchoTool(BaseTool):
+    name: str = "echo"
+    description: str = "Return the supplied argument."
+
+    async def execute(self, text: str) -> ToolResult:
+        return ToolResult(output=text)
+
+
+class FailingTool(BaseTool):
+    name: str = "failing"
+    description: str = "Report a tool failure without arguments."
+
+    async def execute(self) -> ToolResult:
+        raise ToolError("execution failed")
+
+
+@pytest.mark.asyncio
+async def test_collection_execute_without_tool_input():
+    collection = ToolCollection(NoArgumentsTool())
+
+    result = await collection.execute(name="no_arguments")
+
+    assert result.output == "completed"
+    assert result.error is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tool_input", [None, {}])
+async def test_collection_execute_with_explicit_empty_input(tool_input):
+    collection = ToolCollection(NoArgumentsTool())
+
+    result = await collection.execute(name="no_arguments", tool_input=tool_input)
+
+    assert result.output == "completed"
+
+
+@pytest.mark.asyncio
+async def test_collection_execute_preserves_supplied_arguments():
+    collection = ToolCollection(EchoTool())
+    tool_input = {"text": "hello"}
+
+    result = await collection.execute(name="echo", tool_input=tool_input)
+
+    assert result.output == "hello"
+    assert tool_input == {"text": "hello"}
+
+
+@pytest.mark.asyncio
+async def test_collection_execute_preserves_invalid_tool_failure():
+    result = await ToolCollection().execute(name="missing")
+
+    assert isinstance(result, ToolFailure)
+    assert result.error == "Tool missing is invalid"
+
+
+@pytest.mark.asyncio
+async def test_collection_execute_converts_tool_error_without_input():
+    result = await ToolCollection(FailingTool()).execute(name="failing")
+
+    assert isinstance(result, ToolFailure)
+    assert result.error == "execution failed"
+
+
+@pytest.mark.asyncio
+async def test_collection_execute_all_still_runs_parameterless_tools():
+    results = await ToolCollection(NoArgumentsTool()).execute_all()
+
+    assert [result.output for result in results] == ["completed"]

@@ -1,5 +1,5 @@
 """Collection classes for managing multiple tools."""
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.exceptions import ToolError
 from app.logger import logger
@@ -23,13 +23,13 @@ class ToolCollection:
         return [tool.to_param() for tool in self.tools]
 
     async def execute(
-        self, *, name: str, tool_input: Dict[str, Any] = None
+        self, *, name: str, tool_input: Optional[Dict[str, Any]] = None
     ) -> ToolResult:
         tool = self.tool_map.get(name)
         if not tool:
             return ToolFailure(error=f"Tool {name} is invalid")
         try:
-            result = await tool(**tool_input)
+            result = await tool(**(tool_input if tool_input is not None else {}))
             return result
         except ToolError as e:
             return ToolFailure(error=e.message)
