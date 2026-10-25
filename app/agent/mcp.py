@@ -4,9 +4,8 @@ from pydantic import Field
 
 from app.agent.toolcall import ToolCallAgent
 from app.logger import logger
-from app.prompt.mcp import MULTIMEDIA_RESPONSE_PROMPT, NEXT_STEP_PROMPT, SYSTEM_PROMPT
+from app.prompt.mcp import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import AgentState, Message
-from app.tool.base import ToolResult
 from app.tool.mcp import MCPClients
 
 
@@ -43,6 +42,8 @@ class MCPAgent(ToolCallAgent):
         server_url: Optional[str] = None,
         command: Optional[str] = None,
         args: Optional[List[str]] = None,
+        server_id: str = "",
+        tool_name_prefix: bool = True,
     ) -> None:
         """Initialize the MCP connection.
 
@@ -59,11 +60,18 @@ class MCPAgent(ToolCallAgent):
         if self.connection_type == "sse":
             if not server_url:
                 raise ValueError("Server URL is required for SSE connection")
-            await self.mcp_clients.connect_sse(server_url=server_url)
+            await self.mcp_clients.connect_sse(
+                server_url=server_url, server_id=server_id
+            )
         elif self.connection_type == "stdio":
             if not command:
                 raise ValueError("Command is required for stdio connection")
-            await self.mcp_clients.connect_stdio(command=command, args=args or [])
+            await self.mcp_clients.connect_stdio(
+                command=command,
+                args=args or [],
+                server_id=server_id,
+                tool_name_prefix=tool_name_prefix,
+            )
         else:
             raise ValueError(f"Unsupported connection type: {self.connection_type}")
 
@@ -76,11 +84,18 @@ class MCPAgent(ToolCallAgent):
         # Add system message about available tools
         tool_names = list(self.mcp_clients.tool_map.keys())
         tools_info = ", ".join(tool_names)
+        resolved_server_id = server_id or command or server_url or ""
+        instructions = self.mcp_clients.server_instructions.get(resolved_server_id, "")
 
         # Add system prompt and available tools information
         self.memory.add_message(
             Message.system_message(
                 f"{self.system_prompt}\n\nAvailable MCP tools: {tools_info}"
+                + (
+                    f"\n\nMCP server instructions:\n{instructions}"
+                    if instructions
+                    else ""
+                )
             )
         )
 
@@ -150,19 +165,6 @@ class MCPAgent(ToolCallAgent):
 
         # Use the parent class's think method
         return await super().think()
-
-    async def _handle_special_tool(self, name: str, result: Any, **kwargs) -> None:
-        """Handle special tool execution and state changes"""
-        # First process with parent handler
-        await super()._handle_special_tool(name, result, **kwargs)
-
-        # Handle multimedia responses
-        if isinstance(result, ToolResult) and result.base64_image:
-            self.memory.add_message(
-                Message.system_message(
-                    MULTIMEDIA_RESPONSE_PROMPT.format(tool_name=name)
-                )
-            )
 
     def _should_finish_execution(self, name: str, **kwargs) -> bool:
         """Determine if tool execution should finish the agent"""

@@ -14,6 +14,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from tenacity import (
     retry,
     retry_if_exception_type,
+    retry_if_not_exception_type,
     stop_after_attempt,
     wait_random_exponential,
 )
@@ -354,9 +355,10 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=(
+            retry_if_exception_type(Exception)
+            & retry_if_not_exception_type(TokenLimitExceeded)
+        ),
     )
     async def ask(
         self,
@@ -481,9 +483,10 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=(
+            retry_if_exception_type(Exception)
+            & retry_if_not_exception_type(TokenLimitExceeded)
+        ),
     )
     async def ask_with_images(
         self,
@@ -637,9 +640,10 @@ class LLM:
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        retry=(
+            retry_if_exception_type(Exception)
+            & retry_if_not_exception_type(TokenLimitExceeded)
+        ),
     )
     async def ask_tool(
         self,

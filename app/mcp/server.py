@@ -16,7 +16,6 @@ from mcp.server.fastmcp import FastMCP
 from app.logger import logger
 from app.tool.base import BaseTool
 from app.tool.bash import Bash
-from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.terminate import Terminate
 
@@ -30,7 +29,6 @@ class MCPServer:
 
         # Initialize standard tools
         self.tools["bash"] = Bash()
-        self.tools["browser"] = BrowserUseTool()
         self.tools["editor"] = StrReplaceEditor()
         self.tools["terminate"] = Terminate()
 
@@ -138,9 +136,6 @@ class MCPServer:
     async def cleanup(self) -> None:
         """Clean up server resources."""
         logger.info("Cleaning up resources")
-        # Follow original cleanup logic - only clean browser tool
-        if "browser" in self.tools and hasattr(self.tools["browser"], "cleanup"):
-            await self.tools["browser"].cleanup()
 
     def register_all_tools(self) -> None:
         """Register all tools with the server."""

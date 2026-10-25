@@ -1,19 +1,19 @@
 import json
 from typing import TYPE_CHECKING, Optional
 
-from pydantic import Field, model_validator
-
-from app.agent.toolcall import ToolCallAgent
+from app.agent.mcp import MCPAgent
 from app.logger import logger
-from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
-from app.schema import Message, ToolChoice
-from app.tool import BrowserUseTool, Terminate, ToolCollection
-from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
+from app.prompt.browser import NEXT_STEP_PROMPT
+from app.schema import Message
+from app.tool.terminate import Terminate
 
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
 if TYPE_CHECKING:
     from app.agent.base import BaseAgent  # Or wherever memory is defined
+
+
+_SANDBOX_BROWSER_TOOL_NAME = "sandbox_browser"
 
 
 class BrowserContextHelper:
@@ -22,13 +22,9 @@ class BrowserContextHelper:
         self._current_base64_image: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
-        if not browser_tool:
-            browser_tool = self.agent.available_tools.get_tool(
-                SandboxBrowserTool().name
-            )
+        browser_tool = self.agent.available_tools.get_tool(_SANDBOX_BROWSER_TOOL_NAME)
         if not browser_tool or not hasattr(browser_tool, "get_current_state"):
-            logger.warning("BrowserUseTool not found or doesn't have get_current_state")
+            logger.warning("SandboxBrowserTool not found or has no current state")
             return None
         try:
             result = await browser_tool.get_current_state()
@@ -79,51 +75,40 @@ class BrowserContextHelper:
         )
 
     async def cleanup_browser(self):
-        browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
+        browser_tool = self.agent.available_tools.get_tool(_SANDBOX_BROWSER_TOOL_NAME)
         if browser_tool and hasattr(browser_tool, "cleanup"):
             await browser_tool.cleanup()
 
 
-class BrowserAgent(ToolCallAgent):
-    """
-    A browser agent that uses the browser_use library to control a browser.
-
-    This agent can navigate web pages, interact with elements, fill forms,
-    extract content, and perform other browser-based actions to accomplish tasks.
-    """
+class BrowserAgent(MCPAgent):
+    """Browser-only agent backed by the Browser Use CLI 3.0 MCP server."""
 
     name: str = "browser"
     description: str = "A browser agent that can control a browser to accomplish tasks"
+    system_prompt: str = """\
+Use Browser Use CLI 3.0 through `browser_exec`. Pass the Python body from CLI
+examples as the `code` argument. Use `browser_screenshot` when visual context
+is needed. The browser-harness session persists across calls. Use `terminate`
+when the task is complete.
+"""
 
-    system_prompt: str = SYSTEM_PROMPT
-    next_step_prompt: str = NEXT_STEP_PROMPT
-
-    max_observe: int = 10000
-    max_steps: int = 20
-
-    # Configure the available tools
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool(), Terminate())
-    )
-
-    # Use Auto for tool choice to allow both tool usage and free-form responses
-    tool_choices: ToolChoice = ToolChoice.AUTO
-    special_tool_names: list[str] = Field(default_factory=lambda: [Terminate().name])
-
-    browser_context_helper: Optional[BrowserContextHelper] = None
-
-    @model_validator(mode="after")
-    def initialize_helper(self) -> "BrowserAgent":
-        self.browser_context_helper = BrowserContextHelper(self)
-        return self
-
-    async def think(self) -> bool:
-        """Process current state and decide next actions using tools, with browser state info added"""
-        self.next_step_prompt = (
-            await self.browser_context_helper.format_next_step_prompt()
+    async def initialize(self) -> None:
+        await super().initialize(
+            connection_type="stdio",
+            command="uvx",
+            args=["browser-use", "--cli-mcp"],
+            server_id="browser_use",
+            tool_name_prefix=False,
         )
-        return await super().think()
+        self.available_tools.add_tool(Terminate())
 
-    async def cleanup(self):
-        """Clean up browser agent resources by calling parent cleanup."""
-        await self.browser_context_helper.cleanup_browser()
+    @classmethod
+    async def create(cls, **kwargs) -> "BrowserAgent":
+        instance = cls(**kwargs)
+        await instance.initialize()
+        return instance
+
+    async def run(self, request: Optional[str] = None) -> str:
+        if not self.mcp_clients.sessions:
+            await self.initialize()
+        return await super().run(request)

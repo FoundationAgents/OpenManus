@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import ListToolsResult, TextContent
+from mcp.types import ImageContent, ListToolsResult, TextContent
 
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
@@ -29,7 +29,19 @@ class MCPClientTool(BaseTool):
             content_str = ", ".join(
                 item.text for item in result.content if isinstance(item, TextContent)
             )
-            return ToolResult(output=content_str or "No output returned.")
+            image = next(
+                (
+                    item.data
+                    for item in result.content
+                    if isinstance(item, ImageContent)
+                ),
+                None,
+            )
+            return ToolResult(
+                output=content_str
+                or ("Image returned." if image else "No output returned."),
+                base64_image=image,
+            )
         except Exception as e:
             return ToolResult(error=f"Error executing tool: {str(e)}")
 
@@ -41,11 +53,15 @@ class MCPClients(ToolCollection):
 
     sessions: Dict[str, ClientSession] = {}
     exit_stacks: Dict[str, AsyncExitStack] = {}
+    server_instructions: Dict[str, str] = {}
     description: str = "MCP client tools for server interaction"
 
     def __init__(self):
         super().__init__()  # Initialize with empty tools list
         self.name = "mcp"  # Keep name for backward compatibility
+        self.sessions = {}
+        self.exit_stacks = {}
+        self.server_instructions = {}
 
     async def connect_sse(self, server_url: str, server_id: str = "") -> None:
         """Connect to an MCP server using SSE transport."""
@@ -69,7 +85,12 @@ class MCPClients(ToolCollection):
         await self._initialize_and_list_tools(server_id)
 
     async def connect_stdio(
-        self, command: str, args: List[str], server_id: str = ""
+        self,
+        command: str,
+        args: List[str],
+        server_id: str = "",
+        tool_name_prefix: bool = True,
+        env: Optional[Dict[str, str]] = None,
     ) -> None:
         """Connect to an MCP server using stdio transport."""
         if not command:
@@ -84,7 +105,7 @@ class MCPClients(ToolCollection):
         exit_stack = AsyncExitStack()
         self.exit_stacks[server_id] = exit_stack
 
-        server_params = StdioServerParameters(command=command, args=args)
+        server_params = StdioServerParameters(command=command, args=args, env=env)
         stdio_transport = await exit_stack.enter_async_context(
             stdio_client(server_params)
         )
@@ -92,21 +113,29 @@ class MCPClients(ToolCollection):
         session = await exit_stack.enter_async_context(ClientSession(read, write))
         self.sessions[server_id] = session
 
-        await self._initialize_and_list_tools(server_id)
+        await self._initialize_and_list_tools(server_id, tool_name_prefix)
 
-    async def _initialize_and_list_tools(self, server_id: str) -> None:
+    async def _initialize_and_list_tools(
+        self, server_id: str, tool_name_prefix: bool = True
+    ) -> None:
         """Initialize session and populate tool map."""
         session = self.sessions.get(server_id)
         if not session:
             raise RuntimeError(f"Session not initialized for server {server_id}")
 
-        await session.initialize()
+        initialization = await session.initialize()
+        if initialization.instructions:
+            self.server_instructions[server_id] = initialization.instructions
         response = await session.list_tools()
 
         # Create proper tool objects for each server tool
         for tool in response.tools:
             original_name = tool.name
-            tool_name = f"mcp_{server_id}_{original_name}"
+            tool_name = (
+                f"mcp_{server_id}_{original_name}"
+                if tool_name_prefix
+                else original_name
+            )
             tool_name = self._sanitize_tool_name(tool_name)
 
             server_tool = MCPClientTool(
@@ -174,6 +203,7 @@ class MCPClients(ToolCollection):
                     # Clean up references
                     self.sessions.pop(server_id, None)
                     self.exit_stacks.pop(server_id, None)
+                    self.server_instructions.pop(server_id, None)
 
                     # Remove tools associated with this server
                     self.tool_map = {

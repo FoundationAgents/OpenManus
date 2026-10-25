@@ -138,6 +138,7 @@ class ToolCallAgent(ReActAgent):
             return self.messages[-1].content or "No content or commands to execute"
 
         results = []
+        image_messages = []
         for command in self.tool_calls:
             # Reset base64_image for each tool call
             self._current_base64_image = None
@@ -156,11 +157,18 @@ class ToolCallAgent(ReActAgent):
                 content=result,
                 tool_call_id=command.id,
                 name=command.function.name,
-                base64_image=self._current_base64_image,
             )
             self.memory.add_message(tool_msg)
+            if self._current_base64_image:
+                image_messages.append(
+                    Message.user_message(
+                        content=f"Image returned by {command.function.name}:",
+                        base64_image=self._current_base64_image,
+                    )
+                )
             results.append(result)
 
+        self.memory.add_messages(image_messages)
         return "\n\n".join(results)
 
     async def execute_tool(self, command: ToolCall) -> str:

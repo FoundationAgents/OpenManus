@@ -16,8 +16,8 @@ updates:
       browsergym-related:
         patterns:
           - "browsergym*"
-          - "browser-use"
           - "playwright"
+          - "uv"
       search-tools:
         patterns:
           - "googlesearch-python"
@@ -40,8 +40,8 @@ updates:
           - "fastapi"
           - "tiktoken"
           - "browsergym*"
-          - "browser-use"
           - "playwright"
+          - "uv"
           - "googlesearch-python"
           - "baidusearch"
           - "duckduckgo_search"

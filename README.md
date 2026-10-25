@@ -15,7 +15,7 @@ English | [中文](README_zh.md) | [한국어](README_ko.md) | [日本語](READM
 
 Manus is incredible, but OpenManus can achieve any idea without an *Invite Code* 🛫!
 
-Our team members [@Xinbin Liang](https://github.com/mannaandpoem) and [@Jinyu Xiang](https://github.com/XiangJinyu) (core authors), along with [@Zhaoyang Yu](https://github.com/MoshiQAQ), [@Jiayi Zhang](https://github.com/didiforgithub), and [@Sirui Hong](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
+Our team members [@Xinbing Liang](https://github.com/mannaandpoem) and [@Jinyu Xiang](https://github.com/XiangJinyu) (core authors), along with [@Zhaoyang Yu](https://github.com/MoshiQAQ), [@Jiayi Zhang](https://github.com/didiforgithub), and [@Sirui Hong](https://github.com/stellaHSR), we are from [@MetaGPT](https://github.com/geekan/MetaGPT). The prototype is launched within 3 hours and we are keeping building!
 
 It's a simple implementation, so we welcome any suggestions, contributions, and feedback!
 
@@ -83,7 +83,39 @@ source .venv/bin/activate  # On Unix/macOS
 uv pip install -r requirements.txt
 ```
 
-### Browser Automation Tool (Optional)
+### Browser automation
+
+OpenManus starts Browser Use CLI 3.0 as a default MCP server:
+
+```bash
+uvx browser-use --cli-mcp
+```
+
+`uvx` keeps Browser Use and its fast-moving dependencies isolated from the
+OpenManus environment. The agent receives the canonical Browser Use skill and
+the native `browser_exec` and `browser_screenshot` tools.
+
+Local mode attaches to Chrome or Chromium automatically and needs no API key.
+For diagnostics or to install Chromium, run:
+
+```bash
+uvx browser-use --doctor
+uvx browser-use install
+```
+
+For an isolated Browser Use Cloud browser, authenticate before starting
+OpenManus. The agent can then start and select a named remote browser:
+
+```bash
+export BROWSER_USE_API_KEY="bu_..."
+```
+
+Existing browsers can be selected with `BU_CDP_URL`, `BU_CDP_WS`, or `BU_NAME`.
+Set `OPENMANUS_DISABLE_BROWSER_USE=1` to disable the default Browser Use MCP
+server.
+
+BrowserGym still requires its Playwright browser:
+
 ```bash
 playwright install
 ```
@@ -185,7 +217,7 @@ OpenManus is built by contributors from MetaGPT. Huge thanks to this agent commu
 ## Cite
 ```bibtex
 @misc{openmanus2025,
-  author = {Xinbin Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Sheng Fan and Xiao Tang and Bang Liu and Yuyu Luo and Chenglin Wu},
+  author = {Xinbing Liang and Jinyu Xiang and Zhaoyang Yu and Jiayi Zhang and Sirui Hong and Sheng Fan and Xiao Tang and Bang Liu and Yuyu Luo and Chenglin Wu},
   title = {OpenManus: An open-source framework for building general AI agents},
   year = {2025},
   publisher = {Zenodo},
