@@ -297,11 +297,19 @@ class WebSearch(BaseTool):
         for engine_name in engine_order:
             engine = self._search_engine[engine_name]
             logger.info(f"🔎 Attempting search with {engine_name.capitalize()}...")
-            search_items = await self._perform_search_with_engine(
-                engine, query, num_results, search_params
-            )
+            try:
+                search_items = await self._perform_search_with_engine(
+                    engine, query, num_results, search_params
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Search engine {engine_name.capitalize()} raised an exception: {e}"
+                )
+                failed_engines.append(engine_name)
+                continue
 
             if not search_items:
+                failed_engines.append(engine_name)
                 continue
 
             if failed_engines:
