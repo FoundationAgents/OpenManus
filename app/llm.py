@@ -32,14 +32,34 @@ from app.schema import (
 
 
 REASONING_MODELS = ["o1", "o3-mini"]
-MULTIMODAL_MODELS = [
-    "gpt-4-vision-preview",
+# Model name fragments that accept image input. Substring matching keeps dated
+# snapshots (claude-3-7-sonnet-20250219) and provider-prefixed ids
+# (us.anthropic.claude-3-7-sonnet-...) working without an exhaustive list.
+MULTIMODAL_MODEL_FAMILIES = (
     "gpt-4o",
-    "gpt-4o-mini",
-    "claude-3-opus-20240229",
-    "claude-3-sonnet-20240229",
-    "claude-3-haiku-20240307",
-]
+    "gpt-4.1",
+    "gpt-4.5",
+    "gpt-5",
+    "claude-3",
+    "claude-4",
+    "claude-sonnet",
+    "claude-opus",
+    "claude-haiku",
+    "gemini",
+    "qwen-vl",
+    "qwen2-vl",
+    "qwen2.5-vl",
+    "qwen3-vl",
+    "llava",
+    "pixtral",
+    "vision",
+)
+
+
+def supports_image_input(model: str) -> bool:
+    """Return True when the model accepts image content blocks."""
+    name = (model or "").lower()
+    return any(family in name for family in MULTIMODAL_MODEL_FAMILIES)
 
 
 class TokenCounter:
@@ -385,7 +405,7 @@ class LLM:
         """
         try:
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            supports_images = supports_image_input(self.model)
 
             # Format system and user messages with image support check
             if system_msgs:
@@ -515,9 +535,10 @@ class LLM:
         try:
             # For ask_with_images, we always set supports_images to True because
             # this method should only be called with models that support images
-            if self.model not in MULTIMODAL_MODELS:
+            if not supports_image_input(self.model):
                 raise ValueError(
-                    f"Model {self.model} does not support images. Use a model from {MULTIMODAL_MODELS}"
+                    f"Model {self.model} does not support image input. "
+                    f"Known image-capable families: {MULTIMODAL_MODEL_FAMILIES}"
                 )
 
             # Format messages with image support
@@ -678,7 +699,7 @@ class LLM:
                 raise ValueError(f"Invalid tool_choice: {tool_choice}")
 
             # Check if the model supports images
-            supports_images = self.model in MULTIMODAL_MODELS
+            supports_images = supports_image_input(self.model)
 
             # Format messages
             if system_msgs:
