@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 # Files to exclude from operations
@@ -49,7 +50,7 @@ def should_exclude_file(rel_path: str) -> bool:
 
     # Check directory
     dir_path = os.path.dirname(rel_path)
-    if any(excluded in dir_path for excluded in EXCLUDED_DIRS):
+    if any(part in EXCLUDED_DIRS for part in Path(dir_path).parts):
         return True
 
     # Check extension
