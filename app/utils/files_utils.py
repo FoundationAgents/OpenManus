@@ -73,9 +73,13 @@ def clean_path(path: str, workspace_path: str = "/workspace") -> str:
     # Remove any leading slash
     path = path.lstrip("/")
 
-    # Remove workspace prefix if present
-    if path.startswith(workspace_path.lstrip("/")):
-        path = path[len(workspace_path.lstrip("/")) :]
+    # Remove workspace prefix only at a complete directory boundary
+    workspace_prefix = workspace_path.lstrip("/")
+    directory_prefix = workspace_prefix
+    if not directory_prefix.endswith("/"):
+        directory_prefix += "/"
+    if path == workspace_prefix or path.startswith(directory_prefix):
+        path = path[len(workspace_prefix) :]
 
     # Remove workspace/ prefix if present
     if path.startswith("workspace/"):
