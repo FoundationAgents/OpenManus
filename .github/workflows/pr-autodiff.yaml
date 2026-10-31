@@ -14,9 +14,9 @@ jobs:
     if: |
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' &&
-       contains(github.event.comment.body, '!pr-diff') &&
-       (github.event.comment.author_association == 'CONTRIBUTOR' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') &&
-       github.event.issue.pull_request)
+      contains(github.event.comment.body, '!pr-diff') &&
+      (github.event.comment.author_association == 'CONTRIBUTOR' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') &&
+      github.event.issue.pull_request)
     steps:
       - name: Get PR head SHA
         id: get-pr-sha
@@ -118,7 +118,7 @@ jobs:
 
               headers = {
                   "Authorization": f"Bearer {os.getenv('GH_TOKEN')}",
-                  "Accept": "application/vnd.github.v3+json"
+                  "Accept": "application.vnd.github.v3+json"
               }
               url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
 
