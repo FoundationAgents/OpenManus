@@ -54,6 +54,20 @@ async def test_success_restores_previous_state(agent):
 
 
 @pytest.mark.asyncio
+async def test_successful_error_context_restores_previous_state(agent):
+    async with agent.state_context(AgentState.ERROR):
+        assert agent.state == AgentState.ERROR
+    assert agent.state == AgentState.IDLE
+
+
+@pytest.mark.asyncio
+async def test_successful_body_state_change_restores_previous_state(agent):
+    async with agent.state_context(AgentState.RUNNING):
+        agent.state = AgentState.ERROR
+    assert agent.state == AgentState.IDLE
+
+
+@pytest.mark.asyncio
 async def test_cancellation_restores_previous_state(agent):
     with pytest.raises(asyncio.CancelledError):
         async with agent.state_context(AgentState.RUNNING):

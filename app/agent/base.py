@@ -73,14 +73,15 @@ class BaseAgent(BaseModel, ABC):
 
         previous_state = self.state
         self.state = new_state
+        failed = False
         try:
             yield
         except Exception as e:
+            failed = True
             self.state = AgentState.ERROR  # Transition to ERROR on failure
             raise e
         finally:
-            # Keep the failure state set above when unwinding the context.
-            if self.state != AgentState.ERROR:
+            if not failed:
                 self.state = previous_state
 
     def update_memory(
