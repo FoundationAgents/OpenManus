@@ -79,7 +79,9 @@ class BaseAgent(BaseModel, ABC):
             self.state = AgentState.ERROR  # Transition to ERROR on failure
             raise e
         finally:
-            self.state = previous_state  # Revert to previous state
+            # Keep the failure state set above when unwinding the context.
+            if self.state != AgentState.ERROR:
+                self.state = previous_state
 
     def update_memory(
         self,
