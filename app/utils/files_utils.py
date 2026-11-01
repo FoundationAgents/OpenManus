@@ -74,7 +74,7 @@ def clean_path(path: str, workspace_path: str = "/workspace") -> str:
     path = path.lstrip("/")
 
     # Remove workspace prefix only at a complete directory boundary
-    workspace_prefix = workspace_path.lstrip("/")
+    workspace_prefix = workspace_path.strip("/")
     directory_prefix = workspace_prefix
     if not directory_prefix.endswith("/"):
         directory_prefix += "/"
