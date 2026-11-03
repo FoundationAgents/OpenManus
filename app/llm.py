@@ -595,7 +595,9 @@ class LLM:
                 if not response.choices or not response.choices[0].message.content:
                     raise ValueError("Empty or invalid response from LLM")
 
-                self.update_token_count(response.usage.prompt_tokens)
+                self.update_token_count(
+                    response.usage.prompt_tokens, response.usage.completion_tokens
+                )
                 return response.choices[0].message.content
 
             # Handle streaming request
@@ -613,6 +615,13 @@ class LLM:
 
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
+
+            # estimate completion tokens for streaming response
+            completion_tokens = self.count_tokens(full_response)
+            logger.info(
+                f"Estimated completion tokens for streaming response: {completion_tokens}"
+            )
+            self.total_completion_tokens += completion_tokens
 
             return full_response
 
