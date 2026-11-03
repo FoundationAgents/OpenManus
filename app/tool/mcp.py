@@ -140,7 +140,7 @@ class MCPClients(ToolCollection):
 
             server_tool = MCPClientTool(
                 name=tool_name,
-                description=tool.description,
+                description=tool.description or "",
                 parameters=tool.inputSchema,
                 session=session,
                 server_id=server_id,
