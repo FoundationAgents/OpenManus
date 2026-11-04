@@ -183,7 +183,7 @@ class SandboxShellTool(SandboxToolsBase):
                 start_time = time.time()
                 while (time.time() - start_time) < timeout:
                     # Wait a bit before checking
-                    time.sleep(2)
+                    await asyncio.sleep(2)
 
                     # Check if session still exists (command might have exited)
                     check_result = await self._execute_raw_command(
