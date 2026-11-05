@@ -58,6 +58,7 @@ class PythonExecute(BaseTool):
                 safe_globals = {"__builtins__": __builtins__}
             else:
                 safe_globals = {"__builtins__": __builtins__.__dict__.copy()}
+            safe_globals["__name__"] = "__main__"
             proc = multiprocessing.Process(
                 target=self._run_code, args=(code, result, safe_globals)
             )
