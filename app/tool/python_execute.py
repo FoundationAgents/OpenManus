@@ -3,11 +3,13 @@ import sys
 from io import StringIO
 from typing import Dict
 
+import psutil
+
 from app.tool.base import BaseTool
 
 
 class PythonExecute(BaseTool):
-    """A tool for executing Python code with timeout and safety restrictions."""
+    """Execute local Python code with a timeout, without security isolation."""
 
     name: str = "python_execute"
     description: str = "Executes Python code string. Note: Only print outputs are visible, function return values are not captured. Use print statements to see results."
@@ -35,6 +37,35 @@ class PythonExecute(BaseTool):
             result_dict["success"] = False
         finally:
             sys.stdout = original_stdout
+
+    @staticmethod
+    def _terminate_process_tree(proc: multiprocessing.Process) -> None:
+        """Best-effort cleanup, including descendants in separate sessions."""
+        try:
+            descendants = psutil.Process(proc.pid).children(recursive=True)
+        except psutil.NoSuchProcess:
+            descendants = []
+
+        # Snapshot before terminating the worker: its children may be reparented.
+        proc.terminate()
+        for child in descendants:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                pass
+
+        _, alive = psutil.wait_procs(descendants, timeout=1)
+        for child in alive:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+
+        proc.join(1)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(1)
+        psutil.wait_procs(alive, timeout=1)
 
     async def execute(
         self,
@@ -66,8 +97,7 @@ class PythonExecute(BaseTool):
 
             # timeout process
             if proc.is_alive():
-                proc.terminate()
-                proc.join(1)
+                self._terminate_process_tree(proc)
                 return {
                     "observation": f"Execution timeout after {timeout} seconds",
                     "success": False,
