@@ -183,13 +183,19 @@ class DockerSession:
                                 command_sent = True
                                 continue
 
-                            if line.strip() == b"echo $?" or line.strip().isdigit():
+                            if line.strip() == b"echo $?":
                                 continue
 
                             if line.strip():
                                 result_lines.append(line)
 
                         if buffer.endswith(b"$ "):
+                            # The exit status is the last line printed before the
+                            # prompt. Drop it here instead of dropping every
+                            # numeric line, which would swallow real output such
+                            # as `wc -l`, `seq` or `grep -c`.
+                            if result_lines and result_lines[-1].strip().isdigit():
+                                result_lines.pop()
                             break
 
                     except socket.error as e:
