@@ -1,4 +1,5 @@
 pydantic~=2.10.6
+psutil~=7.0.0
 openai~=1.66.3
 tenacity~=9.0.0
 pyyaml~=6.0.2
