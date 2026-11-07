@@ -71,10 +71,12 @@ temperature = 0.0                          # Controls randomness for vision mode
 
 # Optional configuration, Search settings.
 # [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing" or "SpecStream".
 #engine = "Google"
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
 #fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+# API key for the "SpecStream" engine (https://specstream.ai/docs/search-api). Can also be set with the SPECSTREAM_API_KEY environment variable.
+#specstream_api_key = ""
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
 #retry_delay = 60
 # Maximum number of times to retry all engines when all fail. Default is 3.

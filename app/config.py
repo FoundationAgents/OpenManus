@@ -58,6 +58,10 @@ class SearchSettings(BaseModel):
         default="us",
         description="Country code for search results (e.g., us, cn, uk)",
     )
+    specstream_api_key: Optional[str] = Field(
+        default=None,
+        description="API key for the SpecStream search engine (or set SPECSTREAM_API_KEY)",
+    )
 
 
 class RunflowSettings(BaseModel):
