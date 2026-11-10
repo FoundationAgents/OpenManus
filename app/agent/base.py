@@ -172,15 +172,25 @@ class BaseAgent(BaseModel, ABC):
         if len(self.memory.messages) < 2:
             return False
 
-        last_message = self.memory.messages[-1]
+        # A step normally ends with the tool result, so the newest message is a
+        # 'tool' message whose content never equals an assistant reply. Compare
+        # the newest assistant reply instead, otherwise a looping agent is never
+        # detected while it keeps calling tools.
+        assistant_messages = [
+            msg for msg in self.memory.messages if msg.role == "assistant"
+        ]
+        if not assistant_messages:
+            return False
+
+        last_message = assistant_messages[-1]
         if not last_message.content:
             return False
 
         # Count identical content occurrences
         duplicate_count = sum(
             1
-            for msg in reversed(self.memory.messages[:-1])
-            if msg.role == "assistant" and msg.content == last_message.content
+            for msg in reversed(assistant_messages[:-1])
+            if msg.content == last_message.content
         )
 
         return duplicate_count >= self.duplicate_threshold
