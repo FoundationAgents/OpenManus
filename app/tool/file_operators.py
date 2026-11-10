@@ -1,6 +1,7 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
+import shlex
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
@@ -123,16 +124,18 @@ class SandboxFileOperator(FileOperator):
     async def is_directory(self, path: PathLike) -> bool:
         """Check if path points to a directory in sandbox."""
         await self._ensure_sandbox_initialized()
+        quoted = shlex.quote(str(path))
         result = await self.sandbox_client.run_command(
-            f"test -d {path} && echo 'true' || echo 'false'"
+            f"test -d {quoted} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 
     async def exists(self, path: PathLike) -> bool:
         """Check if path exists in sandbox."""
         await self._ensure_sandbox_initialized()
+        quoted = shlex.quote(str(path))
         result = await self.sandbox_client.run_command(
-            f"test -e {path} && echo 'true' || echo 'false'"
+            f"test -e {quoted} && echo 'true' || echo 'false'"
         )
         return result.strip() == "true"
 
