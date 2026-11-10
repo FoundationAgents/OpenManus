@@ -105,7 +105,19 @@ class CreateChatCompletion(BaseTool):
         if origin is Union:
             return self._create_union_schema(args)
 
-        return self._build_parameters()
+        # Any other generic alias (Literal, Set, Tuple, ...) has no schema
+        # mapping. Describe it as plain text instead of calling
+        # _build_parameters() again, which recursed until RecursionError.
+        return {
+            "type": "object",
+            "properties": {
+                "response": {
+                    "type": "string",
+                    "description": f"Response of type {type_hint}",
+                }
+            },
+            "required": self.required,
+        }
 
     def _get_type_info(self, type_hint: Type) -> dict:
         """Get type information for a single type."""
