@@ -97,30 +97,41 @@ class ChatCompletions:
                 }
                 bedrock_messages.append(bedrock_message)
             elif message.get("role") == "assistant":
-                bedrock_message = {
-                    "role": "assistant",
-                    "content": [{"text": message.get("content")}],
-                }
+                # Bedrock rejects empty text blocks, so only send content that
+                # was actually produced before the tool calls.
+                bedrock_content = []
+                if message.get("content"):
+                    bedrock_content.append({"text": message["content"]})
+
                 openai_tool_calls = message.get("tool_calls", [])
-                if openai_tool_calls:
-                    bedrock_tool_use = {
-                        "toolUseId": openai_tool_calls[0]["id"],
-                        "name": openai_tool_calls[0]["function"]["name"],
-                        "input": json.loads(
-                            openai_tool_calls[0]["function"]["arguments"]
-                        ),
-                    }
-                    bedrock_message["content"].append({"toolUse": bedrock_tool_use})
-                    global CURRENT_TOOLUSE_ID
-                    CURRENT_TOOLUSE_ID = openai_tool_calls[0]["id"]
-                bedrock_messages.append(bedrock_message)
+                global CURRENT_TOOLUSE_ID
+                for openai_tool_call in openai_tool_calls:
+                    bedrock_content.append(
+                        {
+                            "toolUse": {
+                                "toolUseId": openai_tool_call["id"],
+                                "name": openai_tool_call["function"]["name"],
+                                "input": json.loads(
+                                    openai_tool_call["function"]["arguments"] or "{}"
+                                ),
+                            }
+                        }
+                    )
+                    CURRENT_TOOLUSE_ID = openai_tool_call["id"]
+
+                bedrock_messages.append(
+                    {"role": "assistant", "content": bedrock_content}
+                )
             elif message.get("role") == "tool":
                 bedrock_message = {
                     "role": "user",
                     "content": [
                         {
                             "toolResult": {
-                                "toolUseId": CURRENT_TOOLUSE_ID,
+                                # Answer the tool call this observation belongs
+                                # to instead of the last tool call that was seen.
+                                "toolUseId": message.get("tool_call_id")
+                                or CURRENT_TOOLUSE_ID,
                                 "content": [{"text": message.get("content")}],
                             }
                         }
