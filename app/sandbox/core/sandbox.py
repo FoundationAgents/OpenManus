@@ -1,6 +1,7 @@
 import asyncio
 import io
 import os
+import shlex
 import tarfile
 import tempfile
 import uuid
@@ -214,7 +215,7 @@ class DockerSandbox:
 
             # Create parent directory
             if parent_dir:
-                await self.run_command(f"mkdir -p {parent_dir}")
+                await self.run_command(f"mkdir -p -- {shlex.quote(parent_dir)}")
 
             # Prepare file data
             tar_stream = await self._create_tar_stream(
@@ -291,7 +292,7 @@ class DockerSandbox:
 
                     # If destination is a directory, we should preserve relative path structure
                     if os.path.isdir(dst_path):
-                        tar.extractall(dst_path)
+                        tar.extractall(dst_path, filter="data")
                     else:
                         # If destination is a file, we only extract the source file's content
                         if len(members) > 1:
@@ -331,7 +332,7 @@ class DockerSandbox:
             resolved_dst = self._safe_resolve_path(dst_path)
             container_dir = os.path.dirname(resolved_dst)
             if container_dir:
-                await self.run_command(f"mkdir -p {container_dir}")
+                await self.run_command(f"mkdir -p -- {shlex.quote(container_dir)}")
 
             # Create tar file to upload
             with tempfile.TemporaryDirectory() as tmp_dir:
@@ -365,7 +366,7 @@ class DockerSandbox:
 
                 # Verify file was created successfully
                 try:
-                    await self.run_command(f"test -e {resolved_dst}")
+                    await self.run_command(f"test -e {shlex.quote(resolved_dst)}")
                 except Exception:
                     raise RuntimeError(f"Failed to verify file creation: {dst_path}")
 
