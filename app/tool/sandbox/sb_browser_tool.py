@@ -427,13 +427,18 @@ class SandboxBrowserTool(SandboxToolsBase):
                 return ToolResult(error="Browser context not initialized")
             state = message.content
             screenshot = state.get("screenshot_base64")
-            # Build the state info with all required fields
+            # Build the state info with all required fields. The state arrives as
+            # plain JSON (see `_execute_browser_action`), so read it like a dict
+            # and only dump tabs that are model objects.
             state_info = {
                 "url": state.get("url", ""),
                 "title": state.get("title", ""),
-                "tabs": [tab.model_dump() for tab in state.get("tabs", [])],
-                "pixels_above": getattr(state, "pixels_above", 0),
-                "pixels_below": getattr(state, "pixels_below", 0),
+                "tabs": [
+                    tab.model_dump() if hasattr(tab, "model_dump") else tab
+                    for tab in state.get("tabs", [])
+                ],
+                "pixels_above": state.get("pixels_above", 0),
+                "pixels_below": state.get("pixels_below", 0),
                 "help": "[0], [1], [2], etc., represent clickable indices corresponding to the elements listed. Clicking on these indices will navigate to or interact with the respective content behind them.",
             }
 
