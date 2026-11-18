@@ -10,12 +10,22 @@ from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from dotenv import load_dotenv
 
-from app.tool.browser_use_tool import _BROWSER_DESCRIPTION
 from app.tool.str_replace_editor import _STR_REPLACE_EDITOR_DESCRIPTION
 from app.tool.terminate import _TERMINATE_DESCRIPTION
 
 from .agent import A2AManus
 from .agent_executor import ManusExecutor
+
+
+# Browser skill description advertised in the agent card. Browsing is provided
+# by the Browser Use CLI 3.0 MCP server, so the card describes those tools
+# instead of the removed local `browser_use_tool` module.
+_BROWSER_DESCRIPTION = """Web browsing tool backed by the Browser Use CLI 3.0 MCP server.
+* `browser_exec` runs Browser Use CLI 3.0 Python snippets inside the persistent browser session
+* `browser_screenshot` captures the current page when visual context is needed
+* The browser session stays alive across calls until it is explicitly closed
+* Use this when you need to browse websites, fill forms, click buttons, or extract content
+"""
 
 
 load_dotenv()
