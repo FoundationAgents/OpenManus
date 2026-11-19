@@ -156,6 +156,7 @@ class MCPClients(ToolCollection):
 
     def _sanitize_tool_name(self, name: str) -> str:
         """Sanitize tool name to match MCPClientTool requirements."""
+        import hashlib
         import re
 
         # Replace invalid characters with underscores
@@ -167,9 +168,16 @@ class MCPClients(ToolCollection):
         # Remove leading/trailing underscores
         sanitized = sanitized.strip("_")
 
-        # Truncate to 64 characters if needed
-        if len(sanitized) > 64:
-            sanitized = sanitized[:64]
+        # Replacing, collapsing or truncating characters can map distinct tool
+        # names onto the same sanitized name (or onto an empty one), which makes
+        # the tools silently replace each other in the tool map. Keep every name
+        # unique and non-empty by appending a short digest of the original name.
+        max_length = 64
+        if sanitized != name or len(sanitized) > max_length:
+            digest_length = 8
+            digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:digest_length]
+            head = sanitized[: max_length - digest_length - 1]
+            sanitized = f"{head or 'tool'}_{digest}"
 
         return sanitized
 
