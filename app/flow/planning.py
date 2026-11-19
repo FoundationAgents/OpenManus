@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Union
 from pydantic import Field
 
 from app.agent.base import BaseAgent
+from app.exceptions import ToolError
 from app.flow.base import BaseFlow
 from app.llm import LLM
 from app.logger import logger
@@ -188,11 +189,25 @@ class PlanningFlow(BaseFlow):
                             logger.error(f"Failed to parse tool arguments: {args}")
                             continue
 
-                    # Ensure plan_id is set correctly and execute the tool
+                    # The flow owns the plan id and the plan title, so fill in the
+                    # fields the planning tool requires but the model may omit
+                    if not args.get("command"):
+                        args["command"] = "create"
+                    if not args.get("title"):
+                        title = f"Plan for: {request[:50]}"
+                        if len(request) > 50:
+                            title += "..."
+                        args["title"] = title
                     args["plan_id"] = self.active_plan_id
 
                     # Execute the tool via ToolCollection instead of directly
-                    result = await self.planning_tool.execute(**args)
+                    try:
+                        result = await self.planning_tool.execute(**args)
+                    except ToolError as e:
+                        # The model produced an unusable plan; fall back to the
+                        # default plan below instead of failing the whole flow.
+                        logger.warning(f"Planning tool rejected the plan: {e.message}")
+                        continue
 
                     logger.info(f"Plan creation result: {str(result)}")
                     return
