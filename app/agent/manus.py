@@ -136,6 +136,9 @@ class Manus(ToolCallAgent):
         stdio_env: Optional[Dict[str, str]] = None,
     ) -> None:
         """Connect to an MCP server and add its tools."""
+        # MCPClients falls back to the command/url when no server_id is given,
+        # so resolve it here as well before matching the returned tools.
+        resolved_server_id = server_id or server_url
         if use_stdio:
             await self.mcp_clients.connect_stdio(
                 server_url,
@@ -144,18 +147,19 @@ class Manus(ToolCallAgent):
                 tool_name_prefix=tool_name_prefix,
                 env=stdio_env,
             )
-            self.connected_servers[server_id or server_url] = server_url
+            self.connected_servers[resolved_server_id] = server_url
         else:
             await self.mcp_clients.connect_sse(server_url, server_id)
-            self.connected_servers[server_id or server_url] = server_url
+            self.connected_servers[resolved_server_id] = server_url
 
         # Update available tools with only the new tools from this server
         new_tools = [
-            tool for tool in self.mcp_clients.tools if tool.server_id == server_id
+            tool
+            for tool in self.mcp_clients.tools
+            if tool.server_id == resolved_server_id
         ]
         self.available_tools.add_tools(*new_tools)
 
-        resolved_server_id = server_id or server_url
         instructions = self.mcp_clients.server_instructions.get(resolved_server_id)
         if instructions and resolved_server_id not in self.mcp_instruction_servers:
             transport_instructions = (
