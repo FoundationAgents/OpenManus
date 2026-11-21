@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, DefaultDict, List, Literal, Optional, get_args
+from typing import Any, DefaultDict, List, Literal, Optional, Tuple, get_args
 
 from app.config import config
 from app.exceptions import ToolError
@@ -55,6 +55,32 @@ def maybe_truncate(
     if not truncate_after or len(content) <= truncate_after:
         return content
     return content[:truncate_after] + TRUNCATED_MESSAGE
+
+
+def expand_tabs_with_offsets(content: str) -> Tuple[str, List[int]]:
+    """Expand tabs exactly like `str.expandtabs` and keep the source offsets.
+
+    `str.expandtabs` discards the position of every original character, so text
+    matched in an expanded copy cannot be located in the original file. This
+    helper returns the expanded text plus an offset table where entry `i` is the
+    offset in `content` that produced expanded character `i`, with one extra
+    trailing entry holding `len(content)`.
+    """
+    expanded_chars: List[str] = []
+    offsets: List[int] = []
+    column = 0
+    for index, char in enumerate(content):
+        if char == "\t":
+            padding = 8 - (column % 8)
+            expanded_chars.append(" " * padding)
+            offsets.extend([index] * padding)
+            column += padding
+        else:
+            expanded_chars.append(char)
+            offsets.append(index)
+            column = 0 if char == "\n" else column + 1
+    offsets.append(len(content))
+    return "".join(expanded_chars), offsets
 
 
 class StrReplaceEditor(BaseTool):
@@ -281,6 +307,41 @@ class StrReplaceEditor(BaseTool):
             output=self._make_output(file_content, str(path), init_line=init_line)
         )
 
+    @staticmethod
+    def _locate_replacement(
+        file_content: str, old_str: str, path: PathLike
+    ) -> Tuple[int, int]:
+        """Return the `(start, end)` offsets of `old_str` inside `file_content`."""
+        occurrences = file_content.count(old_str)
+        if occurrences == 1:
+            start = file_content.index(old_str)
+            return start, start + len(old_str)
+
+        content = file_content
+        needle = old_str
+        if occurrences == 0:
+            # Models often send spaces where the file uses tabs, so retry on the
+            # tab expanded copy and map the match back onto the original text.
+            content, offsets = expand_tabs_with_offsets(file_content)
+            needle = old_str.expandtabs()
+            occurrences = content.count(needle)
+            if occurrences == 1:
+                start = content.index(needle)
+                return offsets[start], offsets[start + len(needle)]
+
+        if occurrences == 0:
+            raise ToolError(
+                f"No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}."
+            )
+
+        # Find line numbers of occurrences
+        content_lines = content.split("\n")
+        lines = [idx + 1 for idx, line in enumerate(content_lines) if needle in line]
+        raise ToolError(
+            f"No replacement was performed. Multiple occurrences of old_str `{old_str}` "
+            f"in lines {lines}. Please ensure it is unique"
+        )
+
     async def str_replace(
         self,
         path: PathLike,
@@ -289,32 +350,16 @@ class StrReplaceEditor(BaseTool):
         operator: FileOperator = None,
     ) -> CLIResult:
         """Replace a unique string in a file with a new string."""
-        # Read file content and expand tabs
-        file_content = (await operator.read_file(path)).expandtabs()
-        old_str = old_str.expandtabs()
-        new_str = new_str.expandtabs() if new_str is not None else ""
+        # Read the file as it is stored: expanding tabs here would rewrite the
+        # indentation of every untouched line when the content is written back.
+        file_content = await operator.read_file(path)
+        new_str = new_str if new_str is not None else ""
 
-        # Check if old_str is unique in the file
-        occurrences = file_content.count(old_str)
-        if occurrences == 0:
-            raise ToolError(
-                f"No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}."
-            )
-        elif occurrences > 1:
-            # Find line numbers of occurrences
-            file_content_lines = file_content.split("\n")
-            lines = [
-                idx + 1
-                for idx, line in enumerate(file_content_lines)
-                if old_str in line
-            ]
-            raise ToolError(
-                f"No replacement was performed. Multiple occurrences of old_str `{old_str}` "
-                f"in lines {lines}. Please ensure it is unique"
-            )
+        # Locate old_str, tolerating a tab/space mismatch in the request
+        start, end = self._locate_replacement(file_content, old_str, path)
 
         # Replace old_str with new_str
-        new_file_content = file_content.replace(old_str, new_str)
+        new_file_content = file_content[:start] + new_str + file_content[end:]
 
         # Write the new content to the file
         await operator.write_file(path, new_file_content)
@@ -323,7 +368,7 @@ class StrReplaceEditor(BaseTool):
         self._file_history[path].append(file_content)
 
         # Create a snippet of the edited section
-        replacement_line = file_content.split(old_str)[0].count("\n")
+        replacement_line = file_content[:start].count("\n")
         start_line = max(0, replacement_line - SNIPPET_LINES)
         end_line = replacement_line + SNIPPET_LINES + new_str.count("\n")
         snippet = "\n".join(new_file_content.split("\n")[start_line : end_line + 1])
@@ -345,9 +390,9 @@ class StrReplaceEditor(BaseTool):
         operator: FileOperator = None,
     ) -> CLIResult:
         """Insert text at a specific line in a file."""
-        # Read and prepare content
-        file_text = (await operator.read_file(path)).expandtabs()
-        new_str = new_str.expandtabs()
+        # Read the file as it is stored: expanding tabs here would rewrite the
+        # indentation of every untouched line when the content is written back.
+        file_text = await operator.read_file(path)
         file_text_lines = file_text.split("\n")
         n_lines_file = len(file_text_lines)
 
