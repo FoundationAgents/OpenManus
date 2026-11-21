@@ -105,7 +105,14 @@ class MCPServer:
         # Follow original type mapping
         for param_name, param_details in param_props.items():
             param_type = param_details.get("type", "")
-            default = Parameter.empty if param_name in required_params else None
+            if param_name in required_params:
+                default = Parameter.empty
+            elif "default" in param_details:
+                # Keep the default declared by the tool schema: a client that omits
+                # an optional argument must get the documented value, not None.
+                default = param_details["default"]
+            else:
+                default = None
 
             # Map JSON Schema types to Python types (same as original)
             annotation = Any
