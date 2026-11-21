@@ -180,6 +180,10 @@ class Memory(BaseModel):
 
     def get_recent_messages(self, n: int) -> List[Message]:
         """Get n most recent messages"""
+        if n <= 0:
+            # `self.messages[-0:]` is `self.messages[0:]`, i.e. the whole history,
+            # so a non-positive count must be answered explicitly.
+            return []
         return self.messages[-n:]
 
     def to_dict_list(self) -> List[dict]:
