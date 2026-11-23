@@ -7,6 +7,7 @@ allowing interactive command execution with timeout control.
 
 import asyncio
 import re
+import shlex
 import socket
 from typing import Dict, Optional, Tuple, Union
 
@@ -41,7 +42,7 @@ class DockerSession:
         startup_command = [
             "bash",
             "-c",
-            f"cd {working_dir} && "
+            f"cd {shlex.quote(working_dir)} && "
             "PROMPT_COMMAND='' "
             "PS1='$ ' "
             "exec bash --norc --noprofile",
@@ -295,7 +296,7 @@ class AsyncDockerizedTerminal:
             RuntimeError: If directory creation fails.
         """
         try:
-            await self._exec_simple(f"mkdir -p {self.working_dir}")
+            await self._exec_simple(f"mkdir -p {shlex.quote(self.working_dir)}")
         except APIError as e:
             raise RuntimeError(f"Failed to create working directory: {e}")
 
