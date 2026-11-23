@@ -13,8 +13,9 @@ class ToolCollection:
         arbitrary_types_allowed = True
 
     def __init__(self, *tools: BaseTool):
-        self.tools = tools
-        self.tool_map = {tool.name: tool for tool in tools}
+        self.tools: tuple[BaseTool, ...] = ()
+        self.tool_map: Dict[str, BaseTool] = {}
+        self.add_tools(*tools)
 
     def __iter__(self):
         return iter(self.tools)
