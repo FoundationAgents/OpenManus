@@ -1,3 +1,5 @@
+import asyncio
+
 from app.tool import BaseTool
 
 
@@ -18,4 +20,5 @@ class AskHuman(BaseTool):
     }
 
     async def execute(self, inquire: str) -> str:
-        return input(f"""Bot: {inquire}\n\nYou: """).strip()
+        answer = await asyncio.to_thread(input, f"""Bot: {inquire}\n\nYou: """)
+        return answer.strip()
