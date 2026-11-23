@@ -37,6 +37,13 @@ class MCPClientTool(BaseTool):
                 ),
                 None,
             )
+            # MCP reports tool-level failures through CallToolResult.isError
+            # while still returning content; surface them as tool errors instead
+            # of successful output.
+            if getattr(result, "isError", False):
+                return ToolResult(
+                    error=content_str or "MCP tool reported an error"
+                )
             return ToolResult(
                 output=content_str
                 or ("Image returned." if image else "No output returned."),

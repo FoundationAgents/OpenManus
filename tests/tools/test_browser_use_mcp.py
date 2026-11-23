@@ -116,6 +116,35 @@ async def test_tool_images_follow_the_tool_result_as_user_messages():
     assert image_message.base64_image == "cG5n"
 
 
+class ErrorSession(ClientSession):
+    def __init__(self):
+        # Do not call ClientSession.__init__: only call_tool is exercised here.
+        self.calls = []
+
+    async def call_tool(self, name, arguments):
+        self.calls.append((name, arguments))
+        return SimpleNamespace(
+            content=[TextContent(type="text", text="bad arguments")], isError=True
+        )
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_errors_are_reported_as_errors():
+    tool = MCPClientTool(
+        name="browser_exec",
+        description="Execute Browser Use CLI 3.0 code",
+        parameters={"type": "object"},
+        session=ErrorSession(),
+        server_id="browser_use",
+        original_name="browser_exec",
+    )
+
+    result = await tool.execute(code="x")
+
+    assert result.error == "bad arguments"
+    assert result.output is None
+
+
 @pytest.mark.asyncio
 async def test_manus_enables_cli_mcp_by_default(monkeypatch):
     calls = []
