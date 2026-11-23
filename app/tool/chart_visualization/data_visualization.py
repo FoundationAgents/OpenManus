@@ -160,6 +160,7 @@ Outputs:
                             f".{output_type}", ""
                         ),
                         "insights_id": item["insights_id"],
+                        "chart_path": chart_file_path[index],
                     }
                 )
         tasks = [
@@ -175,7 +176,7 @@ Outputs:
         error_list = []
         success_list = []
         for index, result in enumerate(results):
-            chart_path = chart_file_path[index]
+            chart_path = data_list[index]["chart_path"]
             if "error" in result and "chart_path" not in result:
                 error_list.append(f"Error in {chart_path}: {result['error']}")
             else:
