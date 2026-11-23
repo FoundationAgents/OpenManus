@@ -297,6 +297,13 @@ class LLM:
                 message = message.to_dict()
 
             if isinstance(message, dict):
+                # Work on a copy: the image handling below deletes base64_image
+                # and rewrites content, which must not touch caller-owned
+                # messages (a later call would then lose or leak the image).
+                message = dict(message)
+                if isinstance(message.get("content"), list):
+                    message["content"] = list(message["content"])
+
                 # If message is a dict, ensure it has required fields
                 if "role" not in message:
                     raise ValueError("Message dict must contain 'role' field")
