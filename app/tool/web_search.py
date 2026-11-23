@@ -122,11 +122,8 @@ class WebContentFetcher:
             "WebSearch": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
-        try:
-            # Use asyncio to run requests in a thread pool
-            response = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: requests.get(url, headers=headers, timeout=timeout)
-            )
+        def fetch_and_extract() -> Optional[str]:
+            response = requests.get(url, headers=headers, timeout=timeout)
 
             if response.status_code != 200:
                 logger.warning(
@@ -148,6 +145,9 @@ class WebContentFetcher:
             text = " ".join(text.split())
             return text[:10000] if text else None
 
+        try:
+            # Keep both blocking I/O and HTML parsing off the event loop.
+            return await asyncio.to_thread(fetch_and_extract)
         except Exception as e:
             logger.warning(f"Error fetching content from {url}: {e}")
             return None
