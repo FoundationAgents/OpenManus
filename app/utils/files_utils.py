@@ -1,4 +1,5 @@
 import os
+import posixpath
 
 
 # Files to exclude from operations
@@ -73,9 +74,11 @@ def clean_path(path: str, workspace_path: str = "/workspace") -> str:
     # Remove any leading slash
     path = path.lstrip("/")
 
-    # Remove workspace prefix if present
-    if path.startswith(workspace_path.lstrip("/")):
-        path = path[len(workspace_path.lstrip("/")) :]
+    # Remove workspace prefix if present, matching a whole path component so
+    # that "/workspace-other" is not treated as "/workspace"
+    workspace = workspace_path.strip("/")
+    if path == workspace or path.startswith(workspace + "/"):
+        path = path[len(workspace) :]
 
     # Remove workspace/ prefix if present
     if path.startswith("workspace/"):
@@ -83,5 +86,10 @@ def clean_path(path: str, workspace_path: str = "/workspace") -> str:
 
     # Remove any remaining leading slash
     path = path.lstrip("/")
+
+    # Normalize "." and ".." so the result cannot climb out of the workspace
+    # once the caller joins it back (e.g. f"{workspace}/{path}"). Anchoring at
+    # "/" makes leading ".." collapse instead of surviving.
+    path = posixpath.normpath("/" + path).lstrip("/") if path else ""
 
     return path
