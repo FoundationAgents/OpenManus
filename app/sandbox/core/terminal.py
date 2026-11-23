@@ -122,13 +122,17 @@ class DockerSession:
 
         Raises:
             socket.error: If socket communication fails.
+            RuntimeError: If the connection closes before a shell prompt is received.
         """
         buffer = b""
         while b"$ " not in buffer:
             try:
                 chunk = self.socket.recv(4096)
-                if chunk:
-                    buffer += chunk
+                if not chunk:
+                    raise RuntimeError(
+                        "Docker terminal connection closed before receiving shell prompt"
+                    )
+                buffer += chunk
             except socket.error as e:
                 if e.errno == socket.EWOULDBLOCK:
                     await asyncio.sleep(0.1)
