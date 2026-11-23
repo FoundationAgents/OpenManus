@@ -296,7 +296,7 @@ class PlanningTool(BaseTool):
         if step_status:
             plan["step_statuses"][step_index] = step_status
 
-        if step_notes:
+        if step_notes is not None:
             plan["step_notes"][step_index] = step_notes
 
         return ToolResult(
