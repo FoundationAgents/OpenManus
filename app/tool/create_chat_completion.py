@@ -46,12 +46,7 @@ class CreateChatCompletion(BaseTool):
         if isinstance(self.response_type, type) and issubclass(
             self.response_type, BaseModel
         ):
-            schema = self.response_type.model_json_schema()
-            return {
-                "type": "object",
-                "properties": schema["properties"],
-                "required": schema.get("required", self.required),
-            }
+            return self.response_type.model_json_schema()
 
         return self._create_type_schema(self.response_type)
 
