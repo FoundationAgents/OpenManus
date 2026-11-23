@@ -1,4 +1,5 @@
 from typing import List, Optional, Tuple
+from urllib.parse import quote_plus
 
 import requests
 from bs4 import BeautifulSoup
@@ -60,7 +61,7 @@ class BingSearchEngine(WebSearchEngine):
 
         list_result = []
         first = 1
-        next_url = BING_SEARCH_URL + query
+        next_url = BING_SEARCH_URL + quote_plus(query)
 
         while len(list_result) < num_results:
             data, next_url = self._parse_html(
