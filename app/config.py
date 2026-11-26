@@ -58,6 +58,10 @@ class SearchSettings(BaseModel):
         default="us",
         description="Country code for search results (e.g., us, cn, uk)",
     )
+    webrouter_provider: Optional[str] = Field(
+        default=None,
+        description="Backend for the WebRouter engine (e.g., tavily, exa); WebRouter picks one if unset",
+    )
 
 
 class RunflowSettings(BaseModel):

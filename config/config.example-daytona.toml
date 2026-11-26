@@ -71,7 +71,8 @@ temperature = 0.0                          # Controls randomness for vision mode
 
 # Optional configuration, Search settings.
 # [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing" or "WebRouter".
+# Engines not named here or in fallback_engines are tried after them; WebRouter is tried last.
 #engine = "Google"
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
 #fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
@@ -83,6 +84,9 @@ temperature = 0.0                          # Controls randomness for vision mode
 #lang = "en"
 # Country code for search results. Options: "us" (United States), "cn" (China), etc.
 #country = "us"
+# Backend for the WebRouter engine, e.g. "tavily" or "exa". WebRouter picks one if unset and needs no API key;
+# provider keys are read from the environment (e.g. TAVILY_API_KEY). See https://docs.webrouter.net
+#webrouter_provider = ""
 
 
 ## Sandbox configuration
